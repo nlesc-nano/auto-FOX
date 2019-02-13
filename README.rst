@@ -19,7 +19,7 @@ Anaconda environments
 - While not a strictly required, it stronly recomended to use the virtual environments of `Anaconda <https://www.anaconda.com/>`_.
 
 
-  - Available as either Miniconda_ or the complete `Anaconda <https://www.continuum.io/downloads>`_ package.
+  - Available as either Miniconda_ or the complete `Anaconda <https://www.anaconda.com/distribution/#download-section>`_ package.
 
 
 - Anaconda installation instructions are available for a wide range of OSs.
