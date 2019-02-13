@@ -15,7 +15,7 @@ Installation
 
 Installation instructions:
 
--  Update PLAMS_ using pip: ``pip install git+https://github.com/SCM-NV/PLAMS@master#egg=plams-1.2``
+-  Install PLAMS_ using pip: ``pip install git+https://github.com/SCM-NV/PLAMS@master#egg=plams-1.2``
 
 -  Install **Auto-FOX** using pip: ``pip install git+https://github.com/BvB93/auto-FOX@master#egg=Auto-FOX-0.1.0``
 
