@@ -15,7 +15,7 @@ from FOX.examples.example_xyz import get_example_xyz
 xyz_file = get_example_xyz()
 
 
-def test_read_xyz(xyz_file):
+def test_read_xyz():
     """ Test the FOX.functions.read_xyz module. """
     # Run functions
     xyz_array, idx_dict = read_multi_xyz(xyz_file)
@@ -47,7 +47,7 @@ def test_read_xyz(xyz_file):
         assert key in at_tup
 
 
-def test_radial_distribution(xyz_file):
+def test_radial_distribution():
     """ Test the FOX.functions.radial_distribution module. """
     # Set constants
     dr = 0.05
@@ -76,3 +76,8 @@ def test_radial_distribution(xyz_file):
         at1, at2 = key.split()
         assert at1 in atoms
         assert at2 in atoms
+
+
+def test_example_input():
+    """ Test the example input file in FOX.examples.input. """
+    from FOX.examples import input
