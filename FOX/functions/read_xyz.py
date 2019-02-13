@@ -70,8 +70,8 @@ def get_file_size(file, add=0):
 def get_idx_dict(file, mol_size=False):
     """ Extract atomic symbols from an opened text file.
     file <_io.TextIOWrapper>: An opened text file.
-    mol_size <int>
-    return <dict>: A dictionary {atomic symbols: [atomic indices]}
+    mol_size <int>: The number of atoms in a single molecule.
+    return <dict>: A dictionary {atomic symbols: [atomic indices]}.
     """
     idx_dict = {}
     abort = mol_size - 1
