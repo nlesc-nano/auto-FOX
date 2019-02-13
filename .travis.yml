@@ -20,6 +20,7 @@ install:
   # Useful for debugging any issues with conda
   - conda info -a
 
+  - pip install git+https://github.com/SCM-NV/PLAMS.git@master#egg=plams-1.2 --upgrade
   - pip install .[test]
   
 script:
