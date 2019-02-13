@@ -1,6 +1,8 @@
 
 sudo: false
 language: python
+rvm:
+  - 
 
 env:
   global:
@@ -22,7 +24,7 @@ install:
   
 script:
   # Run the unitary tests excluding the expensive computations
-  - pytest -m "not (slow or long)" --cov=auto-FOX test
+  - pytest -m "not (slow or long)" --cov=FOX test
   - coverage xml && coverage report -m
 
 branches:
