@@ -2,7 +2,7 @@
 
 __all__ = []
 
-from os.path import (join, dirname)
+from os.path import join
 
 
 def get_example_xyz(path=None, name='Cd68Se55_26COO_MD_trajec.xyz'):
