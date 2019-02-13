@@ -13,8 +13,8 @@ Automated Forcefield Optimization Extension
 Installation
 ============
 
-Conda
------
+Anaconda environments
+---------------------
 
 - While not a strictly required, it stronly recomended to use the virtual environments of `Anaconda <https://www.anaconda.com/>`_.
 
@@ -28,7 +28,7 @@ Conda
   - See the `Anaconda documentation <https://docs.anaconda.com/anaconda/install/>`_ for more details.   
 
 
-- The anaconda virtual environment can be created, enabled and disabled by, respectively, typing:
+- The anaconda environment can be created, enabled and disabled by, respectively, typing:
 
   - Creation: ``conda create --name FOX python`` 
 
@@ -37,10 +37,10 @@ Conda
   - Disable: ``conda deactivate``
     
 
-Installing **Auto-FOX**:
-------------------------
+Installing **Auto-FOX**
+-----------------------
 
--  If using Conda, enable the virtual environment: ``conda activate FOX`` 
+-  If using Conda, enable the environment: ``conda activate FOX`` 
 
 -  Install **Auto-FOX** using pip: ``pip install git+https://github.com/BvB93/auto-FOX@master#egg=Auto-FOX-0.1.0``
 
