@@ -1,4 +1,7 @@
-""" Lint tests """
+""" A module for testing pep8 compliance. """
+
+__all__ = []
+
 import os
 import textwrap
 
@@ -8,8 +11,8 @@ import pycodestyle  # formerly known as pep8
 def test_pep8_conformance():
     """Test that we conform to PEP-8."""
     check_paths = [
-        'Auto-FOX',
-        'tests',
+        'FOX',
+        'test',
     ]
     exclude_paths = []
 

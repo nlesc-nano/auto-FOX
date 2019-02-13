@@ -8,7 +8,7 @@ here = os.path.abspath(os.path.dirname(__file__))
 
 # To update the package version number, edit Auto-FOX/__version__.py
 version = {}
-with open(os.path.join(here, 'Auto-FOX', '__version__.py')) as f:
+with open(os.path.join(here, 'FOX', '__version__.py')) as f:
     exec(f.read(), version)
 
 with open('README.rst') as readme_file:

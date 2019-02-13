@@ -15,7 +15,7 @@ Installation
 
 Install Auto-FOX using pip:
 
-- ``pip install git+https://github.com/BvB93/CAT@master#egg=CAT-0.1.0``
+- ``pip install git+https://github.com/BvB93/auto-FOX@master#egg=CAT-0.1.0``
 
 
 Currently implemented
