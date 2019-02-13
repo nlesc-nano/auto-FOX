@@ -1,5 +1,7 @@
 """ A module for grabbing the example multi-xyz file. """
 
+__all__ = []
+
 from os.path import (join, dirname)
 
 

@@ -1,5 +1,7 @@
 """ An input file example. """
 
+__all__ = []
+
 import time
 
 from FOX.functions.read_xyz import read_multi_xyz

@@ -1,5 +1,7 @@
 """ A module with work in progress miscellaneous functions """
 
+__all__ = []
+
 import numpy as np
 
 # from scm.plams.tools.units import Units

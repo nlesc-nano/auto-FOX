@@ -1,4 +1,7 @@
-""" Lint tests """
+""" A module for testing pep8 compliance. """
+
+__all__ = []
+
 import os
 import textwrap
 
