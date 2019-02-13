@@ -1,7 +1,7 @@
 
 .. image:: https://travis-ci.org/BvB93/auto-FOX.svg?branch=master
    :target: https://travis-ci.org/BvB93/auto-FOX
-.. image:: https://img.shields.io/badge/python-3.6-blue.svg
+.. image:: https://img.shields.io/badge/python-3-blue.svg
    :target: https://www.python.org
 
 ###########################################
