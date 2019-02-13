@@ -30,11 +30,11 @@ Anaconda environments
 
 - The anaconda environment can be created, enabled and disabled by, respectively, typing:
 
-  - Creation: ``conda create --name FOX python`` 
+  - Create environment: ``conda create --name FOX python`` 
 
-  - Enable: ``conda activate FOX`` 
+  - Enable environment: ``conda activate FOX`` 
   
-  - Disable: ``conda deactivate``
+  - Disable environment: ``conda deactivate``
     
 
 Installing **Auto-FOX**
