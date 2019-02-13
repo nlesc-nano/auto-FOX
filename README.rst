@@ -20,11 +20,9 @@ Conda
 
 - Install according to: installConda_. 
 
-- New virtual environments can be created with the following commands:
+- The virtual environment can be created, enabled and disabled by, respectively, typing:
 
-  - ``conda create --name FOX python`` 
-
-- The virtual environment can be enabled and disabled by, respectively, typing:
+  - Creation: ``conda create --name FOX python`` 
 
   - Enable: ``conda activate FOX`` 
   
@@ -34,7 +32,7 @@ Conda
 Installing **Auto-FOX**:
 ------------------------
 
--  If using Conda, activate the virtual environment: ``conda activate FOX`` 
+-  If using Conda, enable the virtual environment: ``conda activate FOX`` 
 
 -  Install **Auto-FOX** using pip: ``pip install git+https://github.com/BvB93/auto-FOX@master#egg=Auto-FOX-0.1.0``
 
