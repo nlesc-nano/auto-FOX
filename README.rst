@@ -18,11 +18,15 @@ Conda
 
 - While not a strictly required, it stronly recomended to use the virtual environments of `Anaconda <https://www.anaconda.com/>`_.
 
-   - Available as either Miniconda_ or the complete `Anaconda <https://www.continuum.io/downloads>`_ package.
+
+  - Available as either Miniconda_ or the complete `Anaconda <https://www.continuum.io/downloads>`_ package.
+
 
 - Anaconda installation instructions are available for a wide range of OSs.
 
-   - See the `Anaconda documentation <https://docs.anaconda.com/anaconda/install/>`_ for more details.   
+
+  - See the `Anaconda documentation <https://docs.anaconda.com/anaconda/install/>`_ for more details.   
+
 
 - The anaconda virtual environment can be created, enabled and disabled by, respectively, typing:
 
