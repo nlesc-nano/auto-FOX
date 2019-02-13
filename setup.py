@@ -42,7 +42,7 @@ setup(
     ],
     test_suite='tests',
     install_requires=[
-        'numpy', 'scipy', 'pandas', 'yaml', 'plams>=1.2'
+        'numpy', 'scipy', 'pandas', 'pyyaml', 'plams>=1.2'
     ],
     dependency_links=[
         'git+https://github.com/SCM-NV/PLAMS@master#egg=plams-1.2'
