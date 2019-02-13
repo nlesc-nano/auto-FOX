@@ -1,5 +1,5 @@
-########
-Auto-FOX
-########
+###########################################
+Automated Forcefield Optimization Extension
+###########################################
 
-A tool for parameterizing forcefields by reproducing radial distribution functions.
+Auto-FOX tool for parameterizing forcefields by reproducing radial distribution functions.
