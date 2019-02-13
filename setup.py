@@ -27,10 +27,11 @@ setup(
     include_package_data=True,
     license="GNU General Public License v3 or later",
     zip_safe=False,
-    keywords=['quantum-mechanics', 
-              'science', 
-              'chemistry', 
-              'python-3', 
+    keywords=[
+        'quantum-mechanics', 
+        'science', 
+        'chemistry', 
+        'python-3', 
     ],
     classifiers=[
         'Development Status :: 2 - Pre-Alpha',
@@ -44,9 +45,7 @@ setup(
     install_requires=[
         'numpy', 'scipy', 'pandas', 'pyyaml', 'plams>=1.2'
     ],
-    dependency_links=[
-        'https://github.com/SCM-NV/PLAMS@master#egg=plams-1.2'
-    ],
+    dependency_links=['https://github.com/SCM-NV/PLAMS@master#egg=plams-1.2'],
     setup_requires=[
         'pytest-runner',
         'sphinx',
