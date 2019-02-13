@@ -20,7 +20,13 @@ def read_multi_xyz(xyz_file, ret_idx_dict=True):
         mol_size = get_mol_size(file)
         idx_dict = get_idx_dict(file, mol_size)
         file_size = get_file_size(file, add=[2, mol_size])
-        mol_count = file_size // (2 + mol_size)
+        mol_count_float = file_size / (2 + mol_size)
+        mol_count = int(mol_count_float)
+        
+        # Check if the number of mol_count prepresents a valid amount of molecules
+        if mol_count_float - mol_count != 0.0:
+            error = 'A non-integer number of molecules was found in', xyz_file + ':', mol_count
+            raise IndexError(error)
 
         # Create an empty (m*n)*3 xyz array
         shape = mol_count * mol_size, 3
@@ -47,13 +53,15 @@ def get_mol_size(file):
     """ Extract the number of atoms in a molecule from an .xyz file.
     The number of atoms is extracted form the first line.
     file <_io.TextIOWrapper>: An opened text file.
-    return <int>: The number of atoms per mol.
+    return <int>: The number of atoms per molecule.
     """
     for item in file:
         try:
             return int(item)
         except ValueError:
-            pass
+            error = str(item), 'is not a valid integer, the first line in an .xyz file should '
+            error += 'contain the number of atoms in a molecule'
+            raise IndexError(error)
 
 
 def get_file_size(file, add=0):
