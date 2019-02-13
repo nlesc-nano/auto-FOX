@@ -39,13 +39,16 @@ setup(
         'Topic :: Scientific/Engineering :: Chemistry'
         'License :: OSI Approved :: GNU Lesser General Public License',
         'Natural Language :: English',
-        'Programming Language :: Python :: 3.6',
+        'Programming Language :: Python :: 3.7',
     ],
     test_suite='tests',
     install_requires=[
-        'numpy', 'scipy', 'pandas', 'pyyaml', 'plams>=1.2'
+        'numpy', 
+        'scipy', 
+        'pandas', 
+        'pyyaml', 
+        'plams@git+https://github.com/SCM-NV/PLAMS@master#egg=plams-1.2'
     ],
-    dependency_links=['https://github.com/SCM-NV/PLAMS@master#egg=plams-1.2'],
     setup_requires=[
         'pytest-runner',
         'sphinx',

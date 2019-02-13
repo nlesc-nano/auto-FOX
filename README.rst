@@ -13,9 +13,28 @@ Automated Forcefield Optimization Extension
 Installation
 ============
 
-Installation instructions:
+Conda
+-----
 
--  Install PLAMS_ using pip: ``pip install git+https://github.com/SCM-NV/PLAMS@master#egg=plams-1.2``
+- While not a strictly required, it stronly recomended to use the virtual environments of miniconda_ (or alternatively the complete anaconda_ version).
+
+- Install according to: installConda_. 
+
+- New virtual environments can be created with the following commands:
+
+  - ``conda create --name FOX python`` 
+
+- The virtual environment can be enabled and disabled by, respectively, typing:
+
+  - Enable: ``conda activate FOX`` 
+  
+  - Disable: ``conda deactivate``
+    
+
+Installing **Auto-FOX**:
+------------------------
+
+-  If using Conda, activate the virtual environment: ``conda activate FOX`` 
 
 -  Install **Auto-FOX** using pip: ``pip install git+https://github.com/BvB93/auto-FOX@master#egg=Auto-FOX-0.1.0``
 
@@ -30,7 +49,9 @@ This package is a work in progress; the following modules are currently implemen
 - A multi-xyz reader at FOX.functions.read_xyz_
 - A radial distribution generator at FOX.functions.radial_distribution_
 
+.. _miniconda: http://conda.pydata.org/miniconda.html
+.. _anaconda: https://www.continuum.io/downloads
+.. _installConda: https://docs.anaconda.com/anaconda/install/
 .. _FOX.examples: https://github.com/BvB93/auto-FOX/blob/master/FOX/examples/input.py
-.. _PLAMS: https://github.com/SCM-NV/PLAMS
 .. _FOX.functions.read_xyz: https://github.com/BvB93/auto-FOX/tree/master/FOX/functions/read_xyz.py
 .. _FOX.functions.radial_distribution: https://github.com/BvB93/auto-FOX/tree/master/FOX/functions/radial_distribution.py
