@@ -14,7 +14,7 @@ def get_rel_error(g_QM, g_MM, T=298.15, unit='kcal/mol'):
     unit <str>: The unit of the to be returned energy
     return <np.array>: The relative error dXi.
     """
-    RT = 0.00198720 * T # * Units.conversion_ratio('kcal/mol', unit)
+    RT = 0.00198720 * T  # * Units.conversion_ratio('kcal/mol', unit)
     return -RT * np.log1p((g_MM - g_QM) / g_QM)
 
 

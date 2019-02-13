@@ -28,7 +28,7 @@ def read_multi_xyz(xyz_file, ret_idx_dict=True):
 
     # Fill the xyz array with cartesian coordinates
     with open(xyz_file, 'r') as file:
-        j=0
+        j = 0
         for i, at in enumerate(file):
             at = at.split()
             if len(at) == 4:
