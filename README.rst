@@ -16,11 +16,15 @@ Installation
 Conda
 -----
 
-- While not a strictly required, it stronly recomended to use the virtual environments of miniconda_ (or alternatively the complete anaconda_ version).
+- While not a strictly required, it stronly recomended to use the virtual environments of `Anaconda <https://www.anaconda.com/>`_.
 
-- Install according to: installConda_. 
+   - Available as either Miniconda_ or the complete `Anaconda <https://www.continuum.io/downloads>`_ package.
 
-- The virtual environment can be created, enabled and disabled by, respectively, typing:
+- Anaconda installation instructions are available for a wide range of OSs.
+
+   - See the `Anaconda documentation <https://docs.anaconda.com/anaconda/install/>`_ for more details.   
+
+- The anaconda virtual environment can be created, enabled and disabled by, respectively, typing:
 
   - Creation: ``conda create --name FOX python`` 
 
@@ -47,9 +51,7 @@ This package is a work in progress; the following modules are currently implemen
 - A multi-xyz reader at FOX.functions.read_xyz_
 - A radial distribution generator at FOX.functions.radial_distribution_
 
-.. _miniconda: http://conda.pydata.org/miniconda.html
-.. _anaconda: https://www.continuum.io/downloads
-.. _installConda: https://docs.anaconda.com/anaconda/install/
+.. _Miniconda: http://conda.pydata.org/miniconda.html
 .. _FOX.examples: https://github.com/BvB93/auto-FOX/blob/master/FOX/examples/input.py
 .. _FOX.functions.read_xyz: https://github.com/BvB93/auto-FOX/tree/master/FOX/functions/read_xyz.py
 .. _FOX.functions.radial_distribution: https://github.com/BvB93/auto-FOX/tree/master/FOX/functions/radial_distribution.py
