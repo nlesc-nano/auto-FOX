@@ -15,7 +15,7 @@ Installation
 
 Install Auto-FOX using pip:
 
-- ``pip install git+https://github.com/BvB93/auto-FOX@master#egg=CAT-0.1.0``
+- ``pip install git+https://github.com/BvB93/auto-FOX@master#egg=Auto-FOX-0.1.0``
 
 
 Currently implemented
@@ -26,5 +26,5 @@ This package is a work in progress; the following modules are currently implemen
 - A multi-xyz reader at FOX.functions.read_xyz_
 - A radial distribution generator at FOX.functions.radial_distribution_
 
-.. _FOX.functions.read_xyz: https://github.com/BvB93/auto-FOX/FOX/functions/read_xyz.py
-.. _FOX.functions.radial_distribution: https://github.com/BvB93/auto-FOX/FOX/functions/radial_distribution.py
+.. _FOX.functions.read_xyz: https://github.com/BvB93/auto-FOX/tree/master/FOX/functions/read_xyz.py
+.. _FOX.functions.radial_distribution: https://github.com/BvB93/auto-FOX/tree/master/FOX/functions/radial_distribution.py
