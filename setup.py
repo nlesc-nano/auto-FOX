@@ -45,7 +45,7 @@ setup(
         'numpy', 'scipy', 'pandas', 'pyyaml', 'plams>=1.2'
     ],
     dependency_links=[
-        'git+https://github.com/SCM-NV/PLAMS@master#egg=plams-1.2'
+        'https://github.com/SCM-NV/PLAMS@master#egg=plams-1.2'
     ],
     setup_requires=[
         'pytest-runner',
