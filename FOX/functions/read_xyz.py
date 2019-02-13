@@ -55,13 +55,13 @@ def get_mol_size(file):
     file <_io.TextIOWrapper>: An opened text file.
     return <int>: The number of atoms per molecule.
     """
-    for item in file:
-        try:
-            return int(item)
-        except ValueError:
-            error = str(item), 'is not a valid integer, the first line in an .xyz file should '
-            error += 'contain the number of atoms in a molecule'
-            raise IndexError(error)
+    item = file.read():
+    try:
+        return int(item)
+    except ValueError:
+        error = str(item), 'is not a valid integer, the first line in an .xyz file should '
+        error += 'contain the number of atoms in a molecule'
+        raise IndexError(error)
 
 
 def get_file_size(file, add=0):
