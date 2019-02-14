@@ -21,7 +21,7 @@ setup(
     long_description=readme + '\n\n',
     author='Bas van Beek',
     author_email='b.f.van.beek@vu.nl',
-    url='https://github.com//Auto-FOX',
+    url='https://github.com/BvB93/Auto-FOX',
     packages=['FOX'],
     package_dir={'FOX': 'FOX'},
     include_package_data=True,
