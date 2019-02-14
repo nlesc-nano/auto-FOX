@@ -13,7 +13,7 @@ def get_all_radial(xyz_array, idx_dict, dr=0.05, r_max=12.0, atoms=None):
 
     :parameter xyz_array: A *m*n*3* or *n*3* numpy array with the cartesian coordinates of *m*
         molecules consisting of *n* atoms.
-    :type xyz_array: np.ndarray_
+    :type xyz_array: |np.ndarray|_
     :parameter dict idx_dict: A dictionary consisting with atomic symbols as keys and matching
         atomic indices as values (|str|_: |list|_ [|int|_]).
     :parameter float dr: The integration step-size in Angstrom, *i.e.* the distance between
