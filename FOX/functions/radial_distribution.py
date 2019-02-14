@@ -8,19 +8,23 @@ from scipy.spatial.distance import cdist
 
 
 def get_all_radial(xyz_array, idx_dict, dr=0.05, r_max=12.0, atoms=None):
-    """ Return the radial distribution functions (RDF's) for all possible atom-pairs in *atoms*
-    as dataframe. Accepts both 2d and 3d arrays of cartesian coordinates.
+    """ Return the radial distribution functions (RDFs) for all possible atom-pairs in **atoms**
+    as dataframe. Accepts both 2d and 3d arrays of cartesian coordinates as input.
 
-    xyz_array <np.ndarray>: A m*n*3 or n*3 numpy array of the cartesian coordinates of m molecules
-        (isomers) consisting of n atoms.
-    idx_dict <dict>[<list>]: A dictionary consisting of {atomic symbols: [atomic indices]}.
-    dr <float>: The integration step-size in Angstrom, i.e. the distance between concentric spheres.
-    r_max <float>: The maximum to be evaluated interatomic distance.
-    atoms <None> or <tuple>[<str>]: A tuple of atomic symbols. An RDF will be calculated for all
-        possible atom-pairs in *atoms*. If *atoms* = <None>, An RDF will be calculated for all
-        possible atom-pairs in *idx_dict*.keys() (i.e. the entire molecule).
-    return <pd.DataFrame>: A Pandas dataframe of radial distribution functions, averaged over all
-        conformations in *xyz_array*.
+    :parameter xyz_array: A *m*n*3* or *n*3* numpy array with the cartesian coordinates of *m*
+        molecules consisting of *n* atoms.
+    :type xyz_array: np.ndarray_
+    :parameter dict idx_dict: A dictionary consisting with atomic symbols as keys and matching
+        atomic indices as values (|str|_: |list|_ [|int|_]).
+    :parameter float dr: The integration step-size in Angstrom, *i.e.* the distance between
+        concentric spheres.
+    :parameter float r_max: The maximum to be evaluated interatomic distance.
+    :parameter atoms: A tuple of atomic symbols. RDFs will be calculated for all
+        possible atom-pairs in **atoms**. If *None*, calculate RDFs for all possible atom-pairs in
+        the keys of **idx_dict** (*i.e.* all possible atoms pairs in the molecule).
+    :type atoms: None or tuple [str]
+    :return: A dataframe (|pd.DataFrame|_) of radial distribution functions, averaged over all
+        conformations in **xyz_array**.
     """
     # Make sure we're dealing with a 3d array
     if len(xyz_array.shape) == 2:
