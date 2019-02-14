@@ -13,7 +13,7 @@ def read_multi_xyz(xyz_file, ret_idx_dict=True):
     :parameter bool ret_idx_dict: In addition to returning cartesian coordinates, return a
         dictionary with atomic symbols and matching atomic indices.
     :return: A *m*n*3* array (|np.ndarray|_) of cartesian coordinates and, optionally, a dictionary
-        (|dict|_) with atomic symbols as keys and atomic indices as
+        (|dict|_) with atomic symbols as keys and matching atomic indices as
         values (|str|_: |list|_ [|int|_]).
     """
     with open(xyz_file, 'r') as file:
