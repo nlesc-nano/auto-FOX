@@ -19,7 +19,7 @@ xyz_file = get_example_xyz()
 print('')
 start = time.time()
 
-# Run the actual script and plot the results
+# Run the actual script
 xyz_array, idx_dict = read_multi_xyz(xyz_file)
 df = get_all_radial(xyz_array, idx_dict, dr=dr, r_max=r_max, atoms=atoms)
 

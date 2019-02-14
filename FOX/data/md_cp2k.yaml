@@ -1,0 +1,32 @@
+global:
+    project: Auto-FOX
+    run_type: MD
+    print_level: Low
+
+motion:
+    md:
+        ensemble: NVT
+        temperature: 300
+        timestep: 1
+        time_start_val: 5000
+        step: 10000
+        max_step: 15000
+        thermostat:
+            type: CSVR
+            csvr:
+                timecon: 1250
+
+force_eval:
+    method: Quickstep
+    sybsys:
+        cell: 
+            abc: '[angstrom] 50.0 50.0 50.0'
+            periodic: None
+        topology: 
+            coordinate: xyz
+            coord_file_name: placeholder
+            center_coordinates: ''
+
+    mm:
+        parmtype: Amber placeholder
+        parm_file_name: placeholder

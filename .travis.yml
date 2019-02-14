@@ -19,7 +19,8 @@ install:
   
   # Useful for debugging any issues with conda
   - conda info -a
-
+  
+  # Install the package
   - pip install .[test]
   
 script:
