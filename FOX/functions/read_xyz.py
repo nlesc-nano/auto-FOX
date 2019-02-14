@@ -18,14 +18,15 @@ def read_multi_xyz(xyz_file, ret_idx_dict=True):
     with open(xyz_file, 'r') as file:
         # Define constants and construct a dictionary: {atomic symbols: [atomic indices]}
         mol_size = get_mol_size(file)
-        idx_dict = get_idx_dict(file, mol_size, -2)
+        idx_dict = get_idx_dict(file, mol_size=mol_size, subtract=1)
         file_size = get_file_size(file, add=[2, mol_size])
         mol_count_float = file_size / (2 + mol_size)
         mol_count = int(mol_count_float)
-        
+
         # Check if mol_count_float is fractional; raise an error if it is
         if mol_count_float - mol_count != 0.0:
-            error = 'A non-integer number of molecules was found in', xyz_file + ':', mol_count
+            error = 'A non-integer number of molecules was found in '
+            error += xyz_file + ': ' + str(mol_count)
             raise IndexError(error)
 
         # Create an empty (m*n)*3 xyz array
@@ -55,11 +56,11 @@ def get_mol_size(file):
     file <_io.TextIOWrapper>: An opened text file.
     return <int>: The number of atoms per molecule.
     """
-    item = file.read():
+    item = file.readline()
     try:
         return int(item)
     except ValueError:
-        error = str(item), 'is not a valid integer, the first line in an .xyz file should '
+        error = str(item) + ' is not a valid integer, the first line in an .xyz file should '
         error += 'contain the number of atoms in a molecule'
         raise IndexError(error)
 
