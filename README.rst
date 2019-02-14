@@ -52,7 +52,7 @@ Currently implemented
 
 This package is a work in progress; the following modules are currently implemented:
 
-- A multi-xyz reader at FOX.functions.read_xyz_
+- A multi-XYZ reader at FOX.functions.read_xyz_
 - A radial distribution generator at FOX.functions.radial_distribution_
 
 .. _Miniconda: http://conda.pydata.org/miniconda.html
