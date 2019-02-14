@@ -24,7 +24,7 @@ def get_all_radial(xyz_array, idx_dict, dr=0.05, r_max=12.0, atoms=None):
         the keys of **idx_dict** (*i.e.* all possible atoms pairs in the molecule).
     :type atoms: None or tuple [str]
     :return: A dataframe (|pd.DataFrame|_) of radial distribution functions, averaged over all
-        conformations in **xyz_array**.
+        *m* conformations in **xyz_array**.
     """
     # Make sure we're dealing with a 3d array
     if len(xyz_array.shape) == 2:
