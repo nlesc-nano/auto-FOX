@@ -4,3 +4,9 @@ __author__ = "Bas van Beek"
 __email__ = 'b.f.van.beek@vu.nl'
 
 from .__version__ import __version__
+
+from .functions import (read_multi_xyz, get_all_radial)
+
+__all__ = [
+    'read_multi_xyz', 'get_all_radial'
+]
