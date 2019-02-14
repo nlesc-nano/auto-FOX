@@ -18,12 +18,12 @@ def read_multi_xyz(xyz_file, ret_idx_dict=True):
     with open(xyz_file, 'r') as file:
         # Define constants and construct a dictionary: {atomic symbols: [atomic indices]}
         mol_size = get_mol_size(file)
-        idx_dict = get_idx_dict(file, mol_size)
+        idx_dict = get_idx_dict(file, mol_size, -2)
         file_size = get_file_size(file, add=[2, mol_size])
         mol_count_float = file_size / (2 + mol_size)
         mol_count = int(mol_count_float)
         
-        # Check if the number of mol_count prepresents a valid amount of molecules
+        # Check if mol_count_float is fractional; raise an error if it is
         if mol_count_float - mol_count != 0.0:
             error = 'A non-integer number of molecules was found in', xyz_file + ':', mol_count
             raise IndexError(error)
@@ -75,15 +75,16 @@ def get_file_size(file, add=0):
     return i + sum(add)
 
 
-def get_idx_dict(file, mol_size=False):
+def get_idx_dict(file, mol_size=False, subtract=0):
     """ Extract atomic symbols from an opened text file.
     file <_io.TextIOWrapper>: An opened text file.
     mol_size <int>: The number of atoms in a single molecule.
+    subtract <int>: Ignore the first n lines in *file*
     return <dict>: A dictionary {atomic symbols: [atomic indices]}.
     """
     idx_dict = {}
-    abort = mol_size - 1
-    for i, at in enumerate(file, -1):
+    abort = mol_size - subtract
+    for i, at in enumerate(file, -subtract):
         if i >= 0:
             at = at.split()[0].capitalize()
             try:
