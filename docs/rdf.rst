@@ -15,6 +15,7 @@ The herein implemented get_all_radial() function is designed for constructing RD
 .. _list: https://docs.python.org/3/library/stdtypes.html#list
 .. _int: https://docs.python.org/3/library/functions.html#int
 
+.. |np.ndarray| replace:: *np.ndarray*
 .. |pd.DataFrame| replace:: *pd.DataFrame*
 .. |str| replace:: *str*
 .. |list| replace:: *list*
