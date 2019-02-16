@@ -1,6 +1,8 @@
 
 .. image:: https://travis-ci.org/BvB93/auto-FOX.svg?branch=master
    :target: https://travis-ci.org/BvB93/auto-FOX
+.. image:: https://readthedocs.org/projects/auto-fox/badge/?version=latest
+   :target: https://auto-fox.readthedocs.io/en/latest
 .. image:: https://img.shields.io/badge/python-3-blue.svg
    :target: https://www.python.org
 
@@ -8,7 +10,7 @@
 Automated Forcefield Optimization Extension
 ###########################################
 
-**Auto-FOX** is a tool for parameterizing forcefields by reproducing radial distribution functions.
+**Auto-FOX** is a tool for parameterizing forcefields by reproducing radial distribution functions. Further details are provided in the documentation_.
 
 Installation
 ============
@@ -55,6 +57,7 @@ This package is a work in progress; the following modules are currently implemen
 - A multi-XYZ reader at FOX.functions.read_xyz_
 - A radial distribution generator at FOX.functions.radial_distribution_
 
+.. _documentation: https://auto-fox.readthedocs.io/en/latest/
 .. _Miniconda: http://conda.pydata.org/miniconda.html
 .. _FOX.examples: https://github.com/BvB93/auto-FOX/blob/master/FOX/examples/input.py
 .. _FOX.functions.read_xyz: https://github.com/BvB93/auto-FOX/tree/master/FOX/functions/read_xyz.py

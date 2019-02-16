@@ -9,11 +9,11 @@ def read_multi_xyz(xyz_file, ret_idx_dict=True):
     """ Reads a (multi) .xyz file and return a *m*n*3* array with the cartesian coordinates of *m*
     molecules consisting of *n* atoms.
 
-    :parameter str file: The path + filename of a xyz or multi-xyz file.
+    :parameter str file: The path + filename of a (multi) .xyz file.
     :parameter bool ret_idx_dict: In addition to returning cartesian coordinates, return a
-        dictionary with atomic symbols and matching atomic indices.
+        dictionary with atomic symbols and matching atomic indices (|str|_: |list|_ [|int|_]).
     :return: A *m*n*3* array (|np.ndarray|_) of cartesian coordinates and, optionally, a dictionary
-        (|dict|_) with atomic symbols as keys and atomic indices as
+        (|dict|_) with atomic symbols as keys and matching atomic indices as
         values (|str|_: |list|_ [|int|_]).
     """
     with open(xyz_file, 'r') as file:

@@ -1,5 +1,5 @@
-Automated Forcefield Optimization Extension
-===========================================
+Auto-FOX API
+============
 
 .. toctree::
     xyz_reader
