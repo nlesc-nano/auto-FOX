@@ -11,11 +11,12 @@ def get_all_radial(xyz_array, idx_dict, dr=0.05, r_max=12.0, atoms=None):
     """ Calculate and return the radial distribution functions (RDFs) for all possible atom-pairs
     in **atoms** as a dataframe. Accepts both 2d and 3d arrays of cartesian coordinates as input.
 
-    :parameter xyz_array: A *m*n*3* or *n*3* numpy array with the cartesian coordinates of *m*
+    :parameter xyz_array: A 3D or 2D array with cartesian coordinates of *m*
         molecules consisting of *n* atoms.
-    :type xyz_array: |np.ndarray|_ [np.float64_]
-    :parameter dict idx_dict: A dictionary consisting with atomic symbols as keys and matching
-        atomic indices as values (|str|_: |list|_ [|int|_]).
+    :type xyz_array: *m*n*3* or *n*3* |np.ndarray|_ [|np.float64|_]
+    :parameter idx_dict: A dictionary with the atomic symbols in **xyz_array** as keys
+        and matching atomic indices as values.
+    :type idx_dict: |dict|_ (keys: |str|_, values: |list|_ [|int|_])
     :parameter float dr: The integration step-size in Angstrom, *i.e.* the distance between
         concentric spheres.
     :parameter float r_max: The maximum to be evaluated interatomic distance.
@@ -23,9 +24,10 @@ def get_all_radial(xyz_array, idx_dict, dr=0.05, r_max=12.0, atoms=None):
         possible atom-pairs in **atoms**. If *None*, calculate RDFs for all possible atom-pairs
         in the keys of **idx_dict** (*i.e.* all possible atoms pairs in the molecule).
     :type atoms: None or tuple [str]
-    :return: A dataframe of radial distribution functions, averaged
-        over all conformations in **xyz_array**.
-    :rtype: |pd.DataFrame|_ [|np.float64|_]
+    :return: A dataframe of radial distribution functions, averaged over all conformations in
+        **xyz_array**. Keys are of the form: at_symbol1 + ' ' + at_symbol2 (*e.g.* 'Cd Cd').
+        The radius is used as index.
+    :rtype: |pd.DataFrame|_ (keys: |str|_, values: |np.float64|_, indices: |np.float64|_).
     """
     # Make sure we're dealing with a 3d array
     if len(xyz_array.shape) == 2:
@@ -76,15 +78,15 @@ def get_radial_distr(array1, array2, dr=0.05, r_max=12.0):
     """ Calculate and return the radial distribution function (RDF) between atoms in
     **array1** and **array2** as an array.
 
-    :parameter array1: A *n*3* array of cartesian coordinates.
-    :type array1: |np.ndarray|_ [|np.float64|_]
-    :parameter array2: A *m*3* array of cartesian coordinates.
-    :type array2: |np.ndarray|_ [|np.float64|_]
+    :parameter array1: A 2D array of cartesian coordinates.
+    :type array1: *n*3* |np.ndarray|_ [|np.float64|_]
+    :parameter array2: A 2D array of cartesian coordinates.
+    :type array2: *m*3* |np.ndarray|_ [|np.float64|_]
     :parameter float dr: The integration step-size in Angstrom, *i.e.* the distance between
         concentric spheres.
     :parameter float r_max: The maximum to be evaluated interatomic distance.
     :return: An array with the resulting radial distribution function.
-    :rtype: a 1D |np.ndarray|_ [|np.float64|_] of length 1 + **r_max** / **dr**.
+    :rtype: 1D |np.ndarray|_ [|np.float64|_] of length 1 + **r_max** / **dr**.
     """
     idx_max = 1 + int(r_max / dr)
     dist = cdist(array1, array2)
