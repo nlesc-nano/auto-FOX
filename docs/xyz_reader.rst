@@ -3,13 +3,16 @@ Multi-XYZ reader
 
 A reader of multi-xyz files has been implemented in the :mod:`FOX.functions.read_xyz` module.
 The .xyz fileformat is designed for storing the atomic symbols and cartesian coordinates of one or more molecules.
-The herein implemented read_multi_xyz() function allows for the fast, and memory-effiecient, retrieval of the various molecular geometries stored in an .xyz file.
+The herein implemented read_multi_xyz() function allows for the fast, and memory-effiecient,
+retrieval of the various molecular geometries stored in an .xyz file.
+
+There are currently two implementations available
 
 .. autofunction:: FOX.functions.read_xyz.read_multi_xyz
 
 .. autofunction:: FOX.functions.read_xyz.multi_xyz_to_molecule
 
-.. autofunction:: FOX.functions.read_xyz.randomize_multi_xyz
+.. autofunction:: FOX.functions.read_xyz.grab_random_slice
 
 
 .. _plams.Molecule: https://www.scm.com/doc/plams/components/molecule.html#id1
