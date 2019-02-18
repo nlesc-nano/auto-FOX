@@ -8,7 +8,7 @@ import numpy as np
 import pandas as pd
 
 from FOX.functions.read_xyz import read_multi_xyz
-from FOX.functions.radial_distribution import get_all_radial
+from FOX.functions.rdf import get_all_radial
 from FOX.examples.example_xyz import get_example_xyz
 
 # Path to the test multi-xyz file
