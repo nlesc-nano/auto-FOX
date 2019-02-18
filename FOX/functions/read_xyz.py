@@ -1,6 +1,6 @@
 """ A module for reading multi-xyz files. """
 
-__all__ = ['read_multi_xyz']
+__all__ = ['read_multi_xyz', 'grab_random_slice', 'multi_xyz_to_molecule']
 
 import numpy as np
 
@@ -55,24 +55,24 @@ def read_multi_xyz(xyz_file, ret_idx_dict=True):
     return xyz
 
 
-def grab_random_slice(xyz_array, probability=0.5):
+def grab_random_slice(xyz_array, p=0.5):
     """ Grab and return a random number of 2D slices from **xyz_array** as a new array.
     Slices are grabbed along axis 0. The new array consists of views of **xyz_array**.
 
     :parameter xyz_array: A 3D array with cartesian coordinates of *m*
         molecules consisting of *n* atoms.
     :type xyz_array: *m*n*3* |np.ndarray|_ [|np.float64|_]
-    :parameter float probability: The probability of returning each 2D slice from **xyz_array**.
+    :parameter float p: The probability of returning each 2D slice from **xyz_array**.
         Accepts values between 0.0 (0%) and 1.0 (100%).
-    :return: A random number, weighted by **probability**, of 2D slices from **xyz_array**.
-    :rtype: *k*n*3* |np.ndarray|_ [|np.float64|_], where *k* ≈ *m* * **probability**.
+    :return: A random amount of 2D slices, weighted by **p**, from **xyz_array**.
+    :rtype: *k*n*3* |np.ndarray|_ [|np.float64|_], where *k* ≈ *m* * **p**.
     """
-    if probability <= 0.0 or probability >= 1.0:
-        raise IndexError('A probability must be larger than 0.0 and smaller than 1.0')
+    if p <= 0.0 or p >= 1.0:
+        raise IndexError('The probability, p, must be larger than 0.0 and smaller than 1.0')
     elif len(xyz_array.shape) == 2 or xyz_array.shape[0] == 1:
         raise IndexError('Grabbing random 2D slices from a 2D array makes no sense')
 
-    size = int(xyz_array.shape[0] * 0.5)
+    size = int(xyz_array.shape[0] * p)
     idx_range = np.arange(xyz_array.shape[0], dtype=int)
     idx = np.random.choice(idx_range, size)
     return xyz_array[idx]
