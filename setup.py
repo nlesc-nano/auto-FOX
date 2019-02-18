@@ -22,7 +22,12 @@ setup(
     author='Bas van Beek',
     author_email='b.f.van.beek@vu.nl',
     url='https://github.com/BvB93/Auto-FOX',
-    packages=['FOX'],
+    packages=[
+        'FOX',
+        'FOX.data',
+        'FOX.examples',
+        'FOX.functions'    
+    ],
     package_dir={'FOX': 'FOX'},
     include_package_data=True,
     license="GNU General Public License v3 or later",
