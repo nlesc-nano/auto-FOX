@@ -4,8 +4,7 @@ __all__ = ['read_multi_xyz', 'grab_random_slice', 'multi_xyz_to_molecule']
 
 import numpy as np
 
-from scm.plams.mol.atom import Atom
-from scm.plams.mol.molecule import Molecule
+from scm.plams import (Molecule, Atom)
 
 
 def read_multi_xyz(xyz_file, ret_idx_dict=True):

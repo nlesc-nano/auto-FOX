@@ -5,7 +5,7 @@ __all__ = []
 import yaml
 import numpy as np
 
-from scm.plams.mol.molecule import Molecule
+from scm.plams import Molecule
 from scm.plams.core.results import Results
 from scm.plams.core.settings import Settings
 from scm.plams.core.functions import (init, finish, add_to_class)
