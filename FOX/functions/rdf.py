@@ -106,7 +106,7 @@ def get_radial_distr(array1, array2, dr=0.05, r_max=12.0):
     dist_int = np.array(dist / dr, dtype=int)
     dist_int.shape = array1.shape[0], array1.shape[1] * array2.shape[1]
 
-    dens_mean = array2.shape[1] / ((4/3) * np.pi * (0.5 * dist.max(axis=(1,2)))**3)
+    dens_mean = array2.shape[1] / ((4/3) * np.pi * (0.5 * dist.max(axis=(1, 2)))**3)
     dens = np.array([np.bincount(i)[:idx_max] for i in dist_int])
 
     # Plan B: Create a padded array if r_max > dist.max(axis=(1,2)).min()
@@ -124,8 +124,8 @@ def get_radial_distr(array1, array2, dr=0.05, r_max=12.0):
 def pad_bincount(dist, dens, idx_max, dr=0.05, r_max=12.0):
     """ Create and fill a padded array. """
     error = 'Warning: r_max (' + str(r_max) + 'is larger than one of the observed maximum '
-    error += 'distances (' + str(dist.max(axis=(1,2)).min()) + ' to '
-    error += str(dist.max(axis=(1,2)).max()) + ' A)'
+    error += 'distances (' + str(dist.max(axis=(1, 2)).min()) + ' to '
+    error += str(dist.max(axis=(1, 2)).max()) + ' A)'
     print(error)
     print('A padded array will be created')
 
