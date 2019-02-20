@@ -5,9 +5,12 @@ __all__ = ['read_multi_xyz', 'grab_random_slice', 'multi_xyz_to_molecule']
 import numpy as np
 
 from scm.plams import (Molecule, Atom)
+from scm.plams.core.settings import Settings
+
+from .multi_mol import MultiMolecule
 
 
-def read_multi_xyz(xyz_file, ret_idx_dict=True):
+def read_multi_xyz(xyz_file):
     """ Reads a (multi) .xyz file and return a *m*n*3* array with the cartesian coordinates of *m*
     molecules consisting of *n* atoms.
 
@@ -49,79 +52,8 @@ def read_multi_xyz(xyz_file, ret_idx_dict=True):
 
     # Return the xyz array or the xyz array and a dictionary: {atomic symbols: [atomic indices]}
     xyz.shape = mol_count, mol_size, 3
-    if ret_idx_dict:
-        return xyz, idx_dict
-    return xyz
 
-
-def grab_random_slice(xyz_array, p=0.5):
-    """ Grab and return a random number of 2D slices from **xyz_array** as a new array.
-    Slices are grabbed along axis 0. The new array consists of views of **xyz_array**.
-
-    :parameter xyz_array: A 3D array with cartesian coordinates of *m*
-        molecules consisting of *n* atoms.
-    :type xyz_array: *m*n*3* |np.ndarray|_ [|np.float64|_]
-    :parameter float p: The probability of returning each 2D slice from **xyz_array**.
-        Accepts values between 0.0 (0%) and 1.0 (100%).
-    :return: A random amount of 2D slices, weighted by **p**, from **xyz_array**.
-    :rtype: *k*n*3* |np.ndarray|_ [|np.float64|_], where *k* ≈ *m* * **p**.
-    """
-    if p <= 0.0 or p >= 1.0:
-        raise IndexError('The probability, p, must be larger than 0.0 and smaller than 1.0')
-    elif len(xyz_array.shape) == 2 or xyz_array.shape[0] == 1:
-        raise IndexError('Grabbing random 2D slices from a 2D array makes no sense')
-
-    size = int(xyz_array.shape[0] * p)
-    idx_range = np.arange(xyz_array.shape[0], dtype=int)
-    idx = np.random.choice(idx_range, size)
-    return xyz_array[idx]
-
-
-def multi_xyz_to_molecule(xyz_array, idx_dict):
-    """ Convert the output of :func:`FOX.functions.read_xyz.read_multi_xyz`, an array and
-    dictionary, into a list of PLAMS molecules.
-
-    :parameter xyz_array: A 3D or 2D array with cartesian coordinates of *m*
-        molecules consisting of *n* atoms.
-    :type xyz_array: *m*n*3* or *n*3* |np.ndarray|_ [|np.float64|_]
-    :parameter idx_dict: A dictionary with the atomic symbols in **xyz_array** as keys
-        and matching atomic indices as values.
-    :type idx_dict: |dict|_ (keys: |str|_, values: |list|_ [|int|_]).
-    :return: A list of PLAMS molecules.
-    :rtype: |list|_ [|plams.Molecule|_].
-    """
-    # Make sure we're dealing with a 3d array
-    if len(xyz_array.shape) == 2:
-        xyz_array = xyz_array[None, :, :]
-
-    # Create a dictionary with atomic indices as keys and matching atomic symbols as values
-    idx_dict = invert_dict(idx_dict)
-
-    # Construct a template molecule
-    mol_template = Molecule()
-    mol_template.properties.frame = 1
-    for i in range(xyz_array.shape[1]):
-        at = Atom(symbol=idx_dict[i])
-        mol_template.add_atom(at)
-
-    # Create copies of the template molecule and update their cartesian coordinates
-    ret = []
-    for i, xyz in enumerate(xyz_array):
-        mol = mol_template.copy()
-        mol.from_array(xyz)
-        mol.properties.frame += i
-        ret.append(mol)
-
-    return ret
-
-
-def invert_dict(dic):
-    """ Take a dictionary and turn keys into values and values into keys. """
-    ret = {}
-    for key in dic:
-        for i in dic[key]:
-            ret[i] = key
-    return ret
+    return MultiMolecule(coords=xyz, atoms=idx_dict)
 
 
 def get_mol_size(file):
