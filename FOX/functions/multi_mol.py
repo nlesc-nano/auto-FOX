@@ -1,3 +1,7 @@
+""" A Module for the MultiMolecule class. """
+
+__all__ = ['MultiMolecule']
+
 from itertools import chain
 
 import numpy as np
@@ -8,14 +12,15 @@ from scm.plams.mol.bond import Bond
 from scm.plams.mol.molecule import Molecule
 from scm.plams.core.settings import Settings
 
-from FOX.functions.read_xyz import read_multi_xyz
-from FOX.functions.rdf import (get_rdf, get_rdf_lowmem, get_rdf_df)
+from .read_xyz import read_multi_xyz
+from .rdf import (get_rdf, get_rdf_lowmem, get_rdf_df)
 
 
 class _MultiMolecule:
     """ A class for handling the magic methods of *MultiMolecule*. """
     def __init__(self, coords=None, atoms=None, bonds=None, properties=None, filename=None,
                  inputformat=None):
+        # Sanitize arguments
         coords, atoms, bonds, properties = self._sanitize_init(coords, atoms, bonds, properties)
 
         # Set attributes
@@ -39,14 +44,14 @@ class _MultiMolecule:
 
             # Read **filename** if its inputformat is supported
             if inputformat.lower().rsplit('.', 1)[-1] in format_dict:
-                self.read(filename, inputformat, format_dict)
+                self._read(filename, inputformat, format_dict)
             else:
                 error = 'MultiMolecule: No functions are available for handling ' + str(inputformat)
                 error += ' files, currently supported file types are: '
                 error += str(list(format_dict.keys()))
                 raise KeyError(error)
 
-    def read(self, filename, inputformat, format_dict):
+    def _read(self, filename, inputformat, format_dict):
         """ A function for reading coordinates from external files. """
         coords, atoms = format_dict[inputformat](filename)
         self.coords = coords
@@ -54,6 +59,14 @@ class _MultiMolecule:
 
     def _sanitize_init(self, coords=None, atoms=None, bonds=None, properties=None):
         """ A function for sanitizing the arguments of __init__(). """
+        # If coords is another MultiMolecule object, create a shallow copy and return
+        if isinstance(coords, _MultiMolecule):
+            properties = coords.properties
+            bonds = coords.bonds
+            atoms = coords.atoms
+            coords = coords.coords
+            return coords, atoms, bonds, properties
+
         # Sanitize coords
         assert coords is None or isinstance(coords, np.ndarray)
         if coords is not None:
@@ -83,15 +96,19 @@ class _MultiMolecule:
         """ A function for sanitizing the argument **other**, an argument which appears in many
         magic methods. """
         # Validate object type and shape
-        assert isinstance(other, np.ndarray)
-        assert other.shape[-1] == 3
+        try:
+            # Check for arrays
+            assert other.shape[-1] == 3
 
-        # Broadcast (if necessary) and return
-        if other.ndim == 2:
-            other = other[None, :, :]
-        elif other.ndim == 1:
-            other = other[None, None, :]
-        return other
+            # Broadcast (if necessary) and return
+            if other.ndim == 2:
+                other = other[None, :, :]
+            elif other.ndim == 1:
+                other = other[None, None, :]
+            return other
+        except AttributeError:
+            # Assume other is a float or int
+            return other
 
     def _set_shape(self, value): self.coords.shape = value
     def _get_shape(self): return self.coords.shape
@@ -150,11 +167,8 @@ class _MultiMolecule:
     def __neg__(self):
         return -1 * self.coords
 
-    def __abs__(self, kwarg):
-        return np.abs(self.coords, **kwarg)
-
-    def __invert__(self):
-        return ~self.coords
+    def __abs__(self):
+        return np.abs(self.coords)
 
     def __round__(self, decimals=0):
         return np.round(self.coords, decimals)
@@ -191,7 +205,7 @@ class _MultiMolecule:
     def __matmul__(self, other):
         other = self._sanitize_other(other)
         ret = self.copy()
-        ret.coords = self.coords @ other
+        ret.coords = self.coords @ np.swapaxes(other, -2, -1)
         return ret
 
     def __floordiv__(self, other):
@@ -267,34 +281,42 @@ class _MultiMolecule:
     def __iadd__(self, other):
         other = self._sanitize_other(other)
         self.coords += other
+        return self
 
     def __isub__(self, other):
         other = self._sanitize_other(other)
         self.coords -= other
+        return self
 
     def __imul__(self, other):
         other = self._sanitize_other(other)
         self.coords *= other
+        return self
 
     def __imatmul__(self, other):
         other = self._sanitize_other(other)
-        self.coords = self.coords @ other
+        self.coords = self.coords @ np.swapaxes(other, -2, -1)
+        return self
 
     def __ifloordiv__(self, other):
         other = self._sanitize_other(other)
         self.coords //= other
+        return self
 
     def __idiv__(self, other):
         other = self._sanitize_other(other)
         self.coords /= other
+        return self
 
     def __imod__(self, other):
         other = self._sanitize_other(other)
         self.coords %= other
+        return self
 
     def __ipow__(self, other):
         other = self._sanitize_other(other)
         self.coords **= other
+        return self
 
     """ ##########################  Type conversion magic methods  ############################ """
 
@@ -373,11 +395,85 @@ class _MultiMolecule:
     def __contains__(self, item):
         return item in self.coords
 
+    """ ###################################  Copy  ############################################ """
+
+    def __copy__(self, subset=None):
+        """ Magic method, create and return a new *MultiMolecule* and fill its attributes with
+        views of their respective counterparts in **self**.
+
+        :parameter subset: Copy a subset of attributes from **self**; if *None*, copy all
+            attributes. Accepts one or more of the following values as strings: *properties*,
+            *atoms* and/or *bonds*.
+        :type subset: |None|_, |str|_ or |tuple|_ [|str|_]
+        """
+        subset = subset or ('atoms', 'bonds', 'properties')
+        ret = _MultiMolecule()
+
+        # Copy atoms
+        if 'atoms' in subset:
+            ret.coords = self.coords
+            ret.atoms = self.atoms
+
+        # Copy bonds
+        if 'bonds' in subset:
+            ret.bonds = self.bonds
+
+        # Copy properties
+        if 'properties' in subset:
+            ret.properties = self.properties
+
+        return ret
+
+    def __deepcopy__(self, subset=None):
+        """ Magic method, create and return a deep copy of **self**.
+
+        :parameter subset: Deepcopy a subset of attributes from **self**; if *None*, copy all
+            attributes. Accepts one or more of the following values as string:
+            *properties*, *atoms* and/or *bonds*.
+        :type subset: |None|_, |str|_ or |tuple|_ [|str|_]
+        """
+        subset = subset or ('atoms', 'bonds', 'properties')
+        ret = self.__copy__(subset=subset)
+
+        # Deep copy atoms
+        if 'atoms' in subset:
+            try:
+                ret.coords = self.coords.copy()
+                ret.atoms = self.atoms.copy()
+            except AttributeError:
+                pass
+
+        # Deep copy bonds
+        if 'bonds' in subset and self.bonds is not None:
+            try:
+                ret.bonds = self.bonds.copy()
+            except AttributeError:
+                pass
+
+        # Deep copy properties
+        if 'properties' in subset:
+            try:
+                ret.properties = self.properties.copy()
+            except AttributeError:
+                pass
+
+        return ret
+
 
 class MultiMolecule(_MultiMolecule):
     """ A class designed for handling a and manipulating large numbers of molecules. More
     specifically, different conformations of a single molecule as derived from, for example,
     an intrinsic reaction coordinate calculation (IRC) or a molecular dymanics trajectory (MD).
+    The class has access to four attributes (further details are provided under parameters):
+
+    - **coords**: The central object behind the MultiMolecule class, an *m*n*3* Numpy holding
+    the cartesian coordinates of *m* molecules with *n* atoms.
+
+    - **atoms**: None
+
+    - **bonds**: None
+
+    - **properties**: None
 
     :parameter coords: A 3D array with the cartesian coordinates of *m* molecules with *n* atoms.
     :type coords: |None|_ or *m*n*3* |np.ndarray|_ [|np.float64|_]
@@ -410,7 +506,7 @@ class MultiMolecule(_MultiMolecule):
         :type atom_subset: |None|_ or |tuple|_ [|str|_]
         """
         atom_subset = atom_subset or self.atoms.keys()
-        mol = self.as_Molecule(mol_subset=0, atom_subset=atom_subset)
+        mol = self.as_Molecule(mol_subset=0, atom_subset=atom_subset)[0]
         mol.guess_bonds()
         self.from_Molecule(mol, subset='bonds')
 
@@ -437,45 +533,13 @@ class MultiMolecule(_MultiMolecule):
             return self[idx]
         self.coords = self[idx]
 
-    def get_angle_mat(self, mol_subset=0, atom_subset=(None, None, None)):
-        """ Create and return an angle matrix for all molecules and atoms in **self.coords**.
-        Returns a 4D array.
+    """ ################################## Root Mean Squared ################################## """
 
-        :parameter mol_subset: Create a distance matrix from a subset of molecules in
-            **self.coords**. If *None*, create a distance matrix for all molecules in
-            **self.coords**. Will return a 3D instead of a 4D array if len(mol_subset) is 1.
-        :type mol_subset: |None|_ or |tuple|_ [|int|_]
-        :parameter atom_subset: Create a distance matrix from a subset of atoms per molecule in
-            **self.coords**. Tuples of indices have to be supplied for all 3 dimensions, but can be
-            freely mixed with *None*. If *None*, pick all atoms from **self.coords** for that
-            partical dimension.
-        :type atom_subset: |tuple|_ [|None|_] or |tuple|_ [|tuple|_ [|int|_]]
-        :return: A 4D angle matrix of *m* molecules, created out of three sets of *n*, *k* and
-            *l* atoms.
-        :return type: *m*n*k*l* |np.ndarray|_ [|np.float64|_].
-        """
-        # Define array slices
-        mol_subset = mol_subset or slice(0, self.shape[0])
-        i = mol_subset, self._get_idx(atom_subset[0]) or slice(0, self.shape[1])
-        j = mol_subset, self._get_idx(atom_subset[1]) or slice(0, self.shape[1])
-        k = mol_subset, self._get_idx(atom_subset[2]) or slice(0, self.shape[1])
+    def rms(self, ref, mol_subset=None, atom_subset=None):
+        ret = np.linalg.norm(self - ref, axis=(1, 2)) / self.shape[1]
+        return np.linalg.norm(self - ref) / self.shape[0]
 
-        # Slice and broadcast the XYZ array
-        A = self[i][:, None, :]
-        B = self[j][:, :, None]
-        C = self[k][:, :, None]
-
-        # Prepare the unit vectors
-        kwarg1 = {'atom_subset': [atom_subset[0], atom_subset[1]], 'mol_subset': mol_subset}
-        kwarg2 = {'atom_subset': [atom_subset[0], atom_subset[2]], 'mol_subset': mol_subset}
-        unit_vec1 = A - B / self.get_dist_mat(**kwarg1)
-        unit_vec2 = A - C / self.get_dist_mat(**kwarg2)
-
-        # Create and return the angle matrix
-        ret = np.arccos(np.einsum('ijkl,ijml->ijkl', unit_vec1, unit_vec2))
-        return ret
-
-    """ ##########################  Radial Distribution Function  ############################# """
+    """ ###################  Radial and Angular Distribution Functions  ####################### """
 
     def init_rdf(self, atom_subset=None, dr=0.05, r_max=12.0, low_mem=False):
         """ Initialize the calculation of radial distribution functions (RDFs). RDFs are calculated
@@ -532,13 +596,14 @@ class MultiMolecule(_MultiMolecule):
 
         :parameter mol_subset: Create a distance matrix from a subset of molecules in
             **self.coords**. If *None*, create a distance matrix for all molecules in
-            **self.coords**. Will return a 2D instead of a 3D array if len(mol_subset) is 1.
+            **self.coords**.
         :type mol_subset: |None|_ or |tuple|_ [|int|_]
         :parameter atom_subset: Create a distance matrix from a subset of atoms per molecule in
-            **self.coords**. Tuples of indices have to be supplied for all 2 dimensions, but can be
-            freely mixed with *None*. If *None*, pick all atoms from **self.coords** for that
-            partical dimension.
-        :type atom_subset: |tuple|_ (|None|_) or |tuple|_ [|tuple|_ [|int|_]]
+            **self.coords**. Values have to be supplied for all 2 dimensions. Atomic indices
+            (on or multiple), atomic symbols (one or multiple) and *None* can be freely mixed.
+            If *None*, pick all atoms from **self.coords** for that partical dimension; if an
+            atomic symbol, do the same for all indices associated with that particular symbol.
+        :type atom_subset: |tuple|_ [|None|_], |tuple|_ [|int|_]
         :return: A 3D distance matrix of *m* molecules, created out of two sets of *n* and
             *k* atoms.
         :return type: *m*n*k* |np.ndarray|_ [|np.float64|_].
@@ -559,13 +624,57 @@ class MultiMolecule(_MultiMolecule):
             ret[k] = cdist(a, b)
         return ret
 
+    def get_angle_mat(self, mol_subset=0, atom_subset=(None, None, None)):
+        """ Create and return an angle matrix for all molecules and atoms in **self.coords**.
+        Returns a 4D array.
+
+        :parameter mol_subset: Create a distance matrix from a subset of molecules in
+            **self.coords**. If *None*, create a distance matrix for all molecules in
+            **self.coords**.
+        :type mol_subset: |None|_ or |tuple|_ [|int|_]
+       :parameter atom_subset: Create a distance matrix from a subset of atoms per molecule in
+            **self.coords**. Values have to be supplied for all 3 dimensions. Atomic indices
+            (on or multiple), atomic symbols (one or multiple) and *None* can be freely mixed.
+            If *None*, pick all atoms from **self.coords** for that partical dimension; if an
+            atomic symbol, do the same for all indices associated with that particular symbol.
+        :type atom_subset: |None|_ or |tuple|_ [|str|_]
+        :return: A 4D angle matrix of *m* molecules, created out of three sets of *n*, *k* and
+            *l* atoms.
+        :return type: *m*n*k*l* |np.ndarray|_ [|np.float64|_].
+        """
+        # Define array slices
+        mol_subset = mol_subset or slice(0, self.shape[0])
+        i = mol_subset, self._get_idx(atom_subset[0]) or slice(0, self.shape[1])
+        j = mol_subset, self._get_idx(atom_subset[1]) or slice(0, self.shape[1])
+        k = mol_subset, self._get_idx(atom_subset[2]) or slice(0, self.shape[1])
+
+        # Slice and broadcast the XYZ array
+        A = self[i][:, None, :]
+        B = self[j][:, :, None]
+        C = self[k][:, :, None]
+
+        # Prepare the unit vectors
+        kwarg1 = {'atom_subset': [atom_subset[0], atom_subset[1]], 'mol_subset': mol_subset}
+        kwarg2 = {'atom_subset': [atom_subset[0], atom_subset[2]], 'mol_subset': mol_subset}
+        unit_vec1 = A - B / self.get_dist_mat(**kwarg1)
+        unit_vec2 = A - C / self.get_dist_mat(**kwarg2)
+
+        # Create and return the angle matrix
+        ret = np.arccos(np.einsum('ijkl,ijml->ijkl', unit_vec1, unit_vec2))
+        return ret
+
     def _get_idx(self, at):
         """ Grab and return a list of indices from **self.atoms**.
-        Return *None* if **at** is *None*. """
+        Return *at* if it is *None*, an *int* or iterable container consisting of *int*. """
         if at is None:
             return at
-        else:
+        elif isinstance(at, int) or isinstance(at[0], int):
+            return at
+        elif isinstance(at, str):
             return self.atoms[at]
+        elif isinstance(at[0], str):
+            return list(chain.from_iterable(self.atoms[i] for i in at))
+        raise KeyError()
 
     """ #################################  Type conversion  ################################### """
 
@@ -618,15 +727,17 @@ class MultiMolecule(_MultiMolecule):
         """ Convert a list of PLAMS molecules into a *MultiMolecule* object.
         Performs an inplace modification of **self**.
 
-        :parameter mol_list: A list of PLAMS molecules.
-        :type mol_list: |list|_ [|plams.Molecule|_]
+        :parameter mol_list: A PLAMS molecule or list of PLAMS molecules.
+        :type mol_list: |Molecule|_ or |list|_ [|plams.Molecule|_]
         :parameter subset: Transfer a subset of *plams.Molecule* attributes to **self**. If *None*,
             transfer all attributes. Accepts one or more of the following values as strings:
             *properties*, *atoms* and/or *bonds*.
         :type subset: |None|_, |str|_ or |tuple|_ [|str|_]
-        :parameter bool allow_different_length: If *True*, allow **mol_list** and **self.coords** to
-            have different lengths.
+        :parameter bool allow_different_length: If *True*, allow **mol_list** and **self.coords**
+            to have different lengths.
         """
+        if isinstance(mol_list, Molecule):
+            mol_list = [mol_list]
         mol = mol_list[0]
         subset = subset or ('atoms', 'bonds', 'properties')
 
@@ -646,7 +757,7 @@ class MultiMolecule(_MultiMolecule):
         if 'atoms' in subset:
             dummy = Molecule()
             idx = slice(0, self.shape[0])
-            self.coords = np.array([dummy.as_array(subset=mol.atoms[idx]) for mol in mol_list])
+            self.coords = np.array([dummy.as_array(atom_subset=mol.atoms[idx]) for mol in mol_list])
             for i, at in enumerate(mol.atoms[idx]):
                 try:
                     self.atoms[at].append(i)
@@ -665,37 +776,6 @@ class MultiMolecule(_MultiMolecule):
                 idx = np.arange(0 - len(mol))
                 self.bonds = self.bonds[idx]
 
-
-
-    """ ###################################  Copy  ############################################ """
-
-    def __copy__(self, subset=None):
-        """ Magic method, create and return a new *MultiMolecule* and fill its attributes with
-        views of their respective counterparts in **self**.
-
-        :parameter subset: Copy a subset of attributes from **self**; if *None*, copy all
-            attributes. Accepts one or more of the following values as strings: *properties*,
-            *atoms* and/or *bonds*.
-        :type subset: |None|_, |str|_ or |tuple|_ [|str|_]
-        """
-        subset = subset or ('atoms', 'bonds', 'properties')
-        ret = MultiMolecule()
-
-        # Copy atoms
-        if 'atoms' in subset:
-            ret.coords = self.coords
-            ret.atoms = self.atoms
-
-        # Copy bonds
-        if 'bonds' in subset:
-            ret.bonds = self.bonds
-
-        # Copy properties
-        if 'properties' in subset:
-            ret.properties = self.properties
-
-        return ret
-
     def copy(self, subset=None, deepcopy=False):
         """ Create and return a new *MultiMolecule* object and fill its attributes with
         views of their respective counterparts in **self**, creating a shallow copy.
@@ -707,43 +787,8 @@ class MultiMolecule(_MultiMolecule):
         :parameter bool deepcopy: If *True*, perform a deep copy instead of a shallow copy.
         """
         if deepcopy:
-            return self.__deepcopy__(subset)
-        return self.__copy__(subset)
-
-    def __deepcopy__(self, subset=None):
-        """ Magic method, create and return a deep copy of **self**.
-
-        :parameter subset: Deepcopy a subset of attributes from **self**; if *None*, copy all
-            attributes. Accepts one or more of the following values as string:
-            *properties*, *atoms* and/or *bonds*.
-        :type subset: |None|_, |str|_ or |tuple|_ [|str|_]
-        """
-        subset = subset or ('atoms', 'bonds', 'properties')
-        ret = self.__copy__(subset=subset)
-
-        # Deep copy atoms
-        if 'atoms' in subset:
-            try:
-                ret.coords = self.coords.copy()
-                ret.atoms = self.atoms.copy()
-            except AttributeError:
-                pass
-
-        # Deep copy bonds
-        if 'bonds' in subset and self.bonds is not None:
-            try:
-                ret.bonds = self.bonds.copy()
-            except AttributeError:
-                pass
-
-        # Deep copy properties
-        if 'properties' in subset:
-            try:
-                ret.properties = self.properties.copy()
-            except AttributeError:
-                pass
-
-        return ret
+            return MultiMolecule(self.__deepcopy__(subset))
+        return MultiMolecule(self.__copy__(subset))
 
     def deepcopy(self, subset=None):
         """ Create and return a new *MultiMolecule* object and fill its attributes with
@@ -754,4 +799,4 @@ class MultiMolecule(_MultiMolecule):
             *atoms* and/or *bonds*.
         :type subset: |None|_, |str|_ or |tuple|_ [|str|_]
         """
-        return self.__deepcopy__(subset)
+        return MultiMolecule(self.__deepcopy__(subset))
