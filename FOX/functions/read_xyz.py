@@ -4,16 +4,18 @@ __all__ = ['read_multi_xyz']
 
 import numpy as np
 
+from scm.plams.core.settings import Settings
+
 
 def read_multi_xyz(xyz_file):
     """ Reads a (multi) .xyz file and return a *m*n*3* array with the cartesian coordinates of *m*
     molecules consisting of *n* atoms.
 
     :parameter str file: The path + filename of a (multi) .xyz file.
-    :return: A 3D array of cartesian coordinates and a dictionary
+    :return: A 3D array of cartesian coordinates and a dictionary-derived Settings object
         with atomic symbols as keys and matching atomic indices as alues.
-    :rtype: *m*n*3* |np.ndarray|_ [|np.float64|_] and |dict|_
-        (keys: |str|_, values: |list|_ [|int|_]).
+    :rtype: *m*n*3* |np.ndarray|_ [|np.float64|_] and |plams.Settings|_
+        (keys: |str|_, values: |list|_ [|int|_], superclass: |Dict|_).
     """
     # Define constants and construct a dictionary: {atomic symbols: [atomic indices]}
     with open(xyz_file, 'r') as file:
@@ -46,7 +48,7 @@ def read_multi_xyz(xyz_file):
     # Return the xyz array or the xyz array and a dictionary: {atomic symbols: [atomic indices]}
     xyz.shape = mol_count, mol_size, 3
 
-    return xyz, idx_dict
+    return xyz, Settings(idx_dict)
 
 
 def _get_mol_size(file):
