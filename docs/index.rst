@@ -1,6 +1,6 @@
 
 Welcome to the Automated Forcefield Optimization Extensions' documentation!
-===================================
+===========================================================================
 
 Contents:
 
@@ -9,4 +9,4 @@ Contents:
 
    includeme
    documentation
-   
+

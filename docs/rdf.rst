@@ -17,11 +17,11 @@ Numpy's vectorized operations. When **low_mem**: *True*, only a single distance
 matrix is stored in memory at once, removing the linear scaling of memory with
 respect to the number of molecules.
 
-.. autofunction:: FOX.functions.rdf.get_all_radial
+#.. autofunction:: FOX.functions.rdf.get_all_radial
 
-.. autofunction:: FOX.functions.rdf.get_radial_distr
+#.. autofunction:: FOX.functions.rdf.get_radial_distr
 
-.. autofunction:: FOX.functions.rdf.get_radial_distr_lowmem
+#.. autofunction:: FOX.functions.rdf.get_radial_distr_lowmem
 
 .. _np.ndarray: https://docs.scipy.org/doc/numpy/reference/generated/numpy.ndarray.html
 .. _np.float64: https://docs.scipy.org/doc/numpy/user/basics.types.html

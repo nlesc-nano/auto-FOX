@@ -3,34 +3,427 @@ from itertools import chain
 import numpy as np
 from scipy.spatial.distance import cdist
 
-from scm.plams.mol.molecule import Molecule
 from scm.plams.mol.atom import Atom
 from scm.plams.mol.bond import Bond
+from scm.plams.mol.molecule import Molecule
+from scm.plams.core.settings import Settings
 
-from FOX.functions.multi_mol_magic import _MultiMolecule
+from FOX.functions.read_xyz import read_multi_xyz
 from FOX.functions.rdf import (get_rdf, get_rdf_lowmem, get_rdf_df)
 
 
-class MultiMolecule(_MultiMolecule):
-    def guess_bonds(self, atoms=None):
-        """ Guess bonds within the molecule(s) based on atom type and inter-atomic distances.
-        It is assumed that connectivity is identical for all molecules.
+class _MultiMolecule:
+    """ A class for handling the magic methods of *MultiMolecule*. """
+    def __init__(self, coords=None, atoms=None, bonds=None, properties=None, filename=None,
+                 inputformat=None):
+        coords, atoms, bonds, properties = self._sanitize_init(coords, atoms, bonds, properties)
 
-        :parameter atoms: A tuple of atomic symbols. Bonds are guessed for all atoms with matching
-            atomic symbols.
-        :type atoms: None or |tuple|_ [|str|_]
+        # Set attributes
+        self.coords = coords
+        self.atoms = atoms
+        self.bonds = bonds
+        self.properties = properties
+
+        # If **filename** is not *None*, grab coordinates from **filename**
+        if filename is not None:
+            format_dict = {'xyz': read_multi_xyz}
+
+            # Try to infere the inputformat from **filename** if **inputformat** is *None*
+            if inputformat is None:
+                try:
+                    inputformat = filename.rsplit('.', 1)[-1]
+                except AttributeError:
+                    error = 'MultiMolecule: Inputformat is None and no extension was found in '
+                    error += '**filename**'
+                    raise TypeError(error)
+
+            # Read **filename** if its inputformat is supported
+            if inputformat.lower().rsplit('.', 1)[-1] in format_dict:
+                self.read(filename, inputformat, format_dict)
+            else:
+                error = 'MultiMolecule: No functions are available for handling ' + str(inputformat)
+                error += ' files, currently supported file types are: '
+                error += str(list(format_dict.keys()))
+                raise KeyError(error)
+
+    def read(self, filename, inputformat, format_dict):
+        """ A function for reading coordinates from external files. """
+        coords, atoms = format_dict[inputformat](filename)
+        self.coords = coords
+        self.atoms = atoms
+
+    def _sanitize_init(self, coords=None, atoms=None, bonds=None, properties=None):
+        """ A function for sanitizing the arguments of __init__(). """
+        # Sanitize coords
+        assert coords is None or isinstance(coords, np.ndarray)
+        if coords is not None:
+            if coords.ndim == 2:
+                coords = coords[None, :, :]
+            elif not coords.ndim == 3:
+                raise TypeError('MultiMolecule: **coords** should be None or a 2D/3D array.')
+
+        # Sanitize atoms & properties
+        assert atoms is None or isinstance(atoms, dict)
+        assert properties is None or isinstance(properties, dict)
+        if isinstance(atoms, dict):
+            atoms = Settings(atoms)
+        properties = properties or Settings()
+
+        # Sanitize bonds
+        assert bonds is None or isinstance(bonds, np.ndarray)
+        if bonds is not None:
+            assert bonds.ndim == 2 and bonds.shape[1] in (2, 3)
+            assert bonds.dtype.type in (np.int8, np.int16, np.int32, np.int64)
+            if bonds.shape[1] == 2:
+                bonds = np.hstack((bonds, np.zeros(len(bonds), dtype=int)[:, None]))
+
+        return coords, atoms, bonds, properties
+
+    def _sanitize_other(self, other):
+        """ A function for sanitizing the argument **other**, an argument which appears in many
+        magic methods. """
+        # Validate object type and shape
+        assert isinstance(other, np.ndarray)
+        assert other.shape[-1] == 3
+
+        # Broadcast (if necessary) and return
+        if other.ndim == 2:
+            other = other[None, :, :]
+        elif other.ndim == 1:
+            other = other[None, None, :]
+        return other
+
+    def _set_shape(self, value): self.coords.shape = value
+    def _get_shape(self): return self.coords.shape
+    shape = property(_get_shape, _set_shape)
+
+    def _set_dtype(self, value): self.coords.dtype = value
+    def _get_dtype(self): return self.coords.dtype
+    dtype = property(_get_dtype, _set_dtype)
+
+    def _get_dtype(self): return self.coords.flags
+    flags = property(_get_dtype, _set_dtype)
+
+    def _get_dtype(self): return self.coords.ndim
+    ndim = property(_get_dtype)
+
+    def _get_dtype(self): return self.coords.nbytes
+    nbytes = property(_get_dtype)
+
+    """ ############################  Comparison magic methods  ############################### """
+
+    def __eq__(self, other):
+        other = self._sanitize_other(other)
+        return self.coords == other
+
+    def __ne__(self, other):
+        other = self._sanitize_other(other)
+        return self.coords != other
+
+    def __lt__(self, other):
+        other = self._sanitize_other(other)
+        return self.coords < other
+
+    def __gt__(self, other):
+        other = self._sanitize_other(other)
+        return self.coords > other
+
+    def __le__(self, other):
+        other = self._sanitize_other(other)
+        return self.coords <= other
+
+    def __ge__(self, other):
+        other = self._sanitize_other(other)
+        return self.coords >= other
+
+    """ ########################### Unary operators and functions  ############################ """
+
+    def __min__(self, axis=None):
+        return self.coords.nanmin(axis)
+
+    def __max__(self, axis=None):
+        return self.coords.nanmax(axis)
+
+    def __pos__(self):
+        return self.coords
+
+    def __neg__(self):
+        return -1 * self.coords
+
+    def __abs__(self, kwarg):
+        return np.abs(self.coords, **kwarg)
+
+    def __invert__(self):
+        return ~self.coords
+
+    def __round__(self, decimals=0):
+        return np.round(self.coords, decimals)
+
+    def __floor__(self):
+        return np.floor(self.coords)
+
+    def __ceil__(self):
+        return np.ceil(self.coords)
+
+    def __trunc__(self):
+        return np.trunc(self.coords)
+
+    """ ##########################  Normal arithmetic operators  ############################## """
+
+    def __add__(self, other):
+        other = self._sanitize_other(other)
+        ret = self.copy()
+        ret.coords = self.coords + other
+        return ret
+
+    def __sub__(self, other):
+        other = self._sanitize_other(other)
+        ret = self.copy()
+        ret.coords = self.coords - other
+        return ret
+
+    def __mul__(self, other):
+        other = self._sanitize_other(other)
+        ret = self.copy()
+        ret.coords = self.coords * other
+        return ret
+
+    def __matmul__(self, other):
+        other = self._sanitize_other(other)
+        ret = self.copy()
+        ret.coords = self.coords @ other
+        return ret
+
+    def __floordiv__(self, other):
+        other = self._sanitize_other(other)
+        ret = self.copy()
+        ret.coords = self.coords // other
+        return ret
+
+    def __div__(self, other):
+        other = self._sanitize_other(other)
+        ret = self.copy()
+        ret.coords = self.coords / other
+        return ret
+
+    def __mod__(self, other):
+        other = self._sanitize_other(other)
+        ret = self.copy()
+        ret.coords = self.coords % other
+        return ret
+
+    def __divmod__(self, other):
+        other = self._sanitize_other(other)
+        ret = self.copy()
+        ret.coords = np.divmod(self.coords, other)
+        return ret
+
+    def __pow__(self, other):
+        other = self._sanitize_other(other)
+        ret = self.copy()
+        ret.coords = self.coords**other
+        return ret
+
+    """ ##########################  Reflected arithmetic operators  ########################### """
+
+    def __rsub__(self, other):
+        other = self._sanitize_other(other)
+        ret = self.copy()
+        ret.coords = other - self.coords
+        return ret
+
+    def __rfloordiv__(self, other):
+        other = self._sanitize_other(other)
+        ret = self.copy()
+        ret.coords = other // self.coords
+        return ret
+
+    def __rdiv__(self, other):
+        other = self._sanitize_other(other)
+        ret = self.copy()
+        ret.coords = other / self.coords
+        return ret
+
+    def __rmod__(self, other):
+        other = self._sanitize_other(other)
+        ret = self.copy()
+        ret.coords = other % self.coords
+        return ret
+
+    def __rdivmod__(self, other):
+        other = self._sanitize_other(other)
+        ret = self.copy()
+        ret.coords = np.divmod(other, self.coords)
+        return ret
+
+    def __rpow__(self, other):
+        other = self._sanitize_other(other)
+        ret = self.copy()
+        ret.coords = other**self.coords
+        return ret
+
+    """ ##############################  Augmented assignment  ################################# """
+
+    def __iadd__(self, other):
+        other = self._sanitize_other(other)
+        self.coords += other
+
+    def __isub__(self, other):
+        other = self._sanitize_other(other)
+        self.coords -= other
+
+    def __imul__(self, other):
+        other = self._sanitize_other(other)
+        self.coords *= other
+
+    def __imatmul__(self, other):
+        other = self._sanitize_other(other)
+        self.coords = self.coords @ other
+
+    def __ifloordiv__(self, other):
+        other = self._sanitize_other(other)
+        self.coords //= other
+
+    def __idiv__(self, other):
+        other = self._sanitize_other(other)
+        self.coords /= other
+
+    def __imod__(self, other):
+        other = self._sanitize_other(other)
+        self.coords %= other
+
+    def __ipow__(self, other):
+        other = self._sanitize_other(other)
+        self.coords **= other
+
+    """ ##########################  Type conversion magic methods  ############################ """
+
+    def __str__(self):
+        # Convert atomic coordinates
+        ret = 'Atomic coordinates:\n'
+        if self.coords is not None:
+            ret += str(self.coords) + '\n'
+        else:
+            ret += str(None) + '\n'
+        ret += '\n'
+
+        # Convert atomic symbols
+        ret += 'Atomic symbols & indices:\n'
+        if self.atoms is not None:
+            for at in self.atoms:
+                ret += str(at) + ':\t['
+                if len(self.atoms[at]) <= 11:
+                    for i in self.atoms[at][0:-2]:
+                        ret += '{: <5.5}'.format(str(i))
+                else:
+                    for i in self.atoms[at][0:5]:
+                        ret += '{: <5.5}'.format(str(i))
+                    ret += '{: <5.5}'.format('...')
+                    for i in self.atoms[at][-6:-2]:
+                        ret += '{: <5.5}'.format(str(i))
+                ret += '{: <4.4}'.format(str(self.atoms[at][-1])) + ']\n'
+        else:
+            ret += str(None) + '\n'
+        ret += '\n'
+
+        # Convert bonds
+        ret += 'Bond indices and orders:\n'
+        if self.bonds is not None:
+            ret += 'Atom1 Atom2 Bond order'
+            for at1, at2, order in self.bonds:
+                ret += '[' + '{: <5.5}'.format(str(at1)) + '{: <5.5}'.format(str(at2)) + '] '
+                ret += str(order) + '\n'
+        else:
+            ret += str(None) + '\n'
+        ret += '\n'
+
+        # Convert properties
+        ret += 'Properties:\n'
+        if self.properties:
+            ret += str(self.properties) + '\n'
+        else:
+            ret += str(None) + '\n'
+
+        return ret
+
+    """ ################################  Custom Sequences  ################################### """
+
+    def __len__(self):
+        return len(self.coords)
+
+    def __getitem__(self, key):
+        if not isinstance(key, str):
+            return self.coords[key]
+        return self.atoms[key]
+
+    def __setitem__(self, key, value):
+        self.coords[key] = value
+
+    def __delitem__(self, key):
+        raise ValueError('cannot delete array elements')
+
+    def __iter__(self):
+        return iter(self.coords)
+
+    def __reversed__(self, axis=0):
+        ret = self.copy()
+        ret.coords = np.flip(self.coords, axis=axis)
+        return ret
+
+    def __contains__(self, item):
+        return item in self.coords
+
+
+class MultiMolecule(_MultiMolecule):
+    """ A class designed for handling a and manipulating large numbers of molecules. More
+    specifically, different conformations of a single molecule as derived from, for example,
+    an intrinsic reaction coordinate calculation (IRC) or a molecular dymanics trajectory (MD).
+
+    :parameter coords: A 3D array with the cartesian coordinates of *m* molecules with *n* atoms.
+    :type coords: |None|_ or *m*n*3* |np.ndarray|_ [|np.float64|_]
+    :parameter atoms: A dictionary-derived object with atomic symbols as keys and matching atomic
+        indices as values.
+    :type atoms: |None|_ or |plams.Settings|_ (keys: |str|_, values: |list|_ [|int|_],
+                                               superclass: |dict|_)
+    :parameter bonds: A 2D array with indices of the atoms defining all *k* bonds (columns 1 & 2)
+        and their respective bond orders (column 3).
+    :type bonds: |None|_ or *k*3* |np.ndarray|_ [|np.int64|_]
+    :parameter properties: A dictionary-derived object intended for storing miscellaneous
+        user-defined (meta-)data. Is devoid of keys by default.
+    :type properties: |plams.Settings|_ (superclass: |dict|_)
+    :parameter filename: Create a **MultiMolecule** object out of a preexisting file, requiring its
+        path + filename.
+    :type filename: |None|_ or |str|_
+    :parameter inputformat: The filetype of **filename**. Currently supported filetypes are
+        limited to (multi-) .xyz files. If *None*, try to infere the filetype from **filename**.
+    :type inputformat: |None|_ or |str|_
+    """
+
+    def guess_bonds(self, atom_subset=None):
+        """ Guess bonds within the molecules based on atom type and inter-atomic distances.
+        Bonds are guessed based on the first molecule in **self.coords**
+        Performs an inplace modification of **self.bonds**
+
+        :parameter atom_subset: A tuple of atomic symbols. Bonds are guessed between all atoms
+            whose atomic symbol is in **atom_subset**. If *None*, guess bonds for all atoms in
+            **self.coords**.
+        :type atom_subset: |None|_ or |tuple|_ [|str|_]
         """
-        idx_list = list(chain.from_iterable([self[at] for at in atoms]))
-        mol = self.as_Molecule(mol_subset=0, atom_subset=idx_list)
+        atom_subset = atom_subset or self.atoms.keys()
+        mol = self.as_Molecule(mol_subset=0, atom_subset=atom_subset)
         mol.guess_bonds()
         self.from_Molecule(mol, subset='bonds')
 
-    def remove_random_coords(self, p=0.5):
-        """ Remove random xyz frames from **self.coords**.
-        The probability of removing a specific frame is equal to **p**.
+    def remove_random_coords(self, p=0.5, return_coords=False):
+        """ Remove random molecules from **self.coords**.
+        For each molecule, the probability of removal is equal to **p**.
+        Performs an inplace modification of **self.coords** if **return_coords** is *False*.
 
         :parameter float p: The probability of remove a 2D slice from **self.coords**.
             Accepts values between 0.0 (0%) and 1.0 (100%).
+        :parameter bool return_coords: If *True*, return a view of the gathered 2D frames.
+            If *False*, perform an inplace modification **self.coords**, replacing it with a
+            view of the randomly gathered molecules.
         """
         if p <= 0.0 or p >= 1.0:
             raise IndexError('The probability, p, must be larger than 0.0 and smaller than 1.0')
@@ -40,15 +433,32 @@ class MultiMolecule(_MultiMolecule):
         size = 1 or int(self.shape[0] / p)
         idx_range = np.arange(self.shape[0])
         idx = np.random.choice(idx_range, size)
+        if return_coords:
+            return self[idx]
         self.coords = self[idx]
 
-    def get_angle_mat(self, frame=0, atoms=[None, None, None]):
-        """ Create and return an angle matrix. """
+    def get_angle_mat(self, mol_subset=0, atom_subset=(None, None, None)):
+        """ Create and return an angle matrix for all molecules and atoms in **self.coords**.
+        Returns a 4D array.
+
+        :parameter mol_subset: Create a distance matrix from a subset of molecules in
+            **self.coords**. If *None*, create a distance matrix for all molecules in
+            **self.coords**. Will return a 3D instead of a 4D array if len(mol_subset) is 1.
+        :type mol_subset: |None|_ or |tuple|_ [|int|_]
+        :parameter atom_subset: Create a distance matrix from a subset of atoms per molecule in
+            **self.coords**. Tuples of indices have to be supplied for all 3 dimensions, but can be
+            freely mixed with *None*. If *None*, pick all atoms from **self.coords** for that
+            partical dimension.
+        :type atom_subset: |tuple|_ [|None|_] or |tuple|_ [|tuple|_ [|int|_]]
+        :return: A 4D angle matrix of *m* molecules, created out of three sets of *n*, *k* and
+            *l* atoms.
+        :return type: *m*n*k*l* |np.ndarray|_ [|np.float64|_].
+        """
         # Define array slices
-        frame = frame or slice(0, self.shape[0])
-        i = frame, self.get_idx(atoms[0]) or slice(0, self.shape[1])
-        j = frame, self.get_idx(atoms[1]) or slice(0, self.shape[1])
-        k = frame, self.get_idx(atoms[2]) or slice(0, self.shape[1])
+        mol_subset = mol_subset or slice(0, self.shape[0])
+        i = mol_subset, self._get_idx(atom_subset[0]) or slice(0, self.shape[1])
+        j = mol_subset, self._get_idx(atom_subset[1]) or slice(0, self.shape[1])
+        k = mol_subset, self._get_idx(atom_subset[2]) or slice(0, self.shape[1])
 
         # Slice and broadcast the XYZ array
         A = self[i][:, None, :]
@@ -56,75 +466,87 @@ class MultiMolecule(_MultiMolecule):
         C = self[k][:, :, None]
 
         # Prepare the unit vectors
-        kwarg1 = {'atoms': [atoms[0], atoms[1]], 'frame': frame}
-        kwarg2 = {'atoms': [atoms[0], atoms[2]], 'frame': frame}
+        kwarg1 = {'atom_subset': [atom_subset[0], atom_subset[1]], 'mol_subset': mol_subset}
+        kwarg2 = {'atom_subset': [atom_subset[0], atom_subset[2]], 'mol_subset': mol_subset}
         unit_vec1 = A - B / self.get_dist_mat(**kwarg1)
         unit_vec2 = A - C / self.get_dist_mat(**kwarg2)
 
         # Create and return the angle matrix
         ret = np.arccos(np.einsum('ijkl,ijml->ijkl', unit_vec1, unit_vec2))
-        if ret.shape[0] == 1:
-            return ret[0]
         return ret
 
-    #############################################  rdf  ###########################################
+    """ ##########################  Radial Distribution Function  ############################# """
 
-    def init_rdf(self, atoms=None, dr=0.05, r_max=12.0, low_mem=False):
-        """ Calculate and return the radial distribution functions (RDFs) for all possible atom-pairs
-        in **atoms** as a dataframe. Accepts both 2d and 3d arrays of cartesian coordinates as input.
+    def init_rdf(self, atom_subset=None, dr=0.05, r_max=12.0, low_mem=False):
+        """ Initialize the calculation of radial distribution functions (RDFs). RDFs are calculated
+        for all possible atom-pairs in **atom_subset** and returned as a dataframe.
 
-        :parameter atoms: A tuple of atomic symbols. RDFs will be calculated for all
+        :parameter atom_subset: A tuple of atomic symbols. RDFs will be calculated for all
             possible atom-pairs in **atoms**. If *None*, calculate RDFs for all possible atom-pairs
-            in the keys of **idx_dict** (*i.e.* all possible atoms pairs in the molecule).
-        :type atoms: None or tuple [str]
-        :parameter float dr: The integration step-size in Angstrom, *i.e.* the distance between
+            in the keys of **self.atoms**.
+        :type atom_subset: |None|_ or |tuple|_ [|str|_]
+        :parameter float dr: The integration step-size in Ångström, *i.e.* the distance between
             concentric spheres.
-        :parameter float r_max: The maximum to be evaluated interatomic distance.
-        :parameter float low_mem: If *True*, use a slower but more memory efficient method for
+        :parameter float r_max: The maximum to be evaluated interatomic distance in Ångström.
+        :parameter bool low_mem: If *True*, use a slower but more memory efficient method for
             constructing the RDFs.
         :return: A dataframe of radial distribution functions, averaged over all conformations in
             **xyz_array**. Keys are of the form: at_symbol1 + ' ' + at_symbol2 (*e.g.* 'Cd Cd').
-            The radius is used as index.
+            Radii are used as indices.
         :rtype: |pd.DataFrame|_ (keys: |str|_, values: |np.float64|_, indices: |np.float64|_).
         """
-        # If *atoms* is None: extract atomic symbols from they keys of *idx_dict*
-        atoms = atoms or tuple(self.atoms.keys())
+        # If **atom_subset** is None: extract atomic symbols from they keys of **self.atoms**
+        atom_subset = atom_subset or tuple(self.atoms.keys())
 
         # Construct a list of 2-tuples containing all unique atom pairs
-        atom_pairs = [(at1, at2) for i, at1 in enumerate(atoms) for at2 in atoms[i:]]
+        atom_pairs = [(at1, at2) for i, at1 in enumerate(atom_subset) for at2 in atom_subset[i:]]
 
         # Construct an empty dataframe with appropiate dimensions, indices and keys
         df = get_rdf_df(dr, r_max, atom_pairs)
 
-        # Fill the dataframe with RDF's, summed over all conformations in mol_list
+        # Fill the dataframe with RDF's, averaged over all conformations in **self.coords**
         kwarg1 = {'dr': dr, 'r_max': r_max}
         if low_mem:
-            # Slower low mem approach
-            kwarg2 = {'frame': None, 'atoms': None}
+            # Slower low memory approach
+            kwarg2 = {'mol_subset': None, 'atom_subset': None}
             for i, _ in enumerate(self):
                 kwarg2['frame'] = i
                 for at1, at2 in atom_pairs:
-                    kwarg2['atoms'] = (at1, at2)
+                    kwarg2['atom_subset'] = (at1, at2)
                     df[at1 + ' ' + at2] += get_rdf_lowmem(self.get_dist_mat(**kwarg2), **kwarg1)
 
             df.iloc[0] = 0.0
             df /= self.shape[0]
         else:
-            # Faster high mem approach
-            kwarg2 = {'frame': None, 'atoms': None}
+            # Faster high memory approach
+            kwarg2 = {'mol_subset': None, 'atom_subset': None}
             for at1, at2 in atom_pairs:
-                kwarg2['atoms'] = (at1, at2)
+                kwarg2['atom_subset'] = (at1, at2)
                 df[at1 + ' ' + at2] = get_rdf(self.get_dist_mat(**kwarg2), **kwarg1)
 
         return df
 
-    def get_dist_mat(self, frame=None, atoms=[None, None]):
-        """ Create and return a distance matrix.
-        Return a 3D or 2D distance matrix. """
+    def get_dist_mat(self, mol_subset=None, atom_subset=(None, None)):
+        """ Create and return a distance matrix for all molecules and atoms in **self.coords**.
+        Returns a 3D array.
+
+        :parameter mol_subset: Create a distance matrix from a subset of molecules in
+            **self.coords**. If *None*, create a distance matrix for all molecules in
+            **self.coords**. Will return a 2D instead of a 3D array if len(mol_subset) is 1.
+        :type mol_subset: |None|_ or |tuple|_ [|int|_]
+        :parameter atom_subset: Create a distance matrix from a subset of atoms per molecule in
+            **self.coords**. Tuples of indices have to be supplied for all 2 dimensions, but can be
+            freely mixed with *None*. If *None*, pick all atoms from **self.coords** for that
+            partical dimension.
+        :type atom_subset: |tuple|_ (|None|_) or |tuple|_ [|tuple|_ [|int|_]]
+        :return: A 3D distance matrix of *m* molecules, created out of two sets of *n* and
+            *k* atoms.
+        :return type: *m*n*k* |np.ndarray|_ [|np.float64|_].
+        """
         # Define array slices
-        frame = frame or slice(0, self.shape[0])
-        i = frame, self.get_idx(atoms[0]) or slice(0, self.shape[1])
-        j = frame, self.get_idx(atoms[1]) or slice(0, self.shape[1])
+        mol_subset = mol_subset or slice(0, self.shape[0])
+        i = mol_subset, self._get_idx(atom_subset[0]) or slice(0, self.shape[1])
+        j = mol_subset, self._get_idx(atom_subset[1]) or slice(0, self.shape[1])
 
         # Slice the XYZ array
         A = self[i]
@@ -135,47 +557,51 @@ class MultiMolecule(_MultiMolecule):
         ret = np.empty(shape)
         for k, (a, b) in enumerate(zip(A, B)):
             ret[k] = cdist(a, b)
-        if ret.shape[0] == 1:
-            return ret[0]
         return ret
 
-    def get_idx(self, at):
+    def _get_idx(self, at):
         """ Grab and return a list of indices from **self.atoms**.
-        Retun *None* if **at** is *None*. """
+        Return *None* if **at** is *None*. """
         if at is None:
             return at
         else:
             return self.atoms[at]
 
-    #######################################  Type conversion  #####################################
+    """ #################################  Type conversion  ################################### """
 
     def as_Molecule(self, mol_subset=None, atom_subset=None):
         """ Convert a *MultiMolecule* object into a *list* of *plams.Molecule*.
 
-        :parameter mol_subset: Convert a subset of molecules in **self.coords** based on their
+        :parameter mol_subset: Convert a subset of molecules in **self.coords** as based on their
             indices. If *None*, convert all molecules.
         :type mol_subset: |None|_, |int|_ or |tuple|_ [|int|_]
         :parameter atom_subset: Convert a only subset of atoms within each molecule in
             **self.coords**, as based on their indices. If *None*, convert all atoms per molecule.
         :type atom_subset: |None|_, |int|_ or |tuple|_ [|int|_]
-        :return: A PLAMS molecule or list of PLAMS molecules.
-        :rtype: |plams.Molecule|_ or |list|_ [|plams.Molecule|_].
+        :return: A list of *m* PLAMS molecules.
+        :rtype: |list|_ [|plams.Molecule|_].
         """
         # Create a dictionary with atomic indices as keys and matching atomic symbols as values
-        idx_dict = self._invert_atoms()
+        atom_subset = atom_subset or self.atoms.values()
+        at_list = list(chain.from_iterable(atom_subset))
 
         # Construct a template molecule and fill it with atoms
+        assert self.coords is not None
+        assert self.atoms is not None
         mol_template = Molecule()
-        for i in idx_dict:
-            at = Atom(symbol=idx_dict[i])
-            mol_template.add_atom(at)
+        mol_template.properties = self.properties.copy()
+        for i, symbol in enumerate(at_list):
+            atom = Atom(symbol=symbol)
+            mol_template.add_atom(atom)
 
         # Fill the template molecule with bonds
-        for bond, order in zip(self.bonds, self.bond_orders):
-            i = int(bond[0]) + 1
-            j = int(bond[1]) + 1
-            bond = Bond(atom1=mol_template[i], atom2=mol_template[j], order=order)
-            mol_template.add_bond(bond)
+        if self.bonds is not None:
+            for i, j, order in self.bonds:
+                if i in atom_subset and j in atom_subset:
+                    at1 = mol_template[i + 1]
+                    at2 = mol_template[j + 1]
+                    bond = Bond(atom1=at1, atom2=at2, order=order)
+                    mol_template.add_bond(bond)
 
         # Create copies of the template molecule; update their cartesian coordinates
         ret = []
@@ -186,22 +612,31 @@ class MultiMolecule(_MultiMolecule):
             mol.properties.frame = i
             ret.append(mol)
 
-        # Return a molecule or list of molecules
-        if ret.shape[0] == 1:
-            return ret[0]
         return ret
 
-    def from_Molecule(self, mol_list, subset=None):
-        """ Convert a *list* of *plams.Molecule* into a *MultiMolecule* object.
+    def from_Molecule(self, mol_list, subset=None, allow_different_length=False):
+        """ Convert a list of PLAMS molecules into a *MultiMolecule* object.
+        Performs an inplace modification of **self**.
 
         :parameter mol_list: A list of PLAMS molecules.
-        :type mol_list: |list|_ [|plams.Molecule|_].
+        :type mol_list: |list|_ [|plams.Molecule|_]
         :parameter subset: Transfer a subset of *plams.Molecule* attributes to **self**. If *None*,
-            transfer all attributes (*i.e.* 'properties', 'atoms' and 'bonds').
+            transfer all attributes. Accepts one or more of the following values as strings:
+            *properties*, *atoms* and/or *bonds*.
         :type subset: |None|_, |str|_ or |tuple|_ [|str|_]
+        :parameter bool allow_different_length: If *True*, allow **mol_list** and **self.coords** to
+            have different lengths.
         """
         mol = mol_list[0]
         subset = subset or ('atoms', 'bonds', 'properties')
+
+        if not allow_different_length:
+            # Raise an error if mol_list and self.coords are of different lengths
+            if len(mol_list) != self.shape[0]:
+                error = 'from_Molecule: Shape mismatch, the argument mol_list is of length '
+                error += str(len(mol_list)) + ' while self.coords is of length: '
+                error += str(self.shape[0])
+                raise IndexError(error)
 
         # Convert properties
         if 'properties' in subset:
@@ -209,10 +644,10 @@ class MultiMolecule(_MultiMolecule):
 
         # Convert atoms
         if 'atoms' in subset:
-            self.coords = np.array([mol.as_array() for mol in mol_list])
-            self.shape = self.coords.shape
-            self.dtype = self.coords.dtype
-            for i, at in enumerate(mol):
+            dummy = Molecule()
+            idx = slice(0, self.shape[0])
+            self.coords = np.array([dummy.as_array(subset=mol.atoms[idx]) for mol in mol_list])
+            for i, at in enumerate(mol.atoms[idx]):
                 try:
                     self.atoms[at].append(i)
                 except KeyError:
@@ -221,42 +656,102 @@ class MultiMolecule(_MultiMolecule):
         # Convert bonds
         if 'bonds' in subset:
             mol.set_atoms_id()
-            self.bonds = np.empty((len(mol.bonds), 2), dtype=int)
-            self.bond_orders = np.empty((len(mol.bonds)), dtype=float)
+            self.bonds = np.zeros((len(mol.bonds), 3), dtype=int)
             for i, bond in enumerate(mol.bonds):
-                self.bonds[i] = bond.at1.id, bond.at2.id
-                self.bond_orders[i] = bond.order
+                self.bonds[i][2] = int(bond.order)
+                self.bonds[i][0:1] = bond.at1.id, bond.at2.id
             mol.unset_atoms_id()
+            if len(mol) > self.shape[0]:
+                idx = np.arange(0 - len(mol))
+                self.bonds = self.bonds[idx]
 
-    def _invert_atoms(self):
-        """ Invert the **self.atoms** attribute, turing keys into values and values into keys. """
-        ret = {}
-        for at in self.atoms:
-            for i in self.atoms[at]:
-                ret[i] = at
-        return ret
 
-    #########################################  Copy  ##############################################
 
-    def __copy__(self):
+    """ ###################################  Copy  ############################################ """
+
+    def __copy__(self, subset=None):
         """ Magic method, create and return a new *MultiMolecule* and fill its attributes with
-        views of **self**. """
+        views of their respective counterparts in **self**.
+
+        :parameter subset: Copy a subset of attributes from **self**; if *None*, copy all
+            attributes. Accepts one or more of the following values as strings: *properties*,
+            *atoms* and/or *bonds*.
+        :type subset: |None|_, |str|_ or |tuple|_ [|str|_]
+        """
+        subset = subset or ('atoms', 'bonds', 'properties')
         ret = MultiMolecule()
-        ret.coords = self.coords
-        ret.shape = self.shape
-        ret.dtype = self.dtype
-        ret.atoms = self.atoms
-        ret.bonds = self.bonds
-        ret.bond_orders = self.bond_orders
-        ret.properties = self.properties
+
+        # Copy atoms
+        if 'atoms' in subset:
+            ret.coords = self.coords
+            ret.atoms = self.atoms
+
+        # Copy bonds
+        if 'bonds' in subset:
+            ret.bonds = self.bonds
+
+        # Copy properties
+        if 'properties' in subset:
+            ret.properties = self.properties
+
         return ret
 
-    def __deepcopy__(self):
-        """ Magic method, create and return a deep copy of **self**. """
-        ret = self.copy()
-        ret.coords = self.coords.copy()
-        ret.atoms = self.atoms.copy()
-        ret.bonds = self.bonds.copy()
-        ret.bond_orders = self.bond_orders.copy()
-        ret.properties = self.properties.copy()
+    def copy(self, subset=None, deepcopy=False):
+        """ Create and return a new *MultiMolecule* object and fill its attributes with
+        views of their respective counterparts in **self**, creating a shallow copy.
+
+        :parameter subset: Copy a subset of attributes from **self**; if *None*, copy all
+            attributes. Accepts one or more of the following values as strings: *properties*,
+            *atoms* and/or *bonds*.
+        :type subset: |None|_, |str|_ or |tuple|_ [|str|_]
+        :parameter bool deepcopy: If *True*, perform a deep copy instead of a shallow copy.
+        """
+        if deepcopy:
+            return self.__deepcopy__(subset)
+        return self.__copy__(subset)
+
+    def __deepcopy__(self, subset=None):
+        """ Magic method, create and return a deep copy of **self**.
+
+        :parameter subset: Deepcopy a subset of attributes from **self**; if *None*, copy all
+            attributes. Accepts one or more of the following values as string:
+            *properties*, *atoms* and/or *bonds*.
+        :type subset: |None|_, |str|_ or |tuple|_ [|str|_]
+        """
+        subset = subset or ('atoms', 'bonds', 'properties')
+        ret = self.__copy__(subset=subset)
+
+        # Deep copy atoms
+        if 'atoms' in subset:
+            try:
+                ret.coords = self.coords.copy()
+                ret.atoms = self.atoms.copy()
+            except AttributeError:
+                pass
+
+        # Deep copy bonds
+        if 'bonds' in subset and self.bonds is not None:
+            try:
+                ret.bonds = self.bonds.copy()
+            except AttributeError:
+                pass
+
+        # Deep copy properties
+        if 'properties' in subset:
+            try:
+                ret.properties = self.properties.copy()
+            except AttributeError:
+                pass
+
         return ret
+
+    def deepcopy(self, subset=None):
+        """ Create and return a new *MultiMolecule* object and fill its attributes with
+        copies of their respective counterparts in **self**, creating a deep copy.
+
+        :parameter subset: Copy a subset of attributes from **self**; if *None*, copy all
+            attributes. Accepts one or more of the following values as strings: *properties*,
+            *atoms* and/or *bonds*.
+        :type subset: |None|_, |str|_ or |tuple|_ [|str|_]
+        """
+        return self.__deepcopy__(subset)

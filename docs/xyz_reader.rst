@@ -8,11 +8,11 @@ retrieval of the various molecular geometries stored in an .xyz file.
 
 There are currently two implementations available
 
-.. autofunction:: FOX.functions.read_xyz.read_multi_xyz
+#.. autofunction:: FOX.functions.read_xyz.read_multi_xyz
 
-.. autofunction:: FOX.functions.read_xyz.multi_xyz_to_molecule
+#.. autofunction:: FOX.functions.read_xyz.multi_xyz_to_molecule
 
-.. autofunction:: FOX.functions.read_xyz.grab_random_slice
+#.. autofunction:: FOX.functions.read_xyz.grab_random_slice
 
 
 .. _plams.Molecule: https://www.scm.com/doc/plams/components/molecule.html#id1

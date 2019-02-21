@@ -1,13 +1,8 @@
 """ A module for reading multi-xyz files. """
 
-__all__ = ['read_multi_xyz', 'grab_random_slice', 'multi_xyz_to_molecule']
+__all__ = ['read_multi_xyz']
 
 import numpy as np
-
-from scm.plams import (Molecule, Atom)
-from scm.plams.core.settings import Settings
-
-from .multi_mol import MultiMolecule
 
 
 def read_multi_xyz(xyz_file):
@@ -15,18 +10,16 @@ def read_multi_xyz(xyz_file):
     molecules consisting of *n* atoms.
 
     :parameter str file: The path + filename of a (multi) .xyz file.
-    :parameter bool ret_idx_dict: In addition to returning cartesian coordinates, return a
-        dictionary with atomic symbols and matching atomic indices (|str|_: |list|_ [|int|_]).
-    :return: A 3D array of cartesian coordinates and, optionally, a dictionary
+    :return: A 3D array of cartesian coordinates and a dictionary
         with atomic symbols as keys and matching atomic indices as alues.
-    :rtype: *m*n*3* |np.ndarray|_ [|np.float64|_] and, optionally, |dict|_
+    :rtype: *m*n*3* |np.ndarray|_ [|np.float64|_] and |dict|_
         (keys: |str|_, values: |list|_ [|int|_]).
     """
     # Define constants and construct a dictionary: {atomic symbols: [atomic indices]}
     with open(xyz_file, 'r') as file:
-        mol_size = get_mol_size(file)
-        idx_dict = get_idx_dict(file, mol_size=mol_size, subtract=1)
-        file_size = get_file_size(file, add=[2, mol_size])
+        mol_size = _get_mol_size(file)
+        idx_dict = _get_idx_dict(file, mol_size=mol_size, subtract=1)
+        file_size = _get_file_size(file, add=[2, mol_size])
 
     # Check if mol_count_float is fractional; raise an error if it is
     mol_count = file_size / (2 + mol_size)
@@ -53,10 +46,10 @@ def read_multi_xyz(xyz_file):
     # Return the xyz array or the xyz array and a dictionary: {atomic symbols: [atomic indices]}
     xyz.shape = mol_count, mol_size, 3
 
-    return MultiMolecule(coords=xyz, atoms=idx_dict)
+    return xyz, idx_dict
 
 
-def get_mol_size(file):
+def _get_mol_size(file):
     """ Extract the number of atoms in a molecule from an .xyz file.
     The number of atoms is extracted form the first line.
     file <_io.TextIOWrapper>: An opened text file.
@@ -71,7 +64,7 @@ def get_mol_size(file):
         raise IndexError(error)
 
 
-def get_file_size(file, add=0):
+def _get_file_size(file, add=0):
     """ Extract the total number lines from a text file.
     file <_io.TextIOWrapper>: An opened text file.
     add <int>: An <int> or iterable consisting of <int>; adds a constant to the number of lines.
@@ -82,7 +75,7 @@ def get_file_size(file, add=0):
     return i + sum(add)
 
 
-def get_idx_dict(file, mol_size=False, subtract=0):
+def _get_idx_dict(file, mol_size=False, subtract=0):
     """ Extract atomic symbols from an opened text file.
     file <_io.TextIOWrapper>: An opened text file.
     mol_size <int>: The number of atoms in a single molecule.
