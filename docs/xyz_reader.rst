@@ -8,8 +8,6 @@ molecules. The herein implemented read_multi_xyz() function allows for
 the fast, and memory-effiecient, retrieval of the various molecular
 geometries stored in an .xyz file.
 
-There are currently two implementations available
-
 .. autofunction:: FOX.functions.read_xyz.read_multi_xyz
 
 .. _plams.Settings: https://www.scm.com/doc/plams/components/settings.html
