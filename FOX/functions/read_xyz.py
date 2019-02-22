@@ -12,8 +12,8 @@ def read_multi_xyz(xyz_file):
     molecules consisting of *n* atoms.
 
     :parameter str file: The path + filename of a (multi) .xyz file.
-    :return: A 3D array of cartesian coordinates and a dictionary-derived Settings object
-        with atomic symbols as keys and matching atomic indices as alues.
+    :return: A 3D array of cartesian coordinates and a Settings object (subclass of dictionary)
+        with atomic symbols as keys and matching atomic indices as values.
     :rtype: *m*n*3* |np.ndarray|_ [|np.float64|_] and |plams.Settings|_
         (keys: |str|_, values: |list|_ [|int|_], superclass: |Dict|_).
     """
