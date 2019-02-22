@@ -38,7 +38,9 @@ extensions = [
     'sphinx.ext.todo',
     'sphinx.ext.mathjax',
     'sphinx.ext.viewcode',
-    'sphinx.ext.githubpages']
+    'sphinx.ext.githubpages',
+    'matplotlib.sphinxext.plot_directive'
+    ]
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ['_templates']
@@ -96,7 +98,7 @@ html_theme = 'sphinx_rtd_theme'
 # further.  For a list of options available for each theme, see the
 # documentation.
 #
-# html_theme_options = {}
+# html_theme_options = {'textalign': 'justify'}
 
 # Add any paths that contain custom static files (such as style sheets) here,
 # relative to this directory. They are copied after the builtin static files,
@@ -177,7 +179,25 @@ texinfo_documents = [
 ]
 
 
-
-
 # Example configuration for intersphinx: refer to the Python standard library.
 intersphinx_mapping = {'https://docs.python.org/': None}
+
+
+# Whether to show links to the files in HTML.
+plot_html_show_formats = False
+
+
+# Whether to show a link to the source in HTML.
+plot_html_show_source_link = False
+
+
+# File formats to generate. List of tuples or strings:
+plot_formats = [('png', 300)]
+
+
+# This value selects if automatically documented members are sorted alphabetical (value 'alphabetical'), by member type (value 'groupwise') or by source order (value 'bysource').
+autodoc_member_order = 'bysource'
+
+
+# This value controls the behavior of sphinx-build -W during importing modules.
+autodoc_warningiserror = True

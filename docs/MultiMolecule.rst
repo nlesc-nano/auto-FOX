@@ -1,6 +1,9 @@
 The MultiMolecule Class
 =======================
 
+API
+---
+
 .. autoclass:: FOX.functions.multi_mol.MultiMolecule
     :members:
 

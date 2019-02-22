@@ -122,7 +122,24 @@ class MultiMolecule(_MultiMolecule):
     """ ################################## Root Mean Squared ################################## """
 
     def init_rmsd(self, mol_subset=None, atom_subset=None, reset_origin=True):
-        """ Initialize the RMSD calculation. """
+        """ Initialize the RMSD calculation, returning a dataframe.
+
+        :parameter mol_subset: Perform the calculation on a subset of molecules in **self**, as
+            determined by their moleculair index. Include all *m* molecules in **self** if *None*.
+        :type mol_subset: |None|_, |int|_ or |list|_ [|int|_]
+        :parameter atom_subset: Perform the calculation on a subset of atoms in **self**, as
+            determined by their atomic index or atomic symbol.  Include all *n* atoms per molecule
+            in **self** if *None*.
+        :type atom_subset:  |None|_, |int|_ or |str|_
+        :parameter bool reset_origin: Reset the origin of each molecule in **self** to
+            its respective center of mass. The center of mass is calculated based on all atoms in
+            **atom_subset**.
+        :return: A dataframe of RMSDs with one column for every string or list of ints in
+            **atom_subset**. Keys consist of atomic symbols (*e.g.* 'Cd') if **atom_subset**
+            contains strings, otherwise a more generic 'series ' + str(int) scheme is adopted
+            (*e.g.* 'series 2'). Molecular indices are used as indices.
+        :rtype: |pd.DataFrame|_ (keys: |str|_, values: |np.float64|_, indices: |np.int64|_).
+        """
         # Set the origin of all frames to their center of mass
         if reset_origin:
             self.reset_origin(mol_subset, atom_subset)
@@ -149,7 +166,24 @@ class MultiMolecule(_MultiMolecule):
         return df
 
     def init_rmsf(self, mol_subset=None, atom_subset=None, reset_origin=True):
-        """ Initialize the RMSF calculation. """
+        """ Initialize the RMSF calculation, returning a dataframe.
+
+        :parameter mol_subset: Perform the calculation on a subset of molecules in **self**, as
+            determined by their moleculair index. Include all *m* molecules in **self** if *None*.
+        :type mol_subset: |None|_, |int|_ or |list|_ [|int|_]
+        :parameter atom_subset: Perform the calculation on a subset of atoms in **self**, as
+            determined by their atomic index or atomic symbol.  Include all *n* atoms per molecule
+            in **self** if *None*.
+        :type atom_subset:  |None|_, |int|_ or |str|_
+        :parameter bool reset_origin: Reset the origin of each molecule in **self** to
+            its respective center of mass. The center of mass is calculated based on all atoms in
+            **atom_subset**.
+        :return: A dataframe of RMSFs with one column for every string or list of ints in
+            **atom_subset**. Keys consist of atomic symbols (*e.g.* 'Cd') if **atom_subset**
+            contains strings, otherwise a more generic 'series ' + str(int) scheme is adopted
+            (*e.g.* 'series 2'). Molecular indices are used as indices.
+        :rtype: |pd.DataFrame|_ (keys: |str|_, values: |np.float64|_, indices: |np.int64|_).
+        """
         # Set the origin of all frames to their center of mass
         if reset_origin:
             self.reset_origin(mol_subset, atom_subset)
@@ -257,7 +291,7 @@ class MultiMolecule(_MultiMolecule):
             return True  # subset is a nested iterable of *str*
         raise TypeError('')
 
-    """ ###################  Radial and Angular Distribution Functions  ####################### """
+    """ #############################  Radial Distribution Functions  ######################### """
 
     def init_rdf(self, atom_subset=None, dr=0.05, r_max=12.0, low_mem=False):
         """ Initialize the calculation of radial distribution functions (RDFs). RDFs are calculated
@@ -341,6 +375,8 @@ class MultiMolecule(_MultiMolecule):
         for k, (a, b) in enumerate(zip(A, B)):
             ret[k] = cdist(a, b)
         return ret
+
+    """ ############################  Angular Distribution Functions  ######################### """
 
     def get_angle_mat(self, mol_subset=0, atom_subset=(None, None, None)):
         """ Create and return an angle matrix for all molecules and atoms in **self.coords**.

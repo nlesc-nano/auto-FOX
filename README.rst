@@ -55,11 +55,11 @@ Currently implemented
 
 This package is a work in progress; the following functionalities are currently implemented:
 
-- A multi-XYZ reader
-- A radial distribution generator (RDF)
-- A root mean squared displacement generator (RMSD)
-- A root mean squared fluctuation generator (RMSF)
-- A new MultiMolecule for handling and processing the molecules resulting from MD trajectories
+- A multi-XYZ reader. (`doc <https://auto-fox.readthedocs.io/en/latest/RDF.html>`_)
+- A radial distribution generator (RDF). (`doc <https://auto-fox.readthedocs.io/en/latest/xyz_reader.html>`_)
+- A root mean squared displacement generator (RMSD). (`doc <https://auto-fox.readthedocs.io/en/latest/RMSD.html#root-mean-squared-displacement>`_)
+- A root mean squared fluctuation generator (RMSF). (`doc <https://auto-fox.readthedocs.io/en/latest/RMSD.html#root-mean-squared-fluctuation>`_)
+- A new MultiMolecule for handling and processing the molecules resulting from MD trajectories. (`doc <https://auto-fox.readthedocs.io/en/latest/MultiMolecule.html>`_)
 
 
 .. _documentation: https://auto-fox.readthedocs.io/en/latest/
