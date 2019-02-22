@@ -392,6 +392,8 @@ class MultiMolecule(_MultiMolecule):
             return self.atoms[arg]
         elif isinstance(arg[0], str):
             return list(chain.from_iterable(self.atoms[i] for i in arg))
+        elif isinstance(arg[0][0], int):
+            return list(chain.from_iterable(arg))
         raise KeyError()
 
     """ #################################  Type conversion  ################################### """
