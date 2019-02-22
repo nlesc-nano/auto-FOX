@@ -29,6 +29,7 @@ setup(
         'FOX.functions'
     ],
     package_dir={'FOX': 'FOX'},
+    package_data={'FOX': 'data/*xyz'},
     include_package_data=True,
     license="GNU General Public License v3 or later",
     zip_safe=False,
