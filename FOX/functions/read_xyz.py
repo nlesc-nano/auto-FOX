@@ -94,4 +94,6 @@ def _get_idx_dict(file, mol_size=False, subtract=0):
             except KeyError:
                 idx_dict[at] = [i]
             if i == abort:
+                for key in idx_dict:
+                    idx_dict[key] = sorted(idx_dict[key])
                 return idx_dict
