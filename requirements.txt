@@ -2,4 +2,3 @@
 sphinx>=1.4
 sphinx_rtd_theme
 nbsphinx
-git+https://github.com/SCM-NV/PLAMS@master#egg=plams-1.2
