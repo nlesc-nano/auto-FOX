@@ -29,7 +29,7 @@ setup(
         'FOX.functions'
     ],
     package_dir={'FOX': 'FOX'},
-    package_data={'FOX': 'examples/*xyz'},
+    package_data={'FOX': ['data/Cd68Se55_26COO_MD_trajec.xyz']},
     include_package_data=True,
     license="GNU General Public License v3 or later",
     zip_safe=False,
