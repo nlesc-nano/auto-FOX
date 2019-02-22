@@ -55,7 +55,7 @@ oxygen (Cd_Cd, Cd_Se, Cd_O, Se_Se, Se_O and O_O).
 API
 ---
 
-.. autofunction:: FOX.functions.multi_mol.MultiMolecule.init_rdf
+.. automethod:: FOX.functions.multi_mol.MultiMolecule.init_rdf
     :noindex:
 
 .. _Numpy: https://www.numpy.org/
