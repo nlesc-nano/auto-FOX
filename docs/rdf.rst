@@ -5,28 +5,31 @@ A radial distribution function (RDF) generator has been implemented in the
 :mod:`FOX.functions.multi_molecule` and :mod:`FOX.functions.rdf` modules.
 The radial distribution function, or pair correlation function, describes how
 the particale density in a system varies as a function of distance from a
-reference particle. The herein implemented function is designed for constructing
-RDFs between all possible (user-defined) atom-pairs.
+reference particle. The herein implemented function is designed for
+constructing RDFs between all possible (user-defined) atom-pairs.
 
 .. math::
 
     g(r) =
     \frac{V}{N_a*N_b} \sum_{i=1}^{N_a} \sum_{j=1}^{N_b} \left< *placeholder* \right>
-    
+
 
 Given a trajectory, ``mol``, stored as a *MultiMolecule* object, the RDF can be
-calculated with the following command: ``rdf = mol.init_rdf(atom_subset=None, low_mem=False)``.
+calculated with the following
+command: ``rdf = mol.init_rdf(atom_subset=None, low_mem=False)``.
 The resulting ``rdf`` is a Pandas_ dataframe, an object which is effectively a
 hybrid between a dictionary and a Numpy_ array.
 
 A slower, but more memory efficient, method of RDF construction can be enabled
-with ``low_mem=True``, causing the script to only store the distance matrix of a 
-single molecule in memory at once. If ``low_mem=False``, all distance matrices are 
-stored in memory simultaneously, speeding up the calculation but also introducing an 
-additional linear scaling of memory with respect to the number of molecules.
+with ``low_mem=True``, causing the script to only store the distance matrix
+of a single molecule in memory at once. If ``low_mem=False``, all distance
+matrices are stored in memory simultaneously, speeding up the calculation
+but also introducing an additional linear scaling of memory with respect to
+the number of molecules.
 
 Below is an example RDF of a CdSe quantum dot pacified with formate ligands.
-The RDF is printed for all possible combinations of cadmium, selenium and oxygen (Cd_Cd, Cd_Se, Cd_O, Se_Se, Se_O and O_O).
+The RDF is printed for all possible combinations of cadmium, selenium and
+oxygen (Cd_Cd, Cd_Se, Cd_O, Se_Se, Se_O and O_O).
 
 ::
 
@@ -39,7 +42,7 @@ The RDF is printed for all possible combinations of cadmium, selenium and oxygen
     rmsd.plot()
 
 
-.. plot:: 
+.. plot::
 
     from FOX.functions.multi_mol import MultiMolecule
     from FOX.examples.example_xyz import get_example_xyz
@@ -52,7 +55,8 @@ The RDF is printed for all possible combinations of cadmium, selenium and oxygen
 API
 ---
 
-.. autofunction:: FOX.functions.multi_mol.MultiMolecule.init_rdf
+.. automethod:: FOX.functions.multi_mol.MultiMolecule.init_rdf
+    :noindex:
 
 .. _Numpy: https://www.numpy.org/
 .. _Pandas: https://pandas.pydata.org/

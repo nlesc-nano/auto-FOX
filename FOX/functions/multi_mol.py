@@ -21,26 +21,19 @@ class MultiMolecule(_MultiMolecule):
     an intrinsic reaction coordinate calculation (IRC) or a molecular dymanics trajectory (MD).
     The class has access to four attributes (further details are provided under parameters):
 
-    - **coords**: The central object behind the MultiMolecule class, a *m*n*3* Numpy holding the \
-    cartesian coordinates of *m* molecules with *n* atoms.
-
-    - **atoms**: WiP
-
-    - **bonds**: WiP
-
-    - **properties**: WiP
-
     :parameter coords: A 3D array with the cartesian coordinates of *m* molecules with *n* atoms.
+        Stored in the **coords** attribute.
     :type coords: |None|_ or *m*n*3* |np.ndarray|_ [|np.float64|_]
     :parameter atoms: A dictionary-derived object with atomic symbols as keys and matching atomic
-        indices as values.
+        indices as values. Stored in the **atoms** attribute.
     :type atoms: |None|_ or |plams.Settings|_ (keys: |str|_, values: |list|_ [|int|_],
                                                superclass: |dict|_)
     :parameter bonds: A 2D array with indices of the atoms defining all *k* bonds (columns 1 & 2)
-        and their respective bond orders (column 3).
+        and their respective bond orders (column 3). Stored in the **bonds** attribute.
     :type bonds: |None|_ or *k*3* |np.ndarray|_ [|np.int64|_]
-    :parameter properties: A dictionary-derived object intended for storing miscellaneous
-        user-defined (meta-)data. Is devoid of keys by default.
+    :parameter properties: A Settings object (subclass of dictionary) intended for storing
+        miscellaneous user-defined (meta-)data. Is devoid of keys by default. Stored in the
+        **properties** attribute.
     :type properties: |plams.Settings|_ (superclass: |dict|_)
     :parameter filename: Create a **MultiMolecule** object out of a preexisting file, requiring its
         path + filename.
