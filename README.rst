@@ -10,7 +10,8 @@
 Automated Forcefield Optimization Extension
 ###########################################
 
-**Auto-FOX** is a tool for parameterizing forcefields by reproducing radial distribution functions. Further details are provided in the documentation_.
+**Auto-FOX** is a tool for parameterizing forcefields by reproducing radial distribution functions.
+Further details are provided in the documentation_.
 
 Installation
 ============
@@ -27,22 +28,22 @@ Anaconda environments
 - Anaconda installation instructions are available for a wide range of OSs.
 
 
-  - See the `Anaconda documentation <https://docs.anaconda.com/anaconda/install/>`_ for more details.   
+  - See the `Anaconda documentation <https://docs.anaconda.com/anaconda/install/>`_ for more details.
 
 
 - The anaconda environment can be created, enabled and disabled by, respectively, typing:
 
-  - Create environment: ``conda create --name FOX python`` 
+  - Create environment: ``conda create --name FOX python``
 
-  - Enable environment: ``conda activate FOX`` 
-  
+  - Enable environment: ``conda activate FOX``
+
   - Disable environment: ``conda deactivate``
-    
+
 
 Installing **Auto-FOX**
 -----------------------
 
--  If using Conda, enable the environment: ``conda activate FOX`` 
+-  If using Conda, enable the environment: ``conda activate FOX``
 
 -  Install **Auto-FOX** using pip: ``pip install git+https://github.com/BvB93/auto-FOX@master#egg=Auto-FOX-0.1.0``
 
@@ -52,13 +53,15 @@ Installing **Auto-FOX**
 Currently implemented
 =====================
 
-This package is a work in progress; the following modules are currently implemented:
+This package is a work in progress; the following functionalities are currently implemented:
 
-- A multi-XYZ reader at FOX.functions.read_xyz_
-- A radial distribution generator at FOX.functions.radial_distribution_
+- A multi-XYZ reader
+- A radial distribution generator (RDF)
+- A root mean squared displacement generator (RMSD)
+- A root mean squared fluctuation generator (RMSF)
+- A new MultiMolecule for handling and processing the molecules resulting from MD trajectories
+
 
 .. _documentation: https://auto-fox.readthedocs.io/en/latest/
 .. _Miniconda: http://conda.pydata.org/miniconda.html
 .. _FOX.examples: https://github.com/BvB93/auto-FOX/blob/master/FOX/examples/input.py
-.. _FOX.functions.read_xyz: https://github.com/BvB93/auto-FOX/tree/master/FOX/functions/read_xyz.py
-.. _FOX.functions.radial_distribution: https://github.com/BvB93/auto-FOX/tree/master/FOX/functions/radial_distribution.py
