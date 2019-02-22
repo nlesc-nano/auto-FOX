@@ -26,17 +26,17 @@ setup(
         'FOX',
         'FOX.data',
         'FOX.examples',
-        'FOX.functions'    
+        'FOX.functions'
     ],
     package_dir={'FOX': 'FOX'},
     include_package_data=True,
     license="GNU General Public License v3 or later",
     zip_safe=False,
     keywords=[
-        'quantum-mechanics', 
-        'science', 
-        'chemistry', 
-        'python-3', 
+        'quantum-mechanics',
+        'science',
+        'chemistry',
+        'python-3',
     ],
     classifiers=[
         'Development Status :: 2 - Pre-Alpha',
@@ -48,10 +48,10 @@ setup(
     ],
     test_suite='tests',
     install_requires=[
-        'numpy', 
-        'scipy', 
-        'pandas', 
-        'pyyaml', 
+        'numpy',
+        'scipy',
+        'pandas',
+        'pyyaml',
         'plams@git+https://github.com/SCM-NV/PLAMS@master#egg=plams-1.2'
     ],
     setup_requires=[
@@ -67,6 +67,6 @@ setup(
     ],
     extras_require={
         'test': ['pytest', 'pytest-cov', 'pytest-mock', 'nbsphinx', 'pygraphviz', 'pycodestyle'],
-        'doc': ['sphinx', 'sphinx_rtd_theme', 'nbsphinx']
+        'doc': ['sphinx', 'sphinx_rtd_theme', 'nbsphinx', 'matplotlib']
     }
 )
