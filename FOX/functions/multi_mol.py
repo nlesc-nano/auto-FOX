@@ -23,14 +23,14 @@ class MultiMolecule(_MultiMolecule):
     an intrinsic reaction coordinate calculation (IRC) or a molecular dymanics trajectory (MD).
     The class has access to four attributes (further details are provided under parameters):
 
-    - **coords**: The central object behind the MultiMolecule class, an *m*n*3* Numpy holding
-    the cartesian coordinates of *m* molecules with *n* atoms.
+    - **coords**: The central object behind the MultiMolecule class, a *m*n*3* Numpy holding the \
+    cartesian coordinates of *m* molecules with *n* atoms.
 
-    - **atoms**: None
+    - **atoms**: WiP
 
-    - **bonds**: None
+    - **bonds**: WiP
 
-    - **properties**: None
+    - **properties**: WiP
 
     :parameter coords: A 3D array with the cartesian coordinates of *m* molecules with *n* atoms.
     :type coords: |None|_ or *m*n*3* |np.ndarray|_ [|np.float64|_]
@@ -62,7 +62,7 @@ class MultiMolecule(_MultiMolecule):
             **self.coords**.
         :type atom_subset: |None|_ or |tuple|_ [|str|_]
         """
-        atom_subset = self.subset_to_idx(atom_subset)
+        atom_subset = self._subset_to_idx(atom_subset)
         mol = self.as_Molecule(mol_subset=0, atom_subset=atom_subset)[0]
         mol.guess_bonds()
         self.from_Molecule(mol, subset='bonds')
@@ -90,117 +90,14 @@ class MultiMolecule(_MultiMolecule):
             return self[idx]
         self.coords = self[idx]
 
-    """ ################################## Root Mean Squared ################################## """
-
-    def init_rmsd(self, other, mol_subset=None, atom_subset=None):
-        """ """
-        # Figure out if the RMSD should be calculated as a single or multiple series
-        try:
-            if isinstance(atom_subset[0], str) and not isinstance(atom_subset, str):
-                loop = True
-            else:
-                loop = False
-        except TypeError:
-            loop = False
-
-        # Get the RMSD
-        if loop:
-            rmsd = np.array([self.get_rmsd(other, mol_subset, at) for at in atom_subset]).T
-        else:
-            rmsd = self.get_rmsd(other, mol_subset, atom_subset)
-
-        # Construct arguments for the dataframe
-        if loop:
-            columns = atom_subset
-        elif isinstance(atom_subset, str):
-            columns = [atom_subset]
-        else:
-            columns = ['RMSD']
-        index = mol_subset or np.arange(0, self.shape[0])
-
-        # Create, fill and return a dataframe with the RMSD
-        df = pd.DataFrame(data=rmsd, index=index, columns=columns)
-        df.columns.name = 'RMSD  /  Ångström'
-        df.index.name = 'XYZ frame'
-        return df
-
-    def init_rmsf(self, mol_subset=None, atom_subset=None):
-        """ """
-        # Figure out if the RMSD should be calculated as a single or multiple series
-        try:
-            if isinstance(atom_subset[0], str) and not isinstance(atom_subset, str):
-                loop = True
-            else:
-                loop = False
-        except TypeError:
-            loop = False
-
-        # Get the RMSF
-        if loop:
-            rmsf = np.array([self.get_rmsf(mol_subset, at) for at in atom_subset]).T
-        else:
-            rmsf = self.get_rmsf(mol_subset, atom_subset)
-
-        # Construct arguments for the dataframe
-        index = np.arange(0, self.shape[1])
-        if loop:
-            columns = atom_subset
-            data = np.empty((rmsf.shape[0], index.shape[0]))
-            data[:, :] = np.nan
-            for i, (at, j) in enumerate(zip(list(atom_subset), rmsf)):
-                idx = self.subset_to_idx(at)
-                data[i, idx] = j
-            data = data.T
-        elif isinstance(atom_subset, str):
-            columns = [atom_subset]
-            data = np.empty((index.shape[0]))
-            data[:] = np.nan
-            idx = self.subset_to_idx(atom_subset)
-            data[idx] = rmsf
-        else:
-            columns = ['RMSF']
-            data = rmsf
-
-        # Create, fill and return a dataframe with the RMSF
-        df = pd.DataFrame(data=data, index=index, columns=columns)
-        df.columns.name = 'RMSF  /  Ångström'
-        df.index.name = 'Atomic index'
-        return df
-
-    def get_rmsd(self, other, mol_subset=None, atom_subset=None):
-        """ Calculate the root mean square fluctuation (RMSF) between **self.coords** and
-        **other**. Returns a dataframe with the RMSD as a function of the XYZ frame numbers. """
-        # Prepare slices
-        i = mol_subset or slice(0, self.shape[0])
-        j = self.subset_to_idx(atom_subset) or slice(0, self.shape[1])
-
-        # Check if the shapes of self and other match
-        if self[i, j, :].shape == other[i, j, :].shape:
-            other = other[i, j, :]
-
-        # Calculate and return the RMSD per molecule in **self.coords**
-        dist = np.linalg.norm(self[i, j, :] - other, axis=2)
-        return np.sqrt(np.einsum('ij,ij->i', dist, dist) / dist.shape[1])
-
-    def get_rmsf(self, mol_subset=None, atom_subset=None):
-        """ Calculate the root mean square fluctuation (RMSF) of **self.coords**.
-        Returns a dataframe as a function of atomic indices. """
-        # Prepare slices
-        i = mol_subset or slice(0, self.shape[0])
-        j = self.subset_to_idx(atom_subset) or slice(0, self.shape[1])
-
-        # Calculate the RMSF per molecule in **self.coords**
-        mean_coords = np.average(self[i, j, :], axis=0)[None, :, :]
-        displacement = np.linalg.norm(self[i, j, :] - mean_coords, axis=2)
-        return np.linalg.norm(displacement, axis=0)
-
     def reset_origin(self, mol_subset=None, atom_subset=None, inplace=True):
         """ Set the origin to the center of mass of **self.coords**. Performs in inplace update
         of **self.coords** if **inplace** is *True*. """
+        i = mol_subset or slice(0, self.shape[0])
         center_of_mass = self.get_center_of_mass(mol_subset, atom_subset)
         if not inplace:
-            return self - center_of_mass[:, None, :]
-        self -= center_of_mass[:, None, :]
+            return self[i, :, :] - center_of_mass[:, None, :]
+        self[i, :, :] -= center_of_mass[:, None, :]
 
     def get_center_of_mass(self, mol_subset=None, atom_subset=None):
         """ Return the center of mass of *m* molecules as an *m*3* array. """
@@ -209,20 +106,158 @@ class MultiMolecule(_MultiMolecule):
         for at in self.atoms:
             mass = PeriodicTable.get_mass(at)
             for i in self.atoms[at]:
-                try:
-                    mass_dict[i].append(mass)
-                except KeyError:
-                    mass_dict[i] = [mass]
+                mass_dict[i] = mass
 
         # Prepare slices
         i = mol_subset or slice(0, self.shape[0])
-        j = self.subset_to_idx(atom_subset) or slice(0, self.shape[1])
+        j = self._subset_to_idx(atom_subset) or slice(0, self.shape[1])
 
         # Get the center of mass
-        mass = np.array([mass_dict[i] for i in atom_subset])[None, :]
-        weighted_coords = self[i, j, :] * mass[:, None]
-        center = weighted_coords.sum(axis=2)
-        return center / mass.sum(axis=1)
+        if isinstance(j, slice):
+            mass = np.array([mass_dict[k] for k in range(self.shape[1])])
+        else:
+            mass = np.array([mass_dict[k] for k in j])
+        weighted_coords = self[i, j, :] * mass[None, :, None]
+        center = weighted_coords.sum(axis=1)
+        return center / mass.sum()
+
+    """ ################################## Root Mean Squared ################################## """
+
+    def init_rmsd(self, mol_subset=None, atom_subset=None, reset_origin=True):
+        """ Initialize the RMSD calculation. """
+        # Set the origin of all frames to their center of mass
+        if reset_origin:
+            self.reset_origin(mol_subset, atom_subset)
+
+        # Figure out if the RMSD should be calculated as a single or multiple series
+        atom_subset = atom_subset or tuple(self.atoms.keys())
+        loop = self._get_loop(atom_subset)
+
+        # Get the RMSD
+        if loop:
+            rmsd = np.array([self.get_rmsd(mol_subset, at) for at in atom_subset]).T
+        else:
+            rmsd = self.get_rmsd(mol_subset, atom_subset)
+
+        # Construct arguments for the dataframe
+        columns = self._get_rmsd_columns(rmsd, loop, atom_subset)
+        index = mol_subset or np.arange(0, self.shape[0])
+        data = rmsd
+
+        # Create, fill and return a dataframe with the RMSD
+        df = pd.DataFrame(data=data, index=index, columns=columns)
+        df.columns.name = 'RMSD  /  Ångström'
+        df.index.name = 'XYZ frame number'
+        return df
+
+    def init_rmsf(self, mol_subset=None, atom_subset=None, reset_origin=True):
+        """ Initialize the RMSF calculation. """
+        # Set the origin of all frames to their center of mass
+        if reset_origin:
+            self.reset_origin(mol_subset, atom_subset)
+
+        # Figure out if the RMSD should be calculated as a single or multiple series
+        atom_subset = atom_subset or tuple(self.atoms.keys())
+        loop = self._get_loop(atom_subset)
+
+        # Get the RMSF
+        if loop:
+            rmsf = [self.get_rmsf(mol_subset, at) for at in atom_subset]
+        else:
+            rmsf = self.get_rmsf(mol_subset, atom_subset)
+
+        # Construct arguments for the dataframe
+        index = np.arange(0, self.shape[1])
+        columns, data = self._get_rmsf_columns(rmsf, index, loop=loop, atom_subset=atom_subset)
+
+        # Create, fill and return a dataframe with the RMSF
+        df = pd.DataFrame(data=data, index=index, columns=columns)
+        df.columns.name = 'RMSF  /  Ångström'
+        df.index.name = 'Arbitrary atomic index'
+        return df
+
+    def get_rmsd(self, mol_subset=None, atom_subset=None):
+        """ Calculate the root mean square displacement (RMSD) with respect to the first molecule
+        **self.coords**. Returns a dataframe with the RMSD as a function of the XYZ frame numbers.
+        """
+        i = mol_subset or slice(0, self.shape[0])
+        j = self._subset_to_idx(atom_subset) or slice(0, self.shape[1])
+
+        # Calculate and return the RMSD per molecule in **self.coords**
+        dist = np.linalg.norm(self[i, j, :] - self[0, j, :], axis=2)
+        return np.sqrt(np.einsum('ij,ij->i', dist, dist) / dist.shape[1])
+
+    def get_rmsf(self, mol_subset=None, atom_subset=None):
+        """ Calculate the root mean square fluctuation (RMSF) of **self.coords**.
+        Returns a dataframe as a function of atomic indices. """
+        # Prepare slices
+        i = mol_subset or slice(0, self.shape[0])
+        j = self._subset_to_idx(atom_subset) or slice(0, self.shape[1])
+
+        # Calculate the RMSF per molecule in **self.coords**
+        mean_coords = np.average(self[i, j, :], axis=0)[None, :, :]
+        displacement = np.linalg.norm(self[i, j, :] - mean_coords, axis=2)**2
+        return np.average(displacement, axis=0)
+
+    def _get_rmsd_columns(self, rmsd, loop=False, atom_subset=None):
+        """ Return the columns for the RMSD dataframe. """
+        if loop:  # Plan A: **atom_subset** is a *list* of *str* or nested *list* of *int*
+            if isinstance(atom_subset[0], str):  # Use atomic symbols or general indices as keys
+                columns = atom_subset
+            else:
+                columns = np.arange(len(atom_subset))
+        else:  # Plan B: **atom_subset** is something else
+            if isinstance(atom_subset, str):  # Use an atomic symbol or a general index as keys
+                columns = [atom_subset]
+            else:
+                columns = [0]
+
+        return columns
+
+    def _get_rmsf_columns(self, rmsf, index, loop=False, atom_subset=None):
+        """ Return the columns and data for the RMSF dataframe. """
+        if loop:  # Plan A: **atom_subset** is a *list* of *str* or nested *list* of *int*
+            if isinstance(atom_subset[0], str):  # Use atomic symbols or general indices as keys
+                columns = atom_subset
+            else:
+                columns = np.arange(len(atom_subset))
+
+            # Create and fill a padded array
+            data = np.full((len(rmsf), index.shape[0]), np.nan)
+            k = 0
+            for i, j in enumerate(rmsf):
+                data[i, k:k+len(j)] = j
+                k += len(j)
+            data = data.T
+
+        else:  # Plan B: **atom_subset** is something else
+            if isinstance(atom_subset, str):  # Use an atomic symbol or a general index as keys
+                columns = [atom_subset]
+            else:
+                columns = [0]
+
+            # Create and fill a padded array
+            data = np.full((index.shape[0]), np.nan)
+            idx = self._subset_to_idx(atom_subset)
+            data[idx] = rmsf
+
+        return columns, data
+
+    def _get_loop(self, subset):
+        """ Figure out if the supplied subset warrants a for loop or not. """
+        if subset is None:
+            return True  # subset is *None*
+        if isinstance(subset, str):
+            return False  # subset is a *str*
+        elif isinstance(subset, int):
+            return False  # subset is an *int*
+        elif isinstance(subset[0], str):
+            return True  # subset is an iterable of *str*
+        elif isinstance(subset[0], int):
+            return False  # subset is an iterable of *str*
+        elif isinstance(subset[0][0], int):
+            return True  # subset is a nested iterable of *str*
+        raise TypeError('')
 
     """ ###################  Radial and Angular Distribution Functions  ####################### """
 
@@ -295,8 +330,8 @@ class MultiMolecule(_MultiMolecule):
         """
         # Define array slices
         mol_subset = mol_subset or slice(0, self.shape[0])
-        i = mol_subset, self.subset_to_idx(atom_subset[0]) or slice(0, self.shape[1])
-        j = mol_subset, self.subset_to_idx(atom_subset[1]) or slice(0, self.shape[1])
+        i = mol_subset, self._subset_to_idx(atom_subset[0]) or slice(0, self.shape[1])
+        j = mol_subset, self._subset_to_idx(atom_subset[1]) or slice(0, self.shape[1])
 
         # Slice the XYZ array
         A = self[i]
@@ -329,9 +364,9 @@ class MultiMolecule(_MultiMolecule):
         """
         # Define array slices
         mol_subset = mol_subset or slice(0, self.shape[0])
-        i = mol_subset, self.subset_to_idx(atom_subset[0]) or slice(0, self.shape[1])
-        j = mol_subset, self.subset_to_idx(atom_subset[1]) or slice(0, self.shape[1])
-        k = mol_subset, self.subset_to_idx(atom_subset[2]) or slice(0, self.shape[1])
+        i = mol_subset, self._subset_to_idx(atom_subset[0]) or slice(0, self.shape[1])
+        j = mol_subset, self._subset_to_idx(atom_subset[1]) or slice(0, self.shape[1])
+        k = mol_subset, self._subset_to_idx(atom_subset[2]) or slice(0, self.shape[1])
 
         # Slice and broadcast the XYZ array
         A = self[i][:, None, :]
@@ -348,7 +383,7 @@ class MultiMolecule(_MultiMolecule):
         ret = np.arccos(np.einsum('ijkl,ijml->ijkl', unit_vec1, unit_vec2))
         return ret
 
-    def subset_to_idx(self, arg):
+    def _subset_to_idx(self, arg):
         """ Grab and return a list of indices from **self.atoms**.
         Return *at* if it is *None*, an *int* or iterable container consisting of *int*. """
         if arg is None:
@@ -377,7 +412,7 @@ class MultiMolecule(_MultiMolecule):
         """
         # Create a dictionary with atomic indices as keys and matching atomic symbols as values
         mol_subset = mol_subset or np.arange(1, self.shape[0])
-        atom_subset = self.subset_to_idx(atom_subset)
+        atom_subset = self._subset_to_idx(atom_subset)
         atom_subset = atom_subset or list(chain.from_iterable(self.atoms.values()))
 
         # Construct a template molecule and fill it with atoms
@@ -413,7 +448,7 @@ class MultiMolecule(_MultiMolecule):
         Performs an inplace modification of **self**.
 
         :parameter mol_list: A PLAMS molecule or list of PLAMS molecules.
-        :type mol_list: |Molecule|_ or |list|_ [|plams.Molecule|_]
+        :type mol_list: |plams.Molecule|_ or |list|_ [|plams.Molecule|_]
         :parameter subset: Transfer a subset of *plams.Molecule* attributes to **self**. If *None*,
             transfer all attributes. Accepts one or more of the following values as strings:
             *properties*, *atoms* and/or *bonds*.
