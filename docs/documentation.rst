@@ -2,7 +2,7 @@ Auto-FOX Documentation
 ======================
 
 .. toctree::
-    RDF
+    rdf
     RMSD
     MultiMolecule
     xyz_reader
