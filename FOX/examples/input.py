@@ -4,8 +4,7 @@ __all__ = []
 
 import time
 
-from FOX.functions.read_xyz import read_multi_xyz
-from FOX.functions.rdf import get_all_radial
+from FOX.functions.multi_mol import MultiMolecule
 from FOX.examples.example_xyz import get_example_xyz
 
 
@@ -20,12 +19,18 @@ print('')
 start = time.time()
 
 # Run the actual script
-xyz_array, idx_dict = read_multi_xyz(xyz_file)
-df = get_all_radial(xyz_array, idx_dict, dr=dr, r_max=r_max, atoms=atoms)
+mol = MultiMolecule(filename=xyz_file)
+
+# Calculate the RDF, RSMF & RMSD
+rdf = mol.init_rdf(dr=dr, r_max=r_max, atom_subset=atoms)
+rmsf = mol.init_rmsf(atom_subset=atoms)
+rmsd = mol.init_rmsd(atom_subset=atoms)
 
 # Print the results
 print('run time:', '%.2f' % (time.time() - start), 'sec')
 try:
-    df.plot()
+    rdf.plot()
+    rmsf.plot()
+    rmsd.plot()
 except Exception as ex:
     print(ex)
