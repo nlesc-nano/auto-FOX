@@ -9,7 +9,7 @@ import pandas as pd
 from scipy.spatial.distance import cdist
 
 from scm.plams import (Atom, Bond, Molecule)
-from scm.plams.tools.periodic_table import PeriodicTable
+from scm.plams import PeriodicTable
 
 from .rdf import (get_rdf, get_rdf_lowmem, get_rdf_df)
 from .multi_mol_magic import _MultiMolecule
