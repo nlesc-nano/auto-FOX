@@ -124,8 +124,10 @@ API
 ---
 
 .. autofunction:: FOX.functions.multi_mol.MultiMolecule.init_rmsd
+    :noindex:
 
 .. autofunction:: FOX.functions.multi_mol.MultiMolecule.init_rmsf
+    :noindex:
 
 .. _Numpy: https://www.numpy.org/
 .. _Pandas: https://pandas.pydata.org/
