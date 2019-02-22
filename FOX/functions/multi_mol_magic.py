@@ -85,24 +85,6 @@ class _MultiMolecule:
 
         return coords, atoms, bonds, properties
 
-    def _sanitize_other(self, other):
-        """ A function for sanitizing the argument **other**, an argument which appears in many
-        magic methods. """
-        # Validate object type and shape
-        try:
-            # Check for arrays
-            assert other.shape[-1] == 3
-
-            # Broadcast (if necessary) and return
-            if other.ndim == 2:
-                other = other[None, :, :]
-            elif other.ndim == 1:
-                other = other[None, None, :]
-            return other
-        except AttributeError:
-            # Assume other is a float or int
-            return other
-
     def _set_shape(self, value): self.coords.shape = value
     def _get_shape(self): return self.coords.shape
     shape = property(_get_shape, _set_shape)
@@ -123,27 +105,21 @@ class _MultiMolecule:
     """ ############################  Comparison magic methods  ############################### """
 
     def __eq__(self, other):
-        other = self._sanitize_other(other)
         return self.coords == other
 
     def __ne__(self, other):
-        other = self._sanitize_other(other)
         return self.coords != other
 
     def __lt__(self, other):
-        other = self._sanitize_other(other)
         return self.coords < other
 
     def __gt__(self, other):
-        other = self._sanitize_other(other)
         return self.coords > other
 
     def __le__(self, other):
-        other = self._sanitize_other(other)
         return self.coords <= other
 
     def __ge__(self, other):
-        other = self._sanitize_other(other)
         return self.coords >= other
 
     """ ########################### Unary operators and functions  ############################ """
@@ -178,55 +154,46 @@ class _MultiMolecule:
     """ ##########################  Normal arithmetic operators  ############################## """
 
     def __add__(self, other):
-        other = self._sanitize_other(other)
         ret = self.copy()
         ret.coords = self.coords + other
         return ret
 
     def __sub__(self, other):
-        other = self._sanitize_other(other)
         ret = self.copy()
         ret.coords = self.coords - other
         return ret
 
     def __mul__(self, other):
-        other = self._sanitize_other(other)
         ret = self.copy()
         ret.coords = self.coords * other
         return ret
 
     def __matmul__(self, other):
-        other = self._sanitize_other(other)
         ret = self.copy()
         ret.coords = self.coords @ other
         return ret
 
     def __floordiv__(self, other):
-        other = self._sanitize_other(other)
         ret = self.copy()
         ret.coords = self.coords // other
         return ret
 
     def __div__(self, other):
-        other = self._sanitize_other(other)
         ret = self.copy()
         ret.coords = self.coords / other
         return ret
 
     def __mod__(self, other):
-        other = self._sanitize_other(other)
         ret = self.copy()
         ret.coords = self.coords % other
         return ret
 
     def __divmod__(self, other):
-        other = self._sanitize_other(other)
         ret = self.copy()
         ret.coords = np.divmod(self.coords, other)
         return ret
 
     def __pow__(self, other):
-        other = self._sanitize_other(other)
         ret = self.copy()
         ret.coords = self.coords**other
         return ret
@@ -234,37 +201,31 @@ class _MultiMolecule:
     """ ##########################  Reflected arithmetic operators  ########################### """
 
     def __rsub__(self, other):
-        other = self._sanitize_other(other)
         ret = self.copy()
         ret.coords = other - self.coords
         return ret
 
     def __rfloordiv__(self, other):
-        other = self._sanitize_other(other)
         ret = self.copy()
         ret.coords = other // self.coords
         return ret
 
     def __rdiv__(self, other):
-        other = self._sanitize_other(other)
         ret = self.copy()
         ret.coords = other / self.coords
         return ret
 
     def __rmod__(self, other):
-        other = self._sanitize_other(other)
         ret = self.copy()
         ret.coords = other % self.coords
         return ret
 
     def __rdivmod__(self, other):
-        other = self._sanitize_other(other)
         ret = self.copy()
         ret.coords = np.divmod(other, self.coords)
         return ret
 
     def __rpow__(self, other):
-        other = self._sanitize_other(other)
         ret = self.copy()
         ret.coords = other**self.coords
         return ret
@@ -272,42 +233,34 @@ class _MultiMolecule:
     """ ##############################  Augmented assignment  ################################# """
 
     def __iadd__(self, other):
-        other = self._sanitize_other(other)
         self.coords += other
         return self
 
     def __isub__(self, other):
-        other = self._sanitize_other(other)
         self.coords -= other
         return self
 
     def __imul__(self, other):
-        other = self._sanitize_other(other)
         self.coords *= other
         return self
 
     def __imatmul__(self, other):
-        other = self._sanitize_other(other)
         self.coords = self.coords @ np.swapaxes(other, -2, -1)
         return self
 
     def __ifloordiv__(self, other):
-        other = self._sanitize_other(other)
         self.coords //= other
         return self
 
     def __idiv__(self, other):
-        other = self._sanitize_other(other)
         self.coords /= other
         return self
 
     def __imod__(self, other):
-        other = self._sanitize_other(other)
         self.coords %= other
         return self
 
     def __ipow__(self, other):
-        other = self._sanitize_other(other)
         self.coords **= other
         return self
 
