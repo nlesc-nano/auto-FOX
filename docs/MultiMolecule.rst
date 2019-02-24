@@ -7,6 +7,7 @@ API
 .. autoclass:: FOX.functions.multi_mol.MultiMolecule
     :members:
 
+.. _PeriodicTable: https://www.scm.com/doc/plams/components/utils.html#periodic-table
 .. _plams.Settings: https://www.scm.com/doc/plams/components/settings.html
 .. _plams.Molecule: https://www.scm.com/doc/plams/components/molecule.html#id1
 .. _np.ndarray: https://docs.scipy.org/doc/numpy/reference/generated/numpy.ndarray.html
