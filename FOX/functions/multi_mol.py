@@ -83,34 +83,92 @@ class MultiMolecule(_MultiMolecule):
 
     def reset_origin(self, mol_subset=None, atom_subset=None, inplace=True):
         """ Set the origin to the center of mass of **self.coords**. Performs in inplace update
-        of **self.coords** if **inplace** is *True*. """
-        i = mol_subset or slice(0, self.shape[0])
-        center_of_mass = self.get_center_of_mass(mol_subset, atom_subset)
-        if not inplace:
-            return self[i, :, :] - center_of_mass[:, None, :]
-        self[i, :, :] -= center_of_mass[:, None, :]
+        of **self.coords** if **inplace** is *True*.
 
-    def get_center_of_mass(self, mol_subset=None, atom_subset=None):
-        """ Return the center of mass of *m* molecules as an *m*3* array. """
-        # Prepare a dictionary with atomic masses
-        mass_dict = {}
-        for at in self.atoms:
-            mass = PeriodicTable.get_mass(at)
-            for i in self.atoms[at]:
-                mass_dict[i] = mass
-
+        :parameter mol_subset: Perform the calculation on a subset of molecules in **self**, as
+            determined by their moleculair index. Include all *m* molecules in **self** if *None*.
+        :type mol_subset: |None|_, |int|_ or |list|_ [|int|_]
+        :parameter atom_subset: Perform the calculation on a subset of atoms in **self**, as
+            determined by their atomic index or atomic symbol.  Include all *n* atoms per molecule
+            in **self** if *None*.
+        :type atom_subset: |None|_, |int|_ or |str|_
+        :parameter bool inplace: Instead of returning the new coordinates, perform an inplace
+            update of **self.coords**.
+        """
         # Prepare slices
         i = mol_subset or slice(0, self.shape[0])
         j = self._subset_to_idx(atom_subset) or slice(0, self.shape[1])
 
-        # Get the center of mass
-        if isinstance(j, slice):
-            mass = np.array([mass_dict[k] for k in range(self.shape[1])])
+        # Remove translations
+        coords = self[i, j, :] - np.average(self[i, j, :], axis=1)[:, None, :]
+
+        # Peform a singular value decomposition on the covariance matrix
+        H = np.swapaxes(coords[0:], 1, 2) @ coords[0]
+        U, S, Vt = np.linalg.svd(H)
+        V, Ut = np.swapaxes(Vt, 1, 2), np.swapaxes(U, 1, 2)
+
+        # Construct the rotation matrix
+        rotmat = np.ones_like(U)
+        rotmat[:, 2, 2] = np.linalg.det(V @ Ut)
+        rotmat *= V@Ut
+
+        # Return or perform an inplace update of **self.coords**
+        if inplace:
+            self[i, j, :] = coords @ np.swapaxes(rotmat, 1, 2)
         else:
-            mass = np.array([mass_dict[k] for k in j])
-        weighted_coords = self[i, j, :] * mass[None, :, None]
-        center = weighted_coords.sum(axis=1)
-        return center / mass.sum()
+            ret = self.deepcopy()
+            ret[i, j, :] = coords @ rotmat
+            return ret
+
+    def get_atomic_property(self, prop='symbol'):
+        """ Take **self.atoms** and return an (concatenated) array of a specific property associated
+        with an atom type. Values are sorted by their indices.
+
+        :parameter str prop: The to be returned property. Accepted values:
+            **symbol**, **atnum**, **mass**, **radius** or **connectors**.
+            See the |PeriodicTable|_ module of PLAMS for more details.
+        :return: A dictionary with atomic indices as keys and atomic symbols as values.
+        :rtype: |np.array|_ [|np.float64|_, |str|_ or |np.int64|_].
+        """
+        def get_symbol(symbol):
+            """ Takes an atomic symbol and returns itself. """
+            return symbol
+
+        # Interpret the **values** argument
+        prop_dict = {
+                'symbol': get_symbol,
+                'radius': PeriodicTable.get_radius,
+                'atnum': PeriodicTable.get_atomic_number,
+                'mass': PeriodicTable.get_mass,
+                'connectors': PeriodicTable.get_connectors
+        }
+
+        # Create concatenated lists of the keys and values in **self.atoms**
+        value_list = list(chain.from_iterable(self.atoms.values()))
+        key_list = []
+        for at in self.atoms:
+            key = prop_dict[prop](at)
+            key_list += [key for _ in self.atoms[at]]
+
+        # Sort and return
+        return np.array([key for _, key in sorted(zip(value_list, key_list))])
+
+    def get_center_of_mass(self, mol_subset=None, atom_subset=None):
+        """ Get the center of mass.
+
+        :parameter mol_subset: Perform the calculation on a subset of molecules in **self**, as
+            determined by their moleculair index. Include all *m* molecules in **self** if *None*.
+        :type mol_subset: |None|_, |int|_ or |list|_ [|int|_]
+        :parameter atom_subset: Perform the calculation on a subset of atoms in **self**, as
+            determined by their atomic index or atomic symbol.  Include all *n* atoms per molecule
+            in **self** if *None*.
+        :type atom_subset: |None|_, |int|_ or |str|_
+        :return: An array with the centres of mass of *m* molecules with *n* atoms.
+        :rtype: *m*3* |np.ndarray|_ [|np.float64|_].
+        """
+        coords = self.as_mass_weighted(mol_subset, atom_subset)
+        mass = self.get_atomic_property(prop='mass')
+        return coords.sum(axis=1) / mass.sum()
 
     """ ################################## Root Mean Squared ################################## """
 
@@ -124,9 +182,8 @@ class MultiMolecule(_MultiMolecule):
             determined by their atomic index or atomic symbol.  Include all *n* atoms per molecule
             in **self** if *None*.
         :type atom_subset:  |None|_, |int|_ or |str|_
-        :parameter bool reset_origin: Reset the origin of each molecule in **self** to
-            its respective center of mass. The center of mass is calculated based on all atoms in
-            **atom_subset**.
+        :parameter bool reset_origin: Reset the origin of each molecule in **self** by means of
+            a partial Procrustes superimposition, translating and rotating the molecules.
         :return: A dataframe of RMSDs with one column for every string or list of ints in
             **atom_subset**. Keys consist of atomic symbols (*e.g.* 'Cd') if **atom_subset**
             contains strings, otherwise a more generic 'series ' + str(int) scheme is adopted
@@ -135,7 +192,7 @@ class MultiMolecule(_MultiMolecule):
         """
         # Set the origin of all frames to their center of mass
         if reset_origin:
-            self.reset_origin(mol_subset, atom_subset)
+            self.reset_origin(mol_subset, inplace=True)
 
         # Figure out if the RMSD should be calculated as a single or multiple series
         atom_subset = atom_subset or tuple(self.atoms.keys())
@@ -168,9 +225,8 @@ class MultiMolecule(_MultiMolecule):
             determined by their atomic index or atomic symbol.  Include all *n* atoms per molecule
             in **self** if *None*.
         :type atom_subset:  |None|_, |int|_ or |str|_
-        :parameter bool reset_origin: Reset the origin of each molecule in **self** to
-            its respective center of mass. The center of mass is calculated based on all atoms in
-            **atom_subset**.
+        :parameter bool reset_origin: Reset the origin of each molecule in **self** by means of
+            a partial Procrustes superimposition, translating and rotating the molecules.
         :return: A dataframe of RMSFs with one column for every string or list of ints in
             **atom_subset**. Keys consist of atomic symbols (*e.g.* 'Cd') if **atom_subset**
             contains strings, otherwise a more generic 'series ' + str(int) scheme is adopted
@@ -179,7 +235,7 @@ class MultiMolecule(_MultiMolecule):
         """
         # Set the origin of all frames to their center of mass
         if reset_origin:
-            self.reset_origin(mol_subset, atom_subset)
+            self.reset_origin(mol_subset, inplace=True)
 
         # Figure out if the RMSD should be calculated as a single or multiple series
         atom_subset = atom_subset or tuple(self.atoms.keys())
@@ -427,6 +483,60 @@ class MultiMolecule(_MultiMolecule):
 
     """ #################################  Type conversion  ################################### """
 
+    def as_mass_weighted(self, mol_subset=None, atom_subset=None, inplace=False):
+        """ Transform Cartesian into mass-weighted Cartesian coordinates.
+
+        :parameter mol_subset: Perform the calculation on a subset of molecules in **self**, as
+            determined by their moleculair index. Include all *m* molecules in **self** if *None*.
+        :type mol_subset: |None|_, |int|_ or |list|_ [|int|_]
+        :parameter atom_subset: Perform the calculation on a subset of atoms in **self**, as
+            determined by their atomic index or atomic symbol.  Include all *n* atoms per molecule
+            in **self** if *None*.
+        :type atom_subset: |None|_, |int|_ or |str|_
+        :parameter bool inplace: Instead of returning the new coordinates, perform an inplace
+            update of **self.coords**.
+        :return: An array of mass-weighted Cartesian coordinates of *m* molecules with *n* atoms
+            and, optionally, an array of *n* atomic masses.
+        :rtype: *m*n*3* |np.ndarray|_ [|np.float64|_] and, optionally,
+            *n* |np.ndarray|_ [|np.float64|_]
+        """
+        # Prepare an array of atomic masses
+        mass = self.get_atomic_property(prop='mass')
+
+        # Prepare slices
+        i = mol_subset or slice(0, self.shape[0])
+        j = self._subset_to_idx(atom_subset) or slice(0, self.shape[1])
+
+        # Create an array of mass-weighted Cartesian coordinates
+        mass_weighted = self[i, j, :] * mass[None, j, None]
+
+        if inplace:
+            self.coords = mass_weighted
+        else:
+            return mass_weighted
+
+    def from_mass_weighted(self, mol_subset=None, atom_subset=None):
+        """ Transform **self.coords** from mass-weighted Cartesian into Cartesian coordinates.
+        Performs an inplace update of **self.coords**.
+
+        :parameter mol_subset: Perform the calculation on a subset of molecules in **self**, as
+            determined by their moleculair index. Include all *m* molecules in **self** if *None*.
+        :type mol_subset: |None|_, |int|_ or |list|_ [|int|_]
+        :parameter atom_subset: Perform the calculation on a subset of atoms in **self**, as
+            determined by their atomic index or atomic symbol.  Include all *n* atoms per molecule
+            in **self** if *None*.
+        :type atom_subset: |None|_, |int|_ or |str|_
+        """
+        # Prepare an array of atomic masses
+        mass = self.get_atomic_property(prop='mass')
+
+        # Prepare slices
+        i = mol_subset or slice(0, self.shape[0])
+        j = self._subset_to_idx(atom_subset) or slice(0, self.shape[1])
+
+        # Update **self.coords**
+        self[i, j, :] /= mass[None, j, None]
+
     def as_Molecule(self, mol_subset=None, atom_subset=None):
         """ Convert a *MultiMolecule* object into a *list* of *plams.Molecule*.
 
@@ -524,6 +634,8 @@ class MultiMolecule(_MultiMolecule):
             if len(mol) > self.shape[0]:
                 idx = np.arange(0 - len(mol))
                 self.bonds = self.bonds[idx]
+
+    """ ####################################  Copying  ######################################## """
 
     def copy(self, subset=None, deepcopy=False):
         """ Create and return a new *MultiMolecule* object and fill its attributes with
