@@ -549,18 +549,18 @@ class MultiMolecule(_MultiMolecule):
         :return: A list of *m* PLAMS molecules.
         :rtype: |list|_ [|plams.Molecule|_].
         """
-        # Create a dictionary with atomic indices as keys and matching atomic symbols as values
         mol_subset = mol_subset or np.arange(1, self.shape[0])
         atom_subset = self._subset_to_idx(atom_subset)
         atom_subset = atom_subset or list(chain.from_iterable(self.atoms.values()))
+        at_symbols = self.get_atomic_property(prop='symbol')
 
         # Construct a template molecule and fill it with atoms
         assert self.coords is not None
         assert self.atoms is not None
         mol_template = Molecule()
         mol_template.properties = self.properties.copy()
-        for i, symbol in enumerate(atom_subset):
-            atom = Atom(symbol=symbol)
+        for i in atom_subset:
+            atom = Atom(symbol=at_symbols[i])
             mol_template.add_atom(atom)
 
         # Fill the template molecule with bonds
@@ -574,7 +574,7 @@ class MultiMolecule(_MultiMolecule):
 
         # Create copies of the template molecule; update their cartesian coordinates
         ret = []
-        for i, xyz in zip(self, mol_subset):
+        for xyz, i in zip(self[mol_subset], mol_subset):
             mol = mol_template.copy()
             mol.from_array(xyz)
             mol.properties.frame = i
