@@ -184,7 +184,7 @@ class _MultiMolecule:
         ret.coords = self.coords // other
         return ret
 
-    def __div__(self, other):
+    def __truediv__(self, other):
         ret = self.copy()
         ret.coords = self.coords / other
         return ret
@@ -258,7 +258,7 @@ class _MultiMolecule:
         self.coords //= other
         return self
 
-    def __idiv__(self, other):
+    def __itruediv__(self, other):
         self.coords /= other
         return self
 
