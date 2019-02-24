@@ -102,6 +102,12 @@ class _MultiMolecule:
     def _get_dtype(self): return self.coords.nbytes
     nbytes = property(_get_dtype)
 
+    def _transpose(self):
+        ret = self.copy()
+        ret.coords = self.T
+        return ret
+    T = property(_transpose)
+
     """ ############################  Comparison magic methods  ############################### """
 
     def __eq__(self, other):
@@ -245,7 +251,7 @@ class _MultiMolecule:
         return self
 
     def __imatmul__(self, other):
-        self.coords = self.coords @ np.swapaxes(other, -2, -1)
+        self.coords = self.coords @ other
         return self
 
     def __ifloordiv__(self, other):
@@ -322,7 +328,7 @@ class _MultiMolecule:
     def __getitem__(self, key):
         if not isinstance(key, str):
             return self.coords[key]
-        return self.atoms[key]
+        return self.atoms[key.capitalize()]
 
     def __setitem__(self, key, value):
         self.coords[key] = value
