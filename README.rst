@@ -40,18 +40,25 @@ Anaconda environments
   - Disable environment: ``conda deactivate``
 
 
-Installing and using **Auto-FOX**
+Installing **Auto-FOX**
 -----------------------
 
 -  If using Conda, enable the environment: ``conda activate FOX``
 
 -  Install **Auto-FOX** using pip: ``pip install git+https://github.com/BvB93/auto-FOX@master#egg=Auto-FOX-0.1.0``
 
--  Optional: For the plotting of graphs, install Matplotlib_ using either conda or pip: ``conda install --name FOX -y -c conda-forge matplotlib`` or ``pip install matplotlib``
+-  Optional: For plotting graphs produced by **Auto-FOX**, install Matplotlib_ using either conda or pip: 
+
+   -  ``conda install --name FOX -y -c conda-forge matplotlib`` or ``pip install matplotlib``
 
 -  Congratulations, **Auto-FOX** is now installed and ready for use!
 
--  An input file with some basic examples is provided in the FOX.examples_ directory, see the documentation_ for more a extensive description.
+Using **Auto-FOX**
+------------------
+
+-  An input file with some basic examples is provided in the FOX.examples_ directory.
+
+-  Further examples and more detailed descriptions are available in the documentation_.
 
 
 Currently implemented
