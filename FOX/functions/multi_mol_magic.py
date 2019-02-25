@@ -85,6 +85,22 @@ class _MultiMolecule:
 
         return coords, atoms, bonds, properties
 
+    """ ##############################  plams-based properties  ############################### """
+
+    def _set_atom1(self, value): self.bonds[0] = value
+    def _get_atom1(self): return self.bonds[0]
+    atom1 = property(_get_atom1, _set_atom1)
+
+    def _set_atom2(self, value): self.bonds[1] = value
+    def _get_atom2(self): return self.bonds[1]
+    atom2 = property(_get_atom2, _set_atom2)
+
+    def _set_order(self, value): self.bonds[2] = value
+    def _get_order(self): return self.bonds[2]
+    order = property(_get_order, _set_order)
+
+    """ ############################  np.ndarray-based properties  ############################ """
+
     def _set_shape(self, value): self.coords.shape = value
     def _get_shape(self): return self.coords.shape
     shape = property(_get_shape, _set_shape)
@@ -102,10 +118,7 @@ class _MultiMolecule:
     def _get_dtype(self): return self.coords.nbytes
     nbytes = property(_get_dtype)
 
-    def _transpose(self):
-        ret = self.copy()
-        ret.coords = self.T
-        return ret
+    def _transpose(self): np.swapaxes(self.coords, 1, 2)
     T = property(_transpose)
 
     """ ############################  Comparison magic methods  ############################### """
