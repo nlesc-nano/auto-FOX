@@ -2,6 +2,8 @@
 
 __all__ = []
 
+from os.path import (join, dirname)
+
 import yaml
 import numpy as np
 
@@ -11,7 +13,7 @@ from scm.plams.core.settings import Settings
 from scm.plams.core.functions import (init, finish, add_to_class)
 from scm.plams.interfaces.thirdparty.cp2k import Cp2kJob
 
-from .read_xyz import read_multi_xyz
+from .multi_mol import MultiMolecule
 from .radial_distribution import get_all_radial
 
 
@@ -25,24 +27,30 @@ def get_xyz_path(self):
 
 # Load the job settings
 mol = Molecule(None)
-job1 = Cp2kJob
-file_name = '/Users/bvanbeek/Documents/GitHub/auto-FOX/FOX/data/md_cp2k.yaml'
-with open(file_name, 'r') as file:
-    s1 = Settings(yaml.load(file))
+job = Cp2kJob
 
 
-def get_new_rdf(mol, job1, s1, param):
-    """ Run an MD calculation and construct the resulting RDF. """
+
+def get_cp2k_settings(path=None):
+    """ Read and return the template with default CP2K MM-MD settings. """
+    file_name = path or join(join(dirname(dirname(__file__)), 'data'), 'md_cp2k.yaml')
+    s = Settings()
+    s.ignore_molecule = True
+    with open(file_name, 'r') as file:
+        s.input = Settings(yaml.load(file))
+
+
+def get_md(job, s):
+    """ Run an MD calculation. """
     # Run an MD calculation
-    name = 'job_' + str(i)
-    job = job1(mol, settings=s1, name=name)
+    name = 'job'
+    job = job(settings=s, name=name)
     results = job.run()
     results.wait()
 
     # Construct the radial distribution function
-    xyz_file = results.get_multi_xyz()
-    xyz, idx_dict = read_multi_xyz(xyz_file)
-    return get_all_radial(xyz, idx_dict)
+    xyz_file = results.get_multi_xyz(atom_subset=('Cd', 'Se', 'O'))
+    return MultiMolecule(filename=xyz_file)
 
 
 def param_in_history(param, param_history):
@@ -73,7 +81,7 @@ def init_mc(i, j):
     if idx:
         rdf_new = rdf_history[idx]
     else:
-        rdf_new = get_new_rdf(mol, job1, s1, param)
+        rdf_new = get_new_rdf(mol, job1, s, param)
 
     # Step 3: Evaluate the auxilary error
     rdf_old = rdf_history[j]
@@ -87,21 +95,3 @@ def init_mc(i, j):
     else:
         rdf_history[j] += phi
 
-
-# Set constants
-dr = 0.05
-r_max = 12.0
-atoms = ('Cd', 'Se', 'O')
-max_iter = int
-
-rdf_QM = None
-shape = max_iter, 1 + int(r_max / dr), np.math.factorial(len(atoms))
-rdf_history = np.zeros(shape)
-
-shape = max_iter, np.math.factorial(len(atoms))
-param_history = np.zeros(shape, dtype=int)
-
-init(path=None, folder='MD')
-for i in max_iter:
-    pass
-finish()
