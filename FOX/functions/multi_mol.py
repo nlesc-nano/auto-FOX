@@ -10,6 +10,7 @@ from scipy.spatial.distance import cdist
 
 from scm.plams import (Atom, Bond, Molecule)
 from scm.plams import PeriodicTable
+from scm.plams.core.settings import Settings
 
 from .rdf import (get_rdf, get_rdf_lowmem, get_rdf_df)
 from .multi_mol_magic import _MultiMolecule
@@ -130,9 +131,7 @@ class MultiMolecule(_MultiMolecule):
         :return: A dictionary with atomic indices as keys and atomic symbols as values.
         :rtype: |np.array|_ [|np.float64|_, |str|_ or |np.int64|_].
         """
-        def get_symbol(symbol):
-            """ Takes an atomic symbol and returns itself. """
-            return symbol
+        def get_symbol(symbol): return symbol
 
         # Interpret the **values** argument
         prop_dict = {
@@ -143,6 +142,8 @@ class MultiMolecule(_MultiMolecule):
                 'connectors': PeriodicTable.get_connectors
         }
 
+        assert prop in prop_dict
+
         # Create concatenated lists of the keys and values in **self.atoms**
         value_list = list(chain.from_iterable(self.atoms.values()))
         key_list = []
@@ -152,6 +153,31 @@ class MultiMolecule(_MultiMolecule):
 
         # Sort and return
         return np.array([key for _, key in sorted(zip(value_list, key_list))])
+
+    def sort_atoms(self, sort_by='symbol'):
+        """ Sort the atoms in **self.coords** and **self.atoms**, performing in inplace update.
+
+        :parameter str sort_by: The property which is to be used for sorting. Accepted values:
+            **symbol** (*i.e.* alphabetical), **atnum**, **mass**, **radius** or
+            **connectors**. See the |PeriodicTable|_ module of PLAMS for more details.
+        """
+        # Create and sort a list of indices
+        sort_by_array = self.get_atomic_property(prop=sort_by)
+        idx_range = range(self.shape[0])
+        idx_range = [i for _, i in sorted(zip(sort_by_array, idx_range))]
+
+        # Sort **self.coords**
+        self.coords = self[:, idx_range]
+
+        # Sort **self.atoms**
+        symbols = self.get_atomic_property(prop='symbol')
+        symbols = [at for _, at in sorted(zip(sort_by_array, symbols))]
+        self.atoms = Settings()
+        for i, at in enumerate(symbols):
+            try:
+                self.atoms[at].append(i)
+            except KeyError:
+                self.atoms[at] = [i]
 
     def get_center_of_mass(self, mol_subset=None, atom_subset=None):
         """ Get the center of mass.
