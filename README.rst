@@ -58,6 +58,16 @@ Using **Auto-FOX**
 
 -  An input file with some basic examples is provided in the FOX.examples_ directory.
 
+-  An example MD trajectory of a CdSe quantum dot is included in the FOX.data_ directory.
+
+   -  Its path + filename can be retrieved as following:
+   
+::
+
+         from FOX.examples.example_xyz import get_example_xyz
+         example_xyz_file = get_example_xyz()
+
+
 -  Further examples and more detailed descriptions are available in the documentation_.
 
 
@@ -76,4 +86,5 @@ This package is a work in progress; the following functionalities are currently 
 .. _documentation: https://auto-fox.readthedocs.io/en/latest/
 .. _Miniconda: http://conda.pydata.org/miniconda.html
 .. _Matplotlib: https://matplotlib.org/
+.. _FOX.data: https://github.com/BvB93/auto-FOX/blob/master/FOX/data
 .. _FOX.examples: https://github.com/BvB93/auto-FOX/blob/master/FOX/examples/input.py
