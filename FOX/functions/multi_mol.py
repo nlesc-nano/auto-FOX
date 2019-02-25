@@ -145,14 +145,14 @@ class MultiMolecule(_MultiMolecule):
         assert prop in prop_dict
 
         # Create concatenated lists of the keys and values in **self.atoms**
-        value_list = list(chain.from_iterable(self.atoms.values()))
-        key_list = []
+        idx_list = list(chain.from_iterable(self.atoms.values()))
+        prop_list = []
         for at in self.atoms:
-            key = prop_dict[prop](at)
-            key_list += [key for _ in self.atoms[at]]
+            at_prop = prop_dict[prop](at)
+            prop_list += [at_prop for _ in self.atoms[at]]
 
         # Sort and return
-        return np.array([key for _, key in sorted(zip(value_list, key_list))])
+        return np.array([prop for _, prop in sorted(zip(idx_list, prop_list))])
 
     def sort_atoms(self, sort_by='symbol'):
         """ Sort the atoms in **self.coords** and **self.atoms**, performing in inplace update.
