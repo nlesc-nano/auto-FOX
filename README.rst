@@ -65,7 +65,7 @@ Using **Auto-FOX**
 ::
 
          from FOX.examples.example_xyz import get_example_xyz
-         example_xyz_file = get_example_xyz()
+         example_xyz_filename = get_example_xyz()
 
 
 -  Further examples and more detailed descriptions are available in the documentation_.
