@@ -118,7 +118,7 @@ class _MultiMolecule:
     def _get_dtype(self): return self.coords.nbytes
     nbytes = property(_get_dtype)
 
-    def _transpose(self): np.swapaxes(self.coords, 1, 2)
+    def _transpose(self): return np.swapaxes(self.coords, 1, 2)
     T = property(_transpose)
 
     """ ############################  Comparison magic methods  ############################### """
