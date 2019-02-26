@@ -54,10 +54,15 @@ class MultiMolecule(_MultiMolecule):
             **self.coords**.
         :type atom_subset: |None|_ or |tuple|_ [|str|_]
         """
-        atom_subset = self._subset_to_idx(atom_subset)
+        # Guess bonds
+        atom_subset = np.array(sorted(self._subset_to_idx(atom_subset)))
         mol = self.as_Molecule(mol_subset=0, atom_subset=atom_subset)[0]
         mol.guess_bonds()
         self.from_Molecule(mol, subset='bonds')
+
+        # Update indices in **self.bonds** to account for **atom_subset**
+        self.bonds[0] = atom_subset[self.bonds[0]]
+        self.bonds[1] = atom_subset[self.bonds[1]]
 
     def remove_random_coords(self, p=0.5, inplace=False):
         """ Remove random molecules from **self.coords**.
@@ -154,17 +159,20 @@ class MultiMolecule(_MultiMolecule):
         # Sort and return
         return np.array([prop for _, prop in sorted(zip(idx_list, prop_list))])
 
-    def sort_atoms(self, sort_by='symbol'):
+    def sort_atoms(self, sort_by='symbol', reverse=False):
         """ Sort the atoms in **self.coords** and **self.atoms**, performing in inplace update.
 
         :parameter str sort_by: The property which is to be used for sorting. Accepted values:
             **symbol** (*i.e.* alphabetical), **atnum**, **mass**, **radius** or
             **connectors**. See the |PeriodicTable|_ module of PLAMS for more details.
+        :parameter bool reverse: Sort in reversed order.
         """
         # Create and sort a list of indices
         sort_by_array = self.get_atomic_property(prop=sort_by)
         idx_range = range(self.shape[0])
         idx_range = [i for _, i in sorted(zip(sort_by_array, idx_range))]
+        if reverse:
+            idx_range.reverse()
 
         # Sort **self.coords**
         self.coords = self[:, idx_range]
@@ -172,6 +180,10 @@ class MultiMolecule(_MultiMolecule):
         # Sort **self.atoms**
         symbols = self.get_atomic_property(prop='symbol')
         symbols = [at for _, at in sorted(zip(sort_by_array, symbols))]
+        if reverse:
+            symbols.reverse()
+
+        # Refill **self.atoms**
         self.atoms = Settings()
         for i, at in enumerate(symbols):
             try:
@@ -509,6 +521,33 @@ class MultiMolecule(_MultiMolecule):
 
     """ #################################  Type conversion  ################################### """
 
+    def as_psf(self):
+        """ Convert a *MultiMolecule* object into a Protein Structure File (.psf). """
+        data = np.zeros((10, self.shape[1]), dtype=object)
+        data[0] = '\t'
+        data[1] = np.arange(data.shape[1])
+        data[2] = 'MOL1'
+        data[3] = data[1]
+        data[4] = 'R1'
+        data[5] = self.get_atomic_property(prop='symbol')
+        data[6] = data[3]
+        data[7] = 0.0
+        data[8] = self.get_atomic_property(prop='mass')
+        data[9] = 0
+
+        top = 'PSF EXT\n\n\t0 !NTITLE\n\n\n\t' + str(self.shape[1]) + ' !NATOM\n'
+        bottom = ''
+        bottom_headers = ('0 !NBOND', '0 !NTHETA', '0 !NPHI',
+                          '0 !NIMPHI', '0 !NDON', '0 !NACC', '0 !NNB')
+        for i in bottom_headers:
+            bottom += '\n\n\n\t' + i
+
+        pass
+
+    def as_pdb(self):
+        """ Convert a *MultiMolecule* object into a Protein DataBank file (.pdb). """
+        pass
+
     def as_mass_weighted(self, mol_subset=None, atom_subset=None, inplace=False):
         """ Transform Cartesian into mass-weighted Cartesian coordinates.
 
@@ -657,6 +696,8 @@ class MultiMolecule(_MultiMolecule):
                 self.bonds[i][2] = int(bond.order)
                 self.bonds[i][0:1] = bond.at1.id, bond.at2.id
             mol.unset_atoms_id()
+
+            # Clip it
             if len(mol) > self.shape[0]:
                 idx = np.arange(0 - len(mol))
                 self.bonds = self.bonds[idx]
