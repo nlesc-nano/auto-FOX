@@ -88,8 +88,9 @@ class MultiMolecule(_MultiMolecule):
         self.coords = self[idx]
 
     def reset_origin(self, mol_subset=None, atom_subset=None, inplace=True):
-        """ Set the origin to the center of mass of **self.coords**. Performs in inplace update
-        of **self.coords** if **inplace** is *True*.
+        """ Reallign all molecules in **self**, rotating and translating them, by performing a 
+        partial partial Procrustes superimposition. The superimposition is carried out with respect
+        to the first molecule in **self**.
 
         :parameter mol_subset: Perform the calculation on a subset of molecules in **self**, as
             determined by their moleculair index. Include all *m* molecules in **self** if *None*.
