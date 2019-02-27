@@ -13,6 +13,17 @@ Automated Forcefield Optimization Extension
 **Auto-FOX** is a tool for parameterizing forcefields by reproducing radial distribution functions.
 Further details are provided in the documentation_.
 
+Currently implemented
+=====================
+
+This package is a work in progress; the following functionalities are currently implemented:
+
+- The MultiMolecule class, a class designed for handling and processing large numbers of moleculair conformations and/or configurations (*e.g.* MD trajectories). (`doc <https://auto-fox.readthedocs.io/en/latest/MultiMolecule.html>`_)
+- A multi-XYZ reader. (`doc <https://auto-fox.readthedocs.io/en/latest/xyz_reader.html>`_)
+- A radial distribution generator (RDF). (`doc <https://auto-fox.readthedocs.io/en/latest/RDF.html>`_)
+- A root mean squared displacement generator (RMSD). (`doc <https://auto-fox.readthedocs.io/en/latest/RMSD.html#root-mean-squared-displacement>`_)
+- A root mean squared fluctuation generator (RMSF). (`doc <https://auto-fox.readthedocs.io/en/latest/RMSD.html#root-mean-squared-fluctuation>`_)
+
 Installation
 ============
 
@@ -47,7 +58,7 @@ Installing **Auto-FOX**
 
 -  Install **Auto-FOX** using pip: ``pip install git+https://github.com/BvB93/auto-FOX@master#egg=Auto-FOX-0.1.0``
 
--  Optional: For plotting graphs produced by **Auto-FOX**, install Matplotlib_ using either conda or pip: 
+-  Optional: For the plotting of data produced by **Auto-FOX**, install Matplotlib_ with either conda or pip: 
 
    -  ``conda install --name FOX -y -c conda-forge matplotlib`` or ``pip install matplotlib``
 
@@ -69,18 +80,6 @@ Using **Auto-FOX**
 
 
 -  Further examples and more detailed descriptions are available in the documentation_.
-
-
-Currently implemented
-=====================
-
-This package is a work in progress; the following functionalities are currently implemented:
-
-- The MultiMolecule class, a class designed for handling and processing large amounts of moleculair conformations and/or configurations (*e.g.* MD trajectories). (`doc <https://auto-fox.readthedocs.io/en/latest/MultiMolecule.html>`_)
-- A multi-XYZ reader. (`doc <https://auto-fox.readthedocs.io/en/latest/xyz_reader.html>`_)
-- A radial distribution generator (RDF). (`doc <https://auto-fox.readthedocs.io/en/latest/RDF.html>`_)
-- A root mean squared displacement generator (RMSD). (`doc <https://auto-fox.readthedocs.io/en/latest/RMSD.html#root-mean-squared-displacement>`_)
-- A root mean squared fluctuation generator (RMSF). (`doc <https://auto-fox.readthedocs.io/en/latest/RMSD.html#root-mean-squared-fluctuation>`_)
 
 
 .. _documentation: https://auto-fox.readthedocs.io/en/latest/
