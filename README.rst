@@ -58,14 +58,17 @@ Installing **Auto-FOX**
 
 -  Install **Auto-FOX** using pip: ``pip install git+https://github.com/BvB93/auto-FOX@master#egg=Auto-FOX-0.1.0``
 
--  Optional: For the plotting of data produced by **Auto-FOX**, install Matplotlib_ with either conda or pip: 
+-  Congratulations, **Auto-FOX** is now installed and ready for use!
+
+Optional dependencies
+---------------------
+
+-  For the plotting of data as produced by **Auto-FOX**, install Matplotlib_ with either conda or pip: 
 
    -  ``conda install --name FOX -y -c conda-forge matplotlib`` or ``pip install matplotlib``
 
--  Congratulations, **Auto-FOX** is now installed and ready for use!
-
 Using **Auto-FOX**
-------------------
+==================
 
 -  An input file with some basic examples is provided in the FOX.examples_ directory.
 
