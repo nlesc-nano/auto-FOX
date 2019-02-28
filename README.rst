@@ -36,10 +36,10 @@ Anaconda environments
   - Available as either Miniconda_ or the complete `Anaconda <https://www.anaconda.com/distribution/#download-section>`_ package.
 
 
-- Anaconda comes with a built-in installer; more installation instructions are available for a wide range of OSs.
+- Anaconda comes with a built-in installer; more detailed installation instructions are available for a wide range of OSs.
 
 
-  - See the `Anaconda documentation <https://docs.anaconda.com/anaconda/install/>`_ for more details.
+  - See the `Anaconda documentation <https://docs.anaconda.com/anaconda/install/>`_.
 
 
 - The anaconda environment can be created, enabled and disabled by, respectively, typing:
