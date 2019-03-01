@@ -521,35 +521,48 @@ class MultiMolecule(_MultiMolecule):
 
     """ #################################  Type conversion  ################################### """
 
-    def as_psf(self):
+    def as_psf(self, filename):
         """ Convert a *MultiMolecule* object into a Protein Structure File (.psf). """
-        data = np.zeros((10, self.shape[1]), dtype=object)
-        data[0] = '\t'
-        data[1] = np.arange(data.shape[1])
-        data[2] = 'MOL1'
-        data[3] = data[1]
-        data[4] = 'R1'
-        data[5] = self.get_atomic_property(prop='symbol')
-        data[6] = data[3]
-        data[7] = 0.0
-        data[8] = self.get_atomic_property(prop='mass')
-        data[9] = 0
+        # Prepare the !NATOM block
+        df = pd.DataFrame()
+        df[0] = ''
+        df[1] = np.arange(self.shape[1])
+        df[2] = 'MOL1'
+        df[3] = df[1]
+        df[4] = 'R1'
+        df[5] = self.get_atomic_property(prop='symbol')
+        df[6] = df[5]
+        df[7] = 0.0
+        df[8] = self.get_atomic_property(prop='mass')
+        df[9] = 0
 
         top = 'PSF EXT\n\n\t0 !NTITLE\n\n\n\t' + str(self.shape[1]) + ' !NATOM\n'
         bottom = ''
-        bottom_headers = ('0 !NBOND', '0 !NTHETA', '0 !NPHI',
-                          '0 !NIMPHI', '0 !NDON', '0 !NACC', '0 !NNB')
-        for i in bottom_headers:
-            bottom += '\n\n\n\t' + i
+        bottom_headers = ['0 !NIMPHI', '0 !NDON', '0 !NACC', '0 !NNB']
 
-        pass
+        if not self.bonds:
+            bottom_headers = ['0 !NBOND', '0 !NTHETA', '0 !NPHI'] + bottom_headers
+            for header in bottom_headers:
+                bottom += '\n\n\n\t' + header
+        else:
+            pass
+
+
+
+        # Export the .psf file
+        with open(filename, 'w') as file:
+            file.write(top)
+        df.to_csv(filename, header=None, index=None, sep='\t', mode='a', float_format='%.3f')
+        with open(filename, 'a') as file:
+            file.write(bottom)
+
 
     def as_pdb(self):
         """ Convert a *MultiMolecule* object into a Protein DataBank file (.pdb). """
         pass
 
     def as_mass_weighted(self, mol_subset=None, atom_subset=None, inplace=False):
-        """ Transform Cartesian into mass-weighted Cartesian coordinates.
+        """ Transform the Cartesian of **self.coords** into mass-weighted Cartesian coordinates.
 
         :parameter mol_subset: Perform the calculation on a subset of molecules in **self**, as
             determined by their moleculair index. Include all *m* molecules in **self** if *None*.
