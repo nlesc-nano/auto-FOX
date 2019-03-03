@@ -173,79 +173,79 @@ class _MultiMolecule:
     """ ##########################  Normal arithmetic operators  ############################## """
 
     def __add__(self, other):
-        ret = self.copy()
+        ret = self.__copy__()
         ret.coords = self.coords + other
         return ret
 
     def __sub__(self, other):
-        ret = self.copy()
+        ret = self.__copy__()
         ret.coords = self.coords - other
         return ret
 
     def __mul__(self, other):
-        ret = self.copy()
+        ret = self.__copy__()
         ret.coords = self.coords * other
         return ret
 
     def __matmul__(self, other):
-        ret = self.copy()
+        ret = self.__copy__()
         ret.coords = self.coords @ other
         return ret
 
     def __floordiv__(self, other):
-        ret = self.copy()
+        ret = self.__copy__()
         ret.coords = self.coords // other
         return ret
 
     def __truediv__(self, other):
-        ret = self.copy()
+        ret = self.__copy__()
         ret.coords = self.coords / other
         return ret
 
     def __mod__(self, other):
-        ret = self.copy()
+        ret = self.__copy__()
         ret.coords = self.coords % other
         return ret
 
     def __divmod__(self, other):
-        ret = self.copy()
+        ret = self.__copy__()
         ret.coords = np.divmod(self.coords, other)
         return ret
 
     def __pow__(self, other):
-        ret = self.copy()
+        ret = self.__copy__()
         ret.coords = self.coords**other
         return ret
 
     """ ##########################  Reflected arithmetic operators  ########################### """
 
     def __rsub__(self, other):
-        ret = self.copy()
+        ret = self.__copy__()
         ret.coords = other - self.coords
         return ret
 
     def __rfloordiv__(self, other):
-        ret = self.copy()
+        ret = self.__copy__()
         ret.coords = other // self.coords
         return ret
 
     def __rdiv__(self, other):
-        ret = self.copy()
+        ret = self.__copy__()
         ret.coords = other / self.coords
         return ret
 
     def __rmod__(self, other):
-        ret = self.copy()
+        ret = self.__copy__()
         ret.coords = other % self.coords
         return ret
 
     def __rdivmod__(self, other):
-        ret = self.copy()
+        ret = self.__copy__()
         ret.coords = np.divmod(other, self.coords)
         return ret
 
     def __rpow__(self, other):
-        ret = self.copy()
+        ret = self.__copy__()
         ret.coords = other**self.coords
         return ret
 
@@ -352,9 +352,9 @@ class _MultiMolecule:
     def __iter__(self):
         return iter(self.coords)
 
-    def __reversed__(self, axis=0):
-        ret = self.copy()
-        ret.coords = np.flip(self.coords, axis=axis)
+    def __reversed__(self):
+        ret = self.__copy__()
+        ret.coords = np.flip(self.coords, axis=0)
         return ret
 
     def __contains__(self, item):
