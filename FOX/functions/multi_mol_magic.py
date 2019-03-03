@@ -316,7 +316,7 @@ class _MultiMolecule:
         # Convert bonds
         ret += 'Bond indices and orders:\n'
         if self.bonds is not None:
-            ret += 'Atom1 Atom2 Bond order'
+            ret += 'Atom1 Atom2 Order\n'
             for at1, at2, order in self.bonds:
                 ret += '[' + '{: <5.5}'.format(str(at1)) + '{: <5.5}'.format(str(at2)) + '] '
                 ret += str(order) + '\n'
