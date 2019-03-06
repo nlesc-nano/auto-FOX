@@ -123,10 +123,10 @@ can be accessed by their index.
 API
 ---
 
-.. automethod:: FOX.functions.multi_mol.MultiMolecule.init_rmsd
+.. automethod:: FOX.classes.multi_mol.MultiMolecule.init_rmsd
     :noindex:
 
-.. automethod:: FOX.functions.multi_mol.MultiMolecule.init_rmsf
+.. automethod:: FOX.classes.multi_mol.MultiMolecule.init_rmsf
     :noindex:
 
 .. _Numpy: https://www.numpy.org/
@@ -156,4 +156,3 @@ API
 .. |str| replace:: *str*
 .. |int| replace:: *int*
 .. |None| replace:: *None*
-

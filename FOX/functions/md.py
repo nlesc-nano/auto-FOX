@@ -13,8 +13,8 @@ from scm.plams.core.settings import Settings
 from scm.plams.core.functions import (init, finish, add_to_class)
 from scm.plams.interfaces.thirdparty.cp2k import Cp2kJob
 
-from .multi_mol import MultiMolecule
 from .radial_distribution import get_all_radial
+from ..classes.multi_mol import MultiMolecule
 
 
 @add_to_class(Results)
@@ -28,7 +28,6 @@ def get_xyz_path(self):
 # Load the job settings
 mol = Molecule(None)
 job = Cp2kJob
-
 
 
 def get_cp2k_settings(path=None):
@@ -94,4 +93,3 @@ def init_mc(i, j):
         rdf_history[i] = rdf_new + phi
     else:
         rdf_history[j] += phi
-

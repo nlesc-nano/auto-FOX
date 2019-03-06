@@ -569,7 +569,6 @@ class MultiMolecule(_MultiMolecule):
                 file.write(natom.format(*[str(i) for i in df[item]]) + '\n')
             file.write(bottom[2:])
 
-
     def as_pdb(self):
         """ Convert a *MultiMolecule* object into a Protein DataBank file (.pdb). """
         pass
@@ -672,7 +671,6 @@ class MultiMolecule(_MultiMolecule):
             mol.from_array(self[i])
             mol.properties.frame = i
             ret.append(mol)
-
 
         return ret
 
