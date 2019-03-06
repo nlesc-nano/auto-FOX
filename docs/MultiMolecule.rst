@@ -4,7 +4,7 @@ The MultiMolecule Class
 API
 ---
 
-.. autoclass:: FOX.functions.multi_mol.MultiMolecule
+.. autoclass:: FOX.classes.multi_mol.MultiMolecule
     :members:
 
 .. _PeriodicTable: https://www.scm.com/doc/plams/components/utils.html#periodic-table

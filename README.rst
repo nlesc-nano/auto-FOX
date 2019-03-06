@@ -13,6 +13,17 @@ Automated Forcefield Optimization Extension
 **Auto-FOX** is a tool for parameterizing forcefields by reproducing radial distribution functions.
 Further details are provided in the documentation_.
 
+Currently implemented
+=====================
+
+This package is a work in progress; the following functionalities are currently implemented:
+
+- The MultiMolecule class, a class designed for handling and processing large numbers of moleculair conformations and/or configurations (*e.g.* MD trajectories). (`doc <https://auto-fox.readthedocs.io/en/latest/MultiMolecule.html>`_)
+- A multi-XYZ reader. (`doc <https://auto-fox.readthedocs.io/en/latest/xyz_reader.html>`_)
+- A radial distribution generator (RDF). (`doc <https://auto-fox.readthedocs.io/en/latest/RDF.html>`_)
+- A root mean squared displacement generator (RMSD). (`doc <https://auto-fox.readthedocs.io/en/latest/RMSD.html#root-mean-squared-displacement>`_)
+- A root mean squared fluctuation generator (RMSF). (`doc <https://auto-fox.readthedocs.io/en/latest/RMSD.html#root-mean-squared-fluctuation>`_)
+
 Installation
 ============
 
@@ -25,10 +36,10 @@ Anaconda environments
   - Available as either Miniconda_ or the complete `Anaconda <https://www.anaconda.com/distribution/#download-section>`_ package.
 
 
-- Anaconda installation instructions are available for a wide range of OSs.
+- Anaconda comes with a built-in installer; more detailed installation instructions are available for a wide range of OSs.
 
 
-  - See the `Anaconda documentation <https://docs.anaconda.com/anaconda/install/>`_ for more details.
+  - See the `Anaconda documentation <https://docs.anaconda.com/anaconda/install/>`_.
 
 
 - The anaconda environment can be created, enabled and disabled by, respectively, typing:
@@ -47,21 +58,35 @@ Installing **Auto-FOX**
 
 -  Install **Auto-FOX** using pip: ``pip install git+https://github.com/BvB93/auto-FOX@master#egg=Auto-FOX-0.1.0``
 
--  An example input file is provided in the FOX.examples_ directory.
+-  Congratulations, **Auto-FOX** is now installed and ready for use!
+
+Optional dependencies
+---------------------
+
+-  For the plotting of data as produced by **Auto-FOX**, install Matplotlib_ with either conda or pip: 
+
+   -  ``conda install --name FOX -y -c conda-forge matplotlib`` or ``pip install matplotlib``
+
+Using **Auto-FOX**
+==================
+
+-  An input file with some basic examples is provided in the FOX.examples_ directory.
+
+-  An example MD trajectory of a CdSe quantum dot is included in the FOX.data_ directory.
+
+   -  Its path + filename can be retrieved as following:
+   
+::
+
+         from FOX.examples.example_xyz import get_example_xyz
+         example_xyz_filename = get_example_xyz()
 
 
-Currently implemented
-=====================
-
-This package is a work in progress; the following functionalities are currently implemented:
-
-- A multi-XYZ reader. (`doc <https://auto-fox.readthedocs.io/en/latest/xyz_reader.html>`_)
-- A radial distribution generator (RDF). (`doc <https://auto-fox.readthedocs.io/en/latest/RDF.html>`_)
-- A root mean squared displacement generator (RMSD). (`doc <https://auto-fox.readthedocs.io/en/latest/RMSD.html#root-mean-squared-displacement>`_)
-- A root mean squared fluctuation generator (RMSF). (`doc <https://auto-fox.readthedocs.io/en/latest/RMSD.html#root-mean-squared-fluctuation>`_)
-- A new MultiMolecule for handling and processing the molecules resulting from MD trajectories. (`doc <https://auto-fox.readthedocs.io/en/latest/MultiMolecule.html>`_)
+-  Further examples and more detailed descriptions are available in the documentation_.
 
 
 .. _documentation: https://auto-fox.readthedocs.io/en/latest/
 .. _Miniconda: http://conda.pydata.org/miniconda.html
+.. _Matplotlib: https://matplotlib.org/
+.. _FOX.data: https://github.com/BvB93/auto-FOX/blob/master/FOX/data
 .. _FOX.examples: https://github.com/BvB93/auto-FOX/blob/master/FOX/examples/input.py

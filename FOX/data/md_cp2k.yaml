@@ -1,7 +1,77 @@
 global:
     project: Auto-FOX
     run_type: MD
-    print_level: Low
+    print_level: MEDIUM
+
+force_eval:
+    method: FIST
+    mm:
+        forcefield:
+            ignore_missing_critical_params: ''
+            parm_file_name: ./nc_ff.pot
+            partmtype: CHM
+            do_nonbonded: ''
+            shuft_cutoff: .TRUE.
+            nonbonded:
+                lennard-jones:
+                    atoms: Cd Cd
+                    epsilon: 37.29669
+                    sigma: 1.234
+                    rcut: 12.0
+                Lennard-jones:
+                    atoms: Se Se
+                    epsilon: 51.30851
+                    sigma: 4.852
+                    rcut: 12.0
+                LEnnard-jones:
+                    atoms: Cd Se
+                    epsilon: 183.1158
+                    sigma: 2.940
+                    rcut: 12.0
+                LENnard-jones:
+                    atoms: Cd O_2
+                    epsilon: 220.5809
+                    sigma: 2.471
+                    rcut: 12.0
+                LENNard-jones:
+                    atoms: Se O_2
+                    epsilon: 194.0607
+                    sigma: 3.526
+                    rcut: 12.0
+        poisson:
+            ewald:
+                ewald_type: spme
+                alpha: .44
+                gmax: 24
+    sybsys:
+        cell:
+            abc: '[angstrom] 50.0 50.0 50.0'
+            periodic: NONE
+        topology:
+            charge_beta: ''
+            coord_file_format: PDB
+            coord_file_name: cd68se55_26hcoo.xyz.pdb
+            connectivity: MOL_SET
+            mol_set:
+                molecule:
+                    nmol: 1
+                    conn_file_name: cd_new.xyz.psf
+            Mol_set:
+                molecule:
+                    nmol: 1
+                    conn_file_name: se_new.xyz.psf
+            MOl_set:
+                molecule:
+                    nmol: 1
+                    conn_file_name: formate.xyz.psf
+            dump_pdb: ''
+            dump_psf: ''
+            center_coordinates: ''
+        kind Cd: element Cd
+        kind Se: element Se
+        kind C_2: element C
+        kind O_2: element O
+        kind H_: element H
 
 motion:
     md:
@@ -15,18 +85,3 @@ motion:
             type: CSVR
             csvr:
                 timecon: 1250
-
-force_eval:
-    method: Quickstep
-    sybsys:
-        cell: 
-            abc: '[angstrom] 50.0 50.0 50.0'
-            periodic: None
-        topology: 
-            coordinate: xyz
-            coord_file_name: placeholder
-            center_coordinates: ''
-
-    mm:
-        parmtype: Amber placeholder
-        parm_file_name: placeholder

@@ -10,6 +10,7 @@ from scipy.spatial.distance import cdist
 
 from scm.plams import (Atom, Bond, Molecule)
 from scm.plams import PeriodicTable
+from scm.plams.core.settings import Settings
 
 from .rdf import (get_rdf, get_rdf_lowmem, get_rdf_df)
 from .multi_mol_magic import _MultiMolecule
@@ -53,10 +54,15 @@ class MultiMolecule(_MultiMolecule):
             **self.coords**.
         :type atom_subset: |None|_ or |tuple|_ [|str|_]
         """
-        atom_subset = self._subset_to_idx(atom_subset)
+        # Guess bonds
+        atom_subset = np.array(sorted(self._subset_to_idx(atom_subset)))
         mol = self.as_Molecule(mol_subset=0, atom_subset=atom_subset)[0]
         mol.guess_bonds()
-        self.from_Molecule(mol, subset='bonds')
+        self.from_Molecule(mol, subset='bonds', allow_different_length=True)
+
+        # Update indices in **self.bonds** to account for **atom_subset**
+        self.bonds[:, 0] = atom_subset[self.bonds[:, 0]]
+        self.bonds[:, 1] = atom_subset[self.bonds[:, 1]]
 
     def remove_random_coords(self, p=0.5, inplace=False):
         """ Remove random molecules from **self.coords**.
@@ -82,8 +88,9 @@ class MultiMolecule(_MultiMolecule):
         self.coords = self[idx]
 
     def reset_origin(self, mol_subset=None, atom_subset=None, inplace=True):
-        """ Set the origin to the center of mass of **self.coords**. Performs in inplace update
-        of **self.coords** if **inplace** is *True*.
+        """ Reallign all molecules in **self**, rotating and translating them, by performing a
+        partial partial Procrustes superimposition. The superimposition is carried out with respect
+        to the first molecule in **self**.
 
         :parameter mol_subset: Perform the calculation on a subset of molecules in **self**, as
             determined by their moleculair index. Include all *m* molecules in **self** if *None*.
@@ -130,9 +137,7 @@ class MultiMolecule(_MultiMolecule):
         :return: A dictionary with atomic indices as keys and atomic symbols as values.
         :rtype: |np.array|_ [|np.float64|_, |str|_ or |np.int64|_].
         """
-        def get_symbol(symbol):
-            """ Takes an atomic symbol and returns itself. """
-            return symbol
+        def get_symbol(symbol): return symbol
 
         # Interpret the **values** argument
         prop_dict = {
@@ -143,15 +148,49 @@ class MultiMolecule(_MultiMolecule):
                 'connectors': PeriodicTable.get_connectors
         }
 
+        assert prop in prop_dict
+
         # Create concatenated lists of the keys and values in **self.atoms**
-        value_list = list(chain.from_iterable(self.atoms.values()))
-        key_list = []
+        idx_list = list(chain.from_iterable(self.atoms.values()))
+        prop_list = []
         for at in self.atoms:
-            key = prop_dict[prop](at)
-            key_list += [key for _ in self.atoms[at]]
+            at_prop = prop_dict[prop](at)
+            prop_list += [at_prop for _ in self.atoms[at]]
 
         # Sort and return
-        return np.array([key for _, key in sorted(zip(value_list, key_list))])
+        return np.array([prop for _, prop in sorted(zip(idx_list, prop_list))])
+
+    def sort_atoms(self, sort_by='symbol', reverse=False):
+        """ Sort the atoms in **self.coords** and **self.atoms**, performing in inplace update.
+
+        :parameter str sort_by: The property which is to be used for sorting. Accepted values:
+            **symbol** (*i.e.* alphabetical), **atnum**, **mass**, **radius** or
+            **connectors**. See the |PeriodicTable|_ module of PLAMS for more details.
+        :parameter bool reverse: Sort in reversed order.
+        """
+        # Create and sort a list of indices
+        sort_by_array = self.get_atomic_property(prop=sort_by)
+        idx_range = range(self.shape[0])
+        idx_range = [i for _, i in sorted(zip(sort_by_array, idx_range))]
+        if reverse:
+            idx_range.reverse()
+
+        # Sort **self.coords**
+        self.coords = self[:, idx_range]
+
+        # Sort **self.atoms**
+        symbols = self.get_atomic_property(prop='symbol')
+        symbols = [at for _, at in sorted(zip(sort_by_array, symbols))]
+        if reverse:
+            symbols.reverse()
+
+        # Refill **self.atoms**
+        self.atoms = Settings()
+        for i, at in enumerate(symbols):
+            try:
+                self.atoms[at].append(i)
+            except KeyError:
+                self.atoms[at] = [i]
 
     def get_center_of_mass(self, mol_subset=None, atom_subset=None):
         """ Get the center of mass.
@@ -328,6 +367,9 @@ class MultiMolecule(_MultiMolecule):
         """ Figure out if the supplied subset warrants a for loop or not. """
         if subset is None:
             return True  # subset is *None*
+        elif isinstance(subset, np.ndarray):
+            subset = subset.tolist()
+
         if isinstance(subset, str):
             return False  # subset is a *str*
         elif isinstance(subset, int):
@@ -471,7 +513,10 @@ class MultiMolecule(_MultiMolecule):
         Return *at* if it is *None*, an *int* or iterable container consisting of *int*. """
         if arg is None:
             return None
-        elif isinstance(arg, int) or isinstance(arg[0], int):
+        elif isinstance(arg, np.ndarray):
+            arg = arg.tolist()
+
+        if isinstance(arg, int) or isinstance(arg[0], int):
             return arg
         elif isinstance(arg, str):
             return self.atoms[arg]
@@ -483,8 +528,53 @@ class MultiMolecule(_MultiMolecule):
 
     """ #################################  Type conversion  ################################### """
 
+    def as_psf(self, filename):
+        """ Convert a *MultiMolecule* object into a Protein Structure File (.psf). """
+        # Prepare the !NATOM block
+        df = pd.DataFrame()
+        df[0] = np.arange(self.shape[1])
+        df[1] = 'MOL'
+        df[2] = 1
+        df[3] = 'COR'
+        df[4] = self.get_atomic_property(prop='symbol')
+        df[5] = df[4]
+        df[6] = 0.0
+        df[7] = self.get_atomic_property(prop='mass')
+        df[8] = 0
+        df = df.T
+
+        top = 'PSF EXT\n'
+        top += '\n' + '{:>8.8}'.format(str(2)) + ' !NTITLE'
+        top += '\n' + '{:>8.8}'.format('REMARKS') + ' PSF file generated with Auto-FOX:'
+        top += '\n' + '{:>8.8}'.format('REMARKS') + ' https://github.com/BvB93/auto-FOX'
+        top += '\n\n' + '{:>8.8}'.format(str(self.shape[1])) + ' !NATOM\n'
+
+        bottom = ''
+        if not self.bonds:
+            bottom_headers = ['       0 !NBOND: bonds', '       0 !NTHETA: angles',
+                              '       0 !NPHI: dihedrals']
+            for header in bottom_headers:
+                bottom += '\n\n\n' + header
+            bottom += '\n\n'
+        else:
+            bonds = []
+            angles = []
+            dihedrals = []
+
+        # Export the .psf file
+        with open(filename, 'w') as file:
+            file.write(top)
+            for item in df:
+                natom = '{:>8.8} {:4.4} {:4.4} {:4.4} {:4.4} {:5.5} {:>9.9} {:>13.13} {:>11.11}'
+                file.write(natom.format(*[str(i) for i in df[item]]) + '\n')
+            file.write(bottom[2:])
+
+    def as_pdb(self):
+        """ Convert a *MultiMolecule* object into a Protein DataBank file (.pdb). """
+        pass
+
     def as_mass_weighted(self, mol_subset=None, atom_subset=None, inplace=False):
-        """ Transform Cartesian into mass-weighted Cartesian coordinates.
+        """ Transform the Cartesian of **self.coords** into mass-weighted Cartesian coordinates.
 
         :parameter mol_subset: Perform the calculation on a subset of molecules in **self**, as
             determined by their moleculair index. Include all *m* molecules in **self** if *None*.
@@ -549,34 +639,36 @@ class MultiMolecule(_MultiMolecule):
         :return: A list of *m* PLAMS molecules.
         :rtype: |list|_ [|plams.Molecule|_].
         """
-        # Create a dictionary with atomic indices as keys and matching atomic symbols as values
+        if mol_subset == 0:
+            mol_subset = [0]
+
         mol_subset = mol_subset or np.arange(1, self.shape[0])
         atom_subset = self._subset_to_idx(atom_subset)
         atom_subset = atom_subset or list(chain.from_iterable(self.atoms.values()))
+        at_symbols = self.get_atomic_property(prop='symbol')
 
         # Construct a template molecule and fill it with atoms
         assert self.coords is not None
         assert self.atoms is not None
         mol_template = Molecule()
         mol_template.properties = self.properties.copy()
-        for i, symbol in enumerate(atom_subset):
-            atom = Atom(symbol=symbol)
+        for i in atom_subset:
+            atom = Atom(symbol=at_symbols[i])
             mol_template.add_atom(atom)
 
         # Fill the template molecule with bonds
         if self.bonds is not None:
             for i, j, order in self.bonds:
                 if i in atom_subset and j in atom_subset:
-                    at1 = mol_template[i + 1]
-                    at2 = mol_template[j + 1]
-                    bond = Bond(atom1=at1, atom2=at2, order=order)
-                    mol_template.add_bond(bond)
+                    at1 = mol_template[int(i) + 1]
+                    at2 = mol_template[int(j) + 1]
+                    mol_template.add_bond(Bond(atom1=at1, atom2=at2, order=order))
 
         # Create copies of the template molecule; update their cartesian coordinates
         ret = []
-        for i, xyz in zip(self, mol_subset):
+        for i in mol_subset:
             mol = mol_template.copy()
-            mol.from_array(xyz)
+            mol.from_array(self[i])
             mol.properties.frame = i
             ret.append(mol)
 
@@ -603,7 +695,7 @@ class MultiMolecule(_MultiMolecule):
         if not allow_different_length:
             # Raise an error if mol_list and self.coords are of different lengths
             if len(mol_list) != self.shape[0]:
-                error = 'from_Molecule: Shape mismatch, the argument mol_list is of length '
+                error = 'from_Molecule: Shape mismatch, the mol_list is of length '
                 error += str(len(mol_list)) + ' while self.coords is of length: '
                 error += str(self.shape[0])
                 raise IndexError(error)
@@ -628,12 +720,9 @@ class MultiMolecule(_MultiMolecule):
             mol.set_atoms_id()
             self.bonds = np.zeros((len(mol.bonds), 3), dtype=int)
             for i, bond in enumerate(mol.bonds):
-                self.bonds[i][2] = int(bond.order)
-                self.bonds[i][0:1] = bond.at1.id, bond.at2.id
+                self.bonds[i] = bond.atom1.id, bond.atom2.id, bond.order
+            self.bonds[:, 0:2] -= 1
             mol.unset_atoms_id()
-            if len(mol) > self.shape[0]:
-                idx = np.arange(0 - len(mol))
-                self.bonds = self.bonds[idx]
 
     """ ####################################  Copying  ######################################## """
 

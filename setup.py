@@ -26,7 +26,8 @@ setup(
         'FOX',
         'FOX.data',
         'FOX.examples',
-        'FOX.functions'
+        'FOX.functions',
+        'FOX.classes'
     ],
     package_dir={'FOX': 'FOX'},
     package_data={'FOX': ['data/Cd68Se55_26COO_MD_trajec.xyz']},
@@ -67,7 +68,7 @@ setup(
         'pycodestyle',
     ],
     extras_require={
-        'test': ['pytest', 'pytest-cov', 'pytest-mock', 'nbsphinx', 'pygraphviz', 'pycodestyle'],
+        'test': ['pytest', 'pytest-cov', 'pytest-mock', 'nbsphinx', 'pycodestyle'],
         'doc': ['sphinx', 'sphinx_rtd_theme', 'nbsphinx', 'matplotlib']
     }
 )

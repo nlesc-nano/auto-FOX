@@ -85,6 +85,22 @@ class _MultiMolecule:
 
         return coords, atoms, bonds, properties
 
+    """ ##############################  plams-based properties  ############################### """
+
+    def _set_atom1(self, value): self.bonds[0] = value
+    def _get_atom1(self): return self.bonds[0]
+    atom1 = property(_get_atom1, _set_atom1)
+
+    def _set_atom2(self, value): self.bonds[1] = value
+    def _get_atom2(self): return self.bonds[1]
+    atom2 = property(_get_atom2, _set_atom2)
+
+    def _set_order(self, value): self.bonds[2] = value
+    def _get_order(self): return self.bonds[2]
+    order = property(_get_order, _set_order)
+
+    """ ############################  np.ndarray-based properties  ############################ """
+
     def _set_shape(self, value): self.coords.shape = value
     def _get_shape(self): return self.coords.shape
     shape = property(_get_shape, _set_shape)
@@ -102,10 +118,7 @@ class _MultiMolecule:
     def _get_dtype(self): return self.coords.nbytes
     nbytes = property(_get_dtype)
 
-    def _transpose(self):
-        ret = self.copy()
-        ret.coords = self.T
-        return ret
+    def _transpose(self): return np.swapaxes(self.coords, 1, 2)
     T = property(_transpose)
 
     """ ############################  Comparison magic methods  ############################### """
@@ -160,79 +173,79 @@ class _MultiMolecule:
     """ ##########################  Normal arithmetic operators  ############################## """
 
     def __add__(self, other):
-        ret = self.copy()
+        ret = self.__copy__()
         ret.coords = self.coords + other
         return ret
 
     def __sub__(self, other):
-        ret = self.copy()
+        ret = self.__copy__()
         ret.coords = self.coords - other
         return ret
 
     def __mul__(self, other):
-        ret = self.copy()
+        ret = self.__copy__()
         ret.coords = self.coords * other
         return ret
 
     def __matmul__(self, other):
-        ret = self.copy()
+        ret = self.__copy__()
         ret.coords = self.coords @ other
         return ret
 
     def __floordiv__(self, other):
-        ret = self.copy()
+        ret = self.__copy__()
         ret.coords = self.coords // other
         return ret
 
-    def __div__(self, other):
-        ret = self.copy()
+    def __truediv__(self, other):
+        ret = self.__copy__()
         ret.coords = self.coords / other
         return ret
 
     def __mod__(self, other):
-        ret = self.copy()
+        ret = self.__copy__()
         ret.coords = self.coords % other
         return ret
 
     def __divmod__(self, other):
-        ret = self.copy()
+        ret = self.__copy__()
         ret.coords = np.divmod(self.coords, other)
         return ret
 
     def __pow__(self, other):
-        ret = self.copy()
+        ret = self.__copy__()
         ret.coords = self.coords**other
         return ret
 
     """ ##########################  Reflected arithmetic operators  ########################### """
 
     def __rsub__(self, other):
-        ret = self.copy()
+        ret = self.__copy__()
         ret.coords = other - self.coords
         return ret
 
     def __rfloordiv__(self, other):
-        ret = self.copy()
+        ret = self.__copy__()
         ret.coords = other // self.coords
         return ret
 
     def __rdiv__(self, other):
-        ret = self.copy()
+        ret = self.__copy__()
         ret.coords = other / self.coords
         return ret
 
     def __rmod__(self, other):
-        ret = self.copy()
+        ret = self.__copy__()
         ret.coords = other % self.coords
         return ret
 
     def __rdivmod__(self, other):
-        ret = self.copy()
+        ret = self.__copy__()
         ret.coords = np.divmod(other, self.coords)
         return ret
 
     def __rpow__(self, other):
-        ret = self.copy()
+        ret = self.__copy__()
         ret.coords = other**self.coords
         return ret
 
@@ -258,7 +271,7 @@ class _MultiMolecule:
         self.coords //= other
         return self
 
-    def __idiv__(self, other):
+    def __itruediv__(self, other):
         self.coords /= other
         return self
 
@@ -303,7 +316,7 @@ class _MultiMolecule:
         # Convert bonds
         ret += 'Bond indices and orders:\n'
         if self.bonds is not None:
-            ret += 'Atom1 Atom2 Bond order'
+            ret += 'Atom1 Atom2 Order\n'
             for at1, at2, order in self.bonds:
                 ret += '[' + '{: <5.5}'.format(str(at1)) + '{: <5.5}'.format(str(at2)) + '] '
                 ret += str(order) + '\n'
@@ -339,9 +352,9 @@ class _MultiMolecule:
     def __iter__(self):
         return iter(self.coords)
 
-    def __reversed__(self, axis=0):
-        ret = self.copy()
-        ret.coords = np.flip(self.coords, axis=axis)
+    def __reversed__(self):
+        ret = self.__copy__()
+        ret.coords = np.flip(self.coords, axis=0)
         return ret
 
     def __contains__(self, item):

@@ -2,7 +2,7 @@ Radial Distribution Function
 ============================
 
 A radial distribution function (RDF) generator has been implemented in the
-:mod:`FOX.functions.multi_molecule` and :mod:`FOX.functions.rdf` modules.
+:mod:`FOX.classes.multi_molecule` and :mod:`FOX.functions.rdf` modules.
 The radial distribution function, or pair correlation function, describes how
 the particale density in a system varies as a function of distance from a
 reference particle. The herein implemented function is designed for
@@ -55,7 +55,7 @@ oxygen (Cd_Cd, Cd_Se, Cd_O, Se_Se, Se_O and O_O).
 API
 ---
 
-.. automethod:: FOX.functions.multi_mol.MultiMolecule.init_rdf
+.. automethod:: FOX.classes.multi_mol.MultiMolecule.init_rdf
     :noindex:
 
 .. _Numpy: https://www.numpy.org/
