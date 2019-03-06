@@ -142,7 +142,7 @@ API
 .. _tuple: https://docs.python.org/3/library/stdtypes.html#tuple
 .. _str: https://docs.python.org/3/library/stdtypes.html#str
 .. _int: https://docs.python.org/3/library/functions.html#int
-.. _None: https://docs.python.org/3.7/library/constants.html#None
+.. _None: https://docs.python.org/3/library/constants.html#None
 
 .. |plams.Molecule| replace:: *plams.Molecule*
 .. |plams.Settings| replace:: *plams.Settings*
