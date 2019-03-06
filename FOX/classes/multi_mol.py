@@ -12,7 +12,7 @@ from scm.plams import (Atom, Bond, Molecule)
 from scm.plams import PeriodicTable
 from scm.plams.core.settings import Settings
 
-from .rdf import (get_rdf, get_rdf_lowmem, get_rdf_df)
+from ..functions.rdf import (get_rdf, get_rdf_lowmem, get_rdf_df)
 from .multi_mol_magic import _MultiMolecule
 
 
@@ -133,9 +133,9 @@ class MultiMolecule(_MultiMolecule):
 
         :parameter str prop: The to be returned property. Accepted values:
             **symbol**, **atnum**, **mass**, **radius** or **connectors**.
-            See the |PeriodicTable|_ module of PLAMS for more details.
+            See the PeriodicTable_ module of PLAMS for more details.
         :return: A dictionary with atomic indices as keys and atomic symbols as values.
-        :rtype: |np.array|_ [|np.float64|_, |str|_ or |np.int64|_].
+        :rtype: |np.ndarray|_ [|np.float64|_, |str|_ or |np.int64|_].
         """
         def get_symbol(symbol): return symbol
 
@@ -165,7 +165,7 @@ class MultiMolecule(_MultiMolecule):
 
         :parameter str sort_by: The property which is to be used for sorting. Accepted values:
             **symbol** (*i.e.* alphabetical), **atnum**, **mass**, **radius** or
-            **connectors**. See the |PeriodicTable|_ module of PLAMS for more details.
+            **connectors**. See the PeriodicTable_ module of PLAMS for more details.
         :parameter bool reverse: Sort in reversed order.
         """
         # Create and sort a list of indices

@@ -6,7 +6,7 @@ import numpy as np
 
 from scm.plams.core.settings import Settings
 
-from .read_xyz import read_multi_xyz
+from ..functions.read_xyz import read_multi_xyz
 
 
 class _MultiMolecule:

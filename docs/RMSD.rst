@@ -28,7 +28,7 @@ The RMSD is printed for cadmium, selenium and oxygen atoms.
 
 ::
 
-    from FOX.functions.multi_mol import MultiMolecule
+    from FOX.classes.multi_mol import MultiMolecule
     from FOX.examples.example_xyz import get_example_xyz
 
     example_xyz_file = get_example_xyz()
@@ -39,7 +39,7 @@ The RMSD is printed for cadmium, selenium and oxygen atoms.
 
 .. plot::
 
-    from FOX.functions.multi_mol import MultiMolecule
+    from FOX.classes.multi_mol import MultiMolecule
     from FOX.examples.example_xyz import get_example_xyz
     atoms = ('Cd', 'Se', 'O')
     xyz_file = get_example_xyz()
@@ -74,7 +74,7 @@ The RMSF is printed for cadmium, selenium and oxygen atoms.
 
 ::
 
-    from FOX.functions.multi_mol import MultiMolecule
+    from FOX.classes.multi_mol import MultiMolecule
     from FOX.examples.example_xyz import get_example_xyz
 
     example_xyz_file = get_example_xyz()
@@ -85,7 +85,7 @@ The RMSF is printed for cadmium, selenium and oxygen atoms.
 
 .. plot::
 
-    from FOX.functions.multi_mol import MultiMolecule
+    from FOX.classes.multi_mol import MultiMolecule
     from FOX.examples.example_xyz import get_example_xyz
     atoms = ('Cd', 'Se', 'O')
     xyz_file = get_example_xyz()

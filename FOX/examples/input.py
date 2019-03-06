@@ -4,7 +4,7 @@ __all__ = []
 
 import time
 
-from FOX.functions.multi_mol import MultiMolecule
+from FOX.classes.multi_mol import MultiMolecule
 from FOX.examples.example_xyz import get_example_xyz
 
 

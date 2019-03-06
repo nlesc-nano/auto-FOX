@@ -33,7 +33,7 @@ oxygen (Cd_Cd, Cd_Se, Cd_O, Se_Se, Se_O and O_O).
 
 ::
 
-    from FOX.functions.multi_mol import MultiMolecule
+    from FOX.classes.multi_mol import MultiMolecule
     from FOX.examples.example_xyz import get_example_xyz
 
     example_xyz_file = get_example_xyz()
@@ -44,7 +44,7 @@ oxygen (Cd_Cd, Cd_Se, Cd_O, Se_Se, Se_O and O_O).
 
 .. plot::
 
-    from FOX.functions.multi_mol import MultiMolecule
+    from FOX.classes.multi_mol import MultiMolecule
     from FOX.examples.example_xyz import get_example_xyz
     atoms = ('Cd', 'Se', 'O')
     xyz_file = get_example_xyz()
