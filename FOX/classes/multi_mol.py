@@ -11,7 +11,7 @@ from scipy.spatial.distance import cdist
 from scm.plams import (Atom, Bond, Molecule)
 from scm.plams import PeriodicTable
 
-from .rdf import (get_rdf, get_rdf_lowmem, get_rdf_df)
+from ..functions.rdf import (get_rdf, get_rdf_lowmem, get_rdf_df)
 from .multi_mol_magic import _MultiMolecule
 
 
@@ -125,12 +125,45 @@ class MultiMolecule(_MultiMolecule):
             ret[i, j, :] = coords @ rotmat
             return ret
 
+    def get_atomic_property(self, prop='symbol'):
+        """ Take **self.atoms** and return an (concatenated) array of a specific property associated
+        with an atom type. Values are sorted by their indices.
+
+        :parameter str prop: The to be returned property. Accepted values:
+            **symbol**, **atnum**, **mass**, **radius** or **connectors**.
+            See the PeriodicTable_ module of PLAMS for more details.
+        :return: A dictionary with atomic indices as keys and atomic symbols as values.
+        :rtype: |np.ndarray|_ [|np.float64|_, |str|_ or |np.int64|_].
+        """
+        def get_symbol(symbol): return symbol
+
+        # Interpret the **values** argument
+        prop_dict = {
+                'symbol': get_symbol,
+                'radius': PeriodicTable.get_radius,
+                'atnum': PeriodicTable.get_atomic_number,
+                'mass': PeriodicTable.get_mass,
+                'connectors': PeriodicTable.get_connectors
+        }
+
+        assert prop in prop_dict
+
+        # Create concatenated lists of the keys and values in **self.atoms**
+        idx_list = list(chain.from_iterable(self.atoms.values()))
+        prop_list = []
+        for at in self.atoms:
+            at_prop = prop_dict[prop](at)
+            prop_list += [at_prop for _ in self.atoms[at]]
+
+        # Sort and return
+        return np.array([prop for _, prop in sorted(zip(idx_list, prop_list))])
+
     def sort_atoms(self, sort_by='symbol', reverse=False):
         """ Sort the atoms in **self.coords** and **self.atoms**, performing in inplace update.
 
         :parameter str sort_by: The property which is to be used for sorting. Accepted values:
             **symbol** (*i.e.* alphabetical), **atnum**, **mass**, **radius** or
-            **connectors**. See the |PeriodicTable|_ module of PLAMS for more details.
+            **connectors**. See the PeriodicTable_ module of PLAMS for more details.
         :parameter bool reverse: Sort in reversed order.
         """
         # Create and sort a list of indices
@@ -549,7 +582,6 @@ class MultiMolecule(_MultiMolecule):
                 file.write(natom.format(*[str(i) for i in df[item]]) + '\n')
             file.write(bottom[2:])
 
-
     def as_pdb(self):
         """ Convert a *MultiMolecule* object into a Protein DataBank file (.pdb). """
         pass
@@ -643,7 +675,6 @@ class MultiMolecule(_MultiMolecule):
             mol.from_array(xyz[atom_subset])
             mol.properties.frame = i
             ret.append(mol)
-
 
         return ret
 

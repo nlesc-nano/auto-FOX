@@ -28,7 +28,7 @@ The RMSD is printed for cadmium, selenium and oxygen atoms.
 
 ::
 
-    from FOX.functions.multi_mol import MultiMolecule
+    from FOX.classes.multi_mol import MultiMolecule
     from FOX.examples.example_xyz import get_example_xyz
 
     example_xyz_file = get_example_xyz()
@@ -39,7 +39,7 @@ The RMSD is printed for cadmium, selenium and oxygen atoms.
 
 .. plot::
 
-    from FOX.functions.multi_mol import MultiMolecule
+    from FOX.classes.multi_mol import MultiMolecule
     from FOX.examples.example_xyz import get_example_xyz
     atoms = ('Cd', 'Se', 'O')
     xyz_file = get_example_xyz()
@@ -74,7 +74,7 @@ The RMSF is printed for cadmium, selenium and oxygen atoms.
 
 ::
 
-    from FOX.functions.multi_mol import MultiMolecule
+    from FOX.classes.multi_mol import MultiMolecule
     from FOX.examples.example_xyz import get_example_xyz
 
     example_xyz_file = get_example_xyz()
@@ -85,7 +85,7 @@ The RMSF is printed for cadmium, selenium and oxygen atoms.
 
 .. plot::
 
-    from FOX.functions.multi_mol import MultiMolecule
+    from FOX.classes.multi_mol import MultiMolecule
     from FOX.examples.example_xyz import get_example_xyz
     atoms = ('Cd', 'Se', 'O')
     xyz_file = get_example_xyz()
@@ -123,10 +123,10 @@ can be accessed by their index.
 API
 ---
 
-.. automethod:: FOX.functions.multi_mol.MultiMolecule.init_rmsd
+.. automethod:: FOX.classes.multi_mol.MultiMolecule.init_rmsd
     :noindex:
 
-.. automethod:: FOX.functions.multi_mol.MultiMolecule.init_rmsf
+.. automethod:: FOX.classes.multi_mol.MultiMolecule.init_rmsf
     :noindex:
 
 .. _Numpy: https://www.numpy.org/
@@ -142,7 +142,7 @@ API
 .. _tuple: https://docs.python.org/3/library/stdtypes.html#tuple
 .. _str: https://docs.python.org/3/library/stdtypes.html#str
 .. _int: https://docs.python.org/3/library/functions.html#int
-.. _None: https://docs.python.org/3.7/library/constants.html#None
+.. _None: https://docs.python.org/3/library/constants.html#None
 
 .. |plams.Molecule| replace:: *plams.Molecule*
 .. |plams.Settings| replace:: *plams.Settings*
@@ -156,4 +156,3 @@ API
 .. |str| replace:: *str*
 .. |int| replace:: *int*
 .. |None| replace:: *None*
-
