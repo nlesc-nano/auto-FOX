@@ -2,8 +2,11 @@
 
 __all__ = []
 
+import itertools
+
 import numpy as np
 
+from scm.plams import PeriodicTable
 from scm.plams.core.settings import Settings
 
 from .read_xyz import read_multi_xyz
@@ -87,17 +90,75 @@ class _MultiMolecule:
 
     """ ##############################  plams-based properties  ############################### """
 
-    def _set_atom1(self, value): self.bonds[0] = value
-    def _get_atom1(self): return self.bonds[0]
+    def _set_atom1(self, value): self.bonds[:, 0] = value
+    def _get_atom1(self): return self.bonds[:, 0]
     atom1 = property(_get_atom1, _set_atom1)
 
-    def _set_atom2(self, value): self.bonds[1] = value
-    def _get_atom2(self): return self.bonds[1]
+    def _set_atom2(self, value): self.bonds[:, 1] = value
+    def _get_atom2(self): return self.bonds[:, 1]
     atom2 = property(_get_atom2, _set_atom2)
 
-    def _set_order(self, value): self.bonds[2] = value
-    def _get_order(self): return self.bonds[2]
+    def _set_order(self, value): self.bonds[:, 2] = value
+    def _get_order(self): return self.bonds[:, 2]
     order = property(_get_order, _set_order)
+
+    def _set_x(self, value): self.coords[:, :, 0] = value
+    def _get_x(self): return self.coords[:, :, 0]
+    x = property(_get_x, _set_x)
+
+    def _set_y(self, value): self.coords[:, :, 1] = value
+    def _get_y(self): return self.coords[:, :, 1]
+    y = property(_get_y, _set_y)
+
+    def _set_z(self, value): self.coords[:, :, 2] = value
+    def _get_z(self): return self.coords[:, :, 2]
+    z = property(_get_z, _set_z)
+
+    def _get_symbol(self): return self._get_atomic_property('symbol')
+    symbol = property(_get_symbol)
+
+    def _get_atnum(self): return self._get_atomic_property('atnum')
+    atnum = property(_get_atnum)
+
+    def _get_mass(self): return self._get_atomic_property('mass')
+    mass = property(_get_mass)
+
+    def _get_radius(self): return self._get_atomic_property('radius')
+    radius = property(_get_radius)
+
+    def _get_connectors(self): return self._get_atomic_property('connectors')
+    connectors = property(_get_connectors)
+
+    def _get_atomic_property(self, prop='symbol'):
+        """ Take **self.atoms** and return an (concatenated) array of a specific property associated
+        with an atom type. Values are sorted by their indices.
+
+        :parameter str prop: The to be returned property. Accepted values:
+            **symbol**, **atnum**, **mass**, **radius** or **connectors**.
+            See the |PeriodicTable|_ module of PLAMS for more details.
+        :return: A dictionary with atomic indices as keys and atomic symbols as values.
+        :rtype: |np.array|_ [|np.float64|_, |str|_ or |np.int64|_].
+        """
+        def get_symbol(symbol): return symbol
+
+        # Interpret the **values** argument
+        prop_dict = {
+                'symbol': get_symbol,
+                'radius': PeriodicTable.get_radius,
+                'atnum': PeriodicTable.get_atomic_number,
+                'mass': PeriodicTable.get_mass,
+                'connectors': PeriodicTable.get_connectors
+        }
+
+        # Create a concatenated lists of the keys and values in **self.atoms**
+        prop_list = []
+        for at in self.atoms:
+            at_prop = prop_dict[prop](at)
+            prop_list += [at_prop for _ in self.atoms[at]]
+
+        # Sort and return
+        idx_list = itertools.chain.from_iterable(self.atoms.values())
+        return np.array([prop for _, prop in sorted(zip(idx_list, prop_list))])
 
     """ ############################  np.ndarray-based properties  ############################ """
 
@@ -109,14 +170,14 @@ class _MultiMolecule:
     def _get_dtype(self): return self.coords.dtype
     dtype = property(_get_dtype, _set_dtype)
 
-    def _get_dtype(self): return self.coords.flags
-    flags = property(_get_dtype, _set_dtype)
+    def _get_flags(self): return self.coords.flags
+    flags = property(_get_flags)
 
-    def _get_dtype(self): return self.coords.ndim
-    ndim = property(_get_dtype)
+    def _get_ndim(self): return self.coords.ndim
+    ndim = property(_get_ndim)
 
-    def _get_dtype(self): return self.coords.nbytes
-    nbytes = property(_get_dtype)
+    def _get_nbytes(self): return self.coords.nbytes
+    nbytes = property(_get_nbytes)
 
     def _transpose(self): return np.swapaxes(self.coords, 1, 2)
     T = property(_transpose)
@@ -143,12 +204,6 @@ class _MultiMolecule:
 
     """ ########################### Unary operators and functions  ############################ """
 
-    def __min__(self, axis=None):
-        return self.coords.nanmin(axis)
-
-    def __max__(self, axis=None):
-        return self.coords.nanmax(axis)
-
     def __pos__(self):
         return self.coords
 
@@ -158,8 +213,8 @@ class _MultiMolecule:
     def __abs__(self):
         return np.abs(self.coords)
 
-    def __round__(self, decimals=0):
-        return np.round(self.coords, decimals)
+    def __round__(self, ndigits=0):
+        return np.round(self.coords, ndigits)
 
     def __floor__(self):
         return np.floor(self.coords)
@@ -341,13 +396,19 @@ class _MultiMolecule:
     def __getitem__(self, key):
         if not isinstance(key, str):
             return self.coords[key]
-        return self.atoms[key.capitalize()]
+        return self.atoms[key]
 
     def __setitem__(self, key, value):
-        self.coords[key] = value
+        if not isinstance(key, str):
+            self.coords[key] = value
+        else:
+            self.atoms[key] = value
 
     def __delitem__(self, key):
-        raise ValueError('cannot delete array elements')
+        if not isinstance(key, str):
+            del self.atoms[key]
+        else:
+            raise ValueError('cannot delete array elements')
 
     def __iter__(self):
         return iter(self.coords)
