@@ -11,8 +11,9 @@ from scipy.spatial.distance import cdist
 from scm.plams import (Atom, Bond, Molecule)
 from scm.plams import PeriodicTable
 
-from ..functions.rdf import (get_rdf, get_rdf_lowmem, get_rdf_df)
 from .multi_mol_magic import _MultiMolecule
+from ..functions.rdf import (get_rdf, get_rdf_lowmem, get_rdf_df)
+from ..functions.utils import separate_mod
 
 
 class MultiMolecule(_MultiMolecule):
@@ -53,7 +54,11 @@ class MultiMolecule(_MultiMolecule):
         :type atom_subset: |None|_ or |tuple|_ [|str|_]
         """
         # Guess bonds
-        atom_subset = np.array(sorted(self._get_atom_subset(atom_subset)))
+        if atom_subset is None:
+            atom_subset = np.arange(0, self.shape[1])
+        else:
+            atom_subset = np.array(sorted(self._get_atom_subset(atom_subset)))
+
         mol = self.as_Molecule(mol_subset=0, atom_subset=atom_subset)[0]
         mol.guess_bonds()
         self.from_Molecule(mol, subset='bonds', allow_different_length=True)
@@ -158,31 +163,34 @@ class MultiMolecule(_MultiMolecule):
         # Sort and return
         return np.array([prop for _, prop in sorted(zip(idx_list, prop_list))])
 
-    def sort_atoms(self, sort_by='symbol', reverse=False):
+    def sort(self, sort_by='symbol', reverse=False):
         """ Sort the atoms in **self.coords** and **self.atoms**, performing in inplace update.
 
-        :parameter str sort_by: The property which is to be used for sorting. Accepted values:
+        :parameter sort_by: The property which is to be used for sorting. Accepted values:
             **symbol** (*i.e.* alphabetical), **atnum**, **mass**, **radius** or
             **connectors**. See the PeriodicTable_ module of PLAMS for more details.
+            Alternatively, a user-specified array of indices can be provided for sorting.
+        :type sort_by: |str|_ or |np.ndarray|_ [|np.int64|_]
         :parameter bool reverse: Sort in reversed order.
         """
-        # Create and sort a list of indices
-        sort_by_array = self._get_atomic_property(prop=sort_by)
-        idx_range = range(self.shape[0])
-        idx_range = [i for _, i in sorted(zip(sort_by_array, idx_range))]
+        # Create and, potentially, sort a list of indices
+        if isinstance(sort_by, str):
+            sort_by_array = self._get_atomic_property(prop=sort_by)
+            idx_range = range(self.shape[0])
+            idx_range = np.array([i for _, i in sorted(zip(sort_by_array, idx_range))])
+        else:
+            assert sort_by.shape[0] == self.shape[1]
+            idx_range = sort_by
+
+        # Reverse or not
         if reverse:
             idx_range.reverse()
 
         # Sort **self.coords**
         self.coords = self[:, idx_range]
 
-        # Sort atomic symbols
-        symbols = self.symbol
-        symbols = [at for _, at in sorted(zip(sort_by_array, symbols))]
-        if reverse:
-            symbols.reverse()
-
-        # Refill **self.aatoms**
+        # Refill **self.atoms**
+        symbols = self.symbol[idx_range]
         self.atoms = {}
         for i, at in enumerate(symbols):
             try:
@@ -192,8 +200,35 @@ class MultiMolecule(_MultiMolecule):
 
         # Sort **self.bonds**
         if self.bonds is not None:
-            self.atom1 = idx_range[self[:, 0]]
-            self.atom2 = idx_range[self[:, 1]]
+            self.atom1 = idx_range[self.atom1]
+            self.atom2 = idx_range[self.atom2]
+            self.bonds[:, 0:2].sort(axis=1)
+            idx = self.bonds[:, 0:2].argsort(axis=0)[:, 0]
+            self.bonds = self.bonds[idx]
+
+    def residue_argsort(self):
+        """ Returns the indices that would sort **self** by residue number.
+        Residues are defined based on moleculair fragments based on **self.bonds**.
+
+        :return: An array of indices that would sort *n* atoms **self**.
+        :rtype: *n* |np.ndarray|_ [|np.int64|_]
+        """
+        # Define residues
+        plams_mol = self.as_Molecule(mol_subset=0)[0]
+        frags = separate_mod(plams_mol)
+
+        # Sort the residues
+        core = []
+        ligands = []
+        for frag in frags:
+            if len(frag) == 1:
+                core += frag
+            else:
+                ligands.append(sorted(frag))
+        core.sort()
+        ligands.sort()
+
+        return np.concatenate([core] + ligands)
 
     def get_center_of_mass(self, mol_subset=None, atom_subset=None):
         """ Get the center of mass.
@@ -541,7 +576,7 @@ class MultiMolecule(_MultiMolecule):
 
     def as_psf(self, filename):
         """ Convert a *MultiMolecule* object into a Protein Structure File (.psf). """
-        # Prepare the !NATOM block
+        # Prepare for preparing the !NATOM block
         df = pd.DataFrame()
         df[0] = np.arange(self.shape[1])
         df[1] = 'MOL'
@@ -561,6 +596,12 @@ class MultiMolecule(_MultiMolecule):
         top += '\n' + '{:>8.8}'.format('REMARKS') + ' https://github.com/BvB93/auto-FOX'
         top += '\n\n' + '{:>8.8}'.format(str(self.shape[1])) + ' !NATOM\n'
 
+        # Prepare the !NATOM block
+        mid = ''
+        for key in df:
+            tmp = '{:>8.8} {:4.4} {:4.4} {:4.4} {:4.4} {:5.5} {:>9.9} {:>13.13} {:>11.11}'
+            mid += tmp.format(*[str(i) for i in df[key]]) + '\n'
+
         # Prepare the !NBOND, !NTHETA and !NPHI blocks
         bottom = ''
         if not self.bonds:
@@ -577,9 +618,7 @@ class MultiMolecule(_MultiMolecule):
         # Export the .psf file
         with open(filename, 'w') as file:
             file.write(top)
-            for item in df:
-                natom = '{:>8.8} {:4.4} {:4.4} {:4.4} {:4.4} {:5.5} {:>9.9} {:>13.13} {:>11.11}'
-                file.write(natom.format(*[str(i) for i in df[item]]) + '\n')
+            file.write(mid)
             file.write(bottom[2:])
 
     def as_pdb(self):
@@ -692,9 +731,9 @@ class MultiMolecule(_MultiMolecule):
             to have different lengths.
         """
         if isinstance(mol_list, Molecule):
-            mol = mol_list
+            plams_mol = mol_list
         else:
-            mol = mol_list[0]
+            plams_mol = mol_list[0]
         subset = subset or ('atoms', 'bonds', 'properties')
 
         if not allow_different_length:
@@ -707,14 +746,14 @@ class MultiMolecule(_MultiMolecule):
 
         # Convert properties
         if 'properties' in subset:
-            self.properties = mol.properties
+            self.properties = plams_mol.properties
 
         # Convert atoms
         if 'atoms' in subset:
             dummy = Molecule()
             idx = slice(0, self.shape[0])
             self.coords = np.array([dummy.as_array(atom_subset=mol.atoms[idx]) for mol in mol_list])
-            for i, at in enumerate(mol.atoms[idx]):
+            for i, at in enumerate(plams_mol.atoms[idx]):
                 try:
                     self.atoms[at].append(i)
                 except KeyError:
@@ -722,12 +761,12 @@ class MultiMolecule(_MultiMolecule):
 
         # Convert bonds
         if 'bonds' in subset:
-            mol.set_atoms_id()
-            self.bonds = np.zeros((len(mol.bonds), 3), dtype=int)
-            for i, bond in enumerate(mol.bonds):
+            plams_mol.set_atoms_id()
+            self.bonds = np.zeros((len(plams_mol.bonds), 3), dtype=int)
+            for i, bond in enumerate(plams_mol.bonds):
                 self.bonds[i] = bond.atom1.id, bond.atom2.id, bond.order
             self.bonds[:, 0:2] -= 1
-            mol.unset_atoms_id()
+            plams_mol.unset_atoms_id()
 
     """ ####################################  Copying  ######################################## """
 
