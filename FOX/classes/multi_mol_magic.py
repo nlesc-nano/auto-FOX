@@ -76,13 +76,12 @@ class _MultiMolecule:
         assert properties is None or isinstance(properties, dict)
         if isinstance(atoms, dict):
             atoms = Settings(atoms)
-        properties = properties or Settings()
+        properties = properties or Settings({'atoms': None, 'bonds': None, 'mol': None})
 
         # Sanitize bonds
         assert bonds is None or isinstance(bonds, np.ndarray)
         if bonds is not None:
             assert bonds.ndim == 2 and bonds.shape[1] in (2, 3)
-            assert bonds.dtype.type in (np.int8, np.int16, np.int32, np.int64)
             if bonds.shape[1] == 2:
                 bonds = np.hstack((bonds, np.zeros(len(bonds), dtype=int)[:, None]))
 
@@ -92,30 +91,50 @@ class _MultiMolecule:
 
     def _set_atom1(self, value): self.bonds[:, 0] = value
     def _get_atom1(self): return self.bonds[:, 0]
-    atom1 = property(_get_atom1, _set_atom1)
+    atom1 = property(
+        _get_atom1, _set_atom1, doc='Return the indices of the first atoms for all \
+                                     bonds in **self.bonds** as 1d array'
+    )
 
     def _set_atom2(self, value): self.bonds[:, 1] = value
     def _get_atom2(self): return self.bonds[:, 1]
-    atom2 = property(_get_atom2, _set_atom2)
+    atom2 = property(
+        _get_atom2, _set_atom2, doc='Return the indices of the second atoms for all \
+                                     bonds in **self.bonds** as 1d array'
+    )
 
-    def _set_order(self, value): self.bonds[:, 2] = value
-    def _get_order(self): return self.bonds[:, 2]
-    order = property(_get_order, _set_order)
+    def _set_order(self, value): self.bonds[:, 2] = value * 10
+    def _get_order(self): return self.bonds[:, 2] / 10.0
+    order = property(
+        _get_order, _set_order, doc='Return the bond orders for all bonds in **self.bonds** \
+                                     as 1d array'
+    )
 
     def _set_x(self, value): self.coords[:, :, 0] = value
     def _get_x(self): return self.coords[:, :, 0]
-    x = property(_get_x, _set_x)
+    x = property(
+        _get_x, _set_x, doc='Return the x coordinates for all atoms in **self.coords** \
+                             as 2d array'
+    )
 
     def _set_y(self, value): self.coords[:, :, 1] = value
     def _get_y(self): return self.coords[:, :, 1]
-    y = property(_get_y, _set_y)
+    y = property(
+        _get_y, _set_y, doc='Return the y coordinates for all atoms in **self.coords** \
+                             as 2d array'
+    )
 
     def _set_z(self, value): self.coords[:, :, 2] = value
     def _get_z(self): return self.coords[:, :, 2]
-    z = property(_get_z, _set_z)
+    z = property(
+        _get_z, _set_z, doc='Return the z coordinates for all atoms in **self.coords** \
+                             as 2d array'
+    )
 
     def _get_symbol(self): return self._get_atomic_property('symbol')
-    symbol = property(_get_symbol)
+    symbol = property(
+        _get_symbol, doc='Return the atomic symbols of all atoms in **self.atoms** as 1d array'
+    )
 
     def _get_atnum(self): return self._get_atomic_property('atnum')
     atnum = property(_get_atnum)

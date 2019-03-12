@@ -8,12 +8,13 @@ import numpy as np
 import pandas as pd
 from scipy.spatial.distance import cdist
 
-from scm.plams import (Atom, Bond, Molecule)
+from scm.plams import (Atom, Bond)
 from scm.plams import PeriodicTable
 
+from .molecule_utils import Molecule
 from .multi_mol_magic import _MultiMolecule
 from ..functions.rdf import (get_rdf, get_rdf_lowmem, get_rdf_df)
-from ..functions.utils import separate_mod
+from ..functions.utils import serialize_array
 
 
 class MultiMolecule(_MultiMolecule):
@@ -43,7 +44,7 @@ class MultiMolecule(_MultiMolecule):
     :type inputformat: |None|_ or |str|_
     """
 
-    def guess_bonds(self, atom_subset=None):
+    def guess_bonds(self, charge=0, atom_subset=None):
         """ Guess bonds within the molecules based on atom type and inter-atomic distances.
         Bonds are guessed based on the first molecule in **self.coords**
         Performs an inplace modification of **self.bonds**
@@ -52,20 +53,25 @@ class MultiMolecule(_MultiMolecule):
             whose atomic symbol is in **atom_subset**. If *None*, guess bonds for all atoms in
             **self.coords**.
         :type atom_subset: |None|_ or |tuple|_ [|str|_]
+        :parameter int charge: The total charge of all atoms in **atom_subset**.
         """
-        # Guess bonds
         if atom_subset is None:
             atom_subset = np.arange(0, self.shape[1])
         else:
             atom_subset = np.array(sorted(self._get_atom_subset(atom_subset)))
 
+        # Guess bonds
         mol = self.as_Molecule(mol_subset=0, atom_subset=atom_subset)[0]
         mol.guess_bonds()
+        mol.fix_bond_orders()
         self.from_Molecule(mol, subset='bonds', allow_different_length=True)
 
         # Update indices in **self.bonds** to account for **atom_subset**
-        self.bonds[:, 0] = atom_subset[self.bonds[:, 0]]
-        self.bonds[:, 1] = atom_subset[self.bonds[:, 1]]
+        self.atom1 = atom_subset[self.atom1]
+        self.atom2 = atom_subset[self.atom2]
+        self.bonds[:, 0:2].sort(axis=1)
+        idx = self.bonds[:, 0:2].argsort(axis=0)[:, 0]
+        self.bonds = self.bonds[idx]
 
     def remove_random_coords(self, p=0.5, inplace=False):
         """ Remove random molecules from **self.coords**.
@@ -206,16 +212,18 @@ class MultiMolecule(_MultiMolecule):
             idx = self.bonds[:, 0:2].argsort(axis=0)[:, 0]
             self.bonds = self.bonds[idx]
 
-    def residue_argsort(self):
+    def residue_argsort(self, concatenate=True):
         """ Returns the indices that would sort **self** by residue number.
         Residues are defined based on moleculair fragments based on **self.bonds**.
 
+        :parameter bool concatenate: If False, returned a nested list with atomic indices. Each
+            sublist contains the indices of a single residue.
         :return: An array of indices that would sort *n* atoms **self**.
-        :rtype: *n* |np.ndarray|_ [|np.int64|_]
+        :rtype: *n* |np.ndarray|_ [|np.int64|_].
         """
         # Define residues
         plams_mol = self.as_Molecule(mol_subset=0)[0]
-        frags = separate_mod(plams_mol)
+        frags = plams_mol.separate_mod()
 
         # Sort the residues
         core = []
@@ -228,7 +236,10 @@ class MultiMolecule(_MultiMolecule):
         core.sort()
         ligands.sort()
 
-        return np.concatenate([core] + ligands)
+        ret = [core] + ligands
+        if concatenate:
+            return np.concatenate(ret)
+        return ret
 
     def get_center_of_mass(self, mol_subset=None, atom_subset=None):
         """ Get the center of mass.
@@ -245,6 +256,21 @@ class MultiMolecule(_MultiMolecule):
         """
         coords = self.as_mass_weighted(mol_subset, atom_subset)
         return coords.sum(axis=1) / self.mass.sum()
+
+    def get_bonds_per_atom(self, atom_subset=None):
+        """ Get the number of bonds per atom in **self**.
+
+        :parameter atom_subset: Perform the calculation on a subset of atoms in **self**, as
+            determined by their atomic index or atomic symbol.  Include all *n* atoms per molecule
+            in **self** if *None*.
+        :type atom_subset: |None|_, |int|_ or |str|_
+        :return: An array with the number of bonds per atom, for all *n* atoms in **self**.
+        :rtype: *n* |np.ndarray|_ [|np.int64|_].
+        """
+        j = self._get_atom_subset(atom_subset)
+        if self.bonds is None:
+            return np.zeros(len(j), dtype=int)
+        return np.bincount(self.bonds[:, 0:2].flatten(), minlength=self.shape[1])[j]
 
     """ ################################## Root Mean Squared ################################## """
 
@@ -542,14 +568,13 @@ class MultiMolecule(_MultiMolecule):
         unit_vec2 = A - C / self.get_dist_mat(**kwarg2)
 
         # Create and return the angle matrix
-        ret = np.arccos(np.einsum('ijkl,ijml->ijkl', unit_vec1, unit_vec2))
-        return ret
+        return np.arccos(np.einsum('ijkl,ijml->ijkl', unit_vec1, unit_vec2))
 
     def _get_atom_subset(self, arg):
         """ Grab and return a list of indices from **self.atoms**.
         Return *at* if it is *None*, an *int* or iterable container consisting of *int*. """
         if arg is None:
-            return slice(0, self.shape[1])
+            return slice(0, None)
         elif isinstance(arg, (int, np.integer)):
             return [arg]
         elif isinstance(arg[0], (int, np.integer)):
@@ -566,7 +591,7 @@ class MultiMolecule(_MultiMolecule):
     def _get_mol_subset(self, arg):
         """ """
         if arg is None:
-            return slice(0, self.shape[0])
+            return slice(0, None)
         elif isinstance(arg, (int, np.integer)):
             return [arg]
         else:
@@ -577,14 +602,18 @@ class MultiMolecule(_MultiMolecule):
     def as_psf(self, filename):
         """ Convert a *MultiMolecule* object into a Protein Structure File (.psf). """
         # Prepare for preparing the !NATOM block
+        res = self.residue_argsort(concatenate=False)
+        plams_mol = self.as_Molecule(0)[0]
+        plams_mol.fix_bond_orders()
+        plams_mol.set_atoms_id(start=0)
         df = pd.DataFrame()
         df[0] = np.arange(self.shape[1])
         df[1] = 'MOL'
-        df[2] = 1
-        df[3] = 'COR'
+        df[2] = [i for i, j in enumerate(res, 1) for _ in j]
+        df[3] = ['COR' if i == 1 else 'LIG' for i in df[2]]
         df[4] = self.symbol
         df[5] = df[4]
-        df[6] = 0.0
+        df[6] = [at.properties.charge for at in plams_mol]
         df[7] = self.mass
         df[8] = 0
         df = df.T
@@ -599,27 +628,32 @@ class MultiMolecule(_MultiMolecule):
         # Prepare the !NATOM block
         mid = ''
         for key in df:
-            tmp = '{:>8.8} {:4.4} {:4.4} {:4.4} {:4.4} {:5.5} {:>9.9} {:>13.13} {:>11.11}'
-            mid += tmp.format(*[str(i) for i in df[key]]) + '\n'
+            string = '{:>8.8} {:4.4} {:4.4} {:4.4} {:4.4} {:5.5} {:>9.9} {:>13.13} {:>11.11}'
+            mid += string.format(*[str(i) for i in df[key]]) + '\n'
 
-        # Prepare the !NBOND, !NTHETA and !NPHI blocks
+        # Prepare the !NBOND, !NTHETA, !NPHI and !NIMPHI blocks
         bottom = ''
-        if not self.bonds:
-            bottom_headers = ['       0 !NBOND: bonds', '       0 !NTHETA: angles',
-                              '       0 !NPHI: dihedrals']
+        bottom_headers = ['{:>8.8} !NBOND: bonds', '{:>8.8} !NTHETA: angles',
+                          '{:>8.8} !NPHI: dihedrals', '{:>8.8} !NIMPHI: impropers']
+        if self.bonds is None:
             for header in bottom_headers:
-                bottom += '\n\n\n' + header
+                bottom += '\n\n' + header.format('0')
             bottom += '\n\n'
         else:
-            bonds = []
-            angles = []
-            dihedrals = []
+            connectivity = [self.bonds[:, 0:2], plams_mol.get_angles(),
+                            plams_mol.get_dihedrals(), plams_mol.get_impropers()]
+            items_per_row = [4, 3, 2, 2]
+
+            for i, conn, header in zip(items_per_row, connectivity, bottom_headers):
+                bottom += '\n\n' + header.format(str(len(conn)))
+                bottom += '\n' + serialize_array(conn, i)
+            bottom += '\n'
 
         # Export the .psf file
         with open(filename, 'w') as file:
             file.write(top)
             file.write(mid)
-            file.write(bottom[2:])
+            file.write(bottom[1:])
 
     def as_pdb(self):
         """ Convert a *MultiMolecule* object into a Protein DataBank file (.pdb). """
@@ -701,11 +735,13 @@ class MultiMolecule(_MultiMolecule):
 
         # Fill the template molecule with bonds
         if self.bonds is not None:
+            bond_idx = np.ones(len(self))
+            bond_idx[atom_subset] += np.arange(len(atom_subset))
             for i, j, order in self.bonds:
                 if i in atom_subset and j in atom_subset:
-                    at1 = mol_template[int(i) + 1]
-                    at2 = mol_template[int(j) + 1]
-                    mol_template.add_bond(Bond(atom1=at1, atom2=at2, order=order))
+                    at1 = mol_template[int(bond_idx[i])]
+                    at2 = mol_template[int(bond_idx[j])]
+                    mol_template.add_bond(Bond(atom1=at1, atom2=at2, order=order/10.0))
 
         # Create copies of the template molecule; update their cartesian coordinates
         ret = []
@@ -751,7 +787,7 @@ class MultiMolecule(_MultiMolecule):
         # Convert atoms
         if 'atoms' in subset:
             dummy = Molecule()
-            idx = slice(0, self.shape[0])
+            idx = slice(0, None)
             self.coords = np.array([dummy.as_array(atom_subset=mol.atoms[idx]) for mol in mol_list])
             for i, at in enumerate(plams_mol.atoms[idx]):
                 try:
@@ -762,9 +798,9 @@ class MultiMolecule(_MultiMolecule):
         # Convert bonds
         if 'bonds' in subset:
             plams_mol.set_atoms_id()
-            self.bonds = np.zeros((len(plams_mol.bonds), 3), dtype=int)
+            self.bonds = np.empty((len(plams_mol.bonds), 3), dtype=int)
             for i, bond in enumerate(plams_mol.bonds):
-                self.bonds[i] = bond.atom1.id, bond.atom2.id, bond.order
+                self.bonds[i] = bond.atom1.id, bond.atom2.id, bond.order * 10
             self.bonds[:, 0:2] -= 1
             plams_mol.unset_atoms_id()
 
