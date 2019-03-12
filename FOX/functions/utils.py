@@ -1,44 +1,26 @@
 """ A module with miscellaneous functions. """
 
-__all__ = ['separate_mod']
-
-from scm.plams.core.errors import MoleculeError
+__all__ = ['serialize_array']
 
 
-def separate_mod(plams_mol):
-    """ A modified version of the PLAMS separate()_ function. Separates the molecule into connected
-    component as based on its bonds.
-    Returns aforementioned components as a nested list of atomic indices.
+def serialize_array(array, items_per_row=4, indent=9):
+    """ """
+    if len(array) == 0:
+        return ''
 
-    :parameter plams_mol: A PLAMS molecule with
-    :type plams_mol: |plams.Molecule|_
-    :return: A nested list of atomic indices, each sublist representing a set of unconnected
-        moleculair fragments
-    :rtype: |list|_ [|list|_ [|int|_]]
-    """
-    if len(plams_mol.bonds) == 0:
-        raise MoleculeError('separate_mod: No bonds were found in plams_mol')
+    ret = ''
+    for _ in range(indent):
+        ret += ' '
 
-    # Mark atoms
-    for i, at in enumerate(plams_mol.atoms):
-        at.id = i
-        at._visited = False
+    k = 0
+    for i in array:
+        for j in i:
+            ret += '{:8.8}'.format(str(j)) + ' '
+        k += 1
+        if (i != array[-1]).all() and k == items_per_row:
+            k = 0
+            ret += '\n'
+            for _ in range(indent):
+                ret += ' '
 
-    # Loop through atoms
-    def dfs(at1, m):
-        at1._visited = True
-        m.append(at1.id)
-        for bond in at1.bonds:
-            at2 = bond.other_end(at1)
-            if not at2._visited:
-                dfs(at2, m)
-
-    # Create a nested list of atomic indices
-    indices = []
-    for at in plams_mol.atoms:
-        if not at._visited:
-            m = []
-            dfs(at, m)
-            indices.append(m)
-
-    return indices
+    return ret

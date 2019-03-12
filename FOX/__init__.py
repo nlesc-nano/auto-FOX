@@ -10,10 +10,14 @@ from .functions import (
     get_rdf, get_rdf_lowmem,
 )
 
-from .classes import MultiMolecule
+from .classes import (
+    MultiMolecule,
+    Molecule
+)
 
 __all__ = [
     'read_multi_xyz',
     'get_rdf', 'get_rdf_lowmem',
-    'MultiMolecule'
+    'MultiMolecule',
+    'Molecule'
 ]
