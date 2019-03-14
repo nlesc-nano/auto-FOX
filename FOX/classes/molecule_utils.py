@@ -73,31 +73,60 @@ class Molecule(Molecule):
         (formal) atomic charges in **self**. """
         def infer_H(at):
             at_other = at.bonds[0].other_end(at)
-            bonds = [bond.order for bond in at.bonds]
+            bonds = [bond.order for bond in at_other.bonds]
             if at_other.properties.charge != 0:
-                return 'HC'
+                return 'HC'  # H attached to a charged group
             elif at_other.symbol == 'O':
-                return 'HO'
+                return 'HO'  # Hydroxide
             elif 1.5 in bonds or 2.0 in bonds:
-                return 'HA'
+                return 'HA'  # Aliphatic or aromatic
             else:
                 return 'H'
 
         def infer_C(at):
             bonds = at.bonds
             if len(bonds) == 2:
-                return 'CUY1'
+                return 'CUY1'  # Triple bond
             elif len(bonds) == 3:
                 for bond in bonds:
                     if bond.other_end(at).symbol == 'O' and bond.order in (1.5, 2.0):
-                        return 'C'
-                    return 'CUA1'
+                        return 'C'  # Carbonyl
+                    return 'CUA1'  # Alkene
             elif len(bonds) == 4:
-                return 'CT'
+                return 'CT'  # Tetrahedral carbon
 
         def infer_O(at):
+            # Check for charged oxygens
             if at.properties.charge != 0.0:
                 return 'OC'
+
+            # Check for water, ethers & alcohols
+            elif len(at.bonds) == 2:
+                at1, at2 = [bond.other_end(at) for bond in at.bonds]
+                if at1.symbol == at2.symbol == 'C':
+                    return 'OE'  # Ethers & acetals
+                elif 1 in (at1.atnum, at2.atnum):
+                    return 'OT'  # Generic hydroxide
+
+            # Check for carbonyls
+            elif len(at.bonds) == 1:
+                C = at.bonds[0].other_end(at)
+                at_list = [bond.other_end(C) for bond in C.bonds]
+                at_symbol_other = [at_other.symbol for at_other in at_list]
+                if 'N' in at_symbol_other:
+                    return 'O'  # Amide
+                elif 'H' in at_symbol_other:
+                    return 'OA'  # Aldehyde
+                elif at_symbol_other[0] == at_symbol_other[1] == 'C':
+                    return 'OK'  # Ketone
+                elif 'O' in at_symbol_other:
+                    for at2 in at_list:
+                        if at2.symbol == 'O' and at2 != at:
+                            at_symbol_other2 = [bond.other_end(at2).symbol for bond in at2.bonds]
+                            if 'H' in at_symbol_other2:
+                                return 'OAC'  # Carboxylic acid
+                            elif at_symbol_other2[0] == at_symbol_other2[1] == 'C':
+                                return 'OS'  # Ester
 
         ret = np.zeros(len(self.atoms), dtype='<U4')
         for i, at in enumerate(self):
