@@ -138,7 +138,7 @@ def _sanitize_init_mc(mol, rdf_ref, start_param,
     """ Sanitize the arguments of :func:`FOX.functions.read_xyz.read_multi_xyz`.
     See aforementioned function for a description of the various parameters.
 
-    :return: A sanitized version of: start_param, M, omega, phi, gamma & a_target
+    :return: Sanitized arguments of :func:`FOX.functions.read_xyz.read_multi_xyz`.
     :rtype: |tuple|_
     """
     # Sanitize **mol**
