@@ -75,6 +75,8 @@ def _sanitize_init_mc(rdf_ref, start_param, M=10000, phi=1.0, gamma=2.0, omega=1
     assert isinstance(start_param (np.ndarray, int, np.integer))
     if not isinstance(start_param, np.darray):
         start_param = np.random.rand(start_param)
+    elif start_param.dtype != np.float:
+        start_param = np.array(start_param, dtype=float)
 
     # Sanitize **M**
     M = int(M)
