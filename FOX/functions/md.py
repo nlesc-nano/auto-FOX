@@ -12,6 +12,7 @@ from scm.plams import Molecule
 from scm.plams.core.results import Results
 from scm.plams.core.settings import Settings
 from scm.plams.core.functions import (init, finish, add_to_class)
+from scm.plams.core.basejob import Job
 from scm.plams.interfaces.thirdparty.cp2k import Cp2kJob
 
 from ..classes.multi_mol import MultiMolecule
@@ -20,25 +21,16 @@ from ..classes.multi_mol import MultiMolecule
 """ ######################### Functions related to running the MM job ######################### """
 
 
-def run_md(mol, job_type=Cp2kJob, settings=None, atom_subset=('Cd', 'Se', 'O')):
+def run_md(mol=None, job_type=None, settings=None, **kwarg):
     """ """
-    # Grab the job settings
-    if settings is None:
-        settings = get_settings()
-    elif isinstance(settings, str):
-        settings = get_settings(path=settings)
-    elif not isinstance(settings, settings):
-        settings = Settings(settings)
-
     # Run an MD calculation
     name = 'MM-MD'
     job = job_type(settings=settings, name=name)
     results = job.run()
     results.wait()
 
-    # Construct and return the radial distribution function
-    xyz_file = results.get_xyz_path()
-    return MultiMolecule(filename=xyz_file).init_rdf(atom_subset)
+    # Construct a MultiMolecule object
+    return MultiMolecule(filename=results.get_xyz_path())
 
 
 @add_to_class(Results)
@@ -79,7 +71,9 @@ def get_aux_error(rdf, rdf_ref):
     return np.linalg.norm(rdf - rdf_ref, axis=0).sum()
 
 
-def init_mc(rdf_ref, start_param, M=50000, phi=1.0, gamma=2.0, omega=100, a_target=0.25):
+def init_mc(mol, rdf_ref, start_param,
+            M=50000, phi=1.0, gamma=2.0, omega=100, a_target=0.25,
+            job=Cp2kJob, settings=None, atom_subset=None):
     """
     :parameter rdf_ref: A reference radial distribution function.
     :type rdf_ref: |np.ndarray|_, |pd.DataFrame|_ or |pd.Series|_
@@ -92,14 +86,15 @@ def init_mc(rdf_ref, start_param, M=50000, phi=1.0, gamma=2.0, omega=100, a_targ
         blocks of length **omega**: *M* = *N*omega*. Should be, at minimum, twice as large as **M**
     :parameter float a_target: The target acceptance rate.
     """
-    param, M, omega, phi, gamma, a_target = _sanitize_init_mc(**locals())
+    param, M, omega, phi, gamma, a_target, job_recipe, atom_subset = _sanitize_init_mc(**locals())
 
     # The acceptance rate
     a = np.zeros(omega, dtype=bool)
 
     # Generate the first RDF
     key = tuple(param)
-    history_dict = {key: mol.run_md() + phi}
+    mol = run_md(**job_recipe)
+    history_dict = {key: mol.init_rdf(atom_subset) + phi}
     assert rdf_ref.shape == history_dict[key].shape
 
     # Start the MC parameter optimization
@@ -116,13 +111,14 @@ def init_mc(rdf_ref, start_param, M=50000, phi=1.0, gamma=2.0, omega=100, a_targ
             if key in history_dict:
                 rdf = history_dict[key]
             else:
-                rdf = mol.run_md()
+                mol = run_md(**job_recipe)
+                rdf = mol.init_rdf(atom_subset)
 
             # Step 3: Evaluate the auxilary error
             rdf_old = history_dict[key_old]
             accept = get_aux_error(rdf_ref, rdf_old) - get_aux_error(rdf_ref, rdf)
 
-            # Step 4: Update
+            # Step 4: Update the rdf history
             if accept > 0:
                 a[j] = True
                 history_dict[key] = rdf + phi
@@ -136,13 +132,20 @@ def init_mc(rdf_ref, start_param, M=50000, phi=1.0, gamma=2.0, omega=100, a_targ
     return param
 
 
-def _sanitize_init_mc(rdf_ref, start_param, M=10000, phi=1.0, gamma=2.0, omega=100, a_target=0.25):
+def _sanitize_init_mc(mol, rdf_ref, start_param,
+                      M=50000, phi=1.0, gamma=2.0, omega=100, a_target=0.25,
+                      job=Cp2kJob, settings=None, atom_subset=None):
     """ Sanitize the arguments of :func:`FOX.functions.read_xyz.read_multi_xyz`.
     See aforementioned function for a description of the various parameters.
 
     :return: A sanitized version of: start_param, M, omega, phi, gamma & a_target
     :rtype: |tuple|_
     """
+    # Sanitize **mol**
+    assert isinstance(mol, (Molecule, MultiMolecule))
+    if isinstance(mol, MultiMolecule):
+        mol = mol.as_Molecule(mol_subset=0)[0]
+
     # Sanitize **rdf_ref**
     assert isinstance(rdf_ref, (np.ndarray, pd.DataFrame, pd.Series))
 
@@ -170,4 +173,37 @@ def _sanitize_init_mc(rdf_ref, start_param, M=10000, phi=1.0, gamma=2.0, omega=1
     a_target = float(a_target)
     assert 0.0 < a_target < 1.0
 
-    return start_param, M, omega, phi, gamma, a_target
+    # Sanitize **job_type**
+    assert job is None or isinstance(job, type)
+    if job is None:
+        job = Cp2kJob
+
+    # Sanitize **settings**
+    assert settings is None or isinstance(settings, (str, dict))
+    if settings is None:
+        settings = get_settings()
+    elif isinstance(settings, str):
+        settings = get_settings(path=settings)
+    elif not isinstance(settings, settings):
+        settings = Settings(settings)
+
+    # Sanitize **atom_subset**
+    assert atom_subset is None or isinstance(atom_subset, str) or isinstance(atom_subset[0], str)
+    at_symbols = [at.symbol for at in mol]
+    if atom_subset is None:
+        atom_subset = tuple(set(at_symbols))
+    elif isinstance(atom_subset, str):
+        assert atom_subset in at_symbols
+        atom_subset = (atom_subset)
+    else:
+        for at in atom_subset:
+            assert at in at_symbols
+        return tuple(atom_subset)
+
+    # Prepare a job recipe
+    job_recipe = Settings()
+    job_recipe.mol = mol
+    job_recipe.job = job
+    job_recipe.settings = settings
+
+    return start_param, M, omega, phi, gamma, a_target, job_recipe, atom_subset
