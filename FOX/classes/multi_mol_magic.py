@@ -137,16 +137,25 @@ class _MultiMolecule:
     )
 
     def _get_atnum(self): return self._get_atomic_property('atnum')
-    atnum = property(_get_atnum)
+    atnum = property(
+        _get_atnum, doc='Return the atomic numbers of all atoms in **self.atoms** as 1d array'
+    )
 
     def _get_mass(self): return self._get_atomic_property('mass')
-    mass = property(_get_mass)
+    mass = property(
+        _get_mass, doc='Return the atomic masses of all atoms in **self.atoms** as 1d array'
+    )
 
     def _get_radius(self): return self._get_atomic_property('radius')
-    radius = property(_get_radius)
+    radius = property(
+        _get_radius, doc='Return the atomic radii of all atoms in **self.atoms** as 1d array'
+    )
 
     def _get_connectors(self): return self._get_atomic_property('connectors')
-    connectors = property(_get_connectors)
+    connectors = property(
+        _get_connectors, doc='Return the atomic connectors of all atoms in **self.atoms** \
+                              as 1d array'
+    )
 
     def _get_atomic_property(self, prop='symbol'):
         """ Take **self.atoms** and return an (concatenated) array of a specific property associated
