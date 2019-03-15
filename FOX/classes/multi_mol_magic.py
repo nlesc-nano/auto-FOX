@@ -236,7 +236,7 @@ class _MultiMolecule:
         return self.coords
 
     def __neg__(self):
-        return -1 * self.coords
+        return np.negative(self.coords)
 
     def __abs__(self):
         return np.abs(self.coords)
@@ -257,17 +257,17 @@ class _MultiMolecule:
 
     def __add__(self, other):
         ret = self.__copy__()
-        ret.coords = self.coords + other
+        np.add(self.coords, other, out=ret.coords)
         return ret
 
     def __sub__(self, other):
         ret = self.__copy__()
-        ret.coords = self.coords - other
+        np.subtract(self.coords, other, out=ret.coords)
         return ret
 
     def __mul__(self, other):
         ret = self.__copy__()
-        ret.coords = self.coords * other
+        np.multiply(self.coords, other, out=ret.coords)
         return ret
 
     def __matmul__(self, other):
@@ -277,73 +277,73 @@ class _MultiMolecule:
 
     def __floordiv__(self, other):
         ret = self.__copy__()
-        ret.coords = self.coords // other
+        np._divide(self.coords, other, out=ret.coords)
         return ret
 
     def __truediv__(self, other):
         ret = self.__copy__()
-        ret.coords = self.coords / other
+        np.true_divide(self.coords, other, out=ret.coords)
         return ret
 
     def __mod__(self, other):
         ret = self.__copy__()
-        ret.coords = self.coords % other
+        np.mod(self.coords, other, out=ret.coords)
         return ret
 
     def __divmod__(self, other):
         ret = self.__copy__()
-        ret.coords = np.divmod(self.coords, other)
+        np.divmod(self.coords, other, out=ret.coords)
         return ret
 
     def __pow__(self, other):
         ret = self.__copy__()
-        ret.coords = self.coords**other
+        np.power(self.coords, other, out=ret.coords)
         return ret
 
     """ ##########################  Reflected arithmetic operators  ########################### """
 
     def __rsub__(self, other):
         ret = self.__copy__()
-        ret.coords = other - self.coords
+        np.subtract(other, self.coords, out=ret.coords)
         return ret
 
     def __rfloordiv__(self, other):
         ret = self.__copy__()
-        ret.coords = other // self.coords
+        np._divide(other, self.coords, out=ret.coords)
         return ret
 
     def __rdiv__(self, other):
         ret = self.__copy__()
-        ret.coords = other / self.coords
+        np._divide(other, self.coords, out=ret.coords)
         return ret
 
     def __rmod__(self, other):
         ret = self.__copy__()
-        ret.coords = other % self.coords
+        np.mod(other, self.coords, out=ret.coords)
         return ret
 
     def __rdivmod__(self, other):
         ret = self.__copy__()
-        ret.coords = np.divmod(other, self.coords)
+        np.divmod(other, self.coords, out=ret.coords)
         return ret
 
     def __rpow__(self, other):
         ret = self.__copy__()
-        ret.coords = other**self.coords
+        np.power(other, self.coords, out=ret.coords)
         return ret
 
     """ ##############################  Augmented assignment  ################################# """
 
     def __iadd__(self, other):
-        self.coords += other
+        np.add(self.coords, other, out=self.coords)
         return self
 
     def __isub__(self, other):
-        self.coords -= other
+        np.subtract(self.coords, other, out=self.coords)
         return self
 
     def __imul__(self, other):
-        self.coords *= other
+        np.multiply(self.coords, other, out=self.coords)
         return self
 
     def __imatmul__(self, other):
@@ -351,19 +351,19 @@ class _MultiMolecule:
         return self
 
     def __ifloordiv__(self, other):
-        self.coords //= other
+        np.floor_divide(self.coords, other, out=self.coords)
         return self
 
     def __itruediv__(self, other):
-        self.coords /= other
+        np.true_divide(self.coords, other, out=self.coords)
         return self
 
     def __imod__(self, other):
-        self.coords %= other
+        np.mod(self.coords, other, out=self.coords)
         return self
 
     def __ipow__(self, other):
-        self.coords **= other
+        np.power(self.coords, other, out=self.coords)
         return self
 
     """ ##########################  Type conversion magic methods  ############################ """
@@ -460,7 +460,7 @@ class _MultiMolecule:
             *atoms* and/or *bonds*.
         :type subset: |None|_, |str|_ or |tuple|_ [|str|_]
         """
-        subset = subset or ('atoms', 'bonds', 'properties')
+        subset = subset or ('atoms', 'coords', 'bonds', 'properties')
         ret = _MultiMolecule()
 
         # Copy atoms
@@ -486,7 +486,7 @@ class _MultiMolecule:
             *properties*, *atoms* and/or *bonds*.
         :type subset: |None|_, |str|_ or |tuple|_ [|str|_]
         """
-        subset = subset or ('atoms', 'bonds', 'properties')
+        subset = subset or ('atoms', 'coords', 'bonds', 'properties')
         ret = self.__copy__(subset=subset)
 
         # Deep copy atoms
