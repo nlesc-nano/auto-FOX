@@ -15,7 +15,7 @@ from scm.plams.core.settings import Settings
 from scm.plams.core.functions import (init, finish, add_to_class)
 from scm.plams.interfaces.thirdparty.cp2k import Cp2kJob
 
-from ..classes.multi_mol import MultiMolecule
+from .multi_mol import MultiMolecule
 
 
 @add_to_class(Results)
