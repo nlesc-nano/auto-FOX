@@ -9,7 +9,6 @@ import pandas as pd
 from scipy.spatial.distance import cdist
 
 from scm.plams import (Atom, Bond)
-from scm.plams import PeriodicTable
 
 from .molecule_utils import Molecule
 from .multi_mol_magic import _MultiMolecule
@@ -116,7 +115,7 @@ class MultiMolecule(_MultiMolecule):
         j = self._get_atom_subset(atom_subset)
 
         # Remove translations
-        coords = self[i, j, :] - np.average(self[i, j, :], axis=1)[:, None, :]
+        coords = self[i, j, :] - np.mean(self[i, j, :], axis=1)[:, None, :]
 
         # Peform a singular value decomposition on the covariance matrix
         H = np.swapaxes(coords[0:], 1, 2) @ coords[0]
@@ -135,39 +134,6 @@ class MultiMolecule(_MultiMolecule):
             ret = self.deepcopy()
             ret[i, j, :] = coords @ rotmat
             return ret
-
-    def get_atomic_property(self, prop='symbol'):
-        """ Take **self.atoms** and return an (concatenated) array of a specific property associated
-        with an atom type. Values are sorted by their indices.
-
-        :parameter str prop: The to be returned property. Accepted values:
-            **symbol**, **atnum**, **mass**, **radius** or **connectors**.
-            See the PeriodicTable_ module of PLAMS for more details.
-        :return: A dictionary with atomic indices as keys and atomic symbols as values.
-        :rtype: |np.ndarray|_ [|np.float64|_, |str|_ or |np.int64|_].
-        """
-        def get_symbol(symbol): return symbol
-
-        # Interpret the **values** argument
-        prop_dict = {
-                'symbol': get_symbol,
-                'radius': PeriodicTable.get_radius,
-                'atnum': PeriodicTable.get_atomic_number,
-                'mass': PeriodicTable.get_mass,
-                'connectors': PeriodicTable.get_connectors
-        }
-
-        assert prop in prop_dict
-
-        # Create concatenated lists of the keys and values in **self.atoms**
-        idx_list = list(chain.from_iterable(self.atoms.values()))
-        prop_list = []
-        for at in self.atoms:
-            at_prop = prop_dict[prop](at)
-            prop_list += [at_prop for _ in self.atoms[at]]
-
-        # Sort and return
-        return np.array([prop for _, prop in sorted(zip(idx_list, prop_list))])
 
     def sort(self, sort_by='symbol', reverse=False):
         """ Sort the atoms in **self.coords** and **self.atoms**, performing in inplace update.
@@ -378,9 +344,9 @@ class MultiMolecule(_MultiMolecule):
         j = self._get_atom_subset(atom_subset)
 
         # Calculate the RMSF per molecule in **self.coords**
-        mean_coords = np.average(self[i, j, :], axis=0)[None, :, :]
+        mean_coords = np.mean(self[i, j, :], axis=0)[None, ...]
         displacement = np.linalg.norm(self[i, j, :] - mean_coords, axis=2)**2
-        return np.average(displacement, axis=0)
+        return np.mean(displacement, axis=0)
 
     def _get_rmsd_columns(self, rmsd, loop=False, atom_subset=None):
         """ Return the columns for the RMSD dataframe. """
@@ -443,7 +409,7 @@ class MultiMolecule(_MultiMolecule):
             return False  # subset is an iterable of *str*
         elif isinstance(subset[0][0], int):
             return True  # subset is a nested iterable of *str*
-        raise TypeError('')
+        raise TypeError()
 
     """ #############################  Radial Distribution Functions  ######################### """
 
@@ -524,7 +490,9 @@ class MultiMolecule(_MultiMolecule):
         B = self[j]
 
         # Create, fill and return the distance matrix
-        shape = self.shape[0], A.shape[1], B.shape[1]
+        if A.ndim == 2:
+            return cdist(A, B)[None, ...]
+        shape = A.shape[0], A.shape[1], B.shape[1]
         ret = np.empty(shape)
         for k, (a, b) in enumerate(zip(A, B)):
             ret[k] = cdist(a, b)
@@ -557,18 +525,20 @@ class MultiMolecule(_MultiMolecule):
         k = mol_subset, self._get_atom_subset(atom_subset[2])
 
         # Slice and broadcast the XYZ array
-        A = self[i][:, None, :]
-        B = self[j][:, :, None]
-        C = self[k][:, :, None]
+        A = self[i][:, None, ...]
+        B = self[j][..., None, :]
+        C = self[k][..., None, :]
 
-        # Prepare the unit vectors
-        kwarg1 = {'atom_subset': [atom_subset[0], atom_subset[1]], 'mol_subset': mol_subset}
-        kwarg2 = {'atom_subset': [atom_subset[0], atom_subset[2]], 'mol_subset': mol_subset}
-        unit_vec1 = A - B / self.get_dist_mat(**kwarg1)
-        unit_vec2 = A - C / self.get_dist_mat(**kwarg2)
+        # Temporary ignore RuntimeWarnings related to dividing by zero
+        with np.errstate(divide='ignore', invalid='ignore'):
+            # Prepare the unit vectors
+            kwarg1 = {'atom_subset': [atom_subset[0], atom_subset[1]], 'mol_subset': mol_subset}
+            kwarg2 = {'atom_subset': [atom_subset[0], atom_subset[2]], 'mol_subset': mol_subset}
+            unit_vec1 = (A - B) / self.get_dist_mat(**kwarg1)[..., None]
+            unit_vec2 = (A - C) / self.get_dist_mat(**kwarg2)[..., None]
 
-        # Create and return the angle matrix
-        return np.arccos(np.einsum('ijkl,ijml->ijkl', unit_vec1, unit_vec2))
+            # Create and return the angle matrix
+            return np.arccos(np.einsum('ijkl,ijml->ijkm', unit_vec1, unit_vec2))
 
     def _get_atom_subset(self, arg):
         """ Grab and return a list of indices from **self.atoms**.
