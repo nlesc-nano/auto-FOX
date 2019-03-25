@@ -65,7 +65,7 @@ class MonteCarlo():
         assert self.mc.move_min < self.mc.move_max
 
         # self.job
-        assert isinstance(self.job.mol (Molecule, MultiMolecule))
+        assert isinstance(self.job.mol, (Molecule, MultiMolecule))
         if isinstance(self.job.mol, MultiMolecule):
             self.job.mol = self.job.mol.as_Molecule(0)[0]
         assert isinstance(self.job.settings, (dict, str))

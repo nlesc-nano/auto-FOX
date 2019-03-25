@@ -58,8 +58,10 @@ class Molecule(Molecule):
         # Fix atomic charges and bond orders
         for b1 in self.bonds:
             at1, at2 = b1
-            at1_saturation = sum([b2.order for b2 in at1.bonds]) + -1 * at1.properties.charge - at1.connectors
-            at2_saturation = sum([b3.order for b3 in at2.bonds]) + -1 * at2.properties.charge - at2.connectors
+            at1_saturation = sum([b2.order for b2 in at1.bonds])
+            at1_saturation += -1 * at1.properties.charge - at1.connectors
+            at2_saturation = sum([b3.order for b3 in at2.bonds])
+            at2_saturation += -1 * at2.properties.charge - at2.connectors
             if at1_saturation == at2_saturation != 0:
                 b1.order += np.abs(at1_saturation)
             else:
@@ -161,7 +163,7 @@ class Molecule(Molecule):
                 at_other = [bond.other_end(at2) for bond in at2.bonds]
                 for i, at1 in enumerate(at_other, 1):
                     for at3 in at_other[i:]:
-                       angle.append((at1.id, at2.id, at3.id))
+                        angle.append((at1.id, at2.id, at3.id))
 
         return np.array(angle, dtype=int)
 
