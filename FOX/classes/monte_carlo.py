@@ -1,6 +1,6 @@
 """ A module fo running MD simulations. """
 
-__all__ = []
+__all__ = ['MonteCarlo']
 
 import os
 from os.path import (join, dirname, isfile, isdir)
