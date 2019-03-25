@@ -17,20 +17,23 @@ def read_multi_xyz(xyz_file):
     """
     # Define constants and construct a dictionary: {atomic symbols: [atomic indices]}
     with open(xyz_file, 'r') as file:
-        mol_size = _get_mol_size(file)
-        idx_dict = _get_idx_dict(file, mol_size=mol_size, subtract=1)
-        file_size = _get_file_size(file, add=[2, mol_size])
+        atom_count = _get_mol_size(file)
+        idx_dict = _get_idx_dict(file, mol_size=atom_count, subtract=1)
+        file_size = _get_file_size(file, add=[2, atom_count])
 
-    # Check if mol_count_float is fractional; raise an error if it is
-    mol_count = file_size / (2 + mol_size)
+    # Check if mol_count is fractional, smaller than 1 or if atom_count is smaller than 1
+    mol_count = file_size / (2 + atom_count)
     if not mol_count.is_integer():
-        error = 'A non-integer number of molecules was found in '
-        error += xyz_file + ': ' + str(mol_count)
+        error = 'A non-integer number of molecules was found in ' + xyz_file + ': ' + str(mol_count)
         raise IndexError(error)
+    elif mol_count < 1.0:
+        raise IndexError(str(int(mol_count)) + ' molecules were found in ' + xyz_file)
+    elif mol_count < 1:
+        raise IndexError(str(atom_count) + ' atoms per molecule were found in ' + xyz_file)
     mol_count = int(mol_count)
 
     # Create an empty (m*n)*3 xyz array
-    shape = mol_count * mol_size, 3
+    shape = mol_count * atom_count, 3
     xyz = np.empty(shape)
 
     # Fill the xyz array with cartesian coordinates
@@ -44,8 +47,7 @@ def read_multi_xyz(xyz_file):
                 j += 1
 
     # Return the xyz array or the xyz array and a dictionary: {atomic symbols: [atomic indices]}
-    xyz.shape = mol_count, mol_size, 3
-
+    xyz.shape = mol_count, atom_count, 3
     return xyz, idx_dict
 
 
