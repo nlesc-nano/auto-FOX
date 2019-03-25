@@ -208,6 +208,7 @@ autodoc_warningiserror = True
 # You may only specify the root package of the dependencies themselves and omit the sub-modules:
 autodoc_mock_imports = [
     'scm',
+    'scm.plams',
     'numpy',
     'pandas',
     'scipy',
