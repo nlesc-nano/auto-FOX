@@ -54,7 +54,7 @@ setup(
         'scipy',
         'pandas',
         'pyyaml',
-        'plams@git+https://github.com/SCM-NV/PLAMS@master#egg=plams-1.2'
+        'plams@git+https://github.com/SCM-NV/PLAMS@master'
     ],
     setup_requires=[
         'pytest-runner',

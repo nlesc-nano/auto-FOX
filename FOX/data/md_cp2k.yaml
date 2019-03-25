@@ -52,18 +52,10 @@ force_eval:
             coord_file_format: PDB
             coord_file_name: cd68se55_26hcoo.xyz.pdb
             connectivity: MOL_SET
-            mol_set:
+            psf:
                 molecule:
                     nmol: 1
-                    conn_file_name: cd_new.xyz.psf
-            Mol_set:
-                molecule:
-                    nmol: 1
-                    conn_file_name: se_new.xyz.psf
-            MOl_set:
-                molecule:
-                    nmol: 1
-                    conn_file_name: formate.xyz.psf
+                    conn_file_name: mol.psf
             dump_pdb: ''
             dump_psf: ''
             center_coordinates: ''

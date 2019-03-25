@@ -56,7 +56,7 @@ Installing **Auto-FOX**
 
 -  If using Conda, enable the environment: ``conda activate FOX``
 
--  Install **Auto-FOX** using pip: ``pip install git+https://github.com/BvB93/auto-FOX@master#egg=Auto-FOX-0.1.0``
+-  Install **Auto-FOX** using pip: ``pip install git+https://github.com/BvB93/auto-FOX@master --upgrade``
 
 -  Congratulations, **Auto-FOX** is now installed and ready for use!
 

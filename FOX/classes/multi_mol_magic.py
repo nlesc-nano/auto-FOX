@@ -2,8 +2,11 @@
 
 __all__ = []
 
+import itertools
+
 import numpy as np
 
+from scm.plams import PeriodicTable
 from scm.plams.core.settings import Settings
 
 from ..functions.read_xyz import read_multi_xyz
@@ -73,13 +76,12 @@ class _MultiMolecule:
         assert properties is None or isinstance(properties, dict)
         if isinstance(atoms, dict):
             atoms = Settings(atoms)
-        properties = properties or Settings()
+        properties = properties or Settings({'atoms': None, 'bonds': None, 'mol': None})
 
         # Sanitize bonds
         assert bonds is None or isinstance(bonds, np.ndarray)
         if bonds is not None:
             assert bonds.ndim == 2 and bonds.shape[1] in (2, 3)
-            assert bonds.dtype.type in (np.int8, np.int16, np.int32, np.int64)
             if bonds.shape[1] == 2:
                 bonds = np.hstack((bonds, np.zeros(len(bonds), dtype=int)[:, None]))
 
@@ -87,17 +89,104 @@ class _MultiMolecule:
 
     """ ##############################  plams-based properties  ############################### """
 
-    def _set_atom1(self, value): self.bonds[0] = value
-    def _get_atom1(self): return self.bonds[0]
-    atom1 = property(_get_atom1, _set_atom1)
+    def _set_atom1(self, value): self.bonds[:, 0] = value
+    def _get_atom1(self): return self.bonds[:, 0]
+    atom1 = property(
+        _get_atom1, _set_atom1, doc='Return the indices of the first atoms for all \
+                                     bonds in **self.bonds** as 1d array'
+    )
 
-    def _set_atom2(self, value): self.bonds[1] = value
-    def _get_atom2(self): return self.bonds[1]
-    atom2 = property(_get_atom2, _set_atom2)
+    def _set_atom2(self, value): self.bonds[:, 1] = value
+    def _get_atom2(self): return self.bonds[:, 1]
+    atom2 = property(
+        _get_atom2, _set_atom2, doc='Return the indices of the second atoms for all \
+                                     bonds in **self.bonds** as 1d array'
+    )
 
-    def _set_order(self, value): self.bonds[2] = value
-    def _get_order(self): return self.bonds[2]
-    order = property(_get_order, _set_order)
+    def _set_order(self, value): self.bonds[:, 2] = value * 10
+    def _get_order(self): return self.bonds[:, 2] / 10.0
+    order = property(
+        _get_order, _set_order, doc='Return the bond orders for all bonds in **self.bonds** \
+                                     as 1d array'
+    )
+
+    def _set_x(self, value): self.coords[:, :, 0] = value
+    def _get_x(self): return self.coords[:, :, 0]
+    x = property(
+        _get_x, _set_x, doc='Return the x coordinates for all atoms in **self.coords** \
+                             as 2d array'
+    )
+
+    def _set_y(self, value): self.coords[:, :, 1] = value
+    def _get_y(self): return self.coords[:, :, 1]
+    y = property(
+        _get_y, _set_y, doc='Return the y coordinates for all atoms in **self.coords** \
+                             as 2d array'
+    )
+
+    def _set_z(self, value): self.coords[:, :, 2] = value
+    def _get_z(self): return self.coords[:, :, 2]
+    z = property(
+        _get_z, _set_z, doc='Return the z coordinates for all atoms in **self.coords** \
+                             as 2d array'
+    )
+
+    def _get_symbol(self): return self._get_atomic_property('symbol')
+    symbol = property(
+        _get_symbol, doc='Return the atomic symbols of all atoms in **self.atoms** as 1d array'
+    )
+
+    def _get_atnum(self): return self._get_atomic_property('atnum')
+    atnum = property(
+        _get_atnum, doc='Return the atomic numbers of all atoms in **self.atoms** as 1d array'
+    )
+
+    def _get_mass(self): return self._get_atomic_property('mass')
+    mass = property(
+        _get_mass, doc='Return the atomic masses of all atoms in **self.atoms** as 1d array'
+    )
+
+    def _get_radius(self): return self._get_atomic_property('radius')
+    radius = property(
+        _get_radius, doc='Return the atomic radii of all atoms in **self.atoms** as 1d array'
+    )
+
+    def _get_connectors(self): return self._get_atomic_property('connectors')
+    connectors = property(
+        _get_connectors, doc='Return the atomic connectors of all atoms in **self.atoms** \
+                              as 1d array'
+    )
+
+    def _get_atomic_property(self, prop='symbol'):
+        """ Take **self.atoms** and return an (concatenated) array of a specific property associated
+        with an atom type. Values are sorted by their indices.
+
+        :parameter str prop: The to be returned property. Accepted values:
+            **symbol**, **atnum**, **mass**, **radius** or **connectors**.
+            See the |PeriodicTable|_ module of PLAMS for more details.
+        :return: A dictionary with atomic indices as keys and atomic symbols as values.
+        :rtype: |np.array|_ [|np.float64|_, |str|_ or |np.int64|_].
+        """
+        def get_symbol(symbol): return symbol
+
+        # Interpret the **values** argument
+        prop_dict = {
+                'symbol': get_symbol,
+                'radius': PeriodicTable.get_radius,
+                'atnum': PeriodicTable.get_atomic_number,
+                'mass': PeriodicTable.get_mass,
+                'connectors': PeriodicTable.get_connectors
+        }
+
+        # Create a concatenated lists of the keys and values in **self.atoms**
+        prop_list = []
+        for at in self.atoms:
+            at_prop = prop_dict[prop](at)
+            prop_list += [at_prop for _ in self.atoms[at]]
+
+        # Sort and return
+        idx_list = itertools.chain.from_iterable(self.atoms.values())
+        return np.array([prop for _, prop in sorted(zip(idx_list, prop_list))])
 
     """ ############################  np.ndarray-based properties  ############################ """
 
@@ -109,14 +198,14 @@ class _MultiMolecule:
     def _get_dtype(self): return self.coords.dtype
     dtype = property(_get_dtype, _set_dtype)
 
-    def _get_dtype(self): return self.coords.flags
-    flags = property(_get_dtype, _set_dtype)
+    def _get_flags(self): return self.coords.flags
+    flags = property(_get_flags)
 
-    def _get_dtype(self): return self.coords.ndim
-    ndim = property(_get_dtype)
+    def _get_ndim(self): return self.coords.ndim
+    ndim = property(_get_ndim)
 
-    def _get_dtype(self): return self.coords.nbytes
-    nbytes = property(_get_dtype)
+    def _get_nbytes(self): return self.coords.nbytes
+    nbytes = property(_get_nbytes)
 
     def _transpose(self): return np.swapaxes(self.coords, 1, 2)
     T = property(_transpose)
@@ -143,23 +232,17 @@ class _MultiMolecule:
 
     """ ########################### Unary operators and functions  ############################ """
 
-    def __min__(self, axis=None):
-        return self.coords.nanmin(axis)
-
-    def __max__(self, axis=None):
-        return self.coords.nanmax(axis)
-
     def __pos__(self):
         return self.coords
 
     def __neg__(self):
-        return -1 * self.coords
+        return np.negative(self.coords)
 
     def __abs__(self):
         return np.abs(self.coords)
 
-    def __round__(self, decimals=0):
-        return np.round(self.coords, decimals)
+    def __round__(self, ndigits=0):
+        return np.round(self.coords, ndigits)
 
     def __floor__(self):
         return np.floor(self.coords)
@@ -174,17 +257,17 @@ class _MultiMolecule:
 
     def __add__(self, other):
         ret = self.__copy__()
-        ret.coords = self.coords + other
+        np.add(self.coords, other, out=ret.coords)
         return ret
 
     def __sub__(self, other):
         ret = self.__copy__()
-        ret.coords = self.coords - other
+        np.subtract(self.coords, other, out=ret.coords)
         return ret
 
     def __mul__(self, other):
         ret = self.__copy__()
-        ret.coords = self.coords * other
+        np.multiply(self.coords, other, out=ret.coords)
         return ret
 
     def __matmul__(self, other):
@@ -194,73 +277,73 @@ class _MultiMolecule:
 
     def __floordiv__(self, other):
         ret = self.__copy__()
-        ret.coords = self.coords // other
+        np._divide(self.coords, other, out=ret.coords)
         return ret
 
     def __truediv__(self, other):
         ret = self.__copy__()
-        ret.coords = self.coords / other
+        np.true_divide(self.coords, other, out=ret.coords)
         return ret
 
     def __mod__(self, other):
         ret = self.__copy__()
-        ret.coords = self.coords % other
+        np.mod(self.coords, other, out=ret.coords)
         return ret
 
     def __divmod__(self, other):
         ret = self.__copy__()
-        ret.coords = np.divmod(self.coords, other)
+        np.divmod(self.coords, other, out=ret.coords)
         return ret
 
     def __pow__(self, other):
         ret = self.__copy__()
-        ret.coords = self.coords**other
+        np.power(self.coords, other, out=ret.coords)
         return ret
 
     """ ##########################  Reflected arithmetic operators  ########################### """
 
     def __rsub__(self, other):
         ret = self.__copy__()
-        ret.coords = other - self.coords
+        np.subtract(other, self.coords, out=ret.coords)
         return ret
 
     def __rfloordiv__(self, other):
         ret = self.__copy__()
-        ret.coords = other // self.coords
+        np._divide(other, self.coords, out=ret.coords)
         return ret
 
     def __rdiv__(self, other):
         ret = self.__copy__()
-        ret.coords = other / self.coords
+        np._divide(other, self.coords, out=ret.coords)
         return ret
 
     def __rmod__(self, other):
         ret = self.__copy__()
-        ret.coords = other % self.coords
+        np.mod(other, self.coords, out=ret.coords)
         return ret
 
     def __rdivmod__(self, other):
         ret = self.__copy__()
-        ret.coords = np.divmod(other, self.coords)
+        np.divmod(other, self.coords, out=ret.coords)
         return ret
 
     def __rpow__(self, other):
         ret = self.__copy__()
-        ret.coords = other**self.coords
+        np.power(other, self.coords, out=ret.coords)
         return ret
 
     """ ##############################  Augmented assignment  ################################# """
 
     def __iadd__(self, other):
-        self.coords += other
+        np.add(self.coords, other, out=self.coords)
         return self
 
     def __isub__(self, other):
-        self.coords -= other
+        np.subtract(self.coords, other, out=self.coords)
         return self
 
     def __imul__(self, other):
-        self.coords *= other
+        np.multiply(self.coords, other, out=self.coords)
         return self
 
     def __imatmul__(self, other):
@@ -268,19 +351,19 @@ class _MultiMolecule:
         return self
 
     def __ifloordiv__(self, other):
-        self.coords //= other
+        np.floor_divide(self.coords, other, out=self.coords)
         return self
 
     def __itruediv__(self, other):
-        self.coords /= other
+        np.true_divide(self.coords, other, out=self.coords)
         return self
 
     def __imod__(self, other):
-        self.coords %= other
+        np.mod(self.coords, other, out=self.coords)
         return self
 
     def __ipow__(self, other):
-        self.coords **= other
+        np.power(self.coords, other, out=self.coords)
         return self
 
     """ ##########################  Type conversion magic methods  ############################ """
@@ -341,13 +424,19 @@ class _MultiMolecule:
     def __getitem__(self, key):
         if not isinstance(key, str):
             return self.coords[key]
-        return self.atoms[key.capitalize()]
+        return self.atoms[key]
 
     def __setitem__(self, key, value):
-        self.coords[key] = value
+        if not isinstance(key, str):
+            self.coords[key] = value
+        else:
+            self.atoms[key] = value
 
     def __delitem__(self, key):
-        raise ValueError('cannot delete array elements')
+        if not isinstance(key, str):
+            del self.atoms[key]
+        else:
+            raise ValueError('cannot delete array elements')
 
     def __iter__(self):
         return iter(self.coords)
@@ -371,7 +460,7 @@ class _MultiMolecule:
             *atoms* and/or *bonds*.
         :type subset: |None|_, |str|_ or |tuple|_ [|str|_]
         """
-        subset = subset or ('atoms', 'bonds', 'properties')
+        subset = subset or ('atoms', 'coords', 'bonds', 'properties')
         ret = _MultiMolecule()
 
         # Copy atoms
@@ -397,7 +486,7 @@ class _MultiMolecule:
             *properties*, *atoms* and/or *bonds*.
         :type subset: |None|_, |str|_ or |tuple|_ [|str|_]
         """
-        subset = subset or ('atoms', 'bonds', 'properties')
+        subset = subset or ('atoms', 'coords', 'bonds', 'properties')
         ret = self.__copy__(subset=subset)
 
         # Deep copy atoms
