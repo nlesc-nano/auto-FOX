@@ -66,7 +66,9 @@ Optional dependencies
 -  For the plotting of data produced by **Auto-FOX** install Matplotlib_. 
    Matplotlib can be installed with either conda or pip: 
 
-   -  ``conda install --name FOX -y -c conda-forge matplotlib`` or ``pip install matplotlib``
+   -  Anaconda:   ``conda install --name FOX -y -c conda-forge matplotlib``
+   
+   -  PIP:        ``pip install matplotlib``
 
 Using **Auto-FOX**
 ==================
