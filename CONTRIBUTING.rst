@@ -29,10 +29,9 @@ You think you may have found a bug
 1. Use the search functionality `here <https://github.com//Auto-FOX/issues>`__ to see if someone already filed the same issue.
 
 2. If your issue search did not yield any relevant results, make a new issue, making sure to provide enough information to the rest of the community to understand the cause and context of the problem. Depending on the issue, you may want to include:
-
-    - The `SHA hashcode <https://help.github.com/articles/autolinked-references-and-urls/#commit-shas>`_ of the commit that is causing your problem;
-    - Some identifying information (name and version number) for dependencies you're using;
-    - Information about the operating system;
+  - The `SHA hashcode <https://help.github.com/articles/autolinked-references-and-urls/#commit-shas>`_ of the commit that is causing your problem;
+  - Some identifying information (name and version number) for dependencies you're using;
+  - Information about the operating system;
     
 3. Apply relevant labels to the newly created issue.
 
