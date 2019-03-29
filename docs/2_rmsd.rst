@@ -1,3 +1,5 @@
+.. _RMSD:
+
 Root Mean Squared Displacement & Fluctuation
 ============================================
 

@@ -1,17 +1,26 @@
-.. _MultiMolecule:
+.. _Monte Carlo:
 
-The MultiMolecule Class
-=======================
+The MonteCarlo Class & Sub Classes
+==================================
 
-The API of the FOX.MultiMolecule class.
+The API of the FOX.ARMC class and the FOX.MonteCarlo superclass.
 
-API
----
+ARMC API
+--------
 
-.. autoclass:: FOX.classes.multi_mol.MultiMolecule
+.. autoclass:: FOX.classes.monte_carlo.ARMC
     :members:
 
-.. _plams.PeriodicTable: https://www.scm.com/doc/plams/components/utils.html#periodic-table
+MonteCarlo API
+--------------
+
+.. autoclass:: FOX.classes.monte_carlo.MonteCarlo
+    :members:
+
+.. _FOX.MonteCarlo: 4_monte_carlo.html#FOX.classes.monte_carlo.MonteCarlo
+.. _CP2K: https://www.cp2k.org/
+.. _FOX.MultiMolecule: 3_multimolecule.html
+.. _plams.Job: https://www.scm.com/doc/plams/components/jobs.html#job-api
 .. _plams.Settings: https://www.scm.com/doc/plams/components/settings.html
 .. _plams.Molecule: https://www.scm.com/doc/plams/components/molecule.html#id1
 .. _np.ndarray: https://docs.scipy.org/doc/numpy/reference/generated/numpy.ndarray.html
@@ -23,8 +32,13 @@ API
 .. _tuple: https://docs.python.org/3/library/stdtypes.html#tuple
 .. _str: https://docs.python.org/3/library/stdtypes.html#str
 .. _int: https://docs.python.org/3/library/functions.html#int
+.. _float: https://docs.python.org/3/library/functions.html#float
+.. _bool: https://docs.python.org/3/library/functions.html#bool
+.. _type: https://docs.python.org/3/library/functions.html#type
 .. _None: https://docs.python.org/3.7/library/constants.html#None
 
+.. |FOX.MultiMolecule| replace:: *FOX.MultiMolecule*
+.. |plams.Job| replace:: *plams.Job*
 .. |plams.Molecule| replace:: *plams.Molecule*
 .. |plams.Settings| replace:: *plams.Settings*
 .. |np.ndarray| replace:: *np.ndarray*
@@ -36,4 +50,7 @@ API
 .. |tuple| replace:: *tuple*
 .. |str| replace:: *str*
 .. |int| replace:: *int*
+.. |float| replace:: *float*
+.. |bool| replace:: *bool*
+.. |type| replace:: *type*
 .. |None| replace:: *None*
