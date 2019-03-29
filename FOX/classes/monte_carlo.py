@@ -27,10 +27,19 @@ def get_xyz_path(self):
 
 
 class MonteCarlo():
-    """ The base MonteCarlo class. """
+    """ The base MonteCarlo class.
+
+    :parameter param: An array with the initial to be optimized forcefield parameters.
+    :type param: |np.ndarray|_ [|np.float64|_]
+    :parameter molecule: A molecule.
+    :type molecule: |plams.Molecule|_ or |FOX.MultiMolecule|_
+    :parameter ref: A list with one or more reference PES descriptors derived from , *e.g.*,
+        an *Ab Initio* MD simulation.
+    :type ref: |list|_
+    """
     def __init__(self, param, molecule, ref, **kwarg):
         """ """
-        # Reference PES descriptor(s)
+        # Set the reference PES descriptor(s) and initial forcefield parameters
         self.ref = ref
         self.param = param
 
@@ -48,9 +57,9 @@ class MonteCarlo():
         # Settings for running the actual MD calculations
         self.job = Settings()
         self.job.molecule = molecule
-        self.job.job_type = Cp2kJob
+        self.job.func = Cp2kJob
         self.job.settings = self.get_settings()
-        self.job.name = str(self.job.job_type).rsplit("'", 1)[0].rsplit('.', 1)[-1]
+        self.job.name = self._get_name()
         self.job.path = os.get_cwd()
 
         # Set user-specified keywords
@@ -63,6 +72,10 @@ class MonteCarlo():
                 self.job[key] = kwarg[key]
 
         self._sanitize()
+
+    def _get_name(self):
+        """ Return a name derived from **self.job.func**. """
+        return str(self.job.func).rsplit("'", 1)[0].rsplit('.', 1)[-1]
 
     def _sanitize(self):
         """ Sanitize and validate all arguments of __init__(). """
@@ -81,25 +94,6 @@ class MonteCarlo():
         assert isinstance(self.job.name, str)
         assert isdir(self.job.path)
 
-    def get_settings(self, path=None):
-        """ Read and return the template with default CP2K MM-MD settings.
-        If **path** is not *None*, read a settings template (.yaml file) from a user-sepcified path.
-        Performs an inplace update of **self.job.settings**.
-
-        :parameter path: An (optional) user-specified to a .yaml file with job settings
-        :type path: |None|_ or |str|_
-        """
-        file_name = path or join(join(dirname(dirname(__file__)), 'data'), 'md_cp2k.yaml')
-        if not isfile(file_name):
-            raise FileNotFoundError()
-        with open(file_name, 'r') as file:
-            self.job.settings = yaml.load(file)
-
-    def set_move_range(self, move_max=0.1, move_min=0.005, move_step=0.005):
-        """ Generate and set an array of all allowed moves. """
-        rng_range = np.arange(move_min, move_max + move_min, move_step)
-        self.move_range = np.concatenate((-rng_range, rng_range))
-
     def move(self):
         """ Update a random parameter in **self.param** by a random value from **self.move_range**.
         """
@@ -107,14 +101,35 @@ class MonteCarlo():
         j = np.random.choice(self.move.range, 1)
         self.param[i] = self.move.func(self.param[i], j, **self.move.kwarg)
 
+    def set_move_range(self, start=0.005, stop=0.1, step=0.005, inplace=True):
+        """ Generate an with array of all allowed moves, the moves spanning both the positive and
+        negative range.
+        Performs an inplace update of **self.move_range** if **inplace** = *True*.
+
+        :parameter float start: Start of the interval. The interval includes this value.
+        :parameter float stop: End of the interval. The interval includes this value.
+        :parameter float step: Spacing between values.
+        :parameter inplace: Whether or not **self.move_range** should be updated with the produced
+            move range or if the move range should be returned as an 1D array.
+        :return: If **inplace** = *False*, return a range of allowed moves.
+        :rtype: (optional) |np.ndarray|_ [|np.float64|_]
+        """
+        rng_range = np.arange(start, start + step, step)
+        if inplace:
+            self.move_range = np.concatenate((-rng_range, rng_range))
+        else:
+            return np.concatenate((-rng_range, rng_range))
+
     def run_md(self):
-        """ Run a MD job.
+        """ Run an MD job.
+
+        * The MD job is constructed according to the provided settings in **self.job**.
 
         :return: A MultiMolecule object constructed from the MD trajectory.
         :rtype: |FOX.MultiMolecule|_
         """
         # Run an MD calculation
-        job_type = self.job.job_type
+        job_type = self.job.func
         job = job_type(**self.job)
         results = job.run()
         results.wait()
@@ -123,7 +138,12 @@ class MonteCarlo():
         return MultiMolecule(filename=results.get_xyz_path())
 
     def run_first_md(self):
-        """ Run the first MD job before starting the actual main for-loop.
+        """ Run the first MD job (before starting the actual main for-loop) and construct a
+        matching list of PES descriptors.
+
+        * The MD job is constructed according to the provided settings in **self.job**.
+
+        * The PES descriptors are constructed by the provided settings in **self.pes**.
 
         :return: A dictionary, containing a list with one or more PES descriptors, and
             the first (and only) key in aforementioned dictionary.
@@ -142,7 +162,10 @@ class MonteCarlo():
 
     def key_in_history(self, history_dict, key):
         """ Check if a **key** is already present in **history_dict**.
-        If *True*, return the matching RDF; If *False*, construct and return a new RDF.
+        If *True*, return the matching list of PES descriptors;
+        If *False*, construct and return a new list of PES descriptors.
+
+        * The PES descriptors are constructed by the provided settings in **self.pes**.
 
         :parameter history_dict: A dictionary with results from previous iteractions.
         :type history_dict: |dict|_ (keys: |tuple|_, values: |list|_)
@@ -159,9 +182,80 @@ class MonteCarlo():
             kwarg_list = self.pes.kwarg
             return [func(mol, **kwarg) for func, kwarg in zip(func_list, kwarg_list)]
 
+    def get_settings(self, path=None):
+        """ Grab the template with default CP2K_ MM-MD settings.
+        If **path** is not *None*, read a settings template (.yaml file) from a user-specified path.
+        Performs an inplace update of **self.job.settings**.
+
+        :parameter path: An (optional) user-specified to a .yaml file with job settings
+        :type path: |None|_ or |str|_
+        """
+        if isinstance(path, str):
+            file_name = path
+            assert isfile(path)
+        elif isinstance(path, dict):
+            self.job.settings = Settings(path)
+            return
+        else:
+            file_name = join(join(dirname(dirname(__file__)), 'data'), 'md_cp2k.yaml')
+        with open(file_name, 'r') as file:
+            self.job.settings = yaml.load(file)
+
+    def reconfigure_pes_atr(self, func=np.add, kwarg={}):
+        """ Reconfigure the **self.pes** attribute.
+
+            * **self.pes.func**
+
+            * **self.pes.kwarg**
+
+        :parameter type func: A list of type objects of functions used for generating PES
+            descriptors. The functions in **func** are applied to MultiMolecule objects.
+        :type func: |list|_ [|type|_]
+        :parameter dict kwarg: A list of keyword arguments used in **func**.
+        :type kwarg: |list|_ [|dict|_]
+        """
+        self.pes.func = func
+        self.pes.kwarg = kwarg
+
+    def reconfigure_move_atr(self, move_range=None, func=np.add, kwarg={}):
+        """ Reconfigure the **self.move** attribute.
+
+        :parameter move_range: An array of allowed moves.
+        :type move_range: |None|_ or |np.ndarray|_ [|np.float64|_]
+        :parameter type func: A type object of a function used for performing moves.
+            The function in **func** is applied to floats.
+        :parameter dict kwarg: Keyword arguments used in **func**.
+        """
+        self.move.range = move_range or self.set_move_range()
+        self.move.func = func
+        self.move.kwarg = kwarg
+
+    def reconfigure_job_atr(self, molecule=None, func=Cp2kJob, settings=None,
+                             name=None, path=None):
+        """ Reconfigure the **self.job** attribute.
+
+        :parameter molecule: A PLAMS molecule.
+        :type molecule: |None|_ or |plams.Molecule|_
+        :parameter type func: A type object of PLAMS Job subclass.
+            Used for running the MD calculations.
+        :parameter settings: The job settings used by **func**.
+        :type settings: |plams.Settings|_
+        :parameter str name: The name of the directories holding the MD results produced by
+            **func**.
+        :parameter str path: The path where **name** will be stored.
+        """
+        if molecule is not None:
+            self.job.molecule = molecule
+        self.job.func = func
+        self.job.settings = settings or self.get_settings(settings)
+        self.job.name = name or self._get_name()
+        self.job.path = path or os.getcwd()
+
 
 class ARMC(MonteCarlo):
-    """ The addaptive rate Monte Carlo (ARMC) class. """
+    """ The addaptive rate Monte Carlo (ARMC) class, a subclass of the FOX.MonteCarlo_ class.
+
+    """
     def __init__(self, **kwarg):
         """ """
         MonteCarlo.__init__(self, **kwarg)
@@ -174,45 +268,15 @@ class ARMC(MonteCarlo):
         self.armc.a_target = 0.25
 
         # Settings specific to handling the phi parameter in ARMC
-        self.armc.phi = 1.0
-        self.armc.phi_func = np.add
-        self.armc.phi_kwarg = {}
+        self.phi = Settings()
+        self.phi.phi = 1.0
+        self.phi.func = np.add
+        self.phi.kwarg = {}
 
         # Set user-specified keywords
         for key in kwarg:
             if key in self.armc:
                 self.armc[key] = kwarg[key]
-
-    def get_aux_error(self, values):
-        """ Return the auxiliary error.
-
-        :parameter values: A list of PES descriptors.
-        :type values: |list|_
-        :return: An array of auxilary errors
-        :rtype: |float|_
-        """
-        return np.array([np.linalg.norm(i - j, axis=0).sum() for i, j in zip(values, self.ref)])
-
-    def apply_phi(self, values):
-        """ Update all values in **values** with **self.amc.phi**.
-
-        :parameter values: A list of values.
-        :type values: |list|_
-        """
-        phi = self.armc.phi
-        func = self.armc.phi_func
-        kwarg = self.armc.phi_kwarg
-        for i in values:
-            func(i, phi, **kwarg, out=i)
-
-    def update_phi(self, acceptance):
-        """ Update **self.armc.phi** based on **acceptance**.
-
-        :parameter acceptance: An array denoting the accepted moves within a sub-iteration.
-        :type acceptance: |np.ndarray|_ [|bool|_]
-        """
-        sign = np.sign(self.armc.a_target - np.mean(acceptance))
-        self.armc.phi *= self.armc.gamma**sign
 
     def init_armc(self, ref):
         """ Initialize the Addaptive Rate Monte Carlo procedure.
@@ -221,7 +285,7 @@ class ARMC(MonteCarlo):
             a list with a radial and angular distribution function.
         :type ref: |list|_
         :return: A new set of parameters.
-        :rtype: |np.ndarray|_
+        :rtype: |np.ndarray|_ [|np.float64|_]
         """
         # Unpack attributes
         acceptance = np.zeros(self.armc.sub_iter_len, dtype=bool)
@@ -260,3 +324,63 @@ class ARMC(MonteCarlo):
         finish()
 
         return self.param
+
+    def get_aux_error(self, values):
+        """ Return the auxiliary error of **values** with respect to **self.ref**.
+
+        :parameter values: A list of PES descriptors.
+        :type values: |list|_
+        :return: An array with *n* auxilary errors
+        :rtype: *n* |np.ndarray|_ [|np.float64|_]
+        """
+        return np.array([np.linalg.norm(i - j, axis=0).sum() for i, j in zip(values, self.ref)])
+
+    def apply_phi(self, values):
+        """ Update all values in **values**.
+
+        * The values are updated according to the provided settings in **self.armc**.
+
+        :parameter values: A list of *n* values.
+        :type values: *n* |list|_
+        """
+        phi = self.phi.phi
+        func = self.phi.func
+        kwarg = self.phi.kwarg
+        for i in values:
+            func(i, phi, **kwarg, out=i)
+
+    def update_phi(self, acceptance):
+        """ Update **self.phi** based on **self.armc.a_target** and **acceptance**.
+
+        * The values are updated according to the provided settings in **self.armc**.
+
+        :parameter acceptance: An array denoting the accepted moves within a sub-iteration.
+        :type acceptance: |np.ndarray|_ [|bool|_]
+        """
+        sign = np.sign(self.armc.a_target - np.mean(acceptance))
+        self.phi.phi *= self.armc.gamma**sign
+
+    def reconfigure_phi_atr(self, phi=1.0, func=np.add, kwarg={}):
+        """ Reconfigure the **self.phi** attribute.
+
+        :parameter float phi: The parameter phi.
+        :parameter type func: A type object of a function used for performing moves.
+            The function in **func** is applied to scalars, arrays and/or dataframes.
+        :parameter dict kwarg: Keyword arguments used in **func**.
+        """
+        self.phi.phi = phi
+        self.phi.func = func
+        self.phi.kwarg = kwarg
+
+    def reconfigure_armc_atr(self, iter_len=50000, sub_iter_len=100, gamma=2.0, a_target=0.25):
+        """ Reconfigure the **self.armc** attribute.
+
+        :parameter int iter_len: The total number of iterations (including sub-iterations).
+        :parameter int sub_iter_len: The length of each sub-iteration.
+        :parameter float gamma: The parameter gamma.
+        :parameter float a_target: The target acceptance rate.
+        """
+        self.armc.iter_len = iter_len
+        self.armc.sub_iter_len = sub_iter_len
+        self.armc.gamma = gamma
+        self.armc.a_target = a_target
