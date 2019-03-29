@@ -1,6 +1,6 @@
 """ A module fo running MD simulations. """
 
-__all__ = ['MonteCarlo']
+__all__ = ['MonteCarlo', 'ARMC']
 
 import os
 from os.path import (join, dirname, isfile, isdir)
@@ -28,42 +28,29 @@ def get_xyz_path(self):
 
 
 class MonteCarlo():
-    def __init__(self, mol, rdf_ref, param, M=50000, phi=1.0, gamma=2.0, omega=100, a_target=0.25,
-                 move_min=0.005, move_max=0.1, move_step=0.005,
-                 job_type=Cp2kJob, settings=None, atom_subset=None, name=None, path=None):
+    """ The MonteCarlo class. """
+    def __init__(self, param,
+                 move_range=None, move_func=np.add, move_func_kwarg={},
+                 mol=None, job_type=Cp2kJob, settings=None, atom_subset=None, name=None, path=None):
         """ """
-        self.mc = Settings()
-        self.mc.param = param
-        self.mc.M = int(M)
-        self.mc.phi = float(phi)
-        self.mc.gamma = float(gamma)
-        self.mc.omega = int(omega)
-        self.mc.a_target = float(a_target)
-        self.mc.move_min = float(move_min)
-        self.mc.move_max = float(move_max)
-        self.mc.move_step = float(move_step)
+        self.param = param
+
+        self.move = Settings()
+        self.move.range = move_range
+        self.move.func = move_func
+        self.move.kwarg = move_func_kwarg
+
         self.job = Settings()
-        self.job.mol = mol
+        self.job.mol = mol or Molecule()
         self.job.job_type = job_type
         self.job.settings = settings or self.get_settings()
         self.job.name = name or str(job_type).rsplit("'", 1)[0].rsplit('.', 1)[-1]
         self.job.path = path or os.get_cwd()
-        self.rdf = Settings()
-        self.rdf.rdf_ref = rdf_ref
-        self.rdf.atom_subset = atom_subset
 
         self._sanitize()
 
     def _sanitize(self):
         """ Sanitize and validate all arguments of __init__(). """
-        # self.mc
-        assert isinstance(self.mc.param, (np.ndarray, pd.Series, pd.DataFrame))
-        assert self.mc.M // self.mc.omega >= 2
-        assert 0.0 < self.mc.a_target < 1.0
-        assert self.mc.move_step < self.mc.move_max
-        assert (self.mc.move_max - self.mc.move_min) // self.mc.move_step >= 2.0
-        assert self.mc.move_min < self.mc.move_max
-
         # self.job
         assert isinstance(self.job.mol, (Molecule, MultiMolecule))
         if isinstance(self.job.mol, MultiMolecule):
@@ -78,36 +65,42 @@ class MonteCarlo():
         # self.rdf
         assert isinstance(self.rdf.rdf_ref, (np.ndarray, pd.Series, pd.DataFrame))
 
-    def get_aux_error(self, rdf):
-        """ Return the auxiliary error, defined as dEps = Eps_QM - Eps_MM,
-        between two radial distribution functions.
-
-        :parameter rdf: A radial distribution function.
-        :type rdf: |np.ndarray|_, |pd.DataFrame|_ or |pd.Series|_
-        :return: The auxiliary error, dEps, between two radial distribution functions.
-        :rtype: |float|_
-        """
-        return np.linalg.norm(rdf - self.rdf.rdf_ref, axis=0).sum()
-
-    def get_move_range(self):
-        """ Generate an array of all allowed moves. """
-        rng = np.arange(self.mc.move_min, self.mc.move_max + self.mc.move_min, self.mc.move_step)
-        return np.concatenate((-rng, rng))
-
     def get_settings(self, path=None):
         """ Read and return the template with default CP2K MM-MD settings.
         If **path** is not *None*, read a settings template (.yaml file) from a user-sepcified path.
-        Performs an inplace update of **self.job.settings**. """
+        Performs an inplace update of **self.job.settings**.
+
+        :parameter path: An (optional) user-specified to a .yaml file with job settings
+        :type path: |None|_ or |str|_
+        """
         file_name = path or join(join(dirname(dirname(__file__)), 'data'), 'md_cp2k.yaml')
         if not isfile(file_name):
             raise FileNotFoundError()
         with open(file_name, 'r') as file:
             self.job.settings = yaml.load(file)
 
+    def set_move_range(self, move_max=0.1, move_min=0.005, move_step=0.005):
+        """ Generate an array of all allowed moves. """
+        # Create the move range
+        move_max = move_max or self.mc.move_max
+        move_min = move_min or self.mc.move_min
+        move_step = move_step or self.mc.move_step
+        rng_range = np.arange(move_min, move_max + move_min, move_step)
+
+        # Set the move range
+        self.move_range = np.concatenate((-rng_range, rng_range))
+
+    def move(self):
+        """ Update a random parameter in **self.param** by a random value from **self.move_range**.
+        """
+        i = np.random.choice(len(self.param), 1)
+        j = np.random.choice(self.move.range, 1)
+        self.param[i] = self.move.func(self.param[i], j, **self.move.kwarg)
+
     def run_md(self):
         """ Run a MD job. """
         # Run an MD calculation
-        job = self.job.job_type(self.job.mol, settings=self.job.settings, name=self.job.name)
+        job = self.job.job_type(**self.job)
         results = job.run()
         results.wait()
 
@@ -115,60 +108,128 @@ class MonteCarlo():
         return MultiMolecule(filename=results.get_xyz_path())
 
     def run_first_md(self):
-        """ Run the first MD calculation before starting the main for-loop. """
-        param = self.mc.param
-        key = tuple(param)
-        mol = self.run_md()
-        history_dict = {key: mol.init_rdf(self.rdf.atom_subset) + self.mc.phi}
-        assert self.rdf_ref.shape == history_dict[key].shape
-        return param, key, history_dict
+        """ Run the first MD calculation before starting the main for-loop.
 
-    def rdf_in_history(self, history_dict, key):
+        :return: A dictionary, containing a list with one or more descriptors of the PES, and
+            the first and only key of aforementioned dictionary.
+        :rtype: |dict|_ (keys: |tuple|_, values: |list|_) and |tuple|_
+        """
+        key = tuple(self.param)
+        mol = self.run_md()
+        values = [mol.init_rdf(self.rdf.atom_subset)]
+        history_dict = {key: self.apply_phi(values)}
+        return history_dict, key
+
+
+class ARMC(MonteCarlo):
+    """ The Addaptive Rate Monte Carlo (ARMC) class. """
+    def __init__(self, iter_len=50000, sub_iter_len=100, gamma=2.0, a_target=0.25,
+                 phi=1.0, phi_func=np.add, phi_kwarg={},
+                 **kwargs):
+        """ """
+        MonteCarlo.__init__(self, **kwargs)
+
+        # General ARMC settings
+        self.armc = Settings()
+        self.armc.iter_len = int(iter_len)
+        self.armc.sub_iter_len = int(sub_iter_len)
+        self.armc.gamma = gamma
+        self.armc.a_target = a_target
+        assert iter_len / sub_iter_len >= 1.0
+
+        # Settings specific to handling phi
+        self.armc.phi = float(phi)
+        self.armc.phi_func = np.add
+        self.armc.phi_kwarg = phi_kwarg
+
+    def get_aux_error(self, array):
+        """ Return the auxiliary error, defined as dEps = Eps_QM - Eps_MM,
+        between two radial distribution functions.
+
+        :parameter rdf: A radial distribution function.
+        :type array: |np.ndarray|_, |pd.DataFrame|_ or |pd.Series|_
+        :return: The auxiliary error, dEps, between two radial distribution functions.
+        :rtype: |float|_
+        """
+        return np.linalg.norm(array - self.ref, axis=0).sum()
+
+    def key_in_history(self, history_dict, key):
         """ Check if a **key** is already present in **history_dict**.
-        If *True*, return the matching RDF; If *False*, construct and return a new RDF. """
+        If *True*, return the matching RDF; If *False*, construct and return a new RDF.
+
+        :parameter history_dict: A dictionary with results from previous iteractions.
+        :type history_dict: |dict|_ (keys: |tuple|_, values: |list|_)
+        :parameter key: A key in **history_dict**.
+        :type key: |tuple|_
+        :return: A previous value from **history_dict** or a new value from an MD calculation.
+        :rtype: |list|_
+        """
         if key in history_dict:
             return history_dict[key]
         else:
             mol = self.run_md()
             return mol.init_rdf(self.rdf.atom_subset)
 
-    def init_mc(self):
-        """ """
+    def apply_phi(self, values):
+        """ Update all values in **values** with **self.amc.phi**.
+
+        :parameter values: A list of values.
+        :type values: |list|_
+        """
+        phi = self.armc.phi
+        func = self.armc.phi_func
+        kwarg = self.armc.phi_kwarg
+        for i in values:
+            func(i, phi, **kwarg, out=i)
+
+    def update_phi(self, acceptance):
+        """ Update **self.armc.phi** and reset all values in **acceptance** to *False*. """
+        sign = np.sign(self.armc.a_target - np.mean(acceptance))
+        self.armc.phi *= self.armc.gamma**sign
+        acceptance[:] = False
+
+    def init_armc(self, ref):
+        """ Initialize the Addaptive Rate Monte Carlo procedure.
+
+        :parameter ref: A list with one or more *Ab Initio* reference values. An example would be
+            a list with a radial and angular distribution function.
+        :type ref: |list|_
+        :return: A new set of parameters.
+        :rtype: |np.ndarray|_
+        """
+        # Unpack attributes
+        acceptance = np.zeros(self.armc.sub_iter_len, dtype=bool)
+        sub_iter = self.mc.sub_iter_len
+        super_iter = self.mc.iter_len // sub_iter
+
+        # Set attributes
+        self.set_move_range()
+        self.ref = ref
+
+        # Initialize
         init(path=self.job.path, folder='MM-MD')
-        move_range = self.get_move_range()
-        a = np.zeros(self.mc.omega, dtype=bool)
-        phi = self.mc.phi
-
-        # Generate the first RDF
-        param, key, history_dict = self.run_first_md()
-
-        # Start the MC parameter optimization
-        N = self.mc.M // self.mc.omega
-        for _ in range(N):  # Iteration
-            for i in range(self.mc.omega):  # Sub-iteration
-                # Step 1: Generate a random trial state
-                rng = np.random.choice(len(param), 1)
-                param[rng] += np.random.choice(move_range, size=1)
+        key, history_dict = self.run_first_md()
+        for _ in range(super_iter):
+            for i in range(sub_iter):
+                # Step 1: Perform a random move
                 key_old = key
-                key = tuple(param)
+                key = tuple(self.param)
+                self.move()
 
-                # Step 2: Check if the trial state has already been visited; pull its rdf if *True*
-                rdf = self.rdf_in_history(history_dict, key)
+                # Step 2: Check if the move has been performed already
+                new = self.key_in_history(history_dict, key)
 
                 # Step 3: Evaluate the auxilary error
-                rdf_old = history_dict[key_old]
-                accept = self.get_aux_error(rdf_old) - self.get_aux_error(rdf)
+                old = history_dict[key_old]
+                accept = bool(self.get_aux_error(old) - self.get_aux_error(new))
 
                 # Step 4: Update the rdf history
-                if accept > 0:
-                    a[i] = True
-                    history_dict[key] = rdf + phi
+                if accept:
+                    acceptance[i] = True
+                    history_dict[key] = self.apply_phi(new)
                 else:
-                    history_dict[key_old] += phi
-
-            # Update phi and reset the acceptance rate (a)
-            phi *= self.mc.gamma**np.sign(self.mc.a_target - np.mean(a))
-            a[:] = False
-
+                    history_dict[key_old] = self.apply_phi(old)
+            self.update_phi()  # Update phi and reset the acceptance rate
         finish()
-        return param
+
+        return self.param

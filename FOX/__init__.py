@@ -12,7 +12,7 @@ from .functions import (
 
 from .classes import (
     MultiMolecule,
-    MonteCarlo,
+    MonteCarlo, ARMC,
     Molecule
 )
 
@@ -20,6 +20,6 @@ __all__ = [
     'read_multi_xyz',
     'get_rdf', 'get_rdf_lowmem',
     'MultiMolecule',
-    'MonteCarlo',
+    'MonteCarlo', ARMC,
     'Molecule'
 ]
