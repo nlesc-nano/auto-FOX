@@ -3,13 +3,7 @@
 The MonteCarlo Class & Sub Classes
 ==================================
 
-The API of the FOX.ARMC class and the FOX.MonteCarlo superclass.
-
-ARMC API
---------
-
-.. autoclass:: FOX.classes.monte_carlo.ARMC
-    :members:
+The API of the FOX.MonteCarlo and the FOX.ARMC subclass.
 
 MonteCarlo API
 --------------
@@ -17,6 +11,13 @@ MonteCarlo API
 .. autoclass:: FOX.classes.monte_carlo.MonteCarlo
     :members:
 
+ARMC API
+--------
+
+.. autoclass:: FOX.classes.monte_carlo.ARMC
+    :members:
+
+.. _`radial distribution functions`: 1_rdf.html
 .. _FOX.MonteCarlo: 4_monte_carlo.html#FOX.classes.monte_carlo.MonteCarlo
 .. _CP2K: https://www.cp2k.org/
 .. _FOX.MultiMolecule: 3_multimolecule.html
