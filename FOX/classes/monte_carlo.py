@@ -83,7 +83,7 @@ class MonteCarlo():
         self._sanitize()
 
     def __str__(self):
-        return str(Settings(self))
+        return str(Settings(vars(self)))
 
     def _get_name(self):
         """ Return a name derived from **self.job.func**. """
@@ -288,12 +288,6 @@ class ARMC(MonteCarlo):
         for key in kwarg:
             if key in self.armc:
                 self.armc[key] = kwarg[key]
-
-    def __dict__(self):
-        return vars(self)
-
-    def __str__(self):
-        return str(Settings(vars(self))
 
     def init_armc(self):
         """ Initialize the Addaptive Rate Monte Carlo procedure.
