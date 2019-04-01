@@ -416,9 +416,6 @@ class _MultiMolecule:
 
         return ret
 
-    def __dict__(self):
-        return vars(self)
-
     """ ################################  Custom Sequences  ################################### """
 
     def __len__(self):
