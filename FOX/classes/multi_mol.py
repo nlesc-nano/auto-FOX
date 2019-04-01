@@ -72,28 +72,45 @@ class MultiMolecule(_MultiMolecule):
         idx = self.bonds[:, 0:2].argsort(axis=0)[:, 0]
         self.bonds = self.bonds[idx]
 
-    def remove_random_coords(self, p=0.5, inplace=False):
-        """ Remove random molecules from **self.coords**.
-        For each molecule, the probability of removal is equal to **p**.
-        Performs an inplace modification of **self.coords** if **return_coords** is *False*.
+    def slice(self, start=0, stop=None, step=1, inplace=False):
+        """ Construct a new *MultiMolecule* by iterating through **self.coords**
+        along a set interval.
 
-        :parameter float p: The probability of remove a 2D slice from **self.coords**.
-            Accepts values between 0.0 (0%) and 1.0 (100%).
-        :parameter bool inplace: If *False*, return a view of the gathered 2D frames.
-            If *True*, perform an inplace modification **self.coords**, replacing it with a
-            view of the randomly gathered molecules.
+        :parameter int start: Start of the interval.
+        :parameter int stop: End of the interval.
+        :parameter int step: Spacing between values.
+        :parameter bool inplace: If *True*, perform an inplace update of **self** instead of
+            returning a new *MultiMolecule* object.
+        """
+        if inplace:
+            self.coords = self[::step]
+        else:
+            ret = self.deepcopy(subset=('atoms', 'bonds', 'properties'))
+            ret.coords = self[::step].copy()
+            return ret
+
+    def random_slice(self, start=0, stop=None, p=0.5, inplace=False):
+        """ Construct a new *MultiMolecule* by iterating through **self.coords** at random
+        intervals. The probability of including a particular element is equivalent to **p**.
+
+        :parameter int start: Start of the interval.
+        :parameter int stop: End of the interval.
+        :parameter float p: The probability of including each particular molecule in
+            **self.coords**. Values must be between 0.0 (0%) and 1.0 (100%).
+        :parameter bool inplace: If *True*, perform an inplace update of **self** instead of
+            returning a new *MultiMoleule* object.
         """
         if p <= 0.0 or p >= 1.0:
             raise IndexError('The probability, p, must be larger than 0.0 and smaller than 1.0')
-        elif self.shape[0] == 1:
-            raise IndexError('Grabbing random 2D slices from a 2D array makes no sense')
 
-        size = 1 or int(self.shape[0] / p)
-        idx_range = np.arange(self.shape[0])
-        idx = np.random.choice(idx_range, size)
-        if not inplace:
-            return self[idx]
-        self.coords = self[idx]
+        i = self.shape[0]
+        idx = np.random.choice(i, size=int(i*p))
+        if inplace:
+            self.coords = self[idx]
+        else:
+            ret = self.deepcopy(subset=('atoms', 'bonds', 'properties'))
+            ret.coords = self[idx]
+            return ret
 
     def reset_origin(self, mol_subset=None, atom_subset=None, inplace=True):
         """ Reallign all molecules in **self**, rotating and translating them, by performing a
@@ -625,9 +642,26 @@ class MultiMolecule(_MultiMolecule):
             file.write(mid)
             file.write(bottom[1:])
 
-    def as_pdb(self):
+    def as_pdb(self, filename='mol.pdb'):
         """ Convert a *MultiMolecule* object into a Protein DataBank file (.pdb). """
-        pass
+        raise NotImplementedError()
+
+    def as_xyz(self, filename='mol.xyz'):
+        """ Convert a *MultiMolecule* object into an .xyz file.
+
+        :parameter str filename: The path+filename (including extension) of the
+            to be created .xyz file.
+        """
+        # Define constants
+        at = self.symbol[:, None]
+        header = str(len(at)) + '\n' + 'frame {}'
+        kwarg = {'fmt': ['%-2.2s', '%-10.10s', '%-10.10s', '%-10.10s'],
+                 'delimiter': '     ', 'comments': ''}
+
+        # Create the .xyz file
+        with open(filename, 'wb') as file:
+            for i, xyz in enumerate(self, 1):
+                np.savetxt(file, np.hstack((at, xyz)), header=header.format(str(i)), **kwarg)
 
     def as_mass_weighted(self, mol_subset=None, atom_subset=None, inplace=False):
         """ Transform the Cartesian of **self.coords** into mass-weighted Cartesian coordinates.
@@ -776,27 +810,46 @@ class MultiMolecule(_MultiMolecule):
 
     """ ####################################  Copying  ######################################## """
 
-    def copy(self, subset=None, deepcopy=False):
+    def copy(self, subset=None, deep=False):
         """ Create and return a new *MultiMolecule* object and fill its attributes with
         views of their respective counterparts in **self**, creating a shallow copy.
 
         :parameter subset: Copy a subset of attributes from **self**; if *None*, copy all
-            attributes. Accepts one or more of the following values as strings: *properties*,
-            *atoms* and/or *bonds*.
+            attributes. Accepts one or more of the following values as strings: *coords*,
+            *atoms*, *bonds* and/or *properties*.
         :type subset: |None|_, |str|_ or |tuple|_ [|str|_]
-        :parameter bool deepcopy: If *True*, perform a deep copy instead of a shallow copy.
+        :parameter bool deep: If *True*, perform a deep copy instead of a shallow copy.
         """
-        if deepcopy:
-            return MultiMolecule(self.__deepcopy__(subset))
-        return MultiMolecule(self.__copy__(subset))
+        # Perform a deep copy instead of a shallow copy
+        if deep:
+            return self.deepcopy(subset)
+
+        subset = subset or ('coords', 'atoms', 'bonds', 'properties')
+        ret = MultiMolecule()
+
+        attr_dict = vars(self)
+        for i in attr_dict:
+            if i in subset:
+                setattr(ret, i, attr_dict[i])
+        return ret
 
     def deepcopy(self, subset=None):
         """ Create and return a new *MultiMolecule* object and fill its attributes with
         copies of their respective counterparts in **self**, creating a deep copy.
 
-        :parameter subset: Copy a subset of attributes from **self**; if *None*, copy all
-            attributes. Accepts one or more of the following values as strings: *properties*,
-            *atoms* and/or *bonds*.
+        :parameter subset: Deep copy a subset of attributes from **self**; if *None*, deep copy all
+            attributes. Accepts one or more of the following values as strings: *coords*,
+            *atoms*, *bonds* and/or *properties*.
         :type subset: |None|_, |str|_ or |tuple|_ [|str|_]
         """
-        return MultiMolecule(self.__deepcopy__(subset))
+        subset = subset or ('coords', 'atoms', 'bonds', 'properties')
+        ret = MultiMolecule()
+
+        attr_dict = vars(self)
+        for i in attr_dict:
+            if i in subset:
+                try:
+                    setattr(ret, i, attr_dict[i].copy())
+                except AttributeError:
+                    pass
+        return ret

@@ -1,3 +1,5 @@
+.. _Multi-XYZ reader:
+
 Multi-XYZ reader
 ================
 

@@ -5,4 +5,5 @@ Auto-FOX Documentation
     1_rdf
     2_rmsd
     3_multimolecule
-    4_xyz_reader
+    4_monte_carlo
+    5_xyz_reader
