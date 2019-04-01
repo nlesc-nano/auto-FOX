@@ -83,10 +83,10 @@ class MultiMolecule(_MultiMolecule):
             returning a new *MultiMolecule* object.
         """
         if inplace:
-            self.coords = self[::step]
+            self.coords = self[start:stop:step]
         else:
             ret = self.deepcopy(subset=('atoms', 'bonds', 'properties'))
-            ret.coords = self[::step].copy()
+            ret.coords = self[start:stop:step].copy()
             return ret
 
     def random_slice(self, start=0, stop=None, p=0.5, inplace=False):
@@ -103,8 +103,10 @@ class MultiMolecule(_MultiMolecule):
         if p <= 0.0 or p >= 1.0:
             raise IndexError('The probability, p, must be larger than 0.0 and smaller than 1.0')
 
-        i = self.shape[0]
-        idx = np.random.choice(i, size=int(i*p))
+        stop = stop or self.shape[0]
+        idx_range = np.arange(start, stop)
+        size = p * len(idx_range)
+        idx = np.random.choice(idx_range, size=size, replace=False)
         if inplace:
             self.coords = self[idx]
         else:
