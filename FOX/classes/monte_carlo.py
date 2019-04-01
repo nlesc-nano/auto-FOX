@@ -289,8 +289,11 @@ class ARMC(MonteCarlo):
             if key in self.armc:
                 self.armc[key] = kwarg[key]
 
+    def __dict__(self):
+        return vars(self)
+
     def __str__(self):
-        return str(Settings(self))
+        return str(Settings(vars(self))
 
     def init_armc(self):
         """ Initialize the Addaptive Rate Monte Carlo procedure.
@@ -393,4 +396,3 @@ class ARMC(MonteCarlo):
         self.phi.phi = phi
         self.phi.func = func
         self.phi.kwarg = kwarg
-
