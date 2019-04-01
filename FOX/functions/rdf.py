@@ -39,21 +39,20 @@ def get_rdf(dist, dr=0.05, r_max=12.0):
     """
     r = np.arange(0, r_max + dr, dr)
     idx_max = 1 + int(r_max / dr)
-    int_step = 4 * np.pi * r**2 * dr
+    int_step = 4 * np.pi * dr * r**2
     int_step[0] = np.nan
 
-    dist_int = np.array(dist / dr, dtype=int)
-    dist_int.shape = dist.shape[0], dist.shape[1] * dist.shape[2]
-
     dens_mean = dist.shape[2] / ((4/3) * np.pi * (0.5 * dist.max(axis=(1, 2)))**3)
-    dens = np.array([np.bincount(i, minlength=idx_max)[:idx_max] for i in dist_int])
+    dist /= dr
+    dist = dist.astype(np.int32, copy=False)
+    dist.shape = dist.shape[0], dist.shape[1] * dist.shape[2]
 
-    dens = dens / dist.shape[1]
+    dens = np.array([np.bincount(i, minlength=idx_max)[:idx_max] for i in dist], dtype=float)
+    dens /= dist.shape[1]
     dens /= int_step
-
-    ret = dens / dens_mean[:, None]
-    ret[:, 0] = 0.0
-    return np.average(ret, axis=0)
+    dens /= dens_mean[:, None]
+    dens[:, 0] = 0.0
+    return np.average(dens, axis=0)
 
 
 def get_rdf_lowmem(dist, dr=0.05, r_max=12.0):
