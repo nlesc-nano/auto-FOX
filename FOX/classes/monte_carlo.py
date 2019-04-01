@@ -293,7 +293,7 @@ class ARMC(MonteCarlo):
         return vars(self)
 
     def __str__(self):
-        return str(Settings(vars(self))
+        return str(Settings(vars(self)))
 
     def init_armc(self):
         """ Initialize the Addaptive Rate Monte Carlo procedure.
