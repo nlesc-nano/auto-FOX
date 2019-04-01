@@ -416,6 +416,9 @@ class _MultiMolecule:
 
         return ret
 
+    def __dict__(self):
+        return vars(self)
+
     """ ################################  Custom Sequences  ################################### """
 
     def __len__(self):
@@ -451,64 +454,19 @@ class _MultiMolecule:
 
     """ ###################################  Copy  ############################################ """
 
-    def __copy__(self, subset=None):
-        """ Magic method, create and return a new *MultiMolecule* and fill its attributes with
-        views of their respective counterparts in **self**.
-
-        :parameter subset: Copy a subset of attributes from **self**; if *None*, copy all
-            attributes. Accepts one or more of the following values as strings: *properties*,
-            *atoms* and/or *bonds*.
-        :type subset: |None|_, |str|_ or |tuple|_ [|str|_]
-        """
-        subset = subset or ('atoms', 'coords', 'bonds', 'properties')
-        ret = _MultiMolecule()
-
-        # Copy atoms
-        if 'atoms' in subset:
-            ret.coords = self.coords
-            ret.atoms = self.atoms
-
-        # Copy bonds
-        if 'bonds' in subset:
-            ret.bonds = self.bonds
-
-        # Copy properties
-        if 'properties' in subset:
-            ret.properties = self.properties
-
+    def __copy__(self):
+        ret = self.__class__()
+        attr_dict = vars(self)
+        for i in attr_dict:
+            setattr(ret, i, attr_dict[i])
         return ret
 
-    def __deepcopy__(self, subset=None):
-        """ Magic method, create and return a deep copy of **self**.
-
-        :parameter subset: Deepcopy a subset of attributes from **self**; if *None*, copy all
-            attributes. Accepts one or more of the following values as string:
-            *properties*, *atoms* and/or *bonds*.
-        :type subset: |None|_, |str|_ or |tuple|_ [|str|_]
-        """
-        subset = subset or ('atoms', 'coords', 'bonds', 'properties')
-        ret = self.__copy__(subset=subset)
-
-        # Deep copy atoms
-        if 'atoms' in subset:
+    def __deepcopy__(self):
+        ret = self.__class__()
+        attr_dict = vars(self)
+        for i in attr_dict:
             try:
-                ret.coords = self.coords.copy()
-                ret.atoms = self.atoms.copy()
+                setattr(ret, i, attr_dict[i].copy())
             except AttributeError:
                 pass
-
-        # Deep copy bonds
-        if 'bonds' in subset and self.bonds is not None:
-            try:
-                ret.bonds = self.bonds.copy()
-            except AttributeError:
-                pass
-
-        # Deep copy properties
-        if 'properties' in subset:
-            try:
-                ret.properties = self.properties.copy()
-            except AttributeError:
-                pass
-
         return ret
