@@ -18,11 +18,11 @@ Currently implemented
 
 This package is a work in progress; the following functionalities are currently implemented:
 
-- The MultiMolecule class, a class designed for handling and processing large numbers of moleculair conformations and/or configurations (*e.g.* MD trajectories). (`doc <https://auto-fox.readthedocs.io/en/latest/MultiMolecule.html>`_)
-- A multi-XYZ reader. (`doc <https://auto-fox.readthedocs.io/en/latest/xyz_reader.html>`_)
-- A radial distribution generator (RDF). (`doc <https://auto-fox.readthedocs.io/en/latest/RDF.html>`_)
-- A root mean squared displacement generator (RMSD). (`doc <https://auto-fox.readthedocs.io/en/latest/RMSD.html#root-mean-squared-displacement>`_)
-- A root mean squared fluctuation generator (RMSF). (`doc <https://auto-fox.readthedocs.io/en/latest/RMSD.html#root-mean-squared-fluctuation>`_)
+- The MultiMolecule class, a class designed for handling and processing large numbers of moleculair conformations and/or configurations (*e.g.* MD trajectories). (`doc <https://auto-fox.readthedocs.io/en/latest/3_multimolecule.html>`_)
+- A multi-XYZ reader. (`doc <https://auto-fox.readthedocs.io/en/latest/5_xyz_reader.html>`_)
+- A radial distribution generator (RDF). (`doc <https://auto-fox.readthedocs.io/en/latest/1_rdf.html>`_)
+- A root mean squared displacement generator (RMSD). (`doc <https://auto-fox.readthedocs.io/en/latest/2_rmsd.html#root-mean-squared-displacement>`_)
+- A root mean squared fluctuation generator (RMSF). (`doc <https://auto-fox.readthedocs.io/en/latest/2_rmsd.html#root-mean-squared-fluctuation>`_)
 
 Installation
 ============
