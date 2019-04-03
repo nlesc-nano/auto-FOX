@@ -23,15 +23,15 @@ def get_xyz_path(self):
     for file in self.files:
         if 'pos.xyz' in file:
             return self[file]
-    raise FileNotFoundError()
+    raise FileNotFoundError('No .xyz files found in ' + self.job.path)
 
 
 class MonteCarlo():
     """ The base MonteCarlo class.
 
-    :parameter ref: A list with one or more reference PES descriptors derived from , *e.g.*,
+    :parameter ref: A list with *n* PES descriptors as derived from , *e.g.*,
         an *Ab Initio* MD simulation.
-    :type ref: |list|_
+    :type ref: *n* |list|_ [|float|_ or |np.array|_ [|np.float64|_]]
     :parameter param: An array with the initial to be optimized forcefield parameters.
     :type param: |np.ndarray|_ [|np.float64|_]
     :parameter molecule: A molecule.
@@ -59,7 +59,7 @@ class MonteCarlo():
 
         # Settings for generating Monte Carlo moves
         self.move = Settings()
-        self.move.range = self.set_move_range()
+        self.move.range = self.reconfigure_move_range()
         self.move.func = np.add
         self.move.kwarg = {}
 
@@ -113,18 +113,6 @@ class MonteCarlo():
         j = np.random.choice(self.move.range, 1)
         self.param[i] = self.move.func(self.param[i], j, **self.move.kwarg)
 
-    def set_move_range(self, start=0.005, stop=0.1, step=0.005):
-        """ Generate an with array of all allowed moves, the moves spanning both the positive and
-        negative range.
-        Performs an inplace update of **self.move.range** if **inplace** = *True*.
-
-        :parameter float start: Start of the interval. The interval includes this value.
-        :parameter float stop: End of the interval. The interval includes this value.
-        :parameter float step: Spacing between values.
-        """
-        rng_range = np.arange(start, start + step, step)
-        self.move_range = np.concatenate((-rng_range, rng_range))
-
     def run_md(self):
         """ Run an MD job.
 
@@ -177,7 +165,7 @@ class MonteCarlo():
         :parameter key: A key in **history_dict**.
         :type key: |tuple|_
         :return: A previous value from **history_dict** or a new value from an MD calculation.
-        :rtype: |list|_
+        :rtype: |list|_ [|float|_ or |np.array|_ [|np.float64|_]]
         """
         if key in history_dict:
             return history_dict[key]
@@ -205,6 +193,18 @@ class MonteCarlo():
             file_name = join(join(dirname(dirname(__file__)), 'data'), 'md_cp2k.yaml')
         with open(file_name, 'r') as file:
             self.job.settings = yaml.load(file)
+
+    def reconfigure_move_range(self, start=0.005, stop=0.1, step=0.005):
+        """ Generate an with array of all allowed moves, the moves spanning both the positive and
+        negative range.
+        Performs an inplace update of **self.move.range**.
+
+        :parameter float start: Start of the interval. The interval includes this value.
+        :parameter float stop: End of the interval. The interval includes this value.
+        :parameter float step: Spacing between values.
+        """
+        rng_range = np.arange(start, start + step, step)
+        self.move_range = np.concatenate((-rng_range, rng_range))
 
     def reconfigure_pes_atr(self, func=MultiMolecule.init_rdf, kwarg={'atom_subset': None}):
         """ Reconfigure the attributes in **self.pes**, the latter containing all settings related
@@ -330,22 +330,23 @@ class ARMC(MonteCarlo):
         return self.param
 
     def get_aux_error(self, values):
-        """ Return the auxiliary error of **values** with respect to **self.ref**.
+        """ Return the auxiliary error of the PES descriptors in **values** with respect to
+        **self.ref**.
 
-        :parameter values: A list of PES descriptors.
-        :type values: |list|_
+        :parameter values: A list of *n* PES descriptors.
+        :type values: *n* |list|_ [|float|_ or |np.array|_ [|np.float64|_]]
         :return: An array with *n* auxilary errors
         :rtype: *n* |np.ndarray|_ [|np.float64|_]
         """
         return np.array([np.linalg.norm(i - j, axis=0).sum() for i, j in zip(values, self.ref)])
 
     def apply_phi(self, values):
-        """ Update all values in **values**.
+        """ Apply **self.phi.phi** to all PES descriptors in **values**.
 
         * The values are updated according to the provided settings in **self.armc**.
 
-        :parameter values: A list of *n* values.
-        :type values: *n* |list|_
+        :parameter values: A list of *n* PES descriptors.
+        :type values: *n* |list|_ [|float|_ or |np.array|_ [|np.float64|_]]
         """
         phi = self.phi.phi
         func = self.phi.func
