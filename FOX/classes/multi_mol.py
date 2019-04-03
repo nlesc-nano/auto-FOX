@@ -13,7 +13,7 @@ from scm.plams import (Atom, Bond)
 from .molecule_utils import Molecule
 from .multi_mol_magic import _MultiMolecule
 from ..functions.rdf import (get_rdf, get_rdf_lowmem, get_rdf_df)
-from ..functions.utils import serialize_array
+from ..functions.utils import (serialize_array, read_param)
 
 
 class MultiMolecule(_MultiMolecule):
@@ -217,7 +217,7 @@ class MultiMolecule(_MultiMolecule):
             if len(frag) == 1:
                 core += frag
             else:
-                ligands.append(sorted(frag))
+                ligands.append(frag)
         core.sort()
         ligands.sort()
 
@@ -588,37 +588,55 @@ class MultiMolecule(_MultiMolecule):
 
     """ #################################  Type conversion  ################################### """
 
-    def as_psf(self, filename):
-        """ Convert a *MultiMolecule* object into a Protein Structure File (.psf). """
-        # Prepare for preparing the !NATOM block
+    def _set_psf_block(self, inplace=True):
+        """ """
         res = self.residue_argsort(concatenate=False)
         plams_mol = self.as_Molecule(0)[0]
         plams_mol.fix_bond_orders()
-        plams_mol.set_atoms_id(start=0)
-        df = pd.DataFrame()
-        df[0] = np.arange(self.shape[1])
-        df[1] = 'MOL'
-        df[2] = [i for i, j in enumerate(res, 1) for _ in j]
-        df[3] = ['COR' if i == 1 else 'LIG' for i in df[2]]
-        df[4] = self.symbol
-        df[5] = df[4]
-        df[6] = [at.properties.charge for at in plams_mol]
-        df[7] = self.mass
-        df[8] = 0
-        df = df.T
 
+        df = pd.DataFrame(index=np.arange(1, self.shape[1]+1))
+        df.index.name = 'ID'
+        df['segment name'] = 'MOL'
+        df['residue ID'] = [i for i, j in enumerate(res, 1) for _ in j]
+        df['residue name'] = ['COR' if i == 1 else 'LIG' for i in df['residue ID']]
+        df['atom name'] = self.symbol
+        df['atom type'] = df['atom name']
+        df['charge'] = [at.properties.charge for at in plams_mol]
+        df['mass'] = self.mass
+        df[0] = 0
+
+        if not inplace:
+            return df
+        self.properties.atoms = df
+
+    def _update_atom_type(self, filename='mol.param'):
+        """ """
+        if self.properties.atoms is None:
+            self._set_psf_block()
+
+        df = read_param(filename)['nonbonded']
+        at_type = df[0].values
+        for i in range(max(self.properties.atoms['residue ID']))[1:]:
+            df.loc[i, 'atom type'] = at_type
+
+    def as_psf(self, filename='mol.psf'):
+        """ Convert a *MultiMolecule* object into a Protein Structure File (.psf). """
         # Prepare the !NTITLE block
         top = 'PSF EXT\n'
         top += '\n' + '{:>8.8}'.format(str(2)) + ' !NTITLE'
         top += '\n' + '{:>8.8}'.format('REMARKS') + ' PSF file generated with Auto-FOX:'
-        top += '\n' + '{:>8.8}'.format('REMARKS') + ' https://github.com/BvB93/auto-FOX'
+        top += '\n' + '{:>8.8}'.format('REMARKS') + ' https://github.com/nlesc-nano/auto-FOX'
         top += '\n\n' + '{:>8.8}'.format(str(self.shape[1])) + ' !NATOM\n'
 
         # Prepare the !NATOM block
+        if self.properties.atoms is None:
+            self._set_psf_block()
+        df = self.properties.atoms.T
+        df.reset_index(level=0, inplace=True)
         mid = ''
         for key in df:
             string = '{:>8.8} {:4.4} {:4.4} {:4.4} {:4.4} {:5.5} {:>9.9} {:>13.13} {:>11.11}'
-            mid += string.format(*[str(i) for i in df[key]]) + '\n'
+            mid += string.format(*[str(key)]+[str(i) for i in df[key]]) + '\n'
 
         # Prepare the !NBOND, !NTHETA, !NPHI and !NIMPHI blocks
         bottom = ''
@@ -629,6 +647,9 @@ class MultiMolecule(_MultiMolecule):
                 bottom += '\n\n' + header.format('0')
             bottom += '\n\n'
         else:
+            plams_mol = self.as_Molecule(0)[0]
+            plams_mol.fix_bond_orders()
+            plams_mol.set_atoms_id(start=0)
             connectivity = [self.bonds[:, 0:2], plams_mol.get_angles(),
                             plams_mol.get_dihedrals(), plams_mol.get_impropers()]
             items_per_row = [4, 3, 2, 2]
@@ -817,7 +838,7 @@ class MultiMolecule(_MultiMolecule):
         views of their respective counterparts in **self**, creating a shallow copy.
 
         :parameter subset: Copy a subset of attributes from **self**; if *None*, copy all
-            attributes. Accepts one or more of the following values as strings: *coords*,
+            attributes. Accepts one or more of the following attribute names as strings: *coords*,
             *atoms*, *bonds* and/or *properties*.
         :type subset: |None|_, |str|_ or |tuple|_ [|str|_]
         :parameter bool deep: If *True*, perform a deep copy instead of a shallow copy.
@@ -826,10 +847,12 @@ class MultiMolecule(_MultiMolecule):
         if deep:
             return self.deepcopy(subset)
 
-        subset = subset or ('coords', 'atoms', 'bonds', 'properties')
-        ret = MultiMolecule()
-
         attr_dict = vars(self)
+        subset = subset or attr_dict
+        if isinstance(subset, str):
+            subset = (subset)
+
+        ret = MultiMolecule()
         for i in attr_dict:
             if i in subset:
                 setattr(ret, i, attr_dict[i])
@@ -840,14 +863,16 @@ class MultiMolecule(_MultiMolecule):
         copies of their respective counterparts in **self**, creating a deep copy.
 
         :parameter subset: Deep copy a subset of attributes from **self**; if *None*, deep copy all
-            attributes. Accepts one or more of the following values as strings: *coords*,
+            attributes. Accepts one or more of the following attribute names as strings: *coords*,
             *atoms*, *bonds* and/or *properties*.
         :type subset: |None|_, |str|_ or |tuple|_ [|str|_]
         """
-        subset = subset or ('coords', 'atoms', 'bonds', 'properties')
-        ret = MultiMolecule()
-
         attr_dict = vars(self)
+        subset = subset or attr_dict
+        if isinstance(subset, str):
+            subset = (subset)
+
+        ret = MultiMolecule()
         for i in attr_dict:
             if i in subset:
                 try:

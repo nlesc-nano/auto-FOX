@@ -2,6 +2,11 @@
 
 __all__ = ['serialize_array']
 
+import numpy as np
+import pandas as pd
+
+from scm.plams.core.settings import Settings
+
 
 def serialize_array(array, items_per_row=4, indent=9):
     """ """
@@ -24,3 +29,28 @@ def serialize_array(array, items_per_row=4, indent=9):
                 ret += ' '
 
     return ret
+
+
+def read_param(filename):
+    """ Read a CHARMM parameter file. """
+    with open(filename, 'r') as file:
+        str_list = file.read().splitlines()
+    str_gen = (i for i in str_list if '*' not in i and '!' not in i)
+
+    headers = ['BONDS', 'ANGLES', 'DIHEDRALS', 'IMPROPER', 'NONBONDED']
+    df_dict = {}
+    for i in str_gen:
+        if i in headers:
+            tmp = []
+            for j in str_gen:
+                if j:
+                    tmp.append(j.split())
+                else:
+                    df_dict[i.lower()] = pd.DataFrame(tmp)
+                    break
+
+    return Settings(df_dict)
+
+
+filename = '/Users/basvanbeek/Downloads/ff.param'
+df_dict = read_param(filename)
