@@ -7,7 +7,7 @@
    :target: https://www.python.org
 
 #################################################
-Automated Forcefield Optimization Extension 0.2.1
+Automated Forcefield Optimization Extension 0.2.2
 #################################################
 
 **Auto-FOX** is a tool for parameterizing forcefields by reproducing radial distribution functions.
@@ -63,11 +63,11 @@ Installing **Auto-FOX**
 Optional dependencies
 ---------------------
 
--  For the plotting of data produced by **Auto-FOX** install Matplotlib_. 
-   Matplotlib can be installed with either conda or pip: 
+-  For the plotting of data produced by **Auto-FOX** install Matplotlib_.
+   Matplotlib can be installed with either conda or pip:
 
    -  Anaconda:   ``conda install --name FOX -y -c conda-forge matplotlib``
-   
+
    -  PIP:        ``pip install matplotlib``
 
 Using **Auto-FOX**
@@ -78,7 +78,7 @@ Using **Auto-FOX**
 -  An example MD trajectory of a CdSe quantum dot is included in the FOX.data_ directory.
 
    -  The absolute path + filename of aforementioned trajectory can be retrieved as following:
-   
+
 ::
 
          from FOX.examples.example_xyz import get_example_xyz
