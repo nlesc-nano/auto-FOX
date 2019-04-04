@@ -50,7 +50,3 @@ def read_param(filename):
                     break
 
     return Settings(df_dict)
-
-
-filename = '/Users/basvanbeek/Downloads/ff.param'
-df_dict = read_param(filename)
