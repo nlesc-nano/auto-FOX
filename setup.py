@@ -53,8 +53,8 @@ setup(
         'numpy',
         'scipy',
         'pandas',
-        'pyyaml',
-        'plams@git+https://github.com/SCM-NV/PLAMS@master'
+        'pyyaml>=5.1',
+        'plams@git+https://github.com/SCM-NV/PLAMS@release'
     ],
     setup_requires=[
         'pytest-runner',
