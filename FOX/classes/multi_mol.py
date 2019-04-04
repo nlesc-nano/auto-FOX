@@ -614,10 +614,10 @@ class MultiMolecule(_MultiMolecule):
         if self.properties.atoms is None:
             self._set_psf_block()
 
-        df = read_param(filename)['nonbonded']
-        at_type = df[0].values
-        for i in range(max(self.properties.atoms['residue ID']))[1:]:
-            df.loc[i, 'atom type'] = at_type
+        at_type = read_param(filename)['nonbonded'][0].values
+        id_range = range(1, max(self.properties.atoms['residue ID']))
+        for i in id_range:
+            self.properties.atoms.loc[i, 'atom type'] = at_type
 
     def as_psf(self, filename='mol.psf'):
         """ Convert a *MultiMolecule* object into a Protein Structure File (.psf). """
@@ -665,9 +665,31 @@ class MultiMolecule(_MultiMolecule):
             file.write(mid)
             file.write(bottom[1:])
 
-    def as_pdb(self, filename='mol.pdb'):
-        """ Convert a *MultiMolecule* object into a Protein DataBank file (.pdb). """
-        raise NotImplementedError()
+    def _mol_to_file(self, filename, outputformat, mol_subset=0):
+        """ Create files using the plams.Molecule.write() method. """
+        mol_list = self.as_Molecule(mol_subset)
+
+        if len(mol_list) != 1:
+            name_list = filename.rsplit('.', 1)
+            name_list.insert(-1, '.{}.')
+            name = ''.join(name_list)
+        else:
+            name = filename
+
+        for i, plams_mol in enumerate(mol_list, 1):
+            plams_mol.write(name.format(str(i)), outputformat=outputformat)
+
+    def as_pdb(self, mol_subset=0, filename='mol.pdb'):
+        """ Convert a *MultiMolecule* object into one or more Protein DataBank files (.pdb). """
+        self._mol_to_file(filename, 'pdb', mol_subset)
+
+    def as_mol2(self, mol_subset=0, filename='mol.mol2'):
+        """ Convert a *MultiMolecule* object into one or more .mol2 files. """
+        self._mol_to_file(filename, 'mol2', mol_subset)
+
+    def as_mol(self, mol_subset=0, filename='mol.mol'):
+        """ Convert a *MultiMolecule* object into one or more .mol files. """
+        self._mol_to_file(filename, 'mol', mol_subset)
 
     def as_xyz(self, filename='mol.xyz'):
         """ Convert a *MultiMolecule* object into an .xyz file.
@@ -677,14 +699,14 @@ class MultiMolecule(_MultiMolecule):
         """
         # Define constants
         at = self.symbol[:, None]
-        header = str(len(at)) + '\n' + 'frame {}'
+        header = str(len(at)) + '\n' + 'frame '
         kwarg = {'fmt': ['%-2.2s', '%-10.10s', '%-10.10s', '%-10.10s'],
                  'delimiter': '     ', 'comments': ''}
 
         # Create the .xyz file
         with open(filename, 'wb') as file:
             for i, xyz in enumerate(self, 1):
-                np.savetxt(file, np.hstack((at, xyz)), header=header.format(str(i)), **kwarg)
+                np.savetxt(file, np.hstack((at, xyz)), header=header+str(i), **kwarg)
 
     def as_mass_weighted(self, mol_subset=None, atom_subset=None, inplace=False):
         """ Transform the Cartesian of **self.coords** into mass-weighted Cartesian coordinates.
