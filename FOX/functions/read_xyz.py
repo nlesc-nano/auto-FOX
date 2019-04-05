@@ -38,21 +38,15 @@ def read_multi_xyz(xyz_file):
 
     # Fill the xyz array with cartesian coordinates
     with open(xyz_file, 'r') as file:
-        j = 0
-        for i, at in enumerate(file):
-            at = at.split()
-            if len(at) == 4:
-                xyz[i-j] = at[1:]
-            else:
-                j += 1
-
-    # Return the xyz array or the xyz array and a dictionary: {atomic symbols: [atomic indices]}
-    xyz.shape = mol_count, atom_count, 3
+        for i, _ in enumerate(file):
+            xyz[i] = [at.split()[1:] for _, at in zip(range(atom_count+1), file)][1:]
     return xyz, idx_dict
+
 
 
 def _get_mol_size(file):
     """ Extract the number of atoms in a molecule from an .xyz file.
+
     The number of atoms is extracted form the first line.
     file <_io.TextIOWrapper>: An opened text file.
     return <int>: The number of atoms per molecule.
@@ -68,6 +62,7 @@ def _get_mol_size(file):
 
 def _get_file_size(file, add=0):
     """ Extract the total number lines from a text file.
+
     file <_io.TextIOWrapper>: An opened text file.
     add <int>: An <int> or iterable consisting of <int>; adds a constant to the number of lines.
     return <int>: The number of lines in a text file.
@@ -79,6 +74,7 @@ def _get_file_size(file, add=0):
 
 def _get_idx_dict(file, mol_size=False, subtract=0):
     """ Extract atomic symbols from an opened text file.
+
     file <_io.TextIOWrapper>: An opened text file.
     mol_size <int>: The number of atoms in a single molecule.
     subtract <int>: Ignore the first n lines in *file*
