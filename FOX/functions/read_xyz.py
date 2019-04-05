@@ -33,15 +33,14 @@ def read_multi_xyz(xyz_file):
     mol_count = int(mol_count)
 
     # Create an empty (m*n)*3 xyz array
-    shape = mol_count * atom_count, 3
+    shape = mol_count, atom_count, 3
     xyz = np.empty(shape)
 
     # Fill the xyz array with cartesian coordinates
-    with open(xyz_file, 'r') as file:
-        for i, _ in enumerate(file):
-            xyz[i] = [at.split()[1:] for _, at in zip(range(atom_count+1), file)][1:]
+    with open(xyz_file, 'r') as f:
+        for i, _ in enumerate(f):
+            xyz[i] = [at.split()[1:] for _, at in zip(range(atom_count+1), f)][1:]
     return xyz, idx_dict
-
 
 
 def _get_mol_size(file):
