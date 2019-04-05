@@ -31,7 +31,7 @@ class MonteCarlo():
 
     :parameter ref: A list with *n* PES descriptors as derived from , *e.g.*,
         an *Ab Initio* MD simulation.
-    :type ref: *n* |list|_ [|float|_ or |np.array|_ [|np.float64|_]]
+    :type ref: *n* |list|_ [|float|_ or |np.ndarray|_ [|np.float64|_]]
     :parameter param: An array with the initial to be optimized forcefield parameters.
     :type param: |np.ndarray|_ [|np.float64|_]
     :parameter molecule: A molecule.
@@ -165,7 +165,7 @@ class MonteCarlo():
         :parameter key: A key in **history_dict**.
         :type key: |tuple|_
         :return: A previous value from **history_dict** or a new value from an MD calculation.
-        :rtype: |list|_ [|float|_ or |np.array|_ [|np.float64|_]]
+        :rtype: |list|_ [|float|_ or |np.ndarray|_ [|np.float64|_]]
         """
         if key in history_dict:
             return history_dict[key]
@@ -334,7 +334,7 @@ class ARMC(MonteCarlo):
         **self.ref**.
 
         :parameter values: A list of *n* PES descriptors.
-        :type values: *n* |list|_ [|float|_ or |np.array|_ [|np.float64|_]]
+        :type values: *n* |list|_ [|float|_ or |np.ndarray|_ [|np.float64|_]]
         :return: An array with *n* auxilary errors
         :rtype: *n* |np.ndarray|_ [|np.float64|_]
         """
@@ -346,7 +346,7 @@ class ARMC(MonteCarlo):
         * The values are updated according to the provided settings in **self.armc**.
 
         :parameter values: A list of *n* PES descriptors.
-        :type values: *n* |list|_ [|float|_ or |np.array|_ [|np.float64|_]]
+        :type values: *n* |list|_ [|float|_ or |np.ndarray|_ [|np.float64|_]]
         """
         phi = self.phi.phi
         func = self.phi.func
