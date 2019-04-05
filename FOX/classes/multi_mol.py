@@ -13,7 +13,7 @@ from scm.plams import (Atom, Bond)
 from .molecule_utils import Molecule
 from .multi_mol_magic import _MultiMolecule
 from ..functions.rdf import (get_rdf, get_rdf_lowmem, get_rdf_df)
-from ..functions.utils import (serialize_array, read_param)
+from ..functions.utils import (serialize_array, read_str_file)
 
 
 class MultiMolecule(_MultiMolecule):
@@ -159,7 +159,7 @@ class MultiMolecule(_MultiMolecule):
 
         :parameter sort_by: The property which is to be used for sorting. Accepted values:
             **symbol** (*i.e.* alphabetical), **atnum**, **mass**, **radius** or
-            **connectors**. See the PeriodicTable_ module of PLAMS for more details.
+            **connectors**. See the plams.PeriodicTable_ module for more details.
             Alternatively, a user-specified array of indices can be provided for sorting.
         :type sort_by: |str|_ or |np.ndarray|_ [|np.int64|_]
         :parameter bool reverse: Sort in reversed order.
@@ -209,6 +209,7 @@ class MultiMolecule(_MultiMolecule):
         # Define residues
         plams_mol = self.as_Molecule(mol_subset=0)[0]
         frags = plams_mol.separate_mod()
+        symbol = self.symbol
 
         # Sort the residues
         core = []
@@ -217,7 +218,8 @@ class MultiMolecule(_MultiMolecule):
             if len(frag) == 1:
                 core += frag
             else:
-                ligands.append(frag)
+                i = np.array(frag)
+                ligands.append(i[np.argsort(symbol[i])].tolist())
         core.sort()
         ligands.sort()
 
@@ -609,24 +611,27 @@ class MultiMolecule(_MultiMolecule):
             return df
         self.properties.atoms = df
 
-    def _update_atom_type(self, filename='mol.param'):
+    def _update_atom_type(self, filename='mol.str'):
         """ """
         if self.properties.atoms is None:
             self._set_psf_block()
+        df = self.properties.atoms
 
-        at_type = read_param(filename)['nonbonded'][0].values
-        id_range = range(1, max(self.properties.atoms['residue ID']))
+        at_type, charge = read_str_file(filename)
+        id_range = range(2, max(df['residue ID'])+1)
         for i in id_range:
-            self.properties.atoms.loc[i, 'atom type'] = at_type
+            j = df[df['residue ID'] == i].index
+            df.loc[j, 'atom type'] = at_type
+            df.loc[j, 'charge'] = charge
 
     def as_psf(self, filename='mol.psf'):
         """ Convert a *MultiMolecule* object into a Protein Structure File (.psf). """
         # Prepare the !NTITLE block
         top = 'PSF EXT\n'
-        top += '\n' + '{:>8.8}'.format(str(2)) + ' !NTITLE'
-        top += '\n' + '{:>8.8}'.format('REMARKS') + ' PSF file generated with Auto-FOX:'
-        top += '\n' + '{:>8.8}'.format('REMARKS') + ' https://github.com/nlesc-nano/auto-FOX'
-        top += '\n\n' + '{:>8.8}'.format(str(self.shape[1])) + ' !NATOM\n'
+        top += '\n' + '{:>10.10}'.format(str(2)) + ' !NTITLE'
+        top += '\n' + '{:>10.10}'.format('REMARKS') + ' PSF file generated with Auto-FOX:'
+        top += '\n' + '{:>10.10}'.format('REMARKS') + ' https://github.com/nlesc-nano/auto-FOX'
+        top += '\n\n' + '{:>10.10}'.format(str(self.shape[1])) + ' !NATOM\n'
 
         # Prepare the !NATOM block
         if self.properties.atoms is None:
@@ -634,14 +639,14 @@ class MultiMolecule(_MultiMolecule):
         df = self.properties.atoms.T
         df.reset_index(level=0, inplace=True)
         mid = ''
-        for key in df:
-            string = '{:>8.8} {:4.4} {:4.4} {:4.4} {:4.4} {:5.5} {:>9.9} {:>13.13} {:>11.11}'
+        for key in df.columns[1:]:
+            string = '{:>10.10} {:8.8} {:8.8} {:8.8} {:8.8} {:6.6} {:9.9} {:13.13} {:>11.11}'
             mid += string.format(*[str(key)]+[str(i) for i in df[key]]) + '\n'
 
         # Prepare the !NBOND, !NTHETA, !NPHI and !NIMPHI blocks
         bottom = ''
-        bottom_headers = ['{:>8.8} !NBOND: bonds', '{:>8.8} !NTHETA: angles',
-                          '{:>8.8} !NPHI: dihedrals', '{:>8.8} !NIMPHI: impropers']
+        bottom_headers = ['{:>10.10} !NBOND: bonds', '{:>10.10} !NTHETA: angles',
+                          '{:>10.10} !NPHI: dihedrals', '{:>10.10} !NIMPHI: impropers']
         if self.bonds is None:
             for header in bottom_headers:
                 bottom += '\n\n' + header.format('0')
@@ -656,7 +661,7 @@ class MultiMolecule(_MultiMolecule):
 
             for i, conn, header in zip(items_per_row, connectivity, bottom_headers):
                 bottom += '\n\n' + header.format(str(len(conn)))
-                bottom += '\n' + serialize_array(conn, i)
+                bottom += '\n' + serialize_array(conn, i, indent=10)
             bottom += '\n'
 
         # Export the .psf file
@@ -700,7 +705,7 @@ class MultiMolecule(_MultiMolecule):
         # Define constants
         at = self.symbol[:, None]
         header = str(len(at)) + '\n' + 'frame '
-        kwarg = {'fmt': ['%-2.2s', '%-10.10s', '%-10.10s', '%-10.10s'],
+        kwarg = {'fmt': ['%-2.2s', '%-15s', '%-15s', '%-15s'],
                  'delimiter': '     ', 'comments': ''}
 
         # Create the .xyz file
