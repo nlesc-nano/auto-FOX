@@ -7,9 +7,9 @@ import numpy as np
 
 def read_multi_xyz(xyz_file):
     """ Read a (multi) .xyz file and return:
-    
+
         * An array with the cartesian coordinates of *m* molecules consisting of *n* atoms.
-        
+
         * A dictionary with atomic symbols and lists of matching atomic indices
 
     :parameter str xyz_file: The path + filename of a (multi) .xyz file.
@@ -19,10 +19,10 @@ def read_multi_xyz(xyz_file):
         (keys: |str|_, values: |list|_ [|int|_]).
     """
     # Define constants and construct a dictionary: {atomic symbols: [atomic indices]}
-    with open(xyz_file, 'r') as file:
-        atom_count = _get_mol_size(file)
-        idx_dict = _get_idx_dict(file, mol_size=atom_count, subtract=1)
-        file_size = _get_file_size(file, add=[2, atom_count])
+    with open(xyz_file, 'r') as f:
+        atom_count = _get_mol_size(f)
+        idx_dict = _get_idx_dict(f, mol_size=atom_count, subtract=1)
+        file_size = _get_file_size(f, add=[2, atom_count])
 
     # Check if mol_count is fractional, smaller than 1 or if atom_count is smaller than 1
     mol_count = file_size / (2 + atom_count)
