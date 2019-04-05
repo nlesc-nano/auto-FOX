@@ -28,7 +28,7 @@ def read_multi_xyz(xyz_file):
         raise IndexError(error)
     elif mol_count < 1.0:
         raise IndexError(str(int(mol_count)) + ' molecules were found in ' + xyz_file)
-    elif mol_count < 1:
+    if atom_count < 1:
         raise IndexError(str(atom_count) + ' atoms per molecule were found in ' + xyz_file)
     mol_count = int(mol_count)
 
@@ -43,45 +43,51 @@ def read_multi_xyz(xyz_file):
     return xyz, idx_dict
 
 
-def _get_mol_size(file):
-    """ Extract the number of atoms in a molecule from an .xyz file.
+def _get_mol_size(f):
+    """ Extract the number of atoms per molecule from the first line in an .xyz file.
 
-    The number of atoms is extracted form the first line.
-    file <_io.TextIOWrapper>: An opened text file.
-    return <int>: The number of atoms per molecule.
+    :parameter f: An opened .xyz file.
+    :type f: |io.TextIOWrapper|_
+    :return: The number of atoms per molecule.
+    :rtype |int|_
     """
-    item = file.readline()
+    ret = f.readline()
     try:
-        return int(item)
+        return int(ret)
     except ValueError:
-        error = str(item) + ' is not a valid integer, the first line in an .xyz file should '
-        error += 'contain the number of atoms in a molecule'
+        error = str(ret) + ' is not a valid integer, the first line in an .xyz file should '
+        error += 'contain the number of atoms per molecule'
         raise IndexError(error)
 
 
-def _get_file_size(file, add=0):
-    """ Extract the total number lines from a text file.
+def _get_file_size(f, add=0):
+    """ Extract the total number lines from **f**.
 
-    file <_io.TextIOWrapper>: An opened text file.
-    add <int>: An <int> or iterable consisting of <int>; adds a constant to the number of lines.
-    return <int>: The number of lines in a text file.
+    :parameter f: An opened .xyz file.
+    :type f: |io.TextIOWrapper|_
+    :parameter add: Add a constant to the to-be returned line count.
+    :type add: |int|_ or |list|_ [|int|_]
+    :return: The total number of lines in **f**.
+    :rtype: |int|_
     """
-    for i, _ in enumerate(file, 1):
+    for i, _ in enumerate(f, 1):
         pass
     return i + sum(add)
 
 
-def _get_idx_dict(file, mol_size=False, subtract=0):
-    """ Extract atomic symbols from an opened text file.
+def _get_idx_dict(f, mol_size, subtract=0):
+    """ Extract atomic symbols and matching atomic indices from **f**.
 
-    file <_io.TextIOWrapper>: An opened text file.
-    mol_size <int>: The number of atoms in a single molecule.
-    subtract <int>: Ignore the first n lines in *file*
-    return <dict>: A dictionary {atomic symbols: [atomic indices]}.
+    :parameter f: An opened .xyz file.
+    :type f: |io.TextIOWrapper|_
+    :parameter int mol_size: The number of atoms per molecule in **f**.
+    :subtract: Ignore the first n lines in **f**
+    :return: A dictionary with atomic symbols and a list of matching atomic indices.
+    :rtype: |dict|_ (keys: |str|_, values: |list|_ [|int|_])
     """
     idx_dict = {}
     abort = mol_size - subtract
-    for i, at in enumerate(file, -subtract):
+    for i, at in enumerate(f, -subtract):
         if i >= 0:
             at = at.split()[0].capitalize()
             try:
