@@ -29,14 +29,13 @@ def get_template(name, path=None):
         return Settings(yaml.load(f, Loader=yaml.FullLoader))
 
 
-def serialize_array(array, items_per_row=4, indent=10):
+def serialize_array(array, items_per_row=4):
     """ Serialize an array into a single string.
+    Newlines are placed for every **items_per_row** rows in **array**.
 
-    :parameter array: An array.
+    :parameter array: A 2D array.
     :type array: |np.ndarray|_
     :parameter int items_per_row: The number of values per row before switching to a new line.
-    :parameter int indent: The number of spaces used for indentation at
-        the begining of each new line.
     :return: A serialized array.
     :rtype: |str|_
     """
@@ -44,19 +43,14 @@ def serialize_array(array, items_per_row=4, indent=10):
         return ''
 
     ret = ''
-    for _ in range(indent):
-        ret += ' '
-
     k = 0
     for i in array:
         for j in i:
-            ret += '{:10.10}'.format(str(j))
+            ret += '{:>10d}'.format(j)
         k += 1
-        if (i != array[-1]).all() and k == items_per_row:
+        if k == items_per_row:
             k = 0
             ret += '\n'
-            for _ in range(indent):
-                ret += ' '
 
     return ret
 
