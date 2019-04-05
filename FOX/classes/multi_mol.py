@@ -625,7 +625,10 @@ class MultiMolecule(_MultiMolecule):
             df.loc[j, 'charge'] = charge
 
     def as_psf(self, filename='mol.psf'):
-        """ Convert a *MultiMolecule* object into a Protein Structure File (.psf). """
+        """ Convert a *MultiMolecule* object into a Protein Structure File (.psf).
+
+        :parameter str
+        """
         # Prepare the !NTITLE block
         top = 'PSF EXT\n'
         top += '\n' + '{:>10.10}'.format(str(2)) + ' !NTITLE'
@@ -640,8 +643,8 @@ class MultiMolecule(_MultiMolecule):
         df.reset_index(level=0, inplace=True)
         mid = ''
         for key in df.columns[1:]:
-            string = '{:>10.10} {:8.8} {:8.8} {:8.8} {:8.8} {:6.6} {:9.9} {:13.13} {:>11.11}'
-            mid += string.format(*[str(key)]+[str(i) for i in df[key]]) + '\n'
+            string = '{:>10d} {:8.8} {:<8d} {:8.8} {:8.8} {:6.6} {:>9f} {:>15f} {:>8d}'
+            mid += string.format(*[key]+[i for i in df[key]]) + '\n'
 
         # Prepare the !NBOND, !NTHETA, !NPHI and !NIMPHI blocks
         bottom = ''
@@ -654,14 +657,13 @@ class MultiMolecule(_MultiMolecule):
         else:
             plams_mol = self.as_Molecule(0)[0]
             plams_mol.fix_bond_orders()
-            plams_mol.set_atoms_id(start=0)
-            connectivity = [self.bonds[:, 0:2], plams_mol.get_angles(),
+            connectivity = [self.bonds[:, 0:2] + 1, plams_mol.get_angles(),
                             plams_mol.get_dihedrals(), plams_mol.get_impropers()]
             items_per_row = [4, 3, 2, 2]
 
             for i, conn, header in zip(items_per_row, connectivity, bottom_headers):
                 bottom += '\n\n' + header.format(str(len(conn)))
-                bottom += '\n' + serialize_array(conn, i, indent=10)
+                bottom += '\n' + serialize_array(conn, i)
             bottom += '\n'
 
         # Export the .psf file
@@ -670,39 +672,73 @@ class MultiMolecule(_MultiMolecule):
             file.write(mid)
             file.write(bottom[1:])
 
-    def _mol_to_file(self, filename, outputformat, mol_subset=0):
-        """ Create files using the plams.Molecule.write() method. """
+    def _mol_to_file(self, filename, outputformat=None, mol_subset=0):
+        """ Create files using the plams.Molecule.write() method.
+
+        :parameter str filename: The path+filename (including extension) of the to be created file.
+        :parameter str outputformat: The outputformat; accepated values are *mol*, *mol2*, *pdb* or
+            *xyz*.
+        :parameter mol_subset: Perform the operation on a subset of molecules in **self**, as
+            determined by their moleculair index. Include all *m* molecules in **self** if *None*.
+        :type mol_subset: |None|_, |int|_ or |list|_ [|int|_]
+        """
+        mol_subset = self._get_mol_subset(mol_subset)
+        outputformat = outputformat or filename.rsplit('.', 1)[-1]
         mol_list = self.as_Molecule(mol_subset)
 
         if len(mol_list) != 1:
             name_list = filename.rsplit('.', 1)
-            name_list.insert(-1, '.{}.')
+            name_list.insert(-1, '.{:d}.')
             name = ''.join(name_list)
         else:
             name = filename
 
         for i, plams_mol in enumerate(mol_list, 1):
-            plams_mol.write(name.format(str(i)), outputformat=outputformat)
+            plams_mol.write(name.format(i), outputformat=outputformat)
 
     def as_pdb(self, mol_subset=0, filename='mol.pdb'):
-        """ Convert a *MultiMolecule* object into one or more Protein DataBank files (.pdb). """
+        """ Convert a *MultiMolecule* object into one or more Protein DataBank files (.pdb).
+        Utilizes the :meth:`plams.Molecule.write` method.
+
+        :parameter str filename: The path+filename (including extension) of the to be created file.
+        :parameter mol_subset: Perform the operation on a subset of molecules in **self**, as
+            determined by their moleculair index. Include all *m* molecules in **self** if *None*.
+        :type mol_subset: |None|_, |int|_ or |list|_ [|int|_]
+        """
         self._mol_to_file(filename, 'pdb', mol_subset)
 
     def as_mol2(self, mol_subset=0, filename='mol.mol2'):
-        """ Convert a *MultiMolecule* object into one or more .mol2 files. """
+        """ Convert a *MultiMolecule* object into one or more .mol2 files.
+        Utilizes the :meth:`plams.Molecule.write` method.
+
+        :parameter str filename: The path+filename (including extension) of the to be created file.
+        :parameter mol_subset: Perform the operation on a subset of molecules in **self**, as
+            determined by their moleculair index. Include all *m* molecules in **self** if *None*.
+        :type mol_subset: |None|_, |int|_ or |list|_ [|int|_]
+        """
         self._mol_to_file(filename, 'mol2', mol_subset)
 
     def as_mol(self, mol_subset=0, filename='mol.mol'):
-        """ Convert a *MultiMolecule* object into one or more .mol files. """
+        """ Convert a *MultiMolecule* object into one or more .mol files.
+        Utilizes the :meth:`plams.Molecule.write` method.
+
+        :parameter str filename: The path+filename (including extension) of the to be created file.
+        :parameter mol_subset: Perform the operation on a subset of molecules in **self**, as
+            determined by their moleculair index. Include all *m* molecules in **self** if *None*.
+        :type mol_subset: |None|_, |int|_ or |list|_ [|int|_]
+        """
         self._mol_to_file(filename, 'mol', mol_subset)
 
-    def as_xyz(self, filename='mol.xyz'):
+    def as_xyz(self, mol_subset=None, filename='mol.xyz'):
         """ Convert a *MultiMolecule* object into an .xyz file.
 
-        :parameter str filename: The path+filename (including extension) of the
-            to be created .xyz file.
+        :parameter str filename: The path+filename (including extension) of the to be created file.
+        :parameter mol_subset: Perform the operation on a subset of molecules in **self**, as
+            determined by their moleculair index. Include all *m* molecules in **self** if *None*.
+        :type mol_subset: |None|_, |int|_ or |list|_ [|int|_]
         """
         # Define constants
+        mol_subset = self._get_mol_subset(mol_subset)
         at = self.symbol[:, None]
         header = str(len(at)) + '\n' + 'frame '
         kwarg = {'fmt': ['%-2.2s', '%-15s', '%-15s', '%-15s'],
