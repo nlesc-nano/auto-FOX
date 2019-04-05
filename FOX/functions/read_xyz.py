@@ -6,12 +6,15 @@ import numpy as np
 
 
 def read_multi_xyz(xyz_file):
-    """ Reads a (multi) .xyz file and return a *m*n*3* array with the cartesian coordinates of *m*
-    molecules consisting of *n* atoms.
+    """ Read a (multi) .xyz file and return:
+    
+        * An array with the cartesian coordinates of *m* molecules consisting of *n* atoms.
+        
+        * A dictionary with atomic symbols and lists of matching atomic indices
 
-    :parameter str file: The path + filename of a (multi) .xyz file.
-    :return: A 3D array of cartesian coordinates and a dictionary object
-        with atomic symbols as keys and matching atomic indices as values.
+    :parameter str xyz_file: The path + filename of a (multi) .xyz file.
+    :return: A 3D array with cartesian coordinates and a dictionary
+        with atomic symbols as keys and lists of matching atomic indices as values.
     :rtype: *m*n*3* |np.ndarray|_ [|np.float64|_] and |dict|_
         (keys: |str|_, values: |list|_ [|int|_]).
     """
