@@ -49,15 +49,11 @@ force_eval:
             periodic: NONE
         topology:
             charge_beta: ''
-            coord_file_format: PDB
-            coord_file_name: cd68se55_26hcoo.xyz.pdb
             connectivity: MOL_SET
             psf:
                 molecule:
                     nmol: 1
                     conn_file_name: mol.psf
-            dump_pdb: ''
-            dump_psf: ''
             center_coordinates: ''
         kind Cd: element Cd
         kind Se: element Se
