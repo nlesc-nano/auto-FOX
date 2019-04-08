@@ -53,7 +53,8 @@ input:
                 coord_file_format: 'OFF'
                 conn_file_format: PSF
                 conn_file_name: /home/bvanbeek/cp2k/qd.psf
-                center_coordinates: ''
+                center_coordinates:
+                    '': ''
             kind Se:
                 element: Se
             kind Cd:
