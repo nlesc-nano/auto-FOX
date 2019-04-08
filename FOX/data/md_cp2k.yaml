@@ -1,73 +1,74 @@
-global:
-    project: Auto-FOX
-    run_type: MD
-    print_level: MEDIUM
+input:
+    global:
+        project: Auto-FOX
+        run_type: MD
+        print_level: MEDIUM
 
-force_eval:
-    method: FIST
-    mm:
-        forcefield:
-            ignore_missing_critical_params: ''
-            parm_file_name: /home/bvanbeek/cp2k/par_all36_cgenff.prm
-            partmtype: CHM
-            do_nonbonded: ''
-            shuft_cutoff: .TRUE.
-            nonbonded:
-                lennard-jones:
-                    atoms: Cd Cd
-                    epsilon: 37.29669
-                    sigma: 1.234
-                    rcut: 12.0
-                Lennard-jones:
-                    atoms: Se Se
-                    epsilon: 51.30851
-                    sigma: 4.852
-                    rcut: 12.0
-                LEnnard-jones:
-                    atoms: Cd Se
-                    epsilon: 183.1158
-                    sigma: 2.940
-                    rcut: 12.0
-                LENnard-jones:
-                    atoms: Cd OG2D2
-                    epsilon: 220.5809
-                    sigma: 2.471
-                    rcut: 12.0
-                LENNard-jones:
-                    atoms: Se OG2D2
-                    epsilon: 194.0607
-                    sigma: 3.526
-                    rcut: 12.0
-        poisson:
-            ewald:
-                ewald_type: spme
-                alpha: .44
-                gmax: 24
-    sybsys:
-        cell:
-            abc: '[angstrom] 50.0 50.0 50.0'
-            periodic: NONE
-        topology:
-            charge_beta: ''
-            coord_file_format: 'OFF'
-            conn_file_format: PSF
-            conn_file_name: /home/bvanbeek/cp2k/qd.psf
-            center_coordinates: ''
-        kind Se: element Se
-        kind Cd: element Cd
-        kind OG2D2: element O
-        kind HGR52: element H
-        kind CG2O3: element C
+    force_eval:
+        method: FIST
+        mm:
+            forcefield:
+                ignore_missing_critical_params: ''
+                parm_file_name: /home/bvanbeek/cp2k/par_all36_cgenff.prm
+                partmtype: CHM
+                do_nonbonded: ''
+                shuft_cutoff: .TRUE.
+                nonbonded:
+                    lennard-jones:
+                        atoms: Cd Cd
+                        epsilon: 37.29669
+                        sigma: 1.234
+                        rcut: 12.0
+                    Lennard-jones:
+                        atoms: Se Se
+                        epsilon: 51.30851
+                        sigma: 4.852
+                        rcut: 12.0
+                    LEnnard-jones:
+                        atoms: Cd Se
+                        epsilon: 183.1158
+                        sigma: 2.940
+                        rcut: 12.0
+                    LENnard-jones:
+                        atoms: Cd OG2D2
+                        epsilon: 220.5809
+                        sigma: 2.471
+                        rcut: 12.0
+                    LENNard-jones:
+                        atoms: Se OG2D2
+                        epsilon: 194.0607
+                        sigma: 3.526
+                        rcut: 12.0
+            poisson:
+                ewald:
+                    ewald_type: spme
+                    alpha: .44
+                    gmax: 24
+        sybsys:
+            cell:
+                abc: '[angstrom] 50.0 50.0 50.0'
+                periodic: NONE
+            topology:
+                charge_beta: ''
+                coord_file_format: 'OFF'
+                conn_file_format: PSF
+                conn_file_name: /home/bvanbeek/cp2k/qd.psf
+                center_coordinates: ''
+            kind Se: element Se
+            kind Cd: element Cd
+            kind OG2D2: element O
+            kind HGR52: element H
+            kind CG2O3: element C
 
-motion:
-    md:
-        ensemble: NVT
-        temperature: 300.0
-        timestep: 1.0
-        time_start_val: 5000
-        step: 10000
-        max_steps: 15000
-        thermostat:
-            type: CSVR
-            csvr:
-                timecon: 1250
+    motion:
+        md:
+            ensemble: NVT
+            temperature: 300.0
+            timestep: 1.0
+            time_start_val: 5000
+            step: 10000
+            max_steps: 15000
+            thermostat:
+                type: CSVR
+                csvr:
+                    timecon: 1250
