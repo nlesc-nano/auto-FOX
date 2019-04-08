@@ -12,7 +12,7 @@ input:
                 parm_file_name: /home/bvanbeek/cp2k/par_all36_cgenff.prm
                 parmtype: CHM
                 do_nonbonded: ''
-                shuft_cutoff: .TRUE.
+                shift_cutoff: .TRUE.
                 nonbonded:
                     lennard-jones:
                         atoms: Cd Cd
