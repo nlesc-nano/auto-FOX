@@ -465,19 +465,26 @@ class MultiMolecule(_MultiMolecule):
             # Slower low memory approach
             kwarg2 = {'mol_subset': None, 'atom_subset': None}
             for i, _ in enumerate(self):
-                kwarg2['frame'] = i
-                for at1, at2 in atom_pairs:
+                kwarg2['mol_subset'] = i
+                for j, (at1, at2) in enumerate(atom_pairs, 1):
                     kwarg2['atom_subset'] = (at1, at2)
-                    df[at1 + ' ' + at2] += get_rdf_lowmem(self.get_dist_mat(**kwarg2), **kwarg1)
+                    try:
+                        df[at1 + ' ' + at2] += get_rdf_lowmem(self.get_dist_mat(**kwarg2), **kwarg1)
+                    except TypeError:
+                        df['series ' + str(j)] += get_rdf_lowmem(self.get_dist_mat(**kwarg2),
+                                                                 **kwarg1)
 
             df.iloc[0] = 0.0
             df /= self.shape[0]
         else:
             # Faster high memory approach
             kwarg2 = {'mol_subset': None, 'atom_subset': None}
-            for at1, at2 in atom_pairs:
+            for i, (at1, at2) in enumerate(atom_pairs, 1):
                 kwarg2['atom_subset'] = (at1, at2)
-                df[at1 + ' ' + at2] = get_rdf(self.get_dist_mat(**kwarg2), **kwarg1)
+                try:
+                    df[at1 + ' ' + at2] = get_rdf(self.get_dist_mat(**kwarg2), **kwarg1)
+                except TypeError:
+                    df['series ' + str(i)] = get_rdf(self.get_dist_mat(**kwarg2), **kwarg1)
 
         return df
 
