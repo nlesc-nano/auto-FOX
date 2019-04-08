@@ -8,7 +8,7 @@ force_eval:
     mm:
         forcefield:
             ignore_missing_critical_params: ''
-            parm_file_name: ./nc_ff.pot
+            parm_file_name: /home/bvanbeek/cp2k/par_all36_cgenff.prm
             partmtype: CHM
             do_nonbonded: ''
             shuft_cutoff: .TRUE.
@@ -29,12 +29,12 @@ force_eval:
                     sigma: 2.940
                     rcut: 12.0
                 LENnard-jones:
-                    atoms: Cd O_2
+                    atoms: Cd OG2D2
                     epsilon: 220.5809
                     sigma: 2.471
                     rcut: 12.0
                 LENNard-jones:
-                    atoms: Se O_2
+                    atoms: Se OG2D2
                     epsilon: 194.0607
                     sigma: 3.526
                     rcut: 12.0
@@ -49,26 +49,24 @@ force_eval:
             periodic: NONE
         topology:
             charge_beta: ''
-            connectivity: MOL_SET
-            psf:
-                molecule:
-                    nmol: 1
-                    conn_file_name: mol.psf
+            coord_file_format: 'OFF'
+            conn_file_format: PSF
+            conn_file_name: /home/bvanbeek/cp2k/qd.psf
             center_coordinates: ''
-        kind Cd: element Cd
         kind Se: element Se
-        kind C_2: element C
-        kind O_2: element O
-        kind H_: element H
+        kind Cd: element Cd
+        kind OG2D2: element O
+        kind HGR52: element H
+        kind CG2O3: element C
 
 motion:
     md:
         ensemble: NVT
-        temperature: 300
-        timestep: 1
+        temperature: 300.0
+        timestep: 1.0
         time_start_val: 5000
         step: 10000
-        max_step: 15000
+        max_steps: 15000
         thermostat:
             type: CSVR
             csvr:
