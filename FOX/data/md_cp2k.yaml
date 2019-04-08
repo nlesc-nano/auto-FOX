@@ -1,75 +1,44 @@
-global:
-    project: Auto-FOX
-    run_type: MD
-    print_level: MEDIUM
+input:
+    global:
+        project: Auto-FOX
+        run_type: MD
+        print_level: MEDIUM
 
-force_eval:
-    method: FIST
-    mm:
-        forcefield:
-            ignore_missing_critical_params: ''
-            parm_file_name: ./nc_ff.pot
-            partmtype: CHM
-            do_nonbonded: ''
-            shuft_cutoff: .TRUE.
-            nonbonded:
-                lennard-jones:
-                    atoms: Cd Cd
-                    epsilon: 37.29669
-                    sigma: 1.234
-                    rcut: 12.0
-                Lennard-jones:
-                    atoms: Se Se
-                    epsilon: 51.30851
-                    sigma: 4.852
-                    rcut: 12.0
-                LEnnard-jones:
-                    atoms: Cd Se
-                    epsilon: 183.1158
-                    sigma: 2.940
-                    rcut: 12.0
-                LENnard-jones:
-                    atoms: Cd O_2
-                    epsilon: 220.5809
-                    sigma: 2.471
-                    rcut: 12.0
-                LENNard-jones:
-                    atoms: Se O_2
-                    epsilon: 194.0607
-                    sigma: 3.526
-                    rcut: 12.0
-        poisson:
-            ewald:
-                ewald_type: spme
-                alpha: .44
-                gmax: 24
-    sybsys:
-        cell:
-            abc: '[angstrom] 50.0 50.0 50.0'
-            periodic: NONE
-        topology:
-            charge_beta: ''
-            connectivity: MOL_SET
-            psf:
-                molecule:
-                    nmol: 1
-                    conn_file_name: mol.psf
-            center_coordinates: ''
-        kind Cd: element Cd
-        kind Se: element Se
-        kind C_2: element C
-        kind O_2: element O
-        kind H_: element H
+    force_eval:
+        method: FIST
+        mm:
+            forcefield:
+                ignore_missing_critical_params: ''
+                parm_file_name: ''
+                parmtype: CHM
+                do_nonbonded: ''
+                shift_cutoff: .TRUE.
+            poisson:
+                ewald:
+                    ewald_type: spme
+                    alpha: .44
+                    gmax: 24
+        subsys:
+            cell:
+                abc: '[angstrom] 50.0 50.0 50.0'
+                periodic: NONE
+            topology:
+                charge_beta: ''
+                coord_file_format: 'OFF'
+                conn_file_format: PSF
+                conn_file_name: ''
+                center_coordinates:
+                    '': ''
 
-motion:
-    md:
-        ensemble: NVT
-        temperature: 300
-        timestep: 1
-        time_start_val: 5000
-        step: 10000
-        max_step: 15000
-        thermostat:
-            type: CSVR
-            csvr:
-                timecon: 1250
+    motion:
+        md:
+            ensemble: NVT
+            temperature: 300.0
+            timestep: 1.0
+            time_start_val: 5000
+            steps: 10000
+            max_steps: 15000
+            thermostat:
+                type: CSVR
+                csvr:
+                    timecon: 1250

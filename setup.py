@@ -30,7 +30,10 @@ setup(
         'FOX.classes'
     ],
     package_dir={'FOX': 'FOX'},
-    package_data={'FOX': ['data/Cd68Se55_26COO_MD_trajec.xyz']},
+    package_data={'FOX': [
+        'data/Cd68Se55_26COO_MD_trajec.xyz',
+        'data/md_cp2k.yaml'
+    ]},
     include_package_data=True,
     license="GNU General Public License v3 or later",
     zip_safe=False,

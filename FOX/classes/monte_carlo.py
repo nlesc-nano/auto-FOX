@@ -3,6 +3,7 @@
 __all__ = ['MonteCarlo', 'ARMC']
 
 import os
+import shutil
 from os.path import (join, dirname, isfile, isdir)
 
 import yaml
@@ -70,6 +71,7 @@ class MonteCarlo():
         self.job.settings = self.get_settings()
         self.job.name = self._get_name()
         self.job.path = os.get_cwd()
+        self.job.keep_files = False
 
         # Set user-specified keywords
         for key in kwarg:
@@ -86,7 +88,7 @@ class MonteCarlo():
         return str(Settings(vars(self)))
 
     def _get_name(self):
-        """ Return a name derived from **self.job.func**. """
+        """ Return a jobname derived from **self.job.func**. """
         return str(self.job.func).rsplit("'", 1)[0].rsplit('.', 1)[-1]
 
     def _sanitize(self):
@@ -118,8 +120,9 @@ class MonteCarlo():
 
         * The MD job is constructed according to the provided settings in **self.job**.
 
-        :return: A MultiMolecule object constructed from the MD trajectory.
-        :rtype: |FOX.MultiMolecule|_
+        :return: A MultiMolecule object constructed from the MD trajectory & the path to the PLAMS
+            results directory.
+        :rtype: |FOX.MultiMolecule|_ and |str|_
         """
         # Run an MD calculation
         job_type = self.job.func
@@ -128,7 +131,7 @@ class MonteCarlo():
         results.wait()
 
         # Construct a and return a MultiMolecule object
-        return MultiMolecule(filename=results.get_xyz_path())
+        return MultiMolecule(filename=results.get_xyz_path()), job.path
 
     def run_first_md(self):
         """ Run the first MD job (before starting the actual main for-loop) and construct a
@@ -144,16 +147,20 @@ class MonteCarlo():
         """
         # Run MD
         key = tuple(self.param)
-        mol = self.run_md()
+        mol, path = self.run_md()
 
         # Create PES descriptors
         func_list = self.pes.func
         kwarg_list = self.pes.kwarg
         values = [func(mol, **kwarg) for func, kwarg in zip(func_list, kwarg_list)]
         history_dict = {key: self.apply_phi(values)}
+
+        # Delete the output directory and return
+        if self.job.keep_files:
+            shutil.rmtree(path)
         return history_dict, key
 
-    def key_in_history(self, history_dict, key):
+    def get_pes_descriptors(self, history_dict, key):
         """ Check if a **key** is already present in **history_dict**.
         If *True*, return the matching list of PES descriptors;
         If *False*, construct and return a new list of PES descriptors.
@@ -170,10 +177,15 @@ class MonteCarlo():
         if key in history_dict:
             return history_dict[key]
         else:
-            mol = self.run_md()
+            mol, path = self.run_md()
             func_list = self.pes.func
             kwarg_list = self.pes.kwarg
-            return [func(mol, **kwarg) for func, kwarg in zip(func_list, kwarg_list)]
+            ret = [func(mol, **kwarg) for func, kwarg in zip(func_list, kwarg_list)]
+
+            # Delete the output directory and return
+            if not self.job.keep_files:
+                shutil.rmtree(path)
+            return ret
 
     def get_settings(self, path=None):
         """ Grab the template with default CP2K_ MM-MD settings.
@@ -239,7 +251,7 @@ class MonteCarlo():
         self.move.kwarg = kwarg
 
     def reconfigure_job_atr(self, molecule=None, func=Cp2kJob, settings=None,
-                             name=None, path=None):
+                            name=None, path=None, keep_files=False):
         """ Reconfigure the attributes in **self.job**, the latter containing all settings related
         to the PLAMS Job class and its subclasses.
 
@@ -252,6 +264,10 @@ class MonteCarlo():
         :parameter str name: The name of the directories holding the MD results produced by
             **func**.
         :parameter str path: The path where **name** will be stored.
+        :parameter bool keep_files: Whether or not all files produced should during the MD
+            calculations should be kept or deleted. WARNING: The size of a single MD trajectory can
+            easily be in the dozens or even hundreds of megabytes; the MC parameter optimization
+            will require thousands of such trajectories.
         """
         if molecule is not None:
             self.job.molecule = molecule
@@ -259,6 +275,7 @@ class MonteCarlo():
         self.job.settings = settings or self.get_settings(settings)
         self.job.name = name or self._get_name()
         self.job.path = path or os.getcwd()
+        self.job.keep_files = keep_files
 
     def create_mc_dirs(self):
         """ Create directories for storing PES descriptors and forcefield parameters.
@@ -311,7 +328,7 @@ class ARMC(MonteCarlo):
         self.create_pes_dir()
 
         # Initialize
-        init(path=self.job.path, folder='MM-MD')
+        init(path=self.job.path, folder='MM_MD_workdir')
         key_new, history_dict = self.run_first_md()
         for _ in range(super_iter):
             for i in range(sub_iter):
@@ -321,7 +338,7 @@ class ARMC(MonteCarlo):
                 key_new = tuple(self.param)
 
                 # Step 2: Check if the move has been performed already
-                value_new = self.key_in_history(history_dict, key_new)
+                value_new = self.get_pes_descriptors(history_dict, key_new)
 
                 # Step 3: Evaluate the auxilary error
                 value_old = history_dict[key_old]
