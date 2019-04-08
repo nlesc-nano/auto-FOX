@@ -54,11 +54,16 @@ input:
                 conn_file_format: PSF
                 conn_file_name: /home/bvanbeek/cp2k/qd.psf
                 center_coordinates: ''
-            kind Se: element Se
-            kind Cd: element Cd
-            kind OG2D2: element O
-            kind HGR52: element H
-            kind CG2O3: element C
+            kind Se:
+                element: Se
+            kind Cd:
+                element: Cd
+            kind OG2D2:
+                element: O
+            kind HGR52:
+                element: H
+            kind CG2O3:
+                element: C
 
     motion:
         md:
