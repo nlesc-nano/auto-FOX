@@ -260,6 +260,13 @@ class MonteCarlo():
         self.job.name = name or self._get_name()
         self.job.path = path or os.getcwd()
 
+    def create_mc_dirs(self):
+        """ Create directories for storing PES descriptors and forcefield parameters.
+        The directories are stored in **self.job.path**.
+        """
+        os.mkdir(join(self.job.path, 'pes_descriptors'))
+        os.mkdir(join(self.job.path, 'param_history'))
+
 
 class ARMC(MonteCarlo):
     """ The addaptive rate Monte Carlo (ARMC) class, a subclass of the FOX.MonteCarlo_.
@@ -299,6 +306,9 @@ class ARMC(MonteCarlo):
         acceptance = np.zeros(self.armc.sub_iter_len, dtype=bool)
         sub_iter = self.armc.sub_iter_len
         super_iter = self.armc.iter_len // sub_iter
+
+        # Create a directory for storing pes descriptors
+        self.create_pes_dir()
 
         # Initialize
         init(path=self.job.path, folder='MM-MD')
