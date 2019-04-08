@@ -10,7 +10,7 @@ input:
             forcefield:
                 ignore_missing_critical_params: ''
                 parm_file_name: /home/bvanbeek/cp2k/par_all36_cgenff.prm
-                partmtype: CHM
+                parmtype: CHM
                 do_nonbonded: ''
                 shuft_cutoff: .TRUE.
                 nonbonded:
