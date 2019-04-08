@@ -16,7 +16,10 @@ def get_rdf_df(dr, r_max, atom_pairs):
     # Prepare the DataFrame arguments
     shape = 1 + int(r_max / dr), len(atom_pairs)
     index = np.arange(0, r_max + dr, dr)
-    columns = [at1 + ' ' + at2 for at1, at2 in atom_pairs]
+    try:  # If **atom_pairs** consists of atomic symbols
+        columns = [at1 + ' ' + at2 for at1, at2 in atom_pairs]
+    except TypeError:  # If **atom_pairs** consists of atomic indices
+        columns = ['series ' + str(i) for i, _ in enumerate(atom_pairs, 1)]
 
     # Create and return the DataFrame
     df = pd.DataFrame(np.zeros(shape), index=index, columns=columns)
