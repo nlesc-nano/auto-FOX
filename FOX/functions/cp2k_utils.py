@@ -6,7 +6,7 @@ import itertools
 
 
 def set_subsys_kind(settings, df):
-    """ Set the FORCE_EVAL/SUBSYS/KIND_ keyword(s) in a CP2K Settings object.
+    """ Set the FORCE_EVAL/SUBSYS/KIND_ keyword(s) in CP2K job settings.
     Performs an inplace update of the input.force_eval.subsys key in **settings**.
 
     .. _KIND: https://manual.cp2k.org/trunk/CP2K_INPUT/FORCE_EVAL/SUBSYS/KIND.html
@@ -23,7 +23,7 @@ def set_subsys_kind(settings, df):
 
 
 def set_lennard_jones(settings, lj_dict):
-    """ Set the FORCE_EVAL/MM/FORCEFIELD/LENNARD-JONES_ keyword(s) in a CP2K Settings object.
+    """ Set the FORCE_EVAL/MM/FORCEFIELD/LENNARD-JONES_ keyword(s) in CP2K job settings.
     Performs an inplace update of the input.mm.forcefield key in **settings**.
 
     .. _LENNARD-JONES: https://manual.cp2k.org/trunk/CP2K_INPUT/FORCE_EVAL/MM/\
