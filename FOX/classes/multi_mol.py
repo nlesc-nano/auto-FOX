@@ -607,6 +607,19 @@ class MultiMolecule(_MultiMolecule):
         df['mass'] = self.mass
         df[0] = 0
 
+        key = set(df.loc[df['residue ID'] == 1, 'atom type'])
+        value = range(1, len(key) + 1)
+        segment_dict = dict(zip(key, value))
+        value_max = 'MOL' + str(value.stop)
+
+        segment_name = []
+        for item in df['atom name']:
+            try:
+                segment_name.append('MOL{:d}'.format(segment_dict[item]))
+            except KeyError:
+                segment_name.append(value_max)
+        df['segment name'] = segment_name
+
         if not inplace:
             return df
         self.properties.atoms = df
