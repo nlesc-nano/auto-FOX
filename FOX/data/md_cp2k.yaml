@@ -44,7 +44,7 @@ input:
                     ewald_type: spme
                     alpha: .44
                     gmax: 24
-        sybsys:
+        subsys:
             cell:
                 abc: '[angstrom] 50.0 50.0 50.0'
                 periodic: NONE
