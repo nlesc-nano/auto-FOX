@@ -91,5 +91,5 @@ Using **Auto-FOX**
 .. _documentation: https://auto-fox.readthedocs.io/en/latest/
 .. _Miniconda: http://conda.pydata.org/miniconda.html
 .. _Matplotlib: https://matplotlib.org/
-.. _FOX.data: https://github.com/BvB93/auto-FOX/blob/master/FOX/data
-.. _FOX.examples: https://github.com/BvB93/auto-FOX/blob/master/FOX/examples/input.py
+.. _FOX.data: https://github.com/nlesc-nano/auto-FOX/blob/master/FOX/data
+.. _FOX.examples: https://github.com/nlesc-nano/auto-FOX/blob/master/FOX/examples/input.py
