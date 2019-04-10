@@ -6,6 +6,11 @@ import os
 import shutil
 from os.path import (join, dirname, isfile, isdir)
 
+try:
+    import h5py
+except ImportError:
+    __all__ = []
+
 import yaml
 import numpy as np
 
@@ -16,6 +21,7 @@ from scm.plams.core.functions import (init, finish, add_to_class)
 from scm.plams.interfaces.thirdparty.cp2k import Cp2kJob
 
 from .multi_mol import MultiMolecule
+from ..functions.utils import get_shape
 
 
 @add_to_class(Results)
@@ -48,21 +54,21 @@ class MonteCarlo():
 
                     * **job** (|plams.Settings|_) – See :meth:`MonteCarlo.reconfigure_job_atr`
     """
-    def __init__(self, ref, param, molecule, **kwarg):
-        # Set the reference PES descriptor(s) and initial forcefield parameters
-        self.ref = ref
+    def __init__(self, param, molecule, **kwarg):
+        # Double check of h5py is actually loaded
+        try:
+            h5py.__name__
+        except NameError:
+            raise ModuleNotFoundError("No module named 'h5py'")
+
+        # Set the inital forcefield parameters
         self.param = param
 
-        # Settings for generating PES descriptors
+        # Settings for generating PES descriptors and assigns of reference PES descriptors
         self.pes = Settings()
-        self.pes.func = [MultiMolecule.init_rdf]
-        self.pes.kwarg = [{'atom_subset': None}]
-
-        # Settings for generating Monte Carlo moves
-        self.move = Settings()
-        self.move.range = self.reconfigure_move_range()
-        self.move.func = np.add
-        self.move.kwarg = {}
+        self.pes.rdf.ref = None
+        self.pes.rdf.func = MultiMolecule.init_rdf
+        self.pes.rdf.kwarg = {'atom_subset': None}
 
         # Settings for running the actual MD calculations
         self.job = Settings()
@@ -70,8 +76,14 @@ class MonteCarlo():
         self.job.func = Cp2kJob
         self.job.settings = self.get_settings()
         self.job.name = self._get_name()
-        self.job.path = os.get_cwd()
+        self.job.path = os.getcwd()
         self.job.keep_files = False
+
+        # Settings for generating Monte Carlo moves
+        self.move = Settings()
+        self.move.range = self.reconfigure_move_range()
+        self.move.func = np.add
+        self.move.kwarg = {}
 
         # Set user-specified keywords
         for key in kwarg:
@@ -93,17 +105,9 @@ class MonteCarlo():
 
     def _sanitize(self):
         """ Sanitize and validate all arguments of __init__(). """
-        if not isinstance(self.ref, list):
-            self.ref = list(self.ref)
-
         assert isinstance(self.job.molecule, (Molecule, MultiMolecule))
         if isinstance(self.job.molecule, MultiMolecule):
             self.job.molecule = self.job.molecule.as_Molecule(-1)[0]
-
-        assert isinstance(self.job.settings, (dict, str))
-        if isinstance(self.job.settings, str):
-            assert isfile(self.job.settings)
-            self.job.settings = self.get_settings(path=self.job.settings)
 
         assert isinstance(self.job.name, str)
         assert isdir(self.job.path)
@@ -116,7 +120,8 @@ class MonteCarlo():
         self.param[i] = self.move.func(self.param[i], j, **self.move.kwarg)
 
     def run_md(self):
-        """ Run an MD job.
+        """ Run an MD job, updating the cartesian coordinates of **self.job.mol** and returning
+        a new MultiMolecule object.
 
         * The MD job is constructed according to the provided settings in **self.job**.
 
@@ -130,8 +135,10 @@ class MonteCarlo():
         results = job.run()
         results.wait()
 
-        # Construct a and return a MultiMolecule object
-        return MultiMolecule(filename=results.get_xyz_path()), job.path
+        # Construct and return a MultiMolecule object
+        mol =  MultiMolecule(filename=results.get_xyz_path())
+        self.job.mol.from_array(mol[-1])
+        return mol, job.path
 
     def run_first_md(self):
         """ Run the first MD job (before starting the actual main for-loop) and construct a
@@ -150,9 +157,7 @@ class MonteCarlo():
         mol, path = self.run_md()
 
         # Create PES descriptors
-        func_list = self.pes.func
-        kwarg_list = self.pes.kwarg
-        values = [func(mol, **kwarg) for func, kwarg in zip(func_list, kwarg_list)]
+        values = {i: self.pes[i].func(mol, **self.pes[i].kwarg) for i in self.pes}
         history_dict = {key: self.apply_phi(values)}
 
         # Delete the output directory and return
@@ -172,15 +177,13 @@ class MonteCarlo():
         :parameter key: A key in **history_dict**.
         :type key: |tuple|_
         :return: A previous value from **history_dict** or a new value from an MD calculation.
-        :rtype: |list|_ [|float|_ or |np.ndarray|_ [|np.float64|_]]
+        :rtype: |dict|_ (keys: |str|_, values: |np.ndarray|_ [|np.float64|_])
         """
         if key in history_dict:
             return history_dict[key]
         else:
             mol, path = self.run_md()
-            func_list = self.pes.func
-            kwarg_list = self.pes.kwarg
-            ret = [func(mol, **kwarg) for func, kwarg in zip(func_list, kwarg_list)]
+            ret = {i: self.pes[i].func(mol, **self.pes[i].kwarg) for i in self.pes}
 
             # Delete the output directory and return
             if not self.job.keep_files:
@@ -204,7 +207,7 @@ class MonteCarlo():
         else:
             file_name = join(join(dirname(dirname(__file__)), 'data'), 'md_cp2k.yaml')
         with open(file_name, 'r') as file:
-            self.job.settings = yaml.load(file)
+            self.job.settings = yaml.load(file, Loader=yaml.FullLoader)
 
     def reconfigure_move_range(self, start=0.005, stop=0.1, step=0.005):
         """ Generate an with array of all allowed moves, the moves spanning both the positive and
@@ -217,23 +220,6 @@ class MonteCarlo():
         """
         rng_range = np.arange(start, start + step, step)
         self.move_range = np.concatenate((-rng_range, rng_range))
-
-    def reconfigure_pes_atr(self, func=MultiMolecule.init_rdf, kwarg={'atom_subset': None}):
-        """ Reconfigure the attributes in **self.pes**, the latter containing all settings related
-        to generating PES descriptors (*e.g.* `radial distribution functions`_).
-
-        :parameter func: A list of type objects of functions used for generating PES
-            descriptors. The functions in **func** are applied to MultiMolecule objects.
-        :type func: |type|_ or |list|_ [|type|_]
-        :parameter dict kwarg: A list of keyword arguments used in **func**.
-        :type kwarg: |dict|_ or |list|_ [|dict|_]
-        """
-        if isinstance(func, type):
-            func = list(func)
-        if isinstance(kwarg, dict):
-            kwarg = list(kwarg)
-        self.pes.func = func
-        self.pes.kwarg = kwarg
 
     def reconfigure_move_atr(self, move_range=None, func=np.add, kwarg={}):
         """ Reconfigure the attributes in **self.move**., the latter containg all settings related
@@ -277,13 +263,6 @@ class MonteCarlo():
         self.job.path = path or os.getcwd()
         self.job.keep_files = keep_files
 
-    def create_mc_dirs(self):
-        """ Create directories for storing PES descriptors and forcefield parameters.
-        The directories are stored in **self.job.path**.
-        """
-        os.mkdir(join(self.job.path, 'pes_descriptors'))
-        os.mkdir(join(self.job.path, 'param_history'))
-
 
 class ARMC(MonteCarlo):
     """ The addaptive rate Monte Carlo (ARMC) class, a subclass of the FOX.MonteCarlo_.
@@ -292,8 +271,8 @@ class ARMC(MonteCarlo):
 
                     * **phi** (|plams.Settings|_) – See :meth:`ARMC.reconfigure_phi_atr`
     """
-    def __init__(self, **kwarg):
-        MonteCarlo.__init__(self, **kwarg)
+    def __init__(self, param, molecule, **kwarg):
+        MonteCarlo.__init__(self, param, molecule, **kwarg)
 
         # Settings specific to addaptive rate Monte Carlo (ARMC)
         self.armc = Settings()
@@ -325,28 +304,31 @@ class ARMC(MonteCarlo):
         super_iter = self.armc.iter_len // sub_iter
 
         # Create a directory for storing pes descriptors
-        self.create_pes_dir()
+        self.create_mc_dirs()
 
         # Initialize
         init(path=self.job.path, folder='MM_MD_workdir')
         key_new, history_dict = self.run_first_md()
-        for _ in range(super_iter):
-            for i in range(sub_iter):
+        for i in range(super_iter):
+            for j in range(sub_iter):
                 # Step 1: Perform a random move
                 key_old = key_new
                 self.move()
                 key_new = tuple(self.param)
+                self.param_to_hdf5(self.param, i, j)
 
                 # Step 2: Check if the move has been performed already
                 value_new = self.get_pes_descriptors(history_dict, key_new)
+                self.pes_descriptors_to_hdf5(value_new, i, j)
 
                 # Step 3: Evaluate the auxilary error
                 value_old = history_dict[key_old]
                 accept = bool(sum(self.get_aux_error(value_old) - self.get_aux_error(value_new)))
+                self.acceptance_to_hdf5(accept, i, j)
 
                 # Step 4: Update the PES descriptor history
                 if accept:
-                    acceptance[i] = True
+                    acceptance[j] = True
                     history_dict[key_new] = self.apply_phi(value_new)
                 else:
                     history_dict[key_old] = self.apply_phi(value_old)
@@ -356,16 +338,65 @@ class ARMC(MonteCarlo):
 
         return self.param
 
-    def get_aux_error(self, values):
+    def acceptance_to_hdf5(self, acceptance, i, j):
+        """ Add
+
+        :parameter bool acceptance: Whether or not the parameters in the latest Monte Carlo
+            iteration were accepted.
+        :parameter int i: The iteration in the outer loop of :meth:`ARMC.init_armc`.
+        :parameter int j: The subiteration in the inner loop of :meth:`ARMC.init_armc`.
+        """
+        k = j + i * j
+        self._to_hdf5(acceptance, 'acceptance', k)
+
+    def pes_descriptors_to_hdf5(self, descriptor_dict, i, j):
+        """
+
+        :parameter descriptor_dict: The latest set of PES-descriptors.
+        :type descriptor_dict: |dict|_ (keys: |str|_, values: |np.ndarray|_ [|np.float64|_])
+        :parameter int i: The iteration in the outer loop of :meth:`ARMC.init_armc`.
+        :parameter int j: The subiteration in the inner loop of :meth:`ARMC.init_armc`.
+        """
+        k = j + i * j
+        self._to_hdf5(descriptor_dict, 'pes_descriptors', k)
+
+    def param_to_hdf5(self, param, i, j):
+        """
+
+        :parameter param: The latest set of ARMC-optimized parameters.
+        :type param: |np.ndarray|_ [|np.float64|_]
+        :parameter int i: The iteration in the outer loop of :meth:`ARMC.init_armc`.
+        :parameter int j: The subiteration in the inner loop of :meth:`ARMC.init_armc`.
+        """
+        k = j + i * j
+        self._to_hdf5(param, 'param', k)
+
+    def _to_hdf5(self, item, name, k):
+        """
+        :parameter object item: An item which is to be added to an hdf5 file.
+        :parameter str name: The filename (excluding path) of the hdf5 file.
+        :parameter int k: The index in the hdf5 file where item should be placed.
+        """
+        filename = join(self.job.path, name)
+        with h5py.File(filename, 'r+') as f:
+            if isinstance(item, dict):
+                for key in item:
+                    f[key][k] = item[key]
+            else:
+                f[name][k] = item
+
+    def get_aux_error(self, pes_dict):
         """ Return the auxiliary error of the PES descriptors in **values** with respect to
         **self.ref**.
 
-        :parameter values: A list of *n* PES descriptors.
-        :type values: *n* |list|_ [|float|_ or |np.ndarray|_ [|np.float64|_]]
+        :parameter pes_dict: A dictionary of *n* PES descriptors.
+        :type pes_dict: *n* |dict|_ (keys: |str|_, values: |np.ndarray|_ [|np.float64|_])
         :return: An array with *n* auxilary errors
         :rtype: *n* |np.ndarray|_ [|np.float64|_]
         """
-        return np.array([np.linalg.norm(i - j, axis=0).sum() for i, j in zip(values, self.ref)])
+        def get_norm(a, b):
+            return np.linalg.norm(a - b, axis=0).sum()
+        return np.array([get_norm(pes_dict[j], self.pes[j].ref) for i, j in enumerate(pes_dict)])
 
     def apply_phi(self, values):
         """ Apply **self.phi.phi** to all PES descriptors in **values**.
@@ -391,6 +422,40 @@ class ARMC(MonteCarlo):
         """
         sign = np.sign(self.armc.a_target - np.mean(acceptance))
         self.phi.phi *= self.armc.gamma**sign
+
+    def create_hdf5(self):
+        """ Create hdf5 files for storing ARMC results. """
+        path = self.job.path
+
+        # Create a dictionary with the shape and dtype of all to-be stored data
+        shape_dict = Settings()
+        shape_dict.param.shape = self.armc.iter_len, len(self.param)
+        shape_dict.param.dtype = float
+        shape_dict.acceptance.shape = self.armc.iter_len
+        shape_dict.acceptance.dtype = bool
+
+        # Create *n* hdf5 files with a single dataset
+        kwarg = {'chunks': True, 'compression': 'gzip'}
+        for key in shape_dict:
+            filename = join(path, key) + '.hdf5'
+            with h5py.File(filename, 'a') as f:
+                shape = shape_dict[key].shape
+                dtype = shape_dict[key].dtype
+                f.create_dataset(name=key, data=np.zeros(shape, dtype=dtype),
+                                 maxshape=shape, **kwarg)
+
+        # Create a dictionary with the shape for all PES descriptors
+        shape_dict = {}
+        for i, j in zip(self.pes, self.ref):
+            shape_dict[i].shape = (self.armc.iter_len, ) + get_shape(j)
+
+        # Create a single hdf5 files with a *n* dataset
+        filename = join(path, 'pes_descriptors') + '.hdf5'
+        with h5py.File(filename, 'a') as f:
+            for key in shape_dict:
+                shape = shape_dict[key].shape
+                f.create_dataset(name=key, data=np.zeros(shape, dtype=float),
+                                 maxshape=shape, **kwarg)
 
     def reconfigure_armc_atr(self, iter_len=50000, sub_iter_len=100, gamma=2.0, a_target=0.25):
         """ Reconfigure the attributes in **self.armc**, the latter containing all settings
