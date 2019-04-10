@@ -32,19 +32,21 @@ setup(
     package_dir={'FOX': 'FOX'},
     package_data={'FOX': [
         'data/Cd68Se55_26COO_MD_trajec.xyz',
-        'data/md_cp2k.yaml'
+        'data/*.yaml'
     ]},
     include_package_data=True,
     license="GNU General Public License v3 or later",
     zip_safe=False,
     keywords=[
         'quantum-mechanics',
+        'molecular-mechanics',
         'science',
         'chemistry',
         'python-3',
+        'python-3.7',
     ],
     classifiers=[
-        'Development Status :: 2 - Pre-Alpha',
+        'Development Status :: 4 - Beta',
         'Intended Audience :: Science/Research',
         'Topic :: Scientific/Engineering :: Chemistry'
         'License :: OSI Approved :: GNU Lesser General Public License',

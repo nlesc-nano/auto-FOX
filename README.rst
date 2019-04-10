@@ -7,7 +7,7 @@
    :target: https://www.python.org
 
 #################################################
-Automated Forcefield Optimization Extension 0.2.2
+Automated Forcefield Optimization Extension 0.3.0
 #################################################
 
 **Auto-FOX** is a tool for parameterizing forcefields by reproducing radial distribution functions.
