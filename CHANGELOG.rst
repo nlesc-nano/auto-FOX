@@ -5,6 +5,20 @@ Change Log
 All notable changes to this project will be documented in this file.
 This project adheres to `Semantic Versioning <http://semver.org/>`_.
 
+0.2.2
+*****
+
+Added
+-----
+
+* Introduced an angular distribution generator in the MultiMolecule class
+
+Changed
+-------
+
+* Fixed a renormalization bug in the 0.2.1 improved get_rdf() function
+
+
 0.2.1
 *****
 
@@ -30,7 +44,8 @@ Added
 
 * Added a root mean squared displacement generator (RMSD).
 * Added a root mean squared fluctuation generator (RMSF).
-* Introduced the MultiMolecule class for handling and storing all atoms, bonds and coordinates.
+* Introduced the MultiMolecule class for handling and storing all atoms,
+  bonds and coordinates.
 
 
 0.1

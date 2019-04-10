@@ -45,13 +45,14 @@ def get_rdf(dist, dr=0.05, r_max=12.0):
     int_step = 4 * np.pi * dr * r**2
     int_step[0] = np.nan
 
-    dens_mean = dist.shape[2] / ((4/3) * np.pi * (0.5 * dist.max(axis=(1, 2)))**3)
+    dist_shape = dist.shape
+    dens_mean = dist_shape[2] / ((4/3) * np.pi * (0.5 * dist.max(axis=(1, 2)))**3)
     dist /= dr
     dist = dist.astype(np.int32, copy=False)
-    dist.shape = dist.shape[0], dist.shape[1] * dist.shape[2]
+    dist.shape = dist_shape[0], dist_shape[1] * dist_shape[2]
 
     dens = np.array([np.bincount(i, minlength=idx_max)[:idx_max] for i in dist], dtype=float)
-    dens /= dist.shape[1]
+    dens /= dist_shape[1]
     dens /= int_step
     dens /= dens_mean[:, None]
     dens[:, 0] = 0.0
