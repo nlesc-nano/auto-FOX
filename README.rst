@@ -10,19 +10,23 @@
 Automated Forcefield Optimization Extension 0.3.0
 #################################################
 
-**Auto-FOX** is a tool for parameterizing forcefields by reproducing radial distribution functions.
+**Auto-FOX** is a tool for parameterizing forcefields by reproducing
+radial distribution functions.
 Further details are provided in the documentation_.
 
 Currently implemented
 =====================
 
-This package is a work in progress; the following functionalities are currently implemented:
+This package is a work in progress; the following
+functionalities are currently implemented:
 
-- The MultiMolecule class, a class designed for handling and processing large numbers of moleculair conformations and/or configurations (*e.g.* MD trajectories). (`doc <https://auto-fox.readthedocs.io/en/latest/3_multimolecule.html>`_)
-- A multi-XYZ reader. (`doc <https://auto-fox.readthedocs.io/en/latest/5_xyz_reader.html>`_)
-- A radial distribution generator (RDF). (`doc <https://auto-fox.readthedocs.io/en/latest/1_rdf.html>`_)
-- A root mean squared displacement generator (RMSD). (`doc <https://auto-fox.readthedocs.io/en/latest/2_rmsd.html#root-mean-squared-displacement>`_)
-- A root mean squared fluctuation generator (RMSF). (`doc <https://auto-fox.readthedocs.io/en/latest/2_rmsd.html#root-mean-squared-fluctuation>`_)
+- The MultiMolecule class, a class designed for handling and processing
+  large numbers of moleculair conformations and/or configurations
+  (*e.g.* MD trajectories). (1_)
+- A multi-XYZ reader. (2_)
+- A radial distribution generator (RDF). (3_)
+- A root mean squared displacement generator (RMSD). (4_)
+- A root mean squared fluctuation generator (RMSF). (5_)
 
 Installation
 ============
@@ -30,19 +34,22 @@ Installation
 Anaconda environments
 ---------------------
 
-- While not a strictly required, it stronly recomended to use the virtual environments of `Anaconda <https://www.anaconda.com/>`_.
+- While not a strictly required, it stronly recomended to use the
+  virtual environments of Anaconda.
 
 
-  - Available as either Miniconda_ or the complete `Anaconda <https://www.anaconda.com/distribution/#download-section>`_ package.
+  - Available as either Miniconda_ or the complete Anaconda_ package.
 
 
-- Anaconda comes with a built-in installer; more detailed installation instructions are available for a wide range of OSs.
+- Anaconda comes with a built-in installer; more detailed installation
+  instructions are available for a wide range of OSs.
 
 
   - See the `Anaconda documentation <https://docs.anaconda.com/anaconda/install/>`_.
 
 
-- Anaconda environments can be created, enabled and disabled by, respectively, typing:
+- Anaconda environments can be created, enabled and disabled by,
+  respectively, typing:
 
   - Create environment: ``conda create --name FOX python``
 
@@ -54,11 +61,11 @@ Anaconda environments
 Installing **Auto-FOX**
 -----------------------
 
--  If using Conda, enable the environment: ``conda activate FOX``
+- If using Conda, enable the environment: ``conda activate FOX``
 
--  Install **Auto-FOX** using pip: ``pip install git+https://github.com/nlesc-nano/auto-FOX@master --upgrade``
+- Install **Auto-FOX** using pip: ``pip install git+https://github.com/nlesc-nano/auto-FOX@master --upgrade``
 
--  Congratulations, **Auto-FOX** is now installed and ready for use!
+- Congratulations, **Auto-FOX** is now installed and ready for use!
 
 Optional dependencies
 ---------------------
@@ -73,11 +80,14 @@ Optional dependencies
 Using **Auto-FOX**
 ==================
 
--  An input file with some basic examples is provided in the FOX.examples_ directory.
+- An input file with some basic examples is provided in
+  the FOX.examples_ directory.
 
--  An example MD trajectory of a CdSe quantum dot is included in the FOX.data_ directory.
+- An example MD trajectory of a CdSe quantum dot is included
+  in the FOX.data_ directory.
 
-   -  The absolute path + filename of aforementioned trajectory can be retrieved as following:
+   - The absolute path + filename of aforementioned trajectory
+     can be retrieved as following:
 
 ::
 
@@ -85,11 +95,18 @@ Using **Auto-FOX**
          example_xyz_filename = get_example_xyz()
 
 
--  Further examples and more detailed descriptions are available in the documentation_.
+- Further examples and more detailed descriptions are
+  available in the documentation_.
 
 
+.. _1: https://auto-fox.readthedocs.io/en/latest/3_multimolecule.html
+.. _2: https://auto-fox.readthedocs.io/en/latest/5_xyz_reader.html
+.. _3: https://auto-fox.readthedocs.io/en/latest/1_rdf.html
+.. _4: https://auto-fox.readthedocs.io/en/latest/2_rmsd.html#root-mean-squared-displacement
+.. _5: https://auto-fox.readthedocs.io/en/latest/2_rmsd.html#root-mean-squared-fluctuation
 .. _documentation: https://auto-fox.readthedocs.io/en/latest/
 .. _Miniconda: http://conda.pydata.org/miniconda.html
+.. _Anaconda: https://www.anaconda.com/distribution/#download-section
 .. _Matplotlib: https://matplotlib.org/
 .. _FOX.data: https://github.com/nlesc-nano/auto-FOX/blob/master/FOX/data
 .. _FOX.examples: https://github.com/nlesc-nano/auto-FOX/blob/master/FOX/examples/input.py
