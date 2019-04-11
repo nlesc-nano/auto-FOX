@@ -6,11 +6,6 @@ import os
 import shutil
 from os.path import (join, dirname, isfile, isdir)
 
-try:
-    import h5py
-except ImportError:
-    __all__ = []
-
 import yaml
 import numpy as np
 
@@ -19,6 +14,15 @@ from scm.plams.core.results import Results
 from scm.plams.core.settings import Settings
 from scm.plams.core.functions import (init, finish, add_to_class)
 from scm.plams.interfaces.thirdparty.cp2k import Cp2kJob
+
+try:
+    import h5py
+    H5PY_ERROR = False
+except ImportError:
+    __all__ = []
+    H5PY_ERROR = "Use of the FOX.{} class requires the 'h5py' package.\
+                  \n\t'h5py' can be installed via anaconda with the following command:\
+                  \n\tconda install --name FOX -y -c conda-forge h5py"
 
 from .multi_mol import MultiMolecule
 from ..functions.utils import get_shape
@@ -55,7 +59,7 @@ class MonteCarlo():
                     * **job** (|plams.Settings|_) – See :meth:`MonteCarlo.reconfigure_job_atr`
     """
     def __init__(self, param, molecule, **kwarg):
-        # Double check of h5py is actually loaded
+        # Double check of h5py is actually installed
         try:
             h5py.__name__
         except NameError:
@@ -483,3 +487,16 @@ class ARMC(MonteCarlo):
         self.phi.phi = phi
         self.phi.func = func
         self.phi.kwarg = kwarg
+
+
+# Raise an error when trying to call the MonteCarlo or ARMC class without 'h5py' installed
+if H5PY_ERROR:
+    class MonteCarlo(MonteCarlo):
+        def __init__(self, *arg, **kwarg):
+            name = str(self.__class__).rsplit("'", 1)[0].rsplit('.', 1)[1]
+            raise ModuleNotFoundError(H5PY_ERROR.format(name))
+
+    class ARMC(ARMC):
+        def __init__(self, *arg, **kwarg):
+            name = str(self.__class__).rsplit("'", 1)[0].rsplit('.', 1)[1]
+            raise ModuleNotFoundError(H5PY_ERROR.format(name))
