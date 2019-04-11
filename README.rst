@@ -1,6 +1,6 @@
 
-.. image:: https://travis-ci.org/BvB93/auto-FOX.svg?branch=master
-   :target: https://travis-ci.org/BvB93/auto-FOX
+.. image:: https://travis-ci.org/nlesc-nano/auto-FOX.svg?branch=master
+   :target: https://travis-ci.org/nlesc-nano/auto-FOX
 .. image:: https://readthedocs.org/projects/auto-fox/badge/?version=latest
    :target: https://auto-fox.readthedocs.io/en/latest
 .. image:: https://img.shields.io/badge/python-3-blue.svg
