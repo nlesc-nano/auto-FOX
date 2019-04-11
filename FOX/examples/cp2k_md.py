@@ -59,4 +59,17 @@ carlos.armc.iter_len = 100
 carlos.armc.sub_iter_len = 10
 
 # Run ARMC
+charge = df['charge'].copy()
+charge.index = df['atom type']
+charge_tot = charge.sum().round(8)
+
+move = {'Cd': 1.9}
+if 'Cd' in move:
+    charge[charge.index == 'Cd'] = move['Cd']
+    charge[charge.index == 'Se'] = -move['Cd']
+    charge_tot_new = charge.sum().round(8)
+    count = len(charge[(charge.index != 'Cd') & (charge.index != 'Se')])
+    i = charge_tot_new / count
+    charge[(charge.index != 'Cd') & (charge.index != 'Se')] -= i
+
 #carlos.init_armc()
