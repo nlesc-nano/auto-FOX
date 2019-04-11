@@ -63,13 +63,27 @@ charge = df['charge'].copy()
 charge.index = df['atom type']
 charge_tot = charge.sum().round(8)
 
-move = {'Cd': 1.9}
-if 'Cd' in move:
-    charge[charge.index == 'Cd'] = move['Cd']
-    charge[charge.index == 'Se'] = -move['Cd']
+at_type = 'Cd'
+move = 1.9
+if at_type == 'Cd':
+    charge[charge.index == 'Cd'] = move
+    charge[charge.index == 'Se'] = -move
     charge_tot_new = charge.sum().round(8)
     count = len(charge[(charge.index != 'Cd') & (charge.index != 'Se')])
     i = charge_tot_new / count
     charge[(charge.index != 'Cd') & (charge.index != 'Se')] -= i
+elif at_type == 'Se':
+    charge[charge.index == 'Se'] = move
+    charge[charge.index == 'Cd'] = -move
+    charge_tot_new = charge.sum().round(8)
+    count = len(charge[(charge.index != 'Cd') & (charge.index != 'Se')])
+    i = charge_tot_new / count
+    charge[(charge.index != 'Cd') & (charge.index != 'Se')] -= i
+else:
+    charge[charge.index == at_type] = move
+    charge_tot_new = charge.sum().round(8)
+    count = len(charge[charge.index != at_type])
+    i = charge_tot_new / count
+    charge[charge.index != at_type] -= i
 
 #carlos.init_armc()
