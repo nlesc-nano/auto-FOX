@@ -2,7 +2,7 @@
 
 __all__ = ['MultiMolecule']
 
-from itertools import chain
+from itertools import (chain, combinations_with_replacement)
 
 import numpy as np
 import pandas as pd
@@ -13,7 +13,8 @@ from scm.plams import (Atom, Bond)
 from .molecule_utils import Molecule
 from .multi_mol_magic import _MultiMolecule
 from ..functions.rdf import (get_rdf, get_rdf_lowmem, get_rdf_df)
-from ..functions.utils import (serialize_array, read_str_file)
+from ..functions.adf import (get_adf, get_adf_df)
+from ..functions.utils import (serialize_array, read_str_file, serialize_array)
 
 
 class MultiMolecule(_MultiMolecule):
@@ -456,7 +457,7 @@ class MultiMolecule(_MultiMolecule):
         atom_subset = atom_subset or tuple(self.atoms.keys())
 
         # Construct a list of 2-tuples containing all unique atom pairs
-        atom_pairs = [(at1, at2) for i, at1 in enumerate(atom_subset) for at2 in atom_subset[i:]]
+        atom_pairs = list(combinations_with_replacement(atom_subset, 2))
 
         # Construct an empty dataframe with appropiate dimensions, indices and keys
         df = get_rdf_df(dr, r_max, atom_pairs)
@@ -528,7 +529,56 @@ class MultiMolecule(_MultiMolecule):
 
     """ ############################  Angular Distribution Functions  ######################### """
 
-    def get_angle_mat(self, mol_subset=0, atom_subset=(None, None, None)):
+    def init_adf(self, atom_subset=None, low_mem=True):
+        """ Initialize the calculation of angular distribution functions (ADFs). ADFs are calculated
+        for all possible atom-pairs in **atom_subset** and returned as a dataframe.
+
+        :parameter atom_subset: A tuple of atomic symbols. RDFs will be calculated for all
+            possible atom-pairs in **atoms**. If *None*, calculate RDFs for all possible atom-pairs
+            in the keys of **self.atoms**.
+        :type atom_subset: |None|_ or |tuple|_ [|str|_]
+        :parameter bool low_mem: If *True*, use a slower but more memory efficient method for
+            constructing the ADFs. WARNING: Constructing ADFs is significantly more memory intensive
+            than ADFs and in most cases it is recommended to keep this argument at *False*.
+        :return: A dataframe of angular distribution functions, averaged over all conformations in
+            **self**.
+        :rtype: |pd.DataFrame|_ (keys: |str|_, values: |np.float64|_, indices: |np.float64|_).
+        """
+        # If **atom_subset** is None: extract atomic symbols from they keys of **self.atoms**
+        atom_subset = atom_subset or tuple(self.atoms.keys())
+
+        # Construct a list of 3-tuples containing all unique atom pairs
+        atom_pairs = list(combinations_with_replacement(atom_subset, 3))
+
+        # Construct an empty dataframe with appropiate dimensions, indices and keys
+        df = get_adf_df(atom_pairs)
+
+        # Fill the dataframe with RDF's, averaged over all conformations in **self.coords**
+        if low_mem:  # Slower low memory approach
+            kwarg = {'mol_subset': None, 'atom_subset': None, 'get_r_max': True}
+            for i, _ in enumerate(self):
+                kwarg['mol_subset'] = i
+                for j, (at1, at2, at3) in enumerate(atom_pairs, 1):
+                    kwarg['atom_subset'] = (at1, at2, at3)
+                    a_mat, r_max = self.get_angle_mat(**kwarg)
+                    try:
+                        df[at1 + ' ' + at2 + ' ' + at3] += get_adf(a_mat, r_max=r_max)
+                    except TypeError:
+                        df['series ' + str(j)] += get_adf(self.get_angle_mat(**kwarg))
+            df /= self.shape[0]
+        else:  # Faster high memory approach
+            kwarg = {'mol_subset': None, 'atom_subset': None, 'get_r_max': True}
+            for i, (at1, at2, at3) in enumerate(atom_pairs, 1):
+                kwarg['atom_subset'] = (at1, at2, at3)
+                a_mat, r_max = self.get_angle_mat(**kwarg)
+                try:
+                    df[at1 + ' ' + at2 + ' ' + at3] = get_adf(a_mat, r_max=r_max)
+                except TypeError:
+                    df['series ' + str(i)] = get_adf(a_mat, r_max=r_max)
+
+        return df
+
+    def get_angle_mat(self, mol_subset=0, atom_subset=(None, None, None), get_r_max=False):
         """ Create and return an angle matrix for all molecules and atoms in **self.coords**.
         Returns a 4D array.
 
@@ -542,30 +592,36 @@ class MultiMolecule(_MultiMolecule):
             If *None*, pick all atoms from **self.coords** for that partical dimension; if an
             atomic symbol, do the same for all indices associated with that particular symbol.
         :type atom_subset: |None|_ or |tuple|_ [|str|_]
+        :parameter bool get_r_max: Whether or not the maximum distance should be returned or not.
         :return: A 4D angle matrix of *m* molecules, created out of three sets of *n*, *k* and
-            *l* atoms.
-        :return type: *m*n*k*l* |np.ndarray|_ [|np.float64|_].
+            *l* atoms. If **get_r_max** = *True*, also return the maximum distance.
+        :return type: *m*n*k*l* |np.ndarray|_ [|np.float64|_] and (optionally) |float|_
         """
         # Define array slices
         mol_subset = self._get_mol_subset(mol_subset)
-        i = mol_subset, self._get_atom_subset(atom_subset[0])
-        j = mol_subset, self._get_atom_subset(atom_subset[1])
-        k = mol_subset, self._get_atom_subset(atom_subset[2])
+        i = self._get_atom_subset(atom_subset[0])
+        j = self._get_atom_subset(atom_subset[1])
+        k = self._get_atom_subset(atom_subset[2])
 
         # Slice and broadcast the XYZ array
-        A = self[i][:, None, ...]
-        B = self[j][..., None, :]
-        C = self[k][..., None, :]
+        A = self[mol_subset][:, i][..., None, :]
+        B = self[mol_subset][:, j][:, None, ...]
+        C = self[mol_subset][:, k][:, None, ...]
 
         # Temporary ignore RuntimeWarnings related to dividing by zero
         with np.errstate(divide='ignore', invalid='ignore'):
             # Prepare the unit vectors
             kwarg1 = {'atom_subset': [atom_subset[0], atom_subset[1]], 'mol_subset': mol_subset}
             kwarg2 = {'atom_subset': [atom_subset[0], atom_subset[2]], 'mol_subset': mol_subset}
-            unit_vec1 = (A - B) / self.get_dist_mat(**kwarg1)[..., None]
-            unit_vec2 = (A - C) / self.get_dist_mat(**kwarg2)[..., None]
+            dist_mat1 = self.get_dist_mat(**kwarg1)[..., None]
+            dist_mat2 = self.get_dist_mat(**kwarg2)[..., None]
+            r_max = max(dist_mat1.max(), dist_mat2.max())
+            unit_vec1 = (B - A) / dist_mat1
+            unit_vec2 = (C - A) / dist_mat2
 
             # Create and return the angle matrix
+            if get_r_max:
+                return np.arccos(np.einsum('ijkl,ijml->ijkm', unit_vec1, unit_vec2)), r_max
             return np.arccos(np.einsum('ijkl,ijml->ijkm', unit_vec1, unit_vec2))
 
     def _get_atom_subset(self, arg):

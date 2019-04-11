@@ -8,7 +8,8 @@ from .__version__ import __version__
 from .functions import (
     read_multi_xyz,
     get_rdf, get_rdf_lowmem,
-    get_template
+    get_template,
+    get_adf
 )
 
 from .classes import (
@@ -21,6 +22,7 @@ __all__ = [
     'read_multi_xyz',
     'get_rdf', 'get_rdf_lowmem',
     'get_template',
+    'get_adf',
     'MultiMolecule',
     'MonteCarlo', 'ARMC',
     'Molecule'

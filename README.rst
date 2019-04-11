@@ -24,7 +24,7 @@ functionalities are currently implemented:
   large numbers of moleculair conformations and/or configurations
   (*e.g.* MD trajectories). (1_)
 - A multi-XYZ reader. (2_)
-- A radial distribution generator (RDF). (3_)
+- A radial and angular distribution generator (RDF & ADF). (3_)
 - A root mean squared displacement generator (RMSD). (4_)
 - A root mean squared fluctuation generator (RMSF). (5_)
 
