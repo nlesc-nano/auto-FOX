@@ -239,7 +239,7 @@ class MonteCarlo():
         self.move.kwarg = kwarg
 
     def reconfigure_job_atr(self, molecule=None, func=Cp2kJob, settings=None,
-                             name=None, path=None):
+                            name=None, path=None):
         """ Reconfigure the attributes in **self.job**, the latter containing all settings related
         to the PLAMS Job class and its subclasses.
 
