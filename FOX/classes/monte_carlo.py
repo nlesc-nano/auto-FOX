@@ -129,7 +129,7 @@ class MonteCarlo():
         """
         # Run an MD calculation
         job_type = self.job.func
-        job = job_type(**self.job)
+        job = job_type(name=self.job.name, molecule=self.job.molecule, settings=self.job.settings)
         results = job.run()
         results.wait()
 
@@ -216,7 +216,7 @@ class MonteCarlo():
         self.move.kwarg = kwarg
 
     def reconfigure_job_atr(self, molecule=None, func=Cp2kJob, settings=None,
-                            name=None, path=None):
+                            name=None, path=None, keep_files=False):
         """ Reconfigure the attributes in **self.job**, the latter containing all settings related
         to the PLAMS Job class and its subclasses.
 
