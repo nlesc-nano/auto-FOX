@@ -4,7 +4,7 @@ __all__ = ['MonteCarlo', 'ARMC']
 
 import os
 import shutil
-from os.path import (join, isdir)
+from os.path import isdir
 
 import numpy as np
 
@@ -14,17 +14,10 @@ from scm.plams.core.settings import Settings
 from scm.plams.core.functions import (init, finish, add_to_class)
 from scm.plams.interfaces.thirdparty.cp2k import Cp2kJob
 
-try:
-    import h5py
-    H5PY_ERROR = False
-except ImportError:
-    __all__ = []
-    H5PY_ERROR = "Use of the FOX.{} class requires the 'h5py' package.\
-                  \n\t'h5py' can be installed via anaconda with the following command:\
-                  \n\tconda install --name FOX -y -c conda-forge h5py"
-
+from .to_hdf5 import HDF5
 from .multi_mol import MultiMolecule
-from ..functions.utils import get_shape
+from ..functions.utils import (get_template, update_charge)
+from ..functions.cp2k_utils import update_cp2k_settings
 
 
 @add_to_class(Results)
@@ -34,54 +27,6 @@ def get_xyz_path(self):
         if 'pos.xyz' in file:
             return self[file]
     raise FileNotFoundError('No .xyz files found in ' + self.job.path)
-
-
-def update_charge(at, charge, series, constrain_dict={}):
-    """ Set the atomic charge of **at** to **charge**, imposing the following constrains to
-    all remaining values in **series**:
-
-        * The total charge must be equal to the sum of all atomic charges in **series**.
-        * Optional constraints, as provided in **constrain_dict**, must be satisfied.
-    Performs an inplace update of **series**.
-
-    |
-
-    Example input (and the resulting charge constrains) for **constrain_dict**:
-
-    .. code-block:: python
-
-        constrain_dict = {}
-        constrain_dict['Cd'] = {'Se': -1, 'OG2D2': -0.5}
-        constrain_dict['Se'] = {'Cd': -1, 'OG2D2': 0.5}
-        constrain_dict['OG2D2'] = {'Se': 2, 'Cd': -2}
-
-    .. math::
-
-        q_{Cd} = -1*q_{Se} = -0.5*q_{OG2D2}
-
-    :parameter str at: An atom type such as *Se*, *Cd* or *OG2D2*.
-    :parameter float charge: The new charge associated with **at**.
-    :parameter series: A series of atomic charges. **series.index** should consist of
-        atom types (see **at**).
-    :type series: |pd.Series|_ (index: |pd.Index|_, values: |np.float64|_)
-    :parameter dict constrain_dict: A dictionary with charge constrains.
-    """
-    if at not in series.index:
-        raise IndexError('{} not available in series.index'.format(str(at)))
-    net_charge = series.sum()
-
-    # Update all constrained charges
-    series[series.index == at] = charge
-    at_list = [at]
-    if at in constrain_dict:
-        for at2 in constrain_dict[at]:
-            at_list.append(at2)
-            series[series.index == at2] *= constrain_dict[at][at2]
-
-    # Update all unconstrained charges
-    criterion = [i not in at_list for i in series.index]
-    i = series[criterion].sum() / net_charge
-    series[criterion] /= i
 
 
 class MonteCarlo():
@@ -106,12 +51,6 @@ class MonteCarlo():
                     * **job** (|plams.Settings|_) – See :meth:`MonteCarlo.reconfigure_job_atr`
     """
     def __init__(self, param, molecule, **kwarg):
-        # Double check of h5py is actually installed
-        try:
-            h5py.__name__
-        except NameError:
-            raise ModuleNotFoundError("No module named 'h5py'")
-
         # Set the inital forcefield parameters
         self.param = param
 
@@ -124,8 +63,9 @@ class MonteCarlo():
         # Settings for running the actual MD calculations
         self.job = Settings()
         self.job.molecule = molecule
+        self.job.charge_series = None
         self.job.func = Cp2kJob
-        self.job.settings = self.get_template()
+        self.job.settings = get_template('md_cp2k.yaml')
         self.job.name = self._get_name()
         self.job.path = os.getcwd()
         self.job.keep_files = False
@@ -135,6 +75,7 @@ class MonteCarlo():
         self.move.range = self.reconfigure_move_range()
         self.move.func = np.add
         self.move.kwarg = {}
+        self.move.charge_constraints = {}
 
         # Set user-specified keywords
         for key in kwarg:
@@ -166,9 +107,15 @@ class MonteCarlo():
     def move(self):
         """ Update a random parameter in **self.param** by a random value from **self.move.range**.
         """
-        i = np.random.choice(len(self.param), 1)
+        i = self.param.loc[:, 'param'].sample()
         j = np.random.choice(self.move.range, 1)
-        self.param[i] = self.move.func(self.param[i], j, **self.move.kwarg)
+        i[:] = self.move.func(i, j, **self.move.kwarg)
+
+        # Constrain the atomic charges
+        if 'charge' in i:
+            for (_, at), charge in i.iteritems():
+                pass
+            update_charge(at, charge, self.job.charge_series, self.move.charge_constraints)
 
     def run_md(self):
         """ Run an MD job, updating the cartesian coordinates of **self.job.mol** and returning
@@ -290,7 +237,7 @@ class MonteCarlo():
         if molecule is not None:
             self.job.molecule = molecule
         self.job.func = func
-        self.job.settings = settings or self.get_template(settings)
+        self.job.settings = settings or get_template('md_cp2k.yaml')
         self.job.name = name or self._get_name()
         self.job.path = path or os.getcwd()
         self.job.keep_files = keep_files
@@ -328,15 +275,15 @@ class ARMC(MonteCarlo):
         """ Initialize the Addaptive Rate Monte Carlo procedure.
 
         :return: A new set of parameters.
-        :rtype: |np.ndarray|_ [|np.float64|_]
+        :rtype: |pd.DataFrame|_ (index: |pd.MultiIndex|_, values: |np.float64|_)
         """
         # Unpack attributes
         acceptance = np.zeros(self.armc.sub_iter_len, dtype=bool)
         sub_iter = self.armc.sub_iter_len
         super_iter = self.armc.iter_len // sub_iter
 
-        # Create a directory for storing pes descriptors
-        self.create_mc_dirs()
+        # Construct the HDF5 class
+        to_disk = HDF5(self)
 
         # Initialize
         init(path=self.job.path, folder='MM_MD_workdir')
@@ -347,75 +294,29 @@ class ARMC(MonteCarlo):
                 key_old = key_new
                 self.move()
                 key_new = tuple(self.param)
-                self.param_to_hdf5(self.param, i, j)
+                to_disk.param(self.param, i, j)
 
                 # Step 2: Check if the move has been performed already
-                value_new = self.get_pes_descriptors(history_dict, key_new)
-                self.pes_descriptors_to_hdf5(value_new, i, j)
+                pes_new = self.get_pes_descriptors(history_dict, key_new)
+                to_disk.pes_descriptors(pes_new, i, j)
 
                 # Step 3: Evaluate the auxilary error
-                value_old = history_dict[key_old]
-                accept = bool(sum(self.get_aux_error(value_old) - self.get_aux_error(value_new)))
-                self.acceptance_to_hdf5(accept, i, j)
+                pes_old = history_dict[key_old]
+                accept = bool(sum(self.get_aux_error(pes_old) - self.get_aux_error(pes_new)))
+                to_disk.acceptance(accept, i, j)
 
                 # Step 4: Update the PES descriptor history
                 if accept:
                     acceptance[j] = True
-                    history_dict[key_new] = self.apply_phi(value_new)
+                    history_dict[key_new] = self.apply_phi(pes_new)
+                    update_cp2k_settings(self.job.settings, self.param)
                 else:
-                    history_dict[key_old] = self.apply_phi(value_old)
+                    history_dict[key_old] = self.apply_phi(pes_old)
             self.update_phi(acceptance)
             acceptance[:] = False
         finish()
 
         return self.param
-
-    def acceptance_to_hdf5(self, acceptance, i, j):
-        """ Add
-
-        :parameter bool acceptance: Whether or not the parameters in the latest Monte Carlo
-            iteration were accepted.
-        :parameter int i: The iteration in the outer loop of :meth:`ARMC.init_armc`.
-        :parameter int j: The subiteration in the inner loop of :meth:`ARMC.init_armc`.
-        """
-        k = j + i * j
-        self._to_hdf5(acceptance, 'acceptance', k)
-
-    def pes_descriptors_to_hdf5(self, descriptor_dict, i, j):
-        """
-
-        :parameter descriptor_dict: The latest set of PES-descriptors.
-        :type descriptor_dict: |dict|_ (keys: |str|_, values: |np.ndarray|_ [|np.float64|_])
-        :parameter int i: The iteration in the outer loop of :meth:`ARMC.init_armc`.
-        :parameter int j: The subiteration in the inner loop of :meth:`ARMC.init_armc`.
-        """
-        k = j + i * j
-        self._to_hdf5(descriptor_dict, 'pes_descriptors', k)
-
-    def param_to_hdf5(self, param, i, j):
-        """
-
-        :parameter param: The latest set of ARMC-optimized parameters.
-        :type param: |np.ndarray|_ [|np.float64|_]
-        :parameter int i: The iteration in the outer loop of :meth:`ARMC.init_armc`.
-        :parameter int j: The subiteration in the inner loop of :meth:`ARMC.init_armc`.
-        """
-        k = j + i * j
-        self._to_hdf5(param, 'param', k)
-
-    def _to_hdf5(self, item, name, k):
-        """
-        :parameter object item: An item which is to be added to an hdf5 file.
-        :parameter str name: The filename (excluding path) of the hdf5 file.
-        :parameter int k: The index in the hdf5 file where item should be placed.
-        """
-        filename = join(self.job.path, name)
-        with h5py.File(filename, 'r+') as f:
-            if isinstance(item, dict):
-                for key in item:
-                    f[key][k] = item[key]
-            else:
-                f[name][k] = item
 
     def get_aux_error(self, pes_dict):
         """ Return the auxiliary error of the PES descriptors in **values** with respect to
@@ -440,7 +341,7 @@ class ARMC(MonteCarlo):
         """
         phi = self.phi.phi
         func = self.phi.func
-        kwarg = self.phi.kwarg
+        kwarg = self.phi.kwargf
         for i in values:
             func(i, phi, **kwarg, out=i)
 
@@ -454,40 +355,6 @@ class ARMC(MonteCarlo):
         """
         sign = np.sign(self.armc.a_target - np.mean(acceptance))
         self.phi.phi *= self.armc.gamma**sign
-
-    def create_hdf5(self):
-        """ Create hdf5 files for storing ARMC results. """
-        path = self.job.path
-
-        # Create a dictionary with the shape and dtype of all to-be stored data
-        shape_dict = Settings()
-        shape_dict.param.shape = self.armc.iter_len, len(self.param)
-        shape_dict.param.dtype = float
-        shape_dict.acceptance.shape = self.armc.iter_len
-        shape_dict.acceptance.dtype = bool
-
-        # Create *n* hdf5 files with a single dataset
-        kwarg = {'chunks': True, 'compression': 'gzip'}
-        for key in shape_dict:
-            filename = join(path, key) + '.hdf5'
-            with h5py.File(filename, 'a') as f:
-                shape = shape_dict[key].shape
-                dtype = shape_dict[key].dtype
-                f.create_dataset(name=key, data=np.zeros(shape, dtype=dtype),
-                                 maxshape=shape, **kwarg)
-
-        # Create a dictionary with the shape for all PES descriptors
-        shape_dict = {}
-        for i, j in zip(self.pes, self.ref):
-            shape_dict[i].shape = (self.armc.iter_len, ) + get_shape(j)
-
-        # Create a single hdf5 files with a *n* dataset
-        filename = join(path, 'pes_descriptors') + '.hdf5'
-        with h5py.File(filename, 'a') as f:
-            for key in shape_dict:
-                shape = shape_dict[key].shape
-                f.create_dataset(name=key, data=np.zeros(shape, dtype=float),
-                                 maxshape=shape, **kwarg)
 
     def reconfigure_armc_atr(self, iter_len=50000, sub_iter_len=100, gamma=2.0, a_target=0.25):
         """ Reconfigure the attributes in **self.armc**, the latter containing all settings
@@ -515,21 +382,3 @@ class ARMC(MonteCarlo):
         self.phi.phi = phi
         self.phi.func = func
         self.phi.kwarg = kwarg
-
-
-# Raise an error when trying to call the MonteCarlo or ARMC class without 'h5py' installed
-if H5PY_ERROR:
-    _doc1 = MonteCarlo.__doc__
-    _doc2 = ARMC.__doc__
-
-    class MonteCarlo(MonteCarlo):
-        def __init__(self, param, molecule, **kwarg):
-            name = str(self.__class__).rsplit("'", 1)[0].rsplit('.', 1)[1]
-            raise ModuleNotFoundError(H5PY_ERROR.format(name))
-    MonteCarlo.__doc__ = _doc1
-
-    class ARMC(ARMC):
-        def __init__(self, param, molecule, **kwarg):
-            name = str(self.__class__).rsplit("'", 1)[0].rsplit('.', 1)[1]
-            raise ModuleNotFoundError(H5PY_ERROR.format(name))
-    ARMC.__doc__ = _doc2
