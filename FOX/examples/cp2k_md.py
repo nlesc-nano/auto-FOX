@@ -4,7 +4,7 @@ from os.path import join
 
 import numpy as np
 
-from scm.plams import add_to_class
+from scm.plams import add_to_class, Settings
 from scm.plams.interfaces.thirdparty.cp2k import Cp2kJob
 
 from FOX.classes.monte_carlo import ARMC
@@ -59,31 +59,9 @@ carlos.armc.iter_len = 100
 carlos.armc.sub_iter_len = 10
 
 # Run ARMC
-charge = df['charge'].copy()
-charge.index = df['atom type']
-charge_tot = charge.sum().round(8)
-
-at_type = 'Cd'
-move = 1.9
-if at_type == 'Cd':
-    charge[charge.index == 'Cd'] = move
-    charge[charge.index == 'Se'] = -move
-    charge_tot_new = charge.sum().round(8)
-    count = len(charge[(charge.index != 'Cd') & (charge.index != 'Se')])
-    i = charge_tot_new / count
-    charge[(charge.index != 'Cd') & (charge.index != 'Se')] -= i
-elif at_type == 'Se':
-    charge[charge.index == 'Se'] = move
-    charge[charge.index == 'Cd'] = -move
-    charge_tot_new = charge.sum().round(8)
-    count = len(charge[(charge.index != 'Cd') & (charge.index != 'Se')])
-    i = charge_tot_new / count
-    charge[(charge.index != 'Cd') & (charge.index != 'Se')] -= i
-else:
-    charge[charge.index == at_type] = move
-    charge_tot_new = charge.sum().round(8)
-    count = len(charge[charge.index != at_type])
-    i = charge_tot_new / count
-    charge[charge.index != at_type] -= i
+charge_constrain = Settings()
+charge_constrain.Cd = {'Se': -1, 'OG2D2': -0.5}
+charge_constrain.Se = {'Cd': -1, 'OG2D2': 0.5}
+charge_constrain.OG2D2 = {'Cd': -2, 'Se': 2}
 
 #carlos.init_armc()

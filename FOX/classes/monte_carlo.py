@@ -37,6 +37,49 @@ def get_xyz_path(self):
     raise FileNotFoundError('No .xyz files found in ' + self.job.path)
 
 
+def update_charge(at, charge, series, constrain_dict={}):
+    """ Update the atomic charge associated with **at** in **series** under the following
+    constrains:
+
+        * The total charge is equal to the sum of all atomic charges in **series**.
+        * Optional constraints as provided in **constrain_dict**.
+    Performs an inplace update of **series**.
+
+    .. code-block:: python
+
+        constrain_dict = {Cd: {'Se': -1, 'OG2D2': -0.5}}
+
+    Enforces the following constrain:
+
+    .. math::
+
+        q_{Cd} = -1*q_{Se} = -0.5*q_{OG2D2}
+
+    :parameter str at: Atom type such as *Se*, *Cd* or *OG2D2*.
+    :parameter float charge: The charge associated with **at**.
+    :parameter series: A series of atomic charges. The **series.index** should consist of the
+        atom types (see **at**).
+    :parameter dict constrain_dict: A dictionary with charge constrains.
+    :type series: |Pd.Series|_ (index: |str|_, values: |np.float64|_)
+    """
+    if at not in series.index:
+        raise IndexError('{} not available in series.index'.format(str(at)))
+    net_charge = series.sum()
+
+    # Update all constrained charges
+    series[series.index == at] = charge
+    at_list = [at]
+    if at in constrain_dict:
+        for at2 in constrain_dict[at]:
+            at_list.append(at2)
+            series[series.index == at2] *= constrain_dict[at][at2]
+
+    # Update all unconstrained charges
+    criterion = [i not in at_list for i in series.index]
+    charge_new = (series.sum() - net_charge) / len(series[criterion])
+    series[criterion] -= charge_new
+
+
 class MonteCarlo():
     """ The base MonteCarlo class.
 
