@@ -4,7 +4,7 @@ __all__ = ['MonteCarlo', 'ARMC']
 
 import os
 import shutil
-from os.path import (join, dirname, isfile, isdir)
+from os.path import (join, isdir)
 
 import numpy as np
 
