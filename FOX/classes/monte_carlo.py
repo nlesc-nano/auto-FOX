@@ -38,29 +38,34 @@ def get_xyz_path(self):
 
 
 def update_charge(at, charge, series, constrain_dict={}):
-    """ Update the atomic charge associated with **at** in **series** under the following
-    constrains:
+    """ Set the atomic charge of **at** to **charge**, imposing the following constrains to
+    all remaining values in **series**:
 
-        * The total charge is equal to the sum of all atomic charges in **series**.
-        * Optional constraints as provided in **constrain_dict**.
+        * The total charge must be equal to the sum of all atomic charges in **series**.
+        * Optional constraints, as provided in **constrain_dict**, must be satisfied.
     Performs an inplace update of **series**.
+
+    |
+
+    Example input (and the resulting charge constrains) for **constrain_dict**:
 
     .. code-block:: python
 
-        constrain_dict = {Cd: {'Se': -1, 'OG2D2': -0.5}}
-
-    Enforces the following constrain:
+        constrain_dict = {}
+        constrain_dict['Cd'] = {'Se': -1, 'OG2D2': -0.5}
+        constrain_dict['Se'] = {'Cd': -1, 'OG2D2': 0.5}
+        constrain_dict['OG2D2'] = {'Se': 2, 'Cd': -2}
 
     .. math::
 
         q_{Cd} = -1*q_{Se} = -0.5*q_{OG2D2}
 
-    :parameter str at: Atom type such as *Se*, *Cd* or *OG2D2*.
-    :parameter float charge: The charge associated with **at**.
-    :parameter series: A series of atomic charges. The **series.index** should consist of the
+    :parameter str at: An atom type such as *Se*, *Cd* or *OG2D2*.
+    :parameter float charge: The new charge associated with **at**.
+    :parameter series: A series of atomic charges. **series.index** should consist of
         atom types (see **at**).
+    :type series: |pd.Series|_ (index: |pd.Index|_, values: |np.float64|_)
     :parameter dict constrain_dict: A dictionary with charge constrains.
-    :type series: |Pd.Series|_ (index: |str|_, values: |np.float64|_)
     """
     if at not in series.index:
         raise IndexError('{} not available in series.index'.format(str(at)))
@@ -76,8 +81,8 @@ def update_charge(at, charge, series, constrain_dict={}):
 
     # Update all unconstrained charges
     criterion = [i not in at_list for i in series.index]
-    charge_new = (series.sum() - net_charge) / len(series[criterion])
-    series[criterion] -= charge_new
+    i = series[criterion].sum() / net_charge
+    series[criterion] /= i
 
 
 class MonteCarlo():
