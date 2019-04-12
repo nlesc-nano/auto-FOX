@@ -6,7 +6,6 @@ import os
 import shutil
 from os.path import (join, dirname, isfile, isdir)
 
-import yaml
 import numpy as np
 
 from scm.plams import Molecule
@@ -126,7 +125,7 @@ class MonteCarlo():
         self.job = Settings()
         self.job.molecule = molecule
         self.job.func = Cp2kJob
-        self.job.settings = self.get_settings()
+        self.job.settings = self.get_template()
         self.job.name = self._get_name()
         self.job.path = os.getcwd()
         self.job.keep_files = False
@@ -242,25 +241,6 @@ class MonteCarlo():
                 shutil.rmtree(path)
             return ret
 
-    def get_settings(self, path=None):
-        """ Grab the template with default CP2K_ MM-MD settings.
-        If **path** is not *None*, read a settings template (.yaml file) from a user-specified path.
-        Performs an inplace update of **self.job.settings**.
-
-        :parameter path: An (optional) user-specified to a .yaml file with job settings
-        :type path: |None|_ or |str|_
-        """
-        if isinstance(path, str):
-            file_name = path
-            assert isfile(path)
-        elif isinstance(path, dict):
-            self.job.settings = Settings(path)
-            return
-        else:
-            file_name = join(join(dirname(dirname(__file__)), 'data'), 'md_cp2k.yaml')
-        with open(file_name, 'r') as file:
-            self.job.settings = yaml.load(file, Loader=yaml.FullLoader)
-
     def reconfigure_move_range(self, start=0.005, stop=0.1, step=0.005):
         """ Generate an with array of all allowed moves, the moves spanning both the positive and
         negative range.
@@ -310,7 +290,7 @@ class MonteCarlo():
         if molecule is not None:
             self.job.molecule = molecule
         self.job.func = func
-        self.job.settings = settings or self.get_settings(settings)
+        self.job.settings = settings or self.get_template(settings)
         self.job.name = name or self._get_name()
         self.job.path = path or os.getcwd()
         self.job.keep_files = keep_files
@@ -539,12 +519,17 @@ class ARMC(MonteCarlo):
 
 # Raise an error when trying to call the MonteCarlo or ARMC class without 'h5py' installed
 if H5PY_ERROR:
+    _doc1 = MonteCarlo.__doc__
+    _doc2 = ARMC.__doc__
+
     class MonteCarlo(MonteCarlo):
-        def __init__(self, *arg, **kwarg):
+        def __init__(self, param, molecule, **kwarg):
             name = str(self.__class__).rsplit("'", 1)[0].rsplit('.', 1)[1]
             raise ModuleNotFoundError(H5PY_ERROR.format(name))
+    MonteCarlo.__doc__ = _doc1
 
     class ARMC(ARMC):
-        def __init__(self, *arg, **kwarg):
+        def __init__(self, param, molecule, **kwarg):
             name = str(self.__class__).rsplit("'", 1)[0].rsplit('.', 1)[1]
             raise ModuleNotFoundError(H5PY_ERROR.format(name))
+    ARMC.__doc__ = _doc2

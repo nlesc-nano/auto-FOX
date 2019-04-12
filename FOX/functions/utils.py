@@ -5,10 +5,19 @@ __all__ = ['get_template']
 from os.path import join
 import pkg_resources as pkg
 
-import yaml
 import pandas as pd
 
 from scm.plams import Settings
+
+try:
+    import yaml
+    YAML_ERROR = False
+except ImportError:
+    __all__ = []
+    YAML_ERROR = "Use of the FOX.{} function requires the 'pyyaml' package.\
+                  \n\t'pyyaml' can be installed via anaconda or pip with the following commands:\
+                  \n\tconda install --name FOX -y -c conda-forge pyyaml>=5.1\
+                  \n\tpip install pyyaml>=5.1"
 
 
 def get_template(name, path=None):
@@ -177,3 +186,11 @@ def dict_to_pandas(input_dict, name=0, object_type='DataFrame'):
         return pd.Series(list(flat_dict.values()), index=idx, name=name)
     elif object_type.lower() == 'dataframe':
         return pd.DataFrame(list(flat_dict.values()), index=idx, columns=[name])
+
+
+# If pyyaml is not installed
+if YAML_ERROR:
+    _doc = get_template.__doc__
+    def get_template(name, path=None):
+        raise ModuleNotFoundError(YAML_ERROR.format('get_template'))
+    get_template.__doc__ = _doc

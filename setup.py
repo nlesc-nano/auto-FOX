@@ -58,7 +58,6 @@ setup(
         'numpy',
         'scipy',
         'pandas',
-        'pyyaml>=5.1',
         'plams@git+https://github.com/SCM-NV/PLAMS@release'
     ],
     setup_requires=[
