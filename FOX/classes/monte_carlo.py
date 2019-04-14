@@ -14,10 +14,10 @@ from scm.plams.core.settings import Settings
 from scm.plams.core.functions import (init, finish, add_to_class)
 from scm.plams.interfaces.thirdparty.cp2k import Cp2kJob
 
-from .to_hdf5 import HDF5
 from .multi_mol import MultiMolecule
 from ..functions.utils import (get_template, update_charge)
-from ..functions.cp2k_utils import update_cp2k_settings
+from ..functions.cp2k_utils import (update_cp2k_settings)
+from ..functions.hdf5_utils import (create_hdf5, index_to_hdf5, to_hdf5)
 
 
 @add_to_class(Results)
@@ -106,6 +106,10 @@ class MonteCarlo():
 
     def move(self):
         """ Update a random parameter in **self.param** by a random value from **self.move.range**.
+        Performs in inplace update of the *param* column in **self.param**.
+
+        :return: A tuple with the (new) values in the *param* column of **self.param**.
+        :rtype: |tuple|_ [|float|_]
         """
         i = self.param.loc[:, 'param'].sample()
         j = np.random.choice(self.move.range, 1)
@@ -116,6 +120,9 @@ class MonteCarlo():
             for (_, at), charge in i.iteritems():
                 pass
             update_charge(at, charge, self.job.charge_series, self.move.charge_constraints)
+
+        # Return a tuple with the new parameters
+        return tuple(self.param['param'].values)
 
     def run_md(self):
         """ Run an MD job, updating the cartesian coordinates of **self.job.mol** and returning
@@ -279,31 +286,33 @@ class ARMC(MonteCarlo):
         """
         # Unpack attributes
         acceptance = np.zeros(self.armc.sub_iter_len, dtype=bool)
-        sub_iter = self.armc.sub_iter_len
-        super_iter = self.armc.iter_len // sub_iter
+        super_iter = self.armc.iter_len // self.armc.sub_iter_len
 
-        # Construct the HDF5 class
-        to_disk = HDF5(self)
+        # Construct the HDF5 file
+        create_hdf5(self)
+        hdf5_kwarg = {'param': self.param, 'acceptance': None}
 
-        # Initialize
+        # Initialize the first MD simulation
         init(path=self.job.path, folder='MM_MD_workdir')
         key_new, history_dict = self.run_first_md()
+        hdf5_kwarg.update(history_dict[key_new])
+        index_to_hdf5(hdf5_kwarg, self.job.path)
+
+        # Start the ARMC optimization
         for i in range(super_iter):
-            for j in range(sub_iter):
+            for j in range(self.armc.sub_iter_len):
                 # Step 1: Perform a random move
-                key_old = key_new
-                self.move()
-                key_new = tuple(self.param)
-                to_disk.param(self.param, i, j)
+                key_old, key_new = key_new, self.move()
+                hdf5_kwarg['param'] = self.param
 
                 # Step 2: Check if the move has been performed already
                 pes_new = self.get_pes_descriptors(history_dict, key_new)
-                to_disk.pes_descriptors(pes_new, i, j)
+                hdf5_kwarg.update(pes_new)
 
                 # Step 3: Evaluate the auxilary error
                 pes_old = history_dict[key_old]
                 accept = bool(sum(self.get_aux_error(pes_old) - self.get_aux_error(pes_new)))
-                to_disk.acceptance(accept, i, j)
+                hdf5_kwarg['acceptance'] = accept
 
                 # Step 4: Update the PES descriptor history
                 if accept:
@@ -312,10 +321,13 @@ class ARMC(MonteCarlo):
                     update_cp2k_settings(self.job.settings, self.param)
                 else:
                     history_dict[key_old] = self.apply_phi(pes_old)
+
+                # Step 5: Export the results to HDF5
+                to_hdf5(hdf5_kwarg, i, j, self.job.path)
+
             self.update_phi(acceptance)
             acceptance[:] = False
         finish()
-
         return self.param
 
     def get_aux_error(self, pes_dict):
