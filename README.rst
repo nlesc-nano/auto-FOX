@@ -63,19 +63,24 @@ Installing **Auto-FOX**
 
 - If using Conda, enable the environment: ``conda activate FOX``
 
-- Install **Auto-FOX** using pip: ``pip install git+https://github.com/nlesc-nano/auto-FOX@master --upgrade``
+- Install **Auto-FOX** with PyPi: ``pip install git+https://github.com/nlesc-nano/auto-FOX@master --upgrade``
 
 - Congratulations, **Auto-FOX** is now installed and ready for use!
 
 Optional dependencies
 ---------------------
 
--  For the plotting of data produced by **Auto-FOX** install Matplotlib_.
-   Matplotlib can be installed with either conda or pip:
+-  The plotting of data produced by **Auto-FOX** requires Matplotlib_.
+   Matplotlib is distributed by both PyPi and Anaconda:
 
    -  Anaconda:   ``conda install --name FOX -y -c conda-forge matplotlib``
 
-   -  PIP:        ``pip install matplotlib``
+   -  PyPi:       ``pip install matplotlib``
+
+-  Use of the FOX.monte_carlo_ module requires H5py_ and PyYAML_.
+   Note: H5py is not distrbuted via PyPi:
+
+   -  Anaconda:   ``conda install --name FOX -y -c conda-forge h5py pyyaml``
 
 Using **Auto-FOX**
 ==================
@@ -86,8 +91,8 @@ Using **Auto-FOX**
 - An example MD trajectory of a CdSe quantum dot is included
   in the FOX.data_ directory.
 
-   - The absolute path + filename of aforementioned trajectory
-     can be retrieved as following:
+  - The absolute path + filename of aforementioned trajectory
+    can be retrieved as following:
 
 ::
 
@@ -110,3 +115,6 @@ Using **Auto-FOX**
 .. _Matplotlib: https://matplotlib.org/
 .. _FOX.data: https://github.com/nlesc-nano/auto-FOX/blob/master/FOX/data
 .. _FOX.examples: https://github.com/nlesc-nano/auto-FOX/blob/master/FOX/examples/input.py
+.. _H5py: https://www.h5py.org/
+.. _PyYAML: https://pyyaml.org/
+.. _FOX.monte_carlo: https://auto-fox.readthedocs.io/en/latest/4_monte_carlo.html
