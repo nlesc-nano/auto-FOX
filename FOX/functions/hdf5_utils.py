@@ -23,7 +23,18 @@ from ..functions.utils import get_shape
 
 
 def create_hdf5(mc_kwarg, name='MC.hdf5'):
-    """ """
+    """ Create a hdf5 file to hold all addaptive rate Mone Carlo results (:class:`FOX.ARMC`).
+    Datasets are created to hold a number of results following results over the course of the MC optimization:
+
+    * The acceptance rate (dataset: *acceptance*)
+    * The parameters (dataset: *param*)
+    * User-specified PES descriptors (dataset(s): user-specified name(s))
+    * The *index*, *columns* and/or *name* attributes above-mentioned results
+
+    :parameter mc_kwarg: An ARMC object.
+    :type mc_kwarg: |FOX.ARMC|_
+    :parameter str name: The name (including extension) of the hdf5 file.
+    """
     path = mc_kwarg.job.path
     filename = join(path, name)
 
@@ -38,7 +49,7 @@ def create_hdf5(mc_kwarg, name='MC.hdf5'):
         shape_dict[key].dtype = np.float64
 
     # Create a hdf5 file with *n* datasets
-    with h5py.File(filename, 'a') as f:
+    with h5py.File(filename, 'w-') as f:
         f.iteration = -1
         f.subiteration = -1
         for key, value in shape_dict.items():
@@ -46,42 +57,47 @@ def create_hdf5(mc_kwarg, name='MC.hdf5'):
             dtype = value.dtype
             f.create_dataset(name=key, shape=shape, maxshape=shape, dtype=dtype)
 
+    # Store the *index*, *column* and *name* attributes of dataframes/series in the hdf5 file
+    pd_dict = {'param': mc_kwarg.param}
+    for key, value in mc_kwarg.pes.items():
+        pd_dict[key] = value.ref
+    index_to_hdf5(pd_dict, path)
 
-def index_to_hdf5(dict_, path=None, name='MC.hdf5'):
+
+def index_to_hdf5(pd_dict, path=None, name='MC.hdf5'):
     """ Export the *index* and *columns* / *name* attributes of a Pandas dataframe/series to a
     pre-existing hdf5 file.
-    Attributes are exported for all dataframes/series in **dict_** and skipped otherwise.
-    The keys in **dict_**, together with the attribute names, are used for naming the datasets:
+    Attributes are exported for all dataframes/series in **pd_dict** and skipped otherwise.
+    The keys in **pd_dict**, together with the attribute names, are used for naming the datasets:
 
     .. code-block:: python
 
-        >>> dict_ = {}
-        >>> dict_['df'] = pd.DataFrame(np.random.rand(10, 10))
-        >>> dict_['series'] = pd.Series(np.random.rand(10))
-        >>> index_to_hdf5(dict_, name='my_file.hdf5')
+        >>> pd_dict = {}
+        >>> pd_dict['df'] = pd.DataFrame(np.random.rand(10, 10))
+        >>> pd_dict['series'] = pd.Series(np.random.rand(10))
+        >>> index_to_hdf5(pd_dict, name='my_file.hdf5')
 
         >>> with h5py.File('my_file.hdf5', 'r') as f:
         >>>     tuple(f.keys())
         ('df.columns', 'df.index', 'series.index', 'series.name')
 
-    :parameter dict_: A dictionary with dataset names as keys and matching array-like objects
+    :parameter pd_dict: A dictionary with dataset names as keys and matching array-like objects
         as values.
     :parameter str path: The path where the the hdf5 file is stored.
-    :parameter str name: The name (including extension) of the hdf5 file
+    :parameter str name: The name (including extension) of the hdf5 file.
     """
     path = path or os.getcwd()
     filename = join(path, name)
     attr_tup = ('index', 'columns', 'name')
 
     with h5py.File(filename, 'r+') as f:
-        for key, value in dict_.items():
+        for key, value in pd_dict.items():
             key += '.{}'
             for attr_name in attr_tup:
-                if not hasattr(value, attr_name):
-                    continue
-                attr = getattr(value, attr_name)
-                i, j = key.format(attr_name), _attr_to_array(attr)
-                f.create_dataset(i, data=j)
+                if hasattr(value, attr_name):
+                    attr = getattr(value, attr_name)
+                    i, j = key.format(attr_name), _attr_to_array(attr)
+                    f.create_dataset(i, data=j)
 
 
 def _attr_to_array(item):
@@ -107,7 +123,7 @@ def _attr_to_array(item):
 
     # Convert **item** into an array
     ret = np.array(item.to_list())
-    if isinstance(ret.dtype.type, np.str_):  # h5py does not support unicode strings
+    if 'U' in ret.dtype.str:  # h5py does not support unicode strings
         return ret.astype('S', copy=False)  # Convert to byte strings
     return ret
 

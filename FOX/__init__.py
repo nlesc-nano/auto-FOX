@@ -10,7 +10,7 @@ from .functions import (
     get_rdf, get_rdf_lowmem,
     get_template,
     get_adf,
-    create_hdf5, index_to_hdf5, to_hdf5
+    create_hdf5, to_hdf5
 )
 
 from .classes import (
@@ -24,7 +24,7 @@ __all__ = [
     'get_rdf', 'get_rdf_lowmem',
     'get_template',
     'get_adf',
-    'create_hdf5', 'index_to_hdf5', 'to_hdf5',
+    'create_hdf5', 'to_hdf5',
     'MultiMolecule',
     'MonteCarlo', 'ARMC',
     'Molecule'
