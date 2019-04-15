@@ -17,7 +17,7 @@ from scm.plams.interfaces.thirdparty.cp2k import Cp2kJob
 from .multi_mol import MultiMolecule
 from ..functions.utils import (get_template, update_charge)
 from ..functions.cp2k_utils import (update_cp2k_settings)
-from ..functions.hdf5_utils import (create_hdf5, index_to_hdf5, to_hdf5)
+from ..functions.hdf5_utils import (create_hdf5, to_hdf5)
 
 
 @add_to_class(Results)
