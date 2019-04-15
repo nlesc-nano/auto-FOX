@@ -24,7 +24,7 @@ from ..functions.hdf5_utils import (create_hdf5, to_hdf5)
 def get_xyz_path(self):
     """ Return the path + filename to an .xyz file. """
     for file in self.files:
-        if 'pos.xyz' in file:
+        if '-pos' in file and '.xyz' in file:
             return self[file]
     raise FileNotFoundError('No .xyz files found in ' + self.job.path)
 
