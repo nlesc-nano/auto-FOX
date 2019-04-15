@@ -93,7 +93,9 @@ class MonteCarlo():
 
     def _get_name(self):
         """ Return a jobname derived from **self.job.func**. """
-        return str(self.job.func).rsplit("'", 1)[0].rsplit('.', 1)[-1]
+        ret = str(self.job.func)
+        ret = ret.rsplit("'", 1)[0].rsplit('.', 1)[-1]
+        return ret.lower()
 
     def _sanitize(self):
         """ Sanitize and validate all arguments of __init__(). """
