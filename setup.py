@@ -31,7 +31,7 @@ setup(
     ],
     package_dir={'FOX': 'FOX'},
     package_data={'FOX': [
-        'data/Cd68Se55_26COO_MD_trajec.xyz',
+        'data/*.xyz',
         'data/*.yaml'
     ]},
     include_package_data=True,
