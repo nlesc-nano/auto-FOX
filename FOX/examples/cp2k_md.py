@@ -26,7 +26,7 @@ mol.as_psf(join(path, 'qd.psf'))
 
 # Generate (CP2K) job settings
 s = get_template('md_cp2k.yaml')
-s.input.force_eval.subsys.topology = join(path, 'qd.psf')
+s.input.force_eval.subsys.topology.conn_file_name = join(path, 'qd.psf')
 s.input.force_eval.mm.forcefield.parm_file_name = join(path, 'par_all36_cgenff.prm')
 
 # Set charges & LJ potential
