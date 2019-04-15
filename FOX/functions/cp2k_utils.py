@@ -45,6 +45,8 @@ def set_lennard_jones(settings, lj_df):
         settings.input.force_eval.mm.forcefield.nonbonded[i] = {'name': j, 'rcut': 12.0}
         lj_df.at[j, 'key'] = i
         dict_ = lj_df.loc[j, ['epsilon', 'sigma']].to_dict()
+        dict_['atoms'] = dict_['name']
+        del dict_['name']
         settings.input.force_eval.mm.forcefield.nonbonded[i].update(dict_)
 
 
