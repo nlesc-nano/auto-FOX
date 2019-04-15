@@ -69,6 +69,11 @@ Installing **Auto-FOX**
 
 Optional dependencies
 ---------------------
+-  "Just give me all optional dependancies (6_)":
+
+   -  Anaconda:   ``conda install --name FOX -y -c conda-forge matplotlib h5py pyyaml``
+
+|
 
 -  The plotting of data produced by **Auto-FOX** requires Matplotlib_.
    Matplotlib is distributed by both PyPi and Anaconda:
@@ -109,6 +114,7 @@ Using **Auto-FOX**
 .. _3: https://auto-fox.readthedocs.io/en/latest/1_rdf.html
 .. _4: https://auto-fox.readthedocs.io/en/latest/2_rmsd.html#root-mean-squared-displacement
 .. _5: https://auto-fox.readthedocs.io/en/latest/2_rmsd.html#root-mean-squared-fluctuation
+.. _6: https://www.youtube.com/watch?v=hFDcoX7s6rE
 .. _documentation: https://auto-fox.readthedocs.io/en/latest/
 .. _Miniconda: http://conda.pydata.org/miniconda.html
 .. _Anaconda: https://www.anaconda.com/distribution/#download-section
