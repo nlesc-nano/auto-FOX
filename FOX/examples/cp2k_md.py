@@ -2,7 +2,6 @@
 
 from os.path import join
 
-import numpy as np
 import pandas as pd
 
 from scm.plams import Settings
@@ -52,7 +51,8 @@ charge_constrain.Se = {'Cd': -1, 'OG2D2': 0.5}
 charge_constrain.OG2D2 = {'Cd': -2, 'Se': 2}
 
 # Prepare the ARMC settings
-carlos = ARMC(np.zeros(10), mol)
+carlos = ARMC(param, mol)
+carlos.job.path = path
 carlos.job.charge_series = df['charge']
 carlos.job.charge_series.index = df['atom type']
 carlos.pes.rdf.func = MultiMolecule.init_rdf
