@@ -10,7 +10,7 @@
 Automated Forcefield Optimization Extension 0.2.2
 #################################################
 
-**Auto-FOX** is a tool for parameterizing forcefields by reproducing
+**Auto-FOX** is a library for parameterizing forcefields by reproducing
 radial distribution functions.
 Further details are provided in the documentation_.
 
