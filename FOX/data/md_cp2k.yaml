@@ -27,7 +27,8 @@ input:
                 coord_file_format: 'OFF'
                 conn_file_format: PSF
                 conn_file_name: ''
-                center_coordinates: False
+                center_coordinates:
+                    center_point: '0.0 0.0 0.0'
 
     motion:
         md:
