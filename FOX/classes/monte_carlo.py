@@ -292,17 +292,14 @@ class ARMC(MonteCarlo):
         create_hdf5(self)
         hdf5_kwarg = {'param': self.param, 'acceptance': None}
 
-        # Initialize the first MD simulation
+        # Initialize
         init(path=self.job.path, folder='MM_MD_workdir')
         key_new, history_dict = self.run_first_md()
-        hdf5_kwarg.update(history_dict[key_new])
-        index_to_hdf5(hdf5_kwarg, self.job.path)
-
-        # Start the ARMC optimization
         for i in range(super_iter):
             for j in range(self.armc.sub_iter_len):
                 # Step 1: Perform a random move
-                key_old, key_new = key_new, self.move()
+                key_old = key_new
+                key_new = self.move()
                 hdf5_kwarg['param'] = self.param
 
                 # Step 2: Check if the move has been performed already
