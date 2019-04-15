@@ -10,7 +10,7 @@
 Automated Forcefield Optimization Extension 0.3.0
 #################################################
 
-**Auto-FOX** is a tool for manipulating & analyzing potential energy surfaces (PESs)
+**Auto-FOX** is a tool for analyzing potential energy surfaces (PESs)
 and using the resulting PES descriptors for constructing forcefield parameters.
 Further details are provided in the documentation_.
 
