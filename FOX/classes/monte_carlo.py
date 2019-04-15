@@ -141,8 +141,8 @@ class MonteCarlo():
         results.wait()
 
         # Construct and return a MultiMolecule object
-        mol =  MultiMolecule(filename=results.get_xyz_path())
-        self.job.mol.from_array(mol[-1])
+        mol = MultiMolecule(filename=results.get_xyz_path())
+        self.job.mol = mol.as_Molecule(0)[0]
         return mol, job.path
 
     def run_first_md(self):
