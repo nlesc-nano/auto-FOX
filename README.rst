@@ -99,8 +99,8 @@ Optional dependencies
 
    -  PyPi:       ``pip install matplotlib``
 
--  Use of the FOX.monte_carlo_ module requires H5py_ and PyYAML_.
-   Note: H5py is not distrbuted via PyPi:
+-  Use of the FOX.monte_carlo_ module requires h5py_ and PyYAML_.
+   Note: h5py is not distrbuted via PyPi:
 
    -  Anaconda:   ``conda install --name FOX -y -c conda-forge h5py pyyaml``
 
@@ -117,6 +117,6 @@ Optional dependencies
 .. _Matplotlib: https://matplotlib.org/
 .. _FOX.data: https://github.com/nlesc-nano/auto-FOX/blob/master/FOX/data
 .. _FOX.examples: https://github.com/nlesc-nano/auto-FOX/blob/master/FOX/examples/input.py
-.. _H5py: https://www.h5py.org/
+.. _h5py: https://www.h5py.org/
 .. _PyYAML: https://pyyaml.org/
 .. _FOX.monte_carlo: https://auto-fox.readthedocs.io/en/latest/4_monte_carlo.html
