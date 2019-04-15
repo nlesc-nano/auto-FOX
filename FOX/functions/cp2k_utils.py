@@ -4,8 +4,6 @@ __all__ = ['set_subsys_kind', 'set_lennard_jones', 'set_atomic_charges', 'update
 
 import itertools
 
-import pandas as pd
-
 
 def set_subsys_kind(settings, df):
     """ Set the FORCE_EVAL/SUBSYS/KIND_ keyword(s) in CP2K job settings.
@@ -44,9 +42,10 @@ def set_lennard_jones(settings, lj_df):
     lj_df['key'] = None
     key_map = map(''.join, itertools.product(*zip('LENNARD-JONES', 'lennard-jones')))
     for i, j in zip(key_map, lj_df.index):
-        settings.input.mm.forcefield.nonbonded[i] = {'name': j, 'rcut': 12.0}
-        settings.input.mm.forcefield.nonbonded[i].update(lj_df.loc[j, ['epsilon', 'sigma']].to_dict())
+        settings.input.force_eval.mm.forcefield.nonbonded[i] = {'name': j, 'rcut': 12.0}
         lj_df.at[j, 'key'] = i
+        dict_ = lj_df.loc[j, ['epsilon', 'sigma']].to_dict()
+        settings.input.force_eval.mm.forcefield.nonbonded[i].update(dict_)
 
 
 def set_atomic_charges(settings, charge_df):
@@ -63,8 +62,11 @@ def set_atomic_charges(settings, charge_df):
     charge_df['key'] = None
     key_map = map(''.join, itertools.product(*zip('CHARGE', 'charge')))
     for i, j in zip(key_map, charge_df.index):
-        settings.input.mm.forcefield[i] = {'atom': j, 'charge': charge_df.at[j, 'charge']}
         charge_df.at[j, 'key'] = i
+        settings.input.force_eval.mm.forcefield[i] = {
+            'atom': j,
+            'charge': charge_df.at[j, 'charge']
+        }
 
 
 def update_cp2k_settings(settings, param):
