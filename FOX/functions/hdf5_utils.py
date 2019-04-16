@@ -19,9 +19,10 @@ except ImportError:
                   \n\t'h5py' can be installed via anaconda with the following command:\
                   \n\tconda install --name FOX -y -c conda-forge h5py"
 
-from ..functions.utils import get_shape
+from ..functions.utils import (get_shape, assert_error)
 
 
+@assert_error(H5PY_ERROR)
 def create_hdf5(mc_kwarg, name='MC.hdf5'):
     """ Create a hdf5 file to hold all addaptive rate Mone Carlo results (:class:`FOX.ARMC`).
     Datasets are created to hold a number of results following results over the course of the
@@ -65,6 +66,7 @@ def create_hdf5(mc_kwarg, name='MC.hdf5'):
     index_to_hdf5(pd_dict, path)
 
 
+@assert_error(H5PY_ERROR)
 def index_to_hdf5(pd_dict, path=None, name='MC.hdf5'):
     """ Export the *index* and *columns* / *name* attributes of a Pandas dataframe/series to a
     pre-existing hdf5 file.
@@ -129,6 +131,7 @@ def _attr_to_array(item):
     return ret
 
 
+@assert_error(H5PY_ERROR)
 def to_hdf5(dict_, i, j, path=None, name='MC.hdf5'):
     """ Export results from **dict_** to the hdf5 file **name**.
 
@@ -148,23 +151,3 @@ def to_hdf5(dict_, i, j, path=None, name='MC.hdf5'):
         f.subiteration = j
         for key, value in dict_.items():
             f[key][k] = value
-
-
-# If hdf5 is not installed
-if H5PY_ERROR:
-    _doc1 = create_hdf5.__doc__
-    _doc2 = index_to_hdf5.__doc__
-    _doc3 = to_hdf5.__doc__
-
-    def create_hdf5(mc_kwarg, name='MC.hdf5'):
-        raise ModuleNotFoundError(H5PY_ERROR.format('create_hdf5'))
-
-    def index_to_hdf5(dict_, path=None, name='MC.hdf5'):
-        raise ModuleNotFoundError(H5PY_ERROR.format('index_to_hdf5'))
-
-    def to_hdf5(dict_, i, j, path=None, name='MC.hdf5'):
-        raise ModuleNotFoundError(H5PY_ERROR.format('to_hdf5'))
-
-    to_hdf5.__doc__ = _doc1
-    create_hdf5.__doc__ = _doc2
-    index_to_hdf5.__doc__ = _doc3

@@ -1,13 +1,14 @@
 """ A module with miscellaneous functions. """
 
-__all__ = ['get_template', 'template_to_df', 'update_charge']
+__all__ = ['get_template', 'template_to_df', 'update_charge', 'assert_error']
 
 from os.path import join
+from functools import wraps
 import pkg_resources as pkg
 
 import pandas as pd
 
-from scm.plams import Settings
+from scm.plams import Settings, add_to_class
 
 try:
     import yaml
@@ -20,6 +21,35 @@ except ImportError:
                   \n\tpip install pyyaml"
 
 
+def assert_error(f_type, error_msg=''):
+    """ Take function or class; if **error_msg** is not *false* then calling said function/class
+    will raise a ModuleNotFoundError in the future.
+    Indended for use as a decorater.
+
+    :parameter str message: A to-be printed error message. **mesage** must contain a single set
+        of curly braces.
+    :parameter f_type: A type object of a function or class.
+    :type f_type: |type|_
+    """
+    # If no error message has been provided
+    if not error_msg:
+        return f_type
+
+    # If **f** is a function
+    if f_type.__class__.__name__ == 'function':
+        @wraps(f_type)
+        def wrapper(*arg, **kwarg):
+            raise ModuleNotFoundError(error_msg.format(f_type.__name__))
+        return wrapper
+
+    # If **f** is a class
+    elif f_type.__class__.__name__ == 'type':
+        @add_to_class(f_type)
+        def __init__(*arg, **kwarg):
+            raise ModuleNotFoundError(error_msg.format(f_type.__name__))
+
+
+@assert_error(YAML_ERROR)
 def get_template(name, path=None, as_settings=True):
     """ Grab a .yaml template and turn it into a Settings object.
 
@@ -255,13 +285,3 @@ def update_charge(at, charge, series, constrain_dict={}):
     criterion = [i not in at_list for i in series.index]
     i = series[criterion].sum() / net_charge
     series[criterion] /= i
-
-
-# If pyyaml is not installed
-if YAML_ERROR:
-    _doc = get_template.__doc__
-
-    def get_template(name, path=None):
-        raise ModuleNotFoundError(YAML_ERROR.format('get_template'))
-
-    get_template.__doc__ = _doc

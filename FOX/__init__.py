@@ -8,7 +8,7 @@ from .__version__ import __version__
 from .functions import (
     read_multi_xyz,
     get_rdf, get_rdf_lowmem,
-    get_template,
+    get_template, assert_error,
     get_adf,
     create_hdf5, to_hdf5
 )
@@ -22,7 +22,7 @@ from .classes import (
 __all__ = [
     'read_multi_xyz',
     'get_rdf', 'get_rdf_lowmem',
-    'get_template',
+    'get_template', 'assert_error'
     'get_adf',
     'create_hdf5', 'to_hdf5',
     'MultiMolecule',
