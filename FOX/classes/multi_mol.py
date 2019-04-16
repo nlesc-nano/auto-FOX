@@ -14,7 +14,7 @@ from .molecule_utils import Molecule
 from .multi_mol_magic import _MultiMolecule
 from ..functions.rdf import (get_rdf, get_rdf_lowmem, get_rdf_df)
 from ..functions.adf import (get_adf, get_adf_df)
-from ..functions.utils import (serialize_array, read_str_file, serialize_array)
+from ..functions.utils import (serialize_array, read_str_file)
 
 
 class MultiMolecule(_MultiMolecule):
@@ -347,6 +347,7 @@ class MultiMolecule(_MultiMolecule):
         df.index.name = 'Arbitrary atomic index'
         return df
 
+
     def get_rmsd(self, mol_subset=None, atom_subset=None):
         """ Calculate the root mean square displacement (RMSD) with respect to the first molecule
         **self.coords**. Returns a dataframe with the RMSD as a function of the XYZ frame numbers.
@@ -432,6 +433,137 @@ class MultiMolecule(_MultiMolecule):
         elif isinstance(subset[0][0], int):
             return True  # subset is a nested iterable of *str*
         raise TypeError()
+
+    """ #############################  Determining shell structures  ######################### """
+
+    def init_shell_search(self, mol_subset=None, atom_subset=None, rdf_cutoff=0.5):
+        """ Calculate and return properties which can help determining shell structures.
+        The following two properties are calculated and returned:
+
+        * The mean distance (per atom) with respect to the center of mass (*i.e.* a modified RMSF).
+        * A series mapping abritrary atomic indices in the RMSF to the actual atomic indices.
+        * The radial distribution function (RDF) with respect to the center of mass.
+
+        :parameter mol_subset: Perform the calculation on a subset of molecules in **self**, as
+            determined by their moleculair index. Include all *m* molecules in **self** if *None*.
+        :type mol_subset: |None|_, |int|_ or |list|_ [|int|_]
+        :parameter atom_subset: Perform the calculation on a subset of atoms in **self**, as
+            determined by their atomic index or atomic symbol.  Include all *n* atoms per molecule
+            in **self** if *None*.
+        :type atom_subset:  |None|_, |int|_ or |str|_
+        :parameter float rdf_cutoff: Remove all values in the RDF below this value (Angstrom).
+            Usefull for dealing with divergence as the "inter-atomic" distance approaches 0.0 A.
+        :return: Returns the following items:
+
+            1. A dataframe holding the mean distance of all atoms with respect the to center
+            of mass.
+
+            2. A series mapping the indices from 1. to the actual atomic indices.
+
+            3. A dataframe holding the RDF with respect to the center of mass.
+
+        :rtype: |pd.DataFrame|_, |pd.Series|_ and |pd.DataFrame|_
+        """
+        def _get_mean_dist(mol_cp, at):
+            ret = np.linalg.norm(mol_cp.coords[:, mol_cp.atoms[at]], axis=2).mean(axis=0)
+            at_idx = np.argsort(ret)
+            return at_idx, sorted(ret)
+
+        # Prepare slices
+        i = self._get_mol_subset(mol_subset)
+        atom_subset = atom_subset or tuple(self.atoms.keys())
+
+        # Calculate the mean distance (per atom) with respect to the center of mass
+        # Conceptually similar an RMSF, the "fluctuation" being with respect to the center of mass
+        dist_mean = []
+        mol_cp = self.deepcopy()
+        mol_cp.coords = mol_cp[i]
+        mol_cp -= mol_cp.get_center_of_mass()[:, None, :]
+        at_idx, dist_mean = zip(*[_get_mean_dist(mol_cp, at) for at in atom_subset])
+
+        # Create Series containing the actual atomic indices
+        at_idx = list(chain.from_iterable(at_idx))
+        idx_series = pd.Series(np.arange(0, self.shape[1]), name='Actual atomic index')
+        idx_series.loc[0:len(at_idx)-1] = at_idx
+        idx_series.index.name = 'Arbitrary atomic index'
+
+        # Cast the modified RMSF results in a dataframe
+        index = np.arange(0, self.shape[1])
+        kwarg = {'loop': True, 'atom_subset': atom_subset}
+        columns, data = mol_cp._get_rmsf_columns(dist_mean, index, **kwarg)
+        rmsf = pd.DataFrame(data, columns=columns, index=index)
+        rmsf.columns.name = 'Distance from origin\n  /  Ångström'
+        rmsf.index.name = 'Arbitrary atomic index'
+
+        # Calculate the RDF with respect to the center of mass
+        at_dummy = np.zeros_like(mol_cp.coords[:, 0, :])[:, None, :]
+        mol_cp.coords = np.hstack((mol_cp.coords, at_dummy))
+        mol_cp.atoms['origin'] = [mol_cp.shape[1] - 1]
+        atom_subset = ('origin', ) + atom_subset
+        with np.errstate(divide='ignore', invalid='ignore'):
+            rdf = mol_cp.init_rdf(atom_subset)
+        del rdf['origin origin']
+        rdf = rdf.loc[rdf.index >= rdf_cutoff, [i for i in rdf.columns if 'origin' in i]]
+
+        return rmsf, idx_series, rdf
+
+    @staticmethod
+    def get_at_idx(rmsf, idx_series, dist_dict):
+        """ Create subsets of atomic indices (using **rmsf** and **idx_series**) based on
+        distance criteria in **dist_dict**.
+
+
+        For example, ``dist_dict = {'Cd': [3.0, 6.5]}`` will create and return a dictionary with three
+        keys: One for all atoms whose RMSF is smaller than ``3.0``, one where the RMSF is between
+        ``3.0`` and ``6.5``, and finally one where the RMSF is larger than ``6.5``.
+        This example is illustrated below:
+
+        .. code:: python
+
+            >>> dist_dict = {'Cd': [3.0, 6.5]}
+            >>> idx_series = pd.Series(np.arange(12))
+            >>> rmsf = pd.DataFrame({'Cd': np.arange(12, dtype=float)})
+            >>> get_at_idx(rmsf, idx_series, dist_dict)
+
+            {'Cd_1': [0, 1, 2],
+             'Cd_2': [3, 4, 5],
+             'Cd_3': [7, 8, 9, 10, 11]
+            }
+
+        :parameter rmsf: A dataframe holding the results of an RMSF calculation.
+        :type rmsf: |pd.DataFrame|_ (values: |np.int64|_, index: |pd.Int64Index|_)
+        :parameter idx_series: A series mapping the indices from **rmsf** to actual atomic indices.
+        :type idx_series: |pd.Series|_ (values: |np.int64|_, index: |pd.Int64Index|_)
+        :parameter dist_dict: A dictionary with atomic symbols (see **rmsf.columns**) and a
+            list of interatomic distances.
+        :type min_dict: |dict|_ (keys: |str|_, values: |list|_ [|int|_])
+        :return: A dictionary with atomic symbols as keys, and matching atomic indices as values.
+        :rtype: |dict|_ (keys: |str|_, values: |list|_ [|int|_])
+        """
+        # Double check if all keys in **dist_dict** are available in **rmsf.columns**
+        for key in dist_dict:
+            if key not in rmsf:
+                raise KeyError(key, 'was found in "dist_dict" yet is absent from "rmsf"')
+
+        ret = {}
+        for key, value in rmsf.items():
+            try:
+                dist_range = sorted(dist_dict[key])
+            except KeyError:
+                dist_range = np.inf
+            dist_min = 0.0
+            name = key + '_{:d}'
+
+            for i, dist_max in enumerate(dist_range, 1):
+                idx = rmsf[(value >= dist_min) & (value < dist_max)].index
+                if idx.any():
+                    ret[name.format(i)] = sorted(idx_series[idx].values.tolist())
+                dist_min = dist_max
+
+            idx = rmsf[(rmsf[key] > dist_max)].index
+            if idx.any():
+                ret[name.format(i+1)] = sorted(idx_series[idx].values.tolist())
+        return ret
 
     """ #############################  Radial Distribution Functions  ######################### """
 
