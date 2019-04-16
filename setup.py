@@ -46,7 +46,7 @@ setup(
         'python-3.7',
     ],
     classifiers=[
-        'Development Status :: 4 - Beta',
+        'Development Status :: 3 - Alpha',
         'Intended Audience :: Science/Research',
         'Topic :: Scientific/Engineering :: Chemistry'
         'License :: OSI Approved :: GNU Lesser General Public License',
