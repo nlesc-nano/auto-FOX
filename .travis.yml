@@ -1,6 +1,6 @@
 
 sudo: false
-language: python
+language: none
 rvm:
   - 
 
