@@ -10,8 +10,8 @@
 Automated Forcefield Optimization Extension 0.2.3
 #################################################
 
-**Auto-FOX** is a tool for analyzing potential energy surfaces (PESs)
-and using the resulting PES descriptors for constructing forcefield parameters.
+**Auto-FOX** is a library for parameterizing forcefields by reproducing
+radial distribution functions.
 Further details are provided in the documentation_.
 
 
@@ -27,6 +27,7 @@ functionalities are currently implemented:
 - A radial and angular distribution generator (RDF & ADF). (3_)
 - A root mean squared displacement generator (RMSD). (4_)
 - A root mean squared fluctuation generator (RMSF). (5_)
+- Tools for describing shell structures in, *e.g.*, nanocrystals or dissolved solutes. (6_)
 
 
 Using **Auto-FOX**
@@ -86,7 +87,7 @@ Installing **Auto-FOX**
 
 Optional dependencies
 ---------------------
--  "Just give me all optional dependancies (6_)":
+-  "Just give me all optional dependancies (7_)":
 
    -  Anaconda:   ``conda install --name FOX -y -c conda-forge matplotlib h5py pyyaml``
 
@@ -110,7 +111,8 @@ Optional dependencies
 .. _3: https://auto-fox.readthedocs.io/en/latest/1_rdf.html
 .. _4: https://auto-fox.readthedocs.io/en/latest/2_rmsd.html#root-mean-squared-displacement
 .. _5: https://auto-fox.readthedocs.io/en/latest/2_rmsd.html#root-mean-squared-fluctuation
-.. _6: https://www.youtube.com/watch?v=hFDcoX7s6rE
+.. _6: https://auto-fox.readthedocs.io/en/latest/2_rmsd.html#discerning-shell-structures
+.. _7: https://www.youtube.com/watch?v=hFDcoX7s6rE
 .. _documentation: https://auto-fox.readthedocs.io/en/latest/
 .. _Miniconda: http://conda.pydata.org/miniconda.html
 .. _Anaconda: https://www.anaconda.com/distribution/#download-section
