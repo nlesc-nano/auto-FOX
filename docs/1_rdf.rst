@@ -35,17 +35,17 @@ Below is an example RDF of a CdSe quantum dot pacified with formate ligands.
 The RDF is printed for all possible combinations of cadmium, selenium and
 oxygen (Cd_Cd, Cd_Se, Cd_O, Se_Se, Se_O and O_O).
 
-::
+.. code:: python
 
-    from FOX.classes.multi_mol import MultiMolecule
-    from FOX.examples.example_xyz import get_example_xyz
+    >>> from FOX.classes.multi_mol import MultiMolecule
+    >>> from FOX.examples.example_xyz import get_example_xyz
 
-    example_xyz_file = get_example_xyz()
-    mol = MultiMolecule(filename=example_xyz_file)
-    rdf = mol.init_rdf(atom_subset=('Cd', 'Se', 'O'))
-    adf = mol.init_adf(atom_subset=('Cd', 'Se', 'O'))
-    rdf.plot()
-    adf.plot()
+    >>> example_xyz_file = get_example_xyz()
+    >>> mol = MultiMolecule(filename=example_xyz_file)
+    >>> rdf = mol.init_rdf(atom_subset=('Cd', 'Se', 'O'))
+    >>> adf = mol.init_adf(atom_subset=('Cd', 'Se', 'O'))
+    >>> rdf.plot()
+    >>> adf.plot()
 
 
 .. plot::

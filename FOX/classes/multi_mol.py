@@ -14,7 +14,7 @@ from .molecule_utils import Molecule
 from .multi_mol_magic import _MultiMolecule
 from ..functions.rdf import (get_rdf, get_rdf_lowmem, get_rdf_df)
 from ..functions.adf import (get_adf, get_adf_df)
-from ..functions.utils import serialize_array
+from ..functions.utils import (serialize_array, read_str_file)
 
 
 class MultiMolecule(_MultiMolecule):
@@ -160,7 +160,7 @@ class MultiMolecule(_MultiMolecule):
 
         :parameter sort_by: The property which is to be used for sorting. Accepted values:
             **symbol** (*i.e.* alphabetical), **atnum**, **mass**, **radius** or
-            **connectors**. See the PeriodicTable_ module of PLAMS for more details.
+            **connectors**. See the plams.PeriodicTable_ module for more details.
             Alternatively, a user-specified array of indices can be provided for sorting.
         :type sort_by: |str|_ or |np.ndarray|_ [|np.int64|_]
         :parameter bool reverse: Sort in reversed order.
@@ -210,6 +210,7 @@ class MultiMolecule(_MultiMolecule):
         # Define residues
         plams_mol = self.as_Molecule(mol_subset=0)[0]
         frags = plams_mol.separate_mod()
+        symbol = self.symbol
 
         # Sort the residues
         core = []
@@ -218,7 +219,8 @@ class MultiMolecule(_MultiMolecule):
             if len(frag) == 1:
                 core += frag
             else:
-                ligands.append(sorted(frag))
+                i = np.array(frag)
+                ligands.append(i[np.argsort(symbol[i])].tolist())
         core.sort()
         ligands.sort()
 
@@ -430,6 +432,137 @@ class MultiMolecule(_MultiMolecule):
         elif isinstance(subset[0][0], int):
             return True  # subset is a nested iterable of *str*
         raise TypeError()
+
+    """ #############################  Determining shell structures  ######################### """
+
+    def init_shell_search(self, mol_subset=None, atom_subset=None, rdf_cutoff=0.5):
+        """ Calculate and return properties which can help determining shell structures.
+        The following two properties are calculated and returned:
+
+        * The mean distance (per atom) with respect to the center of mass (*i.e.* a modified RMSF).
+        * A series mapping abritrary atomic indices in the RMSF to the actual atomic indices.
+        * The radial distribution function (RDF) with respect to the center of mass.
+
+        :parameter mol_subset: Perform the calculation on a subset of molecules in **self**, as
+            determined by their moleculair index. Include all *m* molecules in **self** if *None*.
+        :type mol_subset: |None|_, |int|_ or |list|_ [|int|_]
+        :parameter atom_subset: Perform the calculation on a subset of atoms in **self**, as
+            determined by their atomic index or atomic symbol.  Include all *n* atoms per molecule
+            in **self** if *None*.
+        :type atom_subset:  |None|_, |int|_ or |str|_
+        :parameter float rdf_cutoff: Remove all values in the RDF below this value (Angstrom).
+            Usefull for dealing with divergence as the "inter-atomic" distance approaches 0.0 A.
+        :return: Returns the following items:
+
+            1. A dataframe holding the mean distance of all atoms with respect the to center
+            of mass.
+
+            2. A series mapping the indices from 1. to the actual atomic indices.
+
+            3. A dataframe holding the RDF with respect to the center of mass.
+
+        :rtype: |pd.DataFrame|_, |pd.Series|_ and |pd.DataFrame|_
+        """
+        def _get_mean_dist(mol_cp, at):
+            ret = np.linalg.norm(mol_cp.coords[:, mol_cp.atoms[at]], axis=2).mean(axis=0)
+            at_idx = np.argsort(ret)
+            return at_idx, sorted(ret)
+
+        # Prepare slices
+        i = self._get_mol_subset(mol_subset)
+        atom_subset = atom_subset or tuple(self.atoms.keys())
+
+        # Calculate the mean distance (per atom) with respect to the center of mass
+        # Conceptually similar an RMSF, the "fluctuation" being with respect to the center of mass
+        dist_mean = []
+        mol_cp = self.deepcopy()
+        mol_cp.coords = mol_cp[i]
+        mol_cp -= mol_cp.get_center_of_mass()[:, None, :]
+        at_idx, dist_mean = zip(*[_get_mean_dist(mol_cp, at) for at in atom_subset])
+
+        # Create Series containing the actual atomic indices
+        at_idx = list(chain.from_iterable(at_idx))
+        idx_series = pd.Series(np.arange(0, self.shape[1]), name='Actual atomic index')
+        idx_series.loc[0:len(at_idx)-1] = at_idx
+        idx_series.index.name = 'Arbitrary atomic index'
+
+        # Cast the modified RMSF results in a dataframe
+        index = np.arange(0, self.shape[1])
+        kwarg = {'loop': True, 'atom_subset': atom_subset}
+        columns, data = mol_cp._get_rmsf_columns(dist_mean, index, **kwarg)
+        rmsf = pd.DataFrame(data, columns=columns, index=index)
+        rmsf.columns.name = 'Distance from origin\n  /  Ångström'
+        rmsf.index.name = 'Arbitrary atomic index'
+
+        # Calculate the RDF with respect to the center of mass
+        at_dummy = np.zeros_like(mol_cp.coords[:, 0, :])[:, None, :]
+        mol_cp.coords = np.hstack((mol_cp.coords, at_dummy))
+        mol_cp.atoms['origin'] = [mol_cp.shape[1] - 1]
+        atom_subset = ('origin', ) + atom_subset
+        with np.errstate(divide='ignore', invalid='ignore'):
+            rdf = mol_cp.init_rdf(atom_subset)
+        del rdf['origin origin']
+        rdf = rdf.loc[rdf.index >= rdf_cutoff, [i for i in rdf.columns if 'origin' in i]]
+
+        return rmsf, idx_series, rdf
+
+    @staticmethod
+    def get_at_idx(rmsf, idx_series, dist_dict):
+        """ Create subsets of atomic indices (using **rmsf** and **idx_series**) based on
+        distance criteria in **dist_dict**.
+
+
+        For example, ``dist_dict = {'Cd': [3.0, 6.5]}`` will create and return a dictionary with
+        three keys: One for all atoms whose RMSF is smaller than ``3.0``, one where the RMSF is
+        between ``3.0`` and ``6.5``, and finally one where the RMSF is larger than ``6.5``.
+        This example is illustrated below:
+
+        .. code:: python
+
+            >>> dist_dict = {'Cd': [3.0, 6.5]}
+            >>> idx_series = pd.Series(np.arange(12))
+            >>> rmsf = pd.DataFrame({'Cd': np.arange(12, dtype=float)})
+            >>> get_at_idx(rmsf, idx_series, dist_dict)
+
+            {'Cd_1': [0, 1, 2],
+             'Cd_2': [3, 4, 5],
+             'Cd_3': [7, 8, 9, 10, 11]
+            }
+
+        :parameter rmsf: A dataframe holding the results of an RMSF calculation.
+        :type rmsf: |pd.DataFrame|_ (values: |np.int64|_, index: |pd.Int64Index|_)
+        :parameter idx_series: A series mapping the indices from **rmsf** to actual atomic indices.
+        :type idx_series: |pd.Series|_ (values: |np.int64|_, index: |pd.Int64Index|_)
+        :parameter dist_dict: A dictionary with atomic symbols (see **rmsf.columns**) and a
+            list of interatomic distances.
+        :type min_dict: |dict|_ (keys: |str|_, values: |list|_ [|int|_])
+        :return: A dictionary with atomic symbols as keys, and matching atomic indices as values.
+        :rtype: |dict|_ (keys: |str|_, values: |list|_ [|int|_])
+        """
+        # Double check if all keys in **dist_dict** are available in **rmsf.columns**
+        for key in dist_dict:
+            if key not in rmsf:
+                raise KeyError(key, 'was found in "dist_dict" yet is absent from "rmsf"')
+
+        ret = {}
+        for key, value in rmsf.items():
+            try:
+                dist_range = sorted(dist_dict[key])
+            except KeyError:
+                dist_range = np.inf
+            dist_min = 0.0
+            name = key + '_{:d}'
+
+            for i, dist_max in enumerate(dist_range, 1):
+                idx = rmsf[(value >= dist_min) & (value < dist_max)].index
+                if idx.any():
+                    ret[name.format(i)] = sorted(idx_series[idx].values.tolist())
+                dist_min = dist_max
+
+            idx = rmsf[(rmsf[key] > dist_max)].index
+            if idx.any():
+                ret[name.format(i+1)] = sorted(idx_series[idx].values.tolist())
+        return ret
 
     """ #############################  Radial Distribution Functions  ######################### """
 
@@ -651,48 +784,87 @@ class MultiMolecule(_MultiMolecule):
 
     """ #################################  Type conversion  ################################### """
 
-    def as_psf(self, filename):
-        """ Convert a *MultiMolecule* object into a Protein Structure File (.psf). """
-        # Prepare for preparing the !NATOM block
+    def _set_psf_block(self, inplace=True):
+        """ """
         res = self.residue_argsort(concatenate=False)
         plams_mol = self.as_Molecule(0)[0]
         plams_mol.fix_bond_orders()
-        plams_mol.set_atoms_id(start=0)
-        df = pd.DataFrame()
-        df[0] = np.arange(self.shape[1])
-        df[1] = 'MOL'
-        df[2] = [i for i, j in enumerate(res, 1) for _ in j]
-        df[3] = ['COR' if i == 1 else 'LIG' for i in df[2]]
-        df[4] = self.symbol
-        df[5] = df[4]
-        df[6] = [at.properties.charge for at in plams_mol]
-        df[7] = self.mass
-        df[8] = 0
-        df = df.T
 
+        df = pd.DataFrame(index=np.arange(1, self.shape[1]+1))
+        df.index.name = 'ID'
+        df['segment name'] = 'MOL'
+        df['residue ID'] = [i for i, j in enumerate(res, 1) for _ in j]
+        df['residue name'] = ['COR' if i == 1 else 'LIG' for i in df['residue ID']]
+        df['atom name'] = self.symbol
+        df['atom type'] = df['atom name']
+        df['charge'] = [at.properties.charge for at in plams_mol]
+        df['mass'] = self.mass
+        df[0] = 0
+
+        key = set(df.loc[df['residue ID'] == 1, 'atom type'])
+        value = range(1, len(key) + 1)
+        segment_dict = dict(zip(key, value))
+        value_max = 'MOL' + str(value.stop)
+
+        segment_name = []
+        for item in df['atom name']:
+            try:
+                segment_name.append('MOL{:d}'.format(segment_dict[item]))
+            except KeyError:
+                segment_name.append(value_max)
+        df['segment name'] = segment_name
+
+        if not inplace:
+            return df
+        self.properties.atoms = df
+
+    def _update_atom_type(self, filename='mol.str'):
+        """ """
+        if self.properties.atoms is None:
+            self._set_psf_block()
+        df = self.properties.atoms
+
+        at_type, charge = read_str_file(filename)
+        id_range = range(2, max(df['residue ID'])+1)
+        for i in id_range:
+            j = df[df['residue ID'] == i].index
+            df.loc[j, 'atom type'] = at_type
+            df.loc[j, 'charge'] = charge
+
+    def as_psf(self, filename='mol.psf'):
+        """ Convert a *MultiMolecule* object into a Protein Structure File (.psf).
+
+        :parameter str
+        """
         # Prepare the !NTITLE block
         top = 'PSF EXT\n'
-        top += '\n' + '{:>8.8}'.format(str(2)) + ' !NTITLE'
-        top += '\n' + '{:>8.8}'.format('REMARKS') + ' PSF file generated with Auto-FOX:'
-        top += '\n' + '{:>8.8}'.format('REMARKS') + ' https://github.com/BvB93/auto-FOX'
-        top += '\n\n' + '{:>8.8}'.format(str(self.shape[1])) + ' !NATOM\n'
+        top += '\n' + '{:>10.10}'.format(str(2)) + ' !NTITLE'
+        top += '\n' + '{:>10.10}'.format('REMARKS') + ' PSF file generated with Auto-FOX:'
+        top += '\n' + '{:>10.10}'.format('REMARKS') + ' https://github.com/nlesc-nano/auto-FOX'
+        top += '\n\n' + '{:>10.10}'.format(str(self.shape[1])) + ' !NATOM\n'
 
         # Prepare the !NATOM block
+        if self.properties.atoms is None:
+            self._set_psf_block()
+        df = self.properties.atoms.T
+        df.reset_index(level=0, inplace=True)
         mid = ''
-        for key in df:
-            string = '{:>8.8} {:4.4} {:4.4} {:4.4} {:4.4} {:5.5} {:>9.9} {:>13.13} {:>11.11}'
-            mid += string.format(*[str(i) for i in df[key]]) + '\n'
+        for key in df.columns[1:]:
+            string = '{:>10d} {:8.8} {:<8d} {:8.8} {:8.8} {:6.6} {:>9f} {:>15f} {:>8d}'
+            mid += string.format(*[key]+[i for i in df[key]]) + '\n'
 
         # Prepare the !NBOND, !NTHETA, !NPHI and !NIMPHI blocks
         bottom = ''
-        bottom_headers = ['{:>8.8} !NBOND: bonds', '{:>8.8} !NTHETA: angles',
-                          '{:>8.8} !NPHI: dihedrals', '{:>8.8} !NIMPHI: impropers']
+        bottom_headers = ['{:>10.10} !NBOND: bonds', '{:>10.10} !NTHETA: angles',
+                          '{:>10.10} !NPHI: dihedrals', '{:>10.10} !NIMPHI: impropers']
         if self.bonds is None:
             for header in bottom_headers:
                 bottom += '\n\n' + header.format('0')
             bottom += '\n\n'
         else:
-            connectivity = [self.bonds[:, 0:2], plams_mol.get_angles(),
+            plams_mol = self.as_Molecule(0)[0]
+            plams_mol.fix_bond_orders()
+            connectivity = [self.bonds[:, 0:2] + 1, plams_mol.get_angles(),
                             plams_mol.get_dihedrals(), plams_mol.get_impropers()]
             items_per_row = [4, 3, 2, 2]
 
@@ -707,26 +879,82 @@ class MultiMolecule(_MultiMolecule):
             file.write(mid)
             file.write(bottom[1:])
 
-    def as_pdb(self, filename='mol.pdb'):
-        """ Convert a *MultiMolecule* object into a Protein DataBank file (.pdb). """
-        raise NotImplementedError()
+    def _mol_to_file(self, filename, outputformat=None, mol_subset=0):
+        """ Create files using the plams.Molecule.write() method.
 
-    def as_xyz(self, filename='mol.xyz'):
+        :parameter str filename: The path+filename (including extension) of the to be created file.
+        :parameter str outputformat: The outputformat; accepated values are *mol*, *mol2*, *pdb* or
+            *xyz*.
+        :parameter mol_subset: Perform the operation on a subset of molecules in **self**, as
+            determined by their moleculair index. Include all *m* molecules in **self** if *None*.
+        :type mol_subset: |None|_, |int|_ or |list|_ [|int|_]
+        """
+        mol_subset = self._get_mol_subset(mol_subset)
+        outputformat = outputformat or filename.rsplit('.', 1)[-1]
+        mol_list = self.as_Molecule(mol_subset)
+
+        if len(mol_list) != 1:
+            name_list = filename.rsplit('.', 1)
+            name_list.insert(-1, '.{:d}.')
+            name = ''.join(name_list)
+        else:
+            name = filename
+
+        for i, plams_mol in enumerate(mol_list, 1):
+            plams_mol.write(name.format(i), outputformat=outputformat)
+
+    def as_pdb(self, mol_subset=0, filename='mol.pdb'):
+        """ Convert a *MultiMolecule* object into one or more Protein DataBank files (.pdb).
+        Utilizes the :meth:`plams.Molecule.write` method.
+
+        :parameter str filename: The path+filename (including extension) of the to be created file.
+        :parameter mol_subset: Perform the operation on a subset of molecules in **self**, as
+            determined by their moleculair index. Include all *m* molecules in **self** if *None*.
+        :type mol_subset: |None|_, |int|_ or |list|_ [|int|_]
+        """
+        self._mol_to_file(filename, 'pdb', mol_subset)
+
+    def as_mol2(self, mol_subset=0, filename='mol.mol2'):
+        """ Convert a *MultiMolecule* object into one or more .mol2 files.
+        Utilizes the :meth:`plams.Molecule.write` method.
+
+        :parameter str filename: The path+filename (including extension) of the to be created file.
+        :parameter mol_subset: Perform the operation on a subset of molecules in **self**, as
+            determined by their moleculair index. Include all *m* molecules in **self** if *None*.
+        :type mol_subset: |None|_, |int|_ or |list|_ [|int|_]
+        """
+        self._mol_to_file(filename, 'mol2', mol_subset)
+
+    def as_mol(self, mol_subset=0, filename='mol.mol'):
+        """ Convert a *MultiMolecule* object into one or more .mol files.
+        Utilizes the :meth:`plams.Molecule.write` method.
+
+        :parameter str filename: The path+filename (including extension) of the to be created file.
+        :parameter mol_subset: Perform the operation on a subset of molecules in **self**, as
+            determined by their moleculair index. Include all *m* molecules in **self** if *None*.
+        :type mol_subset: |None|_, |int|_ or |list|_ [|int|_]
+        """
+        self._mol_to_file(filename, 'mol', mol_subset)
+
+    def as_xyz(self, mol_subset=None, filename='mol.xyz'):
         """ Convert a *MultiMolecule* object into an .xyz file.
 
-        :parameter str filename: The path+filename (including extension) of the
-            to be created .xyz file.
+        :parameter str filename: The path+filename (including extension) of the to be created file.
+        :parameter mol_subset: Perform the operation on a subset of molecules in **self**, as
+            determined by their moleculair index. Include all *m* molecules in **self** if *None*.
+        :type mol_subset: |None|_, |int|_ or |list|_ [|int|_]
         """
         # Define constants
+        mol_subset = self._get_mol_subset(mol_subset)
         at = self.symbol[:, None]
-        header = str(len(at)) + '\n' + 'frame {}'
-        kwarg = {'fmt': ['%-2.2s', '%-10.10s', '%-10.10s', '%-10.10s'],
+        header = str(len(at)) + '\n' + 'frame '
+        kwarg = {'fmt': ['%-2.2s', '%-15s', '%-15s', '%-15s'],
                  'delimiter': '     ', 'comments': ''}
 
         # Create the .xyz file
         with open(filename, 'wb') as file:
             for i, xyz in enumerate(self, 1):
-                np.savetxt(file, np.hstack((at, xyz)), header=header.format(str(i)), **kwarg)
+                np.savetxt(file, np.hstack((at, xyz)), header=header+str(i), **kwarg)
 
     def as_mass_weighted(self, mol_subset=None, atom_subset=None, inplace=False):
         """ Transform the Cartesian of **self.coords** into mass-weighted Cartesian coordinates.
@@ -880,7 +1108,7 @@ class MultiMolecule(_MultiMolecule):
         views of their respective counterparts in **self**, creating a shallow copy.
 
         :parameter subset: Copy a subset of attributes from **self**; if *None*, copy all
-            attributes. Accepts one or more of the following values as strings: *coords*,
+            attributes. Accepts one or more of the following attribute names as strings: *coords*,
             *atoms*, *bonds* and/or *properties*.
         :type subset: |None|_, |str|_ or |tuple|_ [|str|_]
         :parameter bool deep: If *True*, perform a deep copy instead of a shallow copy.
@@ -889,10 +1117,12 @@ class MultiMolecule(_MultiMolecule):
         if deep:
             return self.deepcopy(subset)
 
-        subset = subset or ('coords', 'atoms', 'bonds', 'properties')
-        ret = MultiMolecule()
-
         attr_dict = vars(self)
+        subset = subset or attr_dict
+        if isinstance(subset, str):
+            subset = (subset)
+
+        ret = MultiMolecule()
         for i in attr_dict:
             if i in subset:
                 setattr(ret, i, attr_dict[i])
@@ -903,14 +1133,16 @@ class MultiMolecule(_MultiMolecule):
         copies of their respective counterparts in **self**, creating a deep copy.
 
         :parameter subset: Deep copy a subset of attributes from **self**; if *None*, deep copy all
-            attributes. Accepts one or more of the following values as strings: *coords*,
+            attributes. Accepts one or more of the following attribute names as strings: *coords*,
             *atoms*, *bonds* and/or *properties*.
         :type subset: |None|_, |str|_ or |tuple|_ [|str|_]
         """
-        subset = subset or ('coords', 'atoms', 'bonds', 'properties')
-        ret = MultiMolecule()
-
         attr_dict = vars(self)
+        subset = subset or attr_dict
+        if isinstance(subset, str):
+            subset = (subset)
+
+        ret = MultiMolecule()
         for i in attr_dict:
             if i in subset:
                 try:

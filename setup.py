@@ -21,7 +21,7 @@ setup(
     long_description=readme + '\n\n',
     author='Bas van Beek',
     author_email='b.f.van.beek@vu.nl',
-    url='https://github.com/BvB93/Auto-FOX',
+    url='https://github.com/nlesc-nano/Auto-FOX',
     packages=[
         'FOX',
         'FOX.data',
@@ -30,18 +30,23 @@ setup(
         'FOX.classes'
     ],
     package_dir={'FOX': 'FOX'},
-    package_data={'FOX': ['data/Cd68Se55_26COO_MD_trajec.xyz']},
+    package_data={'FOX': [
+        'data/*.xyz',
+        'data/*.yaml'
+    ]},
     include_package_data=True,
     license="GNU General Public License v3 or later",
     zip_safe=False,
     keywords=[
         'quantum-mechanics',
+        'molecular-mechanics',
         'science',
         'chemistry',
         'python-3',
+        'python-3.7',
     ],
     classifiers=[
-        'Development Status :: 2 - Pre-Alpha',
+        'Development Status :: 3 - Alpha',
         'Intended Audience :: Science/Research',
         'Topic :: Scientific/Engineering :: Chemistry'
         'License :: OSI Approved :: GNU Lesser General Public License',
@@ -53,7 +58,6 @@ setup(
         'numpy',
         'scipy',
         'pandas',
-        'pyyaml>=5.1',
         'plams@git+https://github.com/SCM-NV/PLAMS@release'
     ],
     setup_requires=[
