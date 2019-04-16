@@ -153,19 +153,17 @@ def to_hdf5(dict_, i, j, path=None, name='MC.hdf5'):
 # If hdf5 is not installed
 if H5PY_ERROR:
     _doc1 = create_hdf5.__doc__
+    _doc2 = index_to_hdf5.__doc__
+    _doc3 = to_hdf5.__doc__
+
     def create_hdf5(mc_kwarg, name='MC.hdf5'):
         raise ModuleNotFoundError(H5PY_ERROR.format('create_hdf5'))
 
-
-    _doc2 = index_to_hdf5.__doc__
     def index_to_hdf5(dict_, path=None, name='MC.hdf5'):
         raise ModuleNotFoundError(H5PY_ERROR.format('index_to_hdf5'))
 
-
-    _doc3 = to_hdf5.__doc__
     def to_hdf5(dict_, i, j, path=None, name='MC.hdf5'):
         raise ModuleNotFoundError(H5PY_ERROR.format('to_hdf5'))
-
 
     to_hdf5.__doc__ = _doc1
     create_hdf5.__doc__ = _doc2

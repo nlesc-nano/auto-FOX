@@ -260,8 +260,8 @@ def update_charge(at, charge, series, constrain_dict={}):
 # If pyyaml is not installed
 if YAML_ERROR:
     _doc = get_template.__doc__
+
     def get_template(name, path=None):
         raise ModuleNotFoundError(YAML_ERROR.format('get_template'))
-
 
     get_template.__doc__ = _doc
