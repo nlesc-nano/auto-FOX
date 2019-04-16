@@ -347,7 +347,6 @@ class MultiMolecule(_MultiMolecule):
         df.index.name = 'Arbitrary atomic index'
         return df
 
-
     def get_rmsd(self, mol_subset=None, atom_subset=None):
         """ Calculate the root mean square displacement (RMSD) with respect to the first molecule
         **self.coords**. Returns a dataframe with the RMSD as a function of the XYZ frame numbers.
@@ -513,9 +512,9 @@ class MultiMolecule(_MultiMolecule):
         distance criteria in **dist_dict**.
 
 
-        For example, ``dist_dict = {'Cd': [3.0, 6.5]}`` will create and return a dictionary with three
-        keys: One for all atoms whose RMSF is smaller than ``3.0``, one where the RMSF is between
-        ``3.0`` and ``6.5``, and finally one where the RMSF is larger than ``6.5``.
+        For example, ``dist_dict = {'Cd': [3.0, 6.5]}`` will create and return a dictionary with
+        three keys: One for all atoms whose RMSF is smaller than ``3.0``, one where the RMSF is
+        between ``3.0`` and ``6.5``, and finally one where the RMSF is larger than ``6.5``.
         This example is illustrated below:
 
         .. code:: python
