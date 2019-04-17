@@ -17,7 +17,7 @@ print('')
 start = time.time()
 
 # Read the .xyz file
-mol = MultiMolecule(filename=example_xyz_filename)
+mol = MultiMolecule.from_xyz(example_xyz_filename)
 
 # Calculate the RDF, RSMF & RMSD
 rdf = mol.init_rdf(atom_subset=atoms)
