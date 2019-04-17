@@ -107,7 +107,7 @@ class MonteCarlo():
         assert isinstance(self.job.name, str)
         assert isdir(self.job.path)
 
-    def move(self):
+    def move_param(self):
         """ Update a random parameter in **self.param** by a random value from **self.move.range**.
         Performs in inplace update of the *param* column in **self.param**.
 
@@ -208,7 +208,7 @@ class MonteCarlo():
         :parameter float step: Spacing between values.
         """
         rng_range = np.arange(start, stop + step, step)
-        self.move_range = np.concatenate((-rng_range, rng_range))
+        self.move.range = np.concatenate((-rng_range, rng_range))
 
     def reconfigure_move_atr(self, move_range=None, func=np.add, kwarg={}):
         """ Reconfigure the attributes in **self.move**., the latter containg all settings related
@@ -221,7 +221,9 @@ class MonteCarlo():
             The function in **func** is applied to floats.
         :parameter dict kwarg: Keyword arguments used in **func**.
         """
-        self.move.range = move_range or self.set_move_range()
+        self.move.range = move_range
+        if move_range is None:
+            self.set_move_range()
         self.move.func = func
         self.move.kwarg = kwarg
 
@@ -302,7 +304,7 @@ class ARMC(MonteCarlo):
             for j in range(self.armc.sub_iter_len):
                 # Step 1: Perform a random move
                 key_old = key_new
-                key_new = self.move()
+                key_new = self.move_param()
                 hdf5_kwarg['param'] = self.param
 
                 # Step 2: Check if the move has been performed already
