@@ -321,7 +321,7 @@ class ARMC(MonteCarlo):
         :rtype: |tuple|_ [|int|_] and |np.ndarray|_ [|bool|_]
         """
         acceptance = np.zeros(self.armc.sub_iter_len, dtype=bool)
-        hdf5_kwarg = {'param': self.param, 'acceptance': acceptance}
+        hdf5_kwarg = {'param': self.param, 'acceptance': False}
 
         for j in range(self.armc.sub_iter_len):
             # Step 1: Perform a random move
@@ -334,6 +334,7 @@ class ARMC(MonteCarlo):
             hdf5_kwarg.update(pes_new)
 
             # Step 3: Evaluate the auxilary error
+            print(history_dict)
             pes_old = history_dict[key_old]
             accept = bool(sum(self.get_aux_error(pes_old) - self.get_aux_error(pes_new)))
             hdf5_kwarg['acceptance'] = accept
@@ -359,9 +360,6 @@ class ARMC(MonteCarlo):
         :return: An array with *n* auxilary errors
         :rtype: *n* |np.ndarray|_ [|np.float64|_]
         """
-        print(pes_dict)
-        print('\n')
-        print(self.pes)
         def get_norm(a, b):
             return np.linalg.norm(a - b, axis=0).sum()
         return np.array([get_norm(pes_dict[j], self.pes[j].ref) for i, j in enumerate(pes_dict)])
