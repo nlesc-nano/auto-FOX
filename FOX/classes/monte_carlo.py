@@ -72,10 +72,11 @@ class MonteCarlo():
 
         # Settings for generating Monte Carlo moves
         self.move = Settings()
-        self.move.range = self.reconfigure_move_range()
+        self.move.range = None
         self.move.func = np.add
         self.move.kwarg = {}
         self.move.charge_constraints = {}
+        self.reconfigure_move_range()
 
         # Set user-specified keywords
         for key in kwarg:
@@ -206,7 +207,7 @@ class MonteCarlo():
         :parameter float stop: End of the interval. The interval includes this value.
         :parameter float step: Spacing between values.
         """
-        rng_range = np.arange(start, start + step, step)
+        rng_range = np.arange(start, stop + step, step)
         self.move_range = np.concatenate((-rng_range, rng_range))
 
     def reconfigure_move_atr(self, move_range=None, func=np.add, kwarg={}):
