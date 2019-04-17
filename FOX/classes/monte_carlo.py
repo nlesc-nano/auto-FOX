@@ -120,8 +120,6 @@ class MonteCarlo():
 
         # Constrain the atomic charges
         if 'charge' in i:
-            for (_, at), charge in i.iteritems():
-                pass
             update_charge(at, charge, self.job.charge_series, self.move.charge_constraints)
 
         # Return a tuple with the new parameters
