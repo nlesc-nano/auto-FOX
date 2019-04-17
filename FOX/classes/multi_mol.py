@@ -773,6 +773,7 @@ class MultiMolecule(_MultiMolecule):
         raise TypeError(str(type(arg)) + ': ' + str(arg) + ' is not a valid object type for /'
                         'the atom_subset argument')
 
+    @staticmethod
     def _get_mol_subset(arg):
         """ """
         if arg is None:
