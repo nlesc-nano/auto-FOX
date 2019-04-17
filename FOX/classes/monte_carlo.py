@@ -120,6 +120,8 @@ class MonteCarlo():
 
         # Constrain the atomic charges
         if 'charge' in i:
+            for (_, at), charge in i.iteritems():
+                pass
             update_charge(at, charge, self.job.charge_series, self.move.charge_constraints)
 
         # Return a tuple with the new parameters
@@ -167,7 +169,7 @@ class MonteCarlo():
         history_dict = {key: self.apply_phi(values)}
 
         # Delete the output directory and return
-        if self.job.keep_files:
+        if not self.job.keep_files:
             shutil.rmtree(path)
         return history_dict, key
 
@@ -298,7 +300,7 @@ class ARMC(MonteCarlo):
         # Initialize
         init(path=self.job.path, folder='MM_MD_workdir')
         config.default_jobmanager.settings.hashing = None
-        key_new, history_dict = self.run_first_md()
+        history_dict, key_new = self.run_first_md()
         for i in range(super_iter):
             for j in range(self.armc.sub_iter_len):
                 # Step 1: Perform a random move
