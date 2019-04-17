@@ -214,3 +214,50 @@ autodoc_mock_imports = [
     'scipy',
     'pyyaml'
 ]
+
+
+# A string of reStructuredText that will be included at the end of every source file that is read.
+# This is a possible place to add substitutions that should be available in every file (another being rst_prolog).
+rst_epilog = """
+.. _FOX.MultiMolecule: 3_multimolecule.html
+.. _plams.Job: https://www.scm.com/doc/plams/components/jobs.html#job-api
+.. _plams.Settings: https://www.scm.com/doc/plams/components/settings.html
+.. _plams.Molecule: https://www.scm.com/doc/plams/components/molecule.html#id1
+.. _np.ndarray: https://docs.scipy.org/doc/numpy/reference/generated/numpy.ndarray.html
+.. _np.float64: https://docs.scipy.org/doc/numpy/user/basics.types.html#array-types-and-conversions-between-types
+.. _np.int64: https://docs.scipy.org/doc/numpy/user/basics.types.html#array-types-and-conversions-between-types
+.. _pd.DataFrame: https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.DataFrame.html
+.. _pd.Series: https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.Series.html
+.. _pd.Int64Index: https://pandas.pydata.org/pandas-docs/version/0.23.4/generated/pandas.Int64Index.html
+.. _pd.MultiIndex: https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.MultiIndex.html
+.. _dict: https://docs.python.org/3/library/stdtypes.html#dict
+.. _list: https://docs.python.org/3/library/stdtypes.html#list
+.. _tuple: https://docs.python.org/3/library/stdtypes.html#tuple
+.. _str: https://docs.python.org/3/library/stdtypes.html#str
+.. _int: https://docs.python.org/3/library/functions.html#int
+.. _float: https://docs.python.org/3/library/functions.html#float
+.. _bool: https://docs.python.org/3/library/functions.html#bool
+.. _type: https://docs.python.org/3/library/functions.html#type
+.. _None: https://docs.python.org/3/library/constants.html#None
+
+.. |FOX.MultiMolecule| replace:: *FOX.MultiMolecule*
+.. |plams.Job| replace:: *plams.Job*
+.. |plams.Molecule| replace:: *plams.Molecule*
+.. |plams.Settings| replace:: *plams.Settings*
+.. |np.ndarray| replace:: *np.ndarray*
+.. |np.float64| replace:: *np.float64*
+.. |np.int64| replace:: *np.int64*
+.. |pd.DataFrame| replace:: *pd.DataFrame*
+.. |pd.Series| replace:: *pd.Series*
+.. |pd.Int64Index| replace:: *pd.Int64Index*
+.. |pd.MultiIndex| replace:: *pd.MultiIndex*
+.. |dict| replace:: *dict*
+.. |list| replace:: *list*
+.. |tuple| replace:: *tuple*
+.. |str| replace:: *str*
+.. |int| replace:: *int*
+.. |float| replace:: *float*
+.. |bool| replace:: *bool*
+.. |type| replace:: *type*
+.. |None| replace:: *None*
+"""
