@@ -327,16 +327,13 @@ class ARMC(MonteCarlo):
             # Step 1: Perform a random move
             key_old = key_new
             key_new = self.move_param()
-            hdf5_kwarg['param'] = self.param
 
-            # Step 2: Check if the move has been performed already
+            # Step 2: Check if the move has been performed already; calculate PES descriptors if not
             pes_new = self.get_pes_descriptors(history_dict, key_new)
-            hdf5_kwarg.update(pes_new)
 
-            # Step 3: Evaluate the auxilary error
+            # Step 3: Evaluate the auxiliary error
             pes_old = history_dict[key_old]
             accept = bool(sum(self.get_aux_error(pes_old) - self.get_aux_error(pes_new)))
-            hdf5_kwarg['acceptance'] = accept
 
             # Step 4: Update the PES descriptor history
             if accept:
@@ -347,7 +344,11 @@ class ARMC(MonteCarlo):
                 history_dict[key_old] = self.apply_phi(pes_old)
 
             # Step 5: Export the results to HDF5
+            hdf5_kwarg['param'] = self.param
+            hdf5_kwarg.update(pes_new)
+            hdf5_kwarg['acceptance'] = accept
             to_hdf5(hdf5_kwarg, i, j, self.job.path)
+
         return key_new, acceptance
 
     def get_aux_error(self, pes_dict):
