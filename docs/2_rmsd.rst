@@ -23,7 +23,7 @@ Given a trajectory, ``mol``, stored as a *MultiMolecule* object, the RMSD
 can be calculated with the :meth:`.MultiMolecule.init_rmsd` method using the
 following command:``rmsd = mol.init_rmsd(atom_subset=None)``.
 The resulting ``rmsd`` is a Pandas_ dataframe, an object which is effectively a
-hybrid between a dictionary and a Numpy_ array.
+hybrid between a dictionary and a NumPy_ array.
 
 Below is an example RMSD of a CdSe quantum dot pacified with formate ligands.
 The RMSD is printed for cadmium, selenium and oxygen atoms.
@@ -216,3 +216,7 @@ API
 
 .. automethod:: FOX.classes.multi_mol.MultiMolecule.get_at_idx
     :noindex:
+
+
+.. _NumPy: https://www.numpy.org/
+.. _Pandas: https://pandas.pydata.org/
