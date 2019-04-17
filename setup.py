@@ -58,7 +58,7 @@ setup(
         'numpy',
         'scipy',
         'pandas',
-        'plams@git+https://github.com/SCM-NV/PLAMS@release'
+        'plams@git+https://github.com/SCM-NV/PLAMS@master'
     ],
     setup_requires=[
         'pytest-runner',
@@ -73,6 +73,7 @@ setup(
     ],
     extras_require={
         'test': ['pytest', 'pytest-cov', 'pytest-mock', 'nbsphinx', 'pycodestyle'],
-        'doc': ['sphinx', 'sphinx_rtd_theme', 'nbsphinx', 'matplotlib']
+        'doc': ['sphinx', 'sphinx_rtd_theme', 'nbsphinx', 'matplotlib'],
+        'MC': ['pyyaml']
     }
 )
