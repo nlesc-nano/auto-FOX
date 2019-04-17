@@ -334,7 +334,6 @@ class ARMC(MonteCarlo):
             hdf5_kwarg.update(pes_new)
 
             # Step 3: Evaluate the auxilary error
-            print(history_dict)
             pes_old = history_dict[key_old]
             accept = bool(sum(self.get_aux_error(pes_old) - self.get_aux_error(pes_new)))
             hdf5_kwarg['acceptance'] = accept
@@ -371,12 +370,15 @@ class ARMC(MonteCarlo):
 
         :parameter values: A dictionary with PES descriptors.
         :type pes_dict: |dict|_ (values: |pd.DataFrame|_, |pd.Series|_ and/or |np.ndarray|_)
+        :return: **pes_dict** with updated values.
+        :rtype: |dict|_ (values: |pd.DataFrame|_, |pd.Series|_ and/or |np.ndarray|_)
         """
         phi = self.phi.phi
         func = self.phi.func
         kwarg = self.phi.kwarg
         for key, value in pes_dict.items():
             pes_dict[key] = func(value, phi, **kwarg)
+        return pes_dict
 
     def update_phi(self, acceptance):
         """ Update **self.phi** based on **self.armc.a_target** and **acceptance**.
