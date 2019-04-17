@@ -290,48 +290,65 @@ class ARMC(MonteCarlo):
         :rtype: |pd.DataFrame|_ (index: |pd.MultiIndex|_, values: |np.float64|_)
         """
         # Unpack attributes
-        acceptance = np.zeros(self.armc.sub_iter_len, dtype=bool)
         super_iter = self.armc.iter_len // self.armc.sub_iter_len
 
         # Construct the HDF5 file
         create_hdf5(self)
-        hdf5_kwarg = {'param': self.param, 'acceptance': None}
 
         # Initialize
         init(path=self.job.path, folder='MM_MD_workdir')
         config.default_jobmanager.settings.hashing = None
         history_dict, key_new = self.run_first_md()
+
+        # Start the main loop
         for i in range(super_iter):
-            for j in range(self.armc.sub_iter_len):
-                # Step 1: Perform a random move
-                key_old = key_new
-                key_new = self.move_param()
-                hdf5_kwarg['param'] = self.param
-
-                # Step 2: Check if the move has been performed already
-                pes_new = self.get_pes_descriptors(history_dict, key_new)
-                hdf5_kwarg.update(pes_new)
-
-                # Step 3: Evaluate the auxilary error
-                pes_old = history_dict[key_old]
-                accept = bool(sum(self.get_aux_error(pes_old) - self.get_aux_error(pes_new)))
-                hdf5_kwarg['acceptance'] = accept
-
-                # Step 4: Update the PES descriptor history
-                if accept:
-                    acceptance[j] = True
-                    history_dict[key_new] = self.apply_phi(pes_new)
-                    update_cp2k_settings(self.job.settings, self.param)
-                else:
-                    history_dict[key_old] = self.apply_phi(pes_old)
-
-                # Step 5: Export the results to HDF5
-                to_hdf5(hdf5_kwarg, i, j, self.job.path)
-
+            key_new, acceptance = self.do_inner(i, history_dict, key_new)
             self.update_phi(acceptance)
-            acceptance[:] = False
         finish()
         return self.param
+
+    def do_inner(self, i, history_dict, key_new):
+        """ A method that handles the inner loop of the :meth:`ARMC.init_armc` method.
+
+        :parameter int i: The superiteration in :meth:`ARMC.init_armc`.
+        :parameter history_dict: A dictionary with parameters as keys and a list of PES descriptors
+            as values.
+        :type history_dict: |dict|_ (keys: |tuple|_, values: |dict|_ [|pd.DataFrame|_])
+        :parameter key_new: A tuple with the latest set of forcefield parameters.
+        :type key_new: |tuple|_ [|int|_]
+        :return: The latest set of parameters and the acceptance rate over the course of the inner
+            loop.
+        :rtype: |tuple|_ [|int|_] and |np.ndarray|_ [|bool|_]
+        """
+        acceptance = np.zeros(self.armc.sub_iter_len, dtype=bool)
+        hdf5_kwarg = {'param': self.param, 'acceptance': acceptance}
+
+        for j in range(self.armc.sub_iter_len):
+            # Step 1: Perform a random move
+            key_old = key_new
+            key_new = self.move_param()
+            hdf5_kwarg['param'] = self.param
+
+            # Step 2: Check if the move has been performed already
+            pes_new = self.get_pes_descriptors(history_dict, key_new)
+            hdf5_kwarg.update(pes_new)
+
+            # Step 3: Evaluate the auxilary error
+            pes_old = history_dict[key_old]
+            accept = bool(sum(self.get_aux_error(pes_old) - self.get_aux_error(pes_new)))
+            hdf5_kwarg['acceptance'] = accept
+
+            # Step 4: Update the PES descriptor history
+            if accept:
+                acceptance[j] = True
+                history_dict[key_new] = self.apply_phi(pes_new)
+                update_cp2k_settings(self.job.settings, self.param)
+            else:
+                history_dict[key_old] = self.apply_phi(pes_old)
+
+            # Step 5: Export the results to HDF5
+            to_hdf5(hdf5_kwarg, i, j, self.job.path)
+        return key_new, acceptance
 
     def get_aux_error(self, pes_dict):
         """ Return the auxiliary error of the PES descriptors in **values** with respect to
@@ -342,6 +359,9 @@ class ARMC(MonteCarlo):
         :return: An array with *n* auxilary errors
         :rtype: *n* |np.ndarray|_ [|np.float64|_]
         """
+        print(pes_dict)
+        print('\n')
+        print(self.pes)
         def get_norm(a, b):
             return np.linalg.norm(a - b, axis=0).sum()
         return np.array([get_norm(pes_dict[j], self.pes[j].ref) for i, j in enumerate(pes_dict)])
