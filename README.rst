@@ -7,7 +7,7 @@
    :target: https://www.python.org
 
 #################################################
-Automated Forcefield Optimization Extension 0.2.3
+Automated Forcefield Optimization Extension 0.3.0
 #################################################
 
 **Auto-FOX** is a library for parameterizing forcefields by reproducing
@@ -27,7 +27,8 @@ functionalities are currently implemented:
 - A radial and angular distribution generator (RDF & ADF). (3_)
 - A root mean squared displacement generator (RMSD). (4_)
 - A root mean squared fluctuation generator (RMSF). (5_)
-- Tools for describing shell structures in, *e.g.*, nanocrystals or dissolved solutes. (6_)
+- Tools for describing shell structures in, *e.g.*,
+  nanocrystals or dissolved solutes. (6_)
 
 
 Using **Auto-FOX**
@@ -87,23 +88,24 @@ Installing **Auto-FOX**
 
 Optional dependencies
 ---------------------
--  "Just give me all optional dependancies (7_)":
+- "Just give me all optional dependancies (7_)":
 
-   -  Anaconda:   ``conda install --name FOX -y -c conda-forge matplotlib h5py pyyaml``
+   - Anaconda:   ``conda install --name FOX -y -c
+     conda-forge matplotlib h5py pyyaml``
 
 |
 
--  The plotting of data produced by **Auto-FOX** requires Matplotlib_.
-   Matplotlib is distributed by both PyPi and Anaconda:
+- The plotting of data produced by **Auto-FOX** requires Matplotlib_.
+  Matplotlib is distributed by both PyPi and Anaconda:
 
-   -  Anaconda:   ``conda install --name FOX -y -c conda-forge matplotlib``
+   - Anaconda:   ``conda install --name FOX -y -c conda-forge matplotlib``
 
-   -  PyPi:       ``pip install matplotlib``
+   - PyPi:       ``pip install matplotlib``
 
--  Use of the FOX.monte_carlo_ module requires h5py_ and PyYAML_.
-   Note: h5py is not distrbuted via PyPi:
+- Use of the FOX.monte_carlo_ module requires h5py_ and PyYAML_.
+  Note: h5py is not distrbuted via PyPi:
 
-   -  Anaconda:   ``conda install --name FOX -y -c conda-forge h5py pyyaml``
+   - Anaconda:   ``conda install --name FOX -y -c conda-forge h5py pyyaml``
 
 
 .. _1: https://auto-fox.readthedocs.io/en/latest/3_multimolecule.html

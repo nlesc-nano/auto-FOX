@@ -16,11 +16,11 @@ constructing RDFs between all possible (user-defined) atom-pairs.
     \frac{V}{N_a*N_b} \sum_{i=1}^{N_a} \sum_{j=1}^{N_b} \left< *placeholder* \right>
 
 
-Given a trajectory, ``mol``, stored as a *MultiMolecule* object, the RDF can be
-calculated with the following
+Given a trajectory, ``mol``, stored as a *MultiMolecule* object, the RDF can
+be calculated with the following
 command: ``rdf = mol.init_rdf(atom_subset=None, low_mem=False)``.
 The resulting ``rdf`` is a Pandas_ dataframe, an object which is effectively a
-hybrid between a dictionary and a Numpy_ array.
+hybrid between a dictionary and a NumPy_ array.
 
 A slower, but more memory efficient, method of RDF construction can be enabled
 with ``low_mem=True``, causing the script to only store the distance matrix
@@ -68,3 +68,7 @@ API
 
 .. automethod:: FOX.classes.multi_mol.MultiMolecule.init_adf
     :noindex:
+
+
+.. _NumPy: https://www.numpy.org/
+.. _Pandas: https://pandas.pydata.org/
