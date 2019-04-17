@@ -345,19 +345,19 @@ class ARMC(MonteCarlo):
             return np.linalg.norm(a - b, axis=0).sum()
         return np.array([get_norm(pes_dict[j], self.pes[j].ref) for i, j in enumerate(pes_dict)])
 
-    def apply_phi(self, values):
-        """ Apply **self.phi.phi** to all PES descriptors in **values**.
+    def apply_phi(self, pes_dict):
+        """ Apply **self.phi.phi** to all PES descriptors in **pes_dict**.
 
         * The values are updated according to the provided settings in **self.armc**.
 
-        :parameter values: A list of *n* PES descriptors.
-        :type values: *n* |list|_ [|float|_ or |np.ndarray|_ [|np.float64|_]]
+        :parameter values: A dictionary with PES descriptors.
+        :type pes_dict: |dict|_ (values: |pd.DataFrame|_, |pd.Series|_ and/or |np.ndarray|_)
         """
         phi = self.phi.phi
         func = self.phi.func
-        kwarg = self.phi.kwargf
-        for i in values:
-            func(i, phi, **kwarg, out=i)
+        kwarg = self.phi.kwarg
+        for key, value in pes_dict.items():
+            pes_dict[key] = func(value, phi, **kwarg)
 
     def update_phi(self, acceptance):
         """ Update **self.phi** based on **self.armc.a_target** and **acceptance**.
