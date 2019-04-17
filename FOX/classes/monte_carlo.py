@@ -11,7 +11,7 @@ import numpy as np
 from scm.plams import Molecule
 from scm.plams.core.results import Results
 from scm.plams.core.settings import Settings
-from scm.plams.core.functions import (init, finish, add_to_class)
+from scm.plams.core.functions import (init, finish, add_to_class, config)
 from scm.plams.interfaces.thirdparty.cp2k import Cp2kJob
 
 from .multi_mol import MultiMolecule
@@ -145,7 +145,7 @@ class MonteCarlo():
 
         # Construct and return a MultiMolecule object
         mol = MultiMolecule(filename=results.get_xyz_path())
-        self.job.mol = mol.as_Molecule(0)[0]
+        self.job.mol = mol.as_Molecule(-1)[0]
         return mol, job.path
 
     def run_first_md(self):
@@ -299,6 +299,7 @@ class ARMC(MonteCarlo):
 
         # Initialize
         init(path=self.job.path, folder='MM_MD_workdir')
+        config.default_jobmanager.settings.hashing = None
         key_new, history_dict = self.run_first_md()
         for i in range(super_iter):
             for j in range(self.armc.sub_iter_len):
