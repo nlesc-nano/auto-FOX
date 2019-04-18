@@ -40,9 +40,7 @@ class MonteCarlo():
     :parameter molecule: A molecule.
     :type molecule: |plams.Molecule|_ or |FOX.MultiMolecule|_
 
-    :Atributes:     * **ref** (|list|_) – See the **ref** parameter.
-
-                    * **param** (|np.ndarray|_ [|np.float64|_]) – See the **param** parameter.
+    :Atributes:     * **param** (|pd.DataFrame|_ – See the **param** parameter.
 
                     * **pes** (|plams.Settings|_) – See :meth:`MonteCarlo.reconfigure_pes_atr`
 
@@ -344,7 +342,7 @@ class ARMC(MonteCarlo):
                 history_dict[key_old] = self.apply_phi(pes_old)
 
             # Step 5: Export the results to HDF5
-            hdf5_kwarg['param'] = self.param
+            hdf5_kwarg['param'] = self.param['param']
             hdf5_kwarg.update(pes_new)
             hdf5_kwarg['acceptance'] = accept
             to_hdf5(hdf5_kwarg, i, j, self.job.path)
