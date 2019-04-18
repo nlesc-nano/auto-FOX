@@ -26,7 +26,8 @@ class _MultiMolecule(np.ndarray):
         return obj
 
     def __array_finalize__(self, obj):
-        if obj is None: return
+        if obj is None:
+            return
         self.atoms = getattr(obj, 'atoms', None)
         self.bonds = getattr(obj, 'bonds', None)
         self.properties = getattr(obj, 'properties', None)
@@ -140,15 +141,16 @@ class _MultiMolecule(np.ndarray):
         :return: A dictionary with atomic indices as keys and atomic symbols as values.
         :rtype: |np.array|_ [|np.float64|_, |str|_ or |np.int64|_].
         """
-        def get_symbol(symbol): return symbol
+        def get_symbol(symbol):
+            return symbol
 
         # Interpret the **values** argument
         prop_dict = {
-                'symbol': get_symbol,
-                'radius': PeriodicTable.get_radius,
-                'atnum': PeriodicTable.get_atomic_number,
-                'mass': PeriodicTable.get_mass,
-                'connectors': PeriodicTable.get_connectors
+            'symbol': get_symbol,
+            'radius': PeriodicTable.get_radius,
+            'atnum': PeriodicTable.get_atomic_number,
+            'mass': PeriodicTable.get_mass,
+            'connectors': PeriodicTable.get_connectors
         }
 
         # Create a concatenated lists of the keys and values in **self.atoms**
@@ -158,8 +160,22 @@ class _MultiMolecule(np.ndarray):
             prop_list += [at_prop for _ in self.atoms[at]]
 
         # Sort and return
-        idx_list = itertools.chain.from_iterable(self.atoms.values())
-        return np.array([prop for _, prop in sorted(zip(idx_list, prop_list))])
+        idx_gen = itertools.chain.from_iterable(self.atoms.values())
+        return np.array([prop for _, prop in sorted(zip(idx_gen, prop_list))])
+
+    """ ##################################  Magic methods  #################################### """
+
+    def copy(self, order='C'):
+        ret = super().copy(order)
+        for key, value in vars(self).items():
+            try:
+                setattr(ret, key, value.copy())
+            except AttributeError:
+                setattr(ret, key, None)
+        return ret
+
+    def __copy__(self):
+        return self.copy(order='K')
 
     def __str__(self):
         ret = 'Atomic coordinates:\n'
