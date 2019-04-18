@@ -300,8 +300,7 @@ class ARMC(MonteCarlo):
 
         # Start the main loop
         for i in range(super_iter):
-            key_new, acceptance = self.do_inner(i, history_dict, key_new)
-            self.update_phi(acceptance)
+            key_new = self.do_inner(i, history_dict, key_new)
         finish()
         return self.param
 
@@ -322,6 +321,7 @@ class ARMC(MonteCarlo):
         hdf5_kwarg = {'param': self.param, 'acceptance': False}
 
         for j in range(self.armc.sub_iter_len):
+            print(j)
             # Step 1: Perform a random move
             key_old = key_new
             key_new = self.move_param()
@@ -347,7 +347,8 @@ class ARMC(MonteCarlo):
             hdf5_kwarg['acceptance'] = accept
             to_hdf5(hdf5_kwarg, i, j, self.job.path)
 
-        return key_new, acceptance
+        self.update_phi(acceptance)
+        return key_new
 
     def get_aux_error(self, pes_dict):
         """ Return the auxiliary error of the PES descriptors in **values** with respect to
