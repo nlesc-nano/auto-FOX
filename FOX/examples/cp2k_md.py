@@ -14,7 +14,7 @@ from FOX.functions.cp2k_utils import (set_subsys_kind, set_lennard_jones, set_at
 
 
 # Read the .xyz file
-path = '/Users/basvanbeek/Downloads'
+path = '/Users/bvanbeek/Downloads'
 mol = MultiMolecule(filename=get_example_xyz())
 mol.guess_bonds(atom_subset=['C', 'O', 'H'])
 mol._set_psf_block()
@@ -53,7 +53,7 @@ charge_constrain.OG2D2 = {'Cd': -2, 'Se': 2}
 # Prepare the ARMC settings
 carlos = ARMC(param, mol)
 carlos.job.path = path
-carlos.job.charge_series = df['charge']
+carlos.job.charge_series = df['charge'].copy()
 carlos.job.charge_series.index = df['atom type']
 carlos.pes.rdf.func = MultiMolecule.init_rdf
 carlos.pes.rdf.kwarg = {'atom_subset': ('Cd', 'Se', 'O')}
