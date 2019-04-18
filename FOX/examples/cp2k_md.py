@@ -59,5 +59,5 @@ carlos.pes.rdf.func = MultiMolecule.init_rdf
 carlos.pes.rdf.kwarg = {'atom_subset': ('Cd', 'Se', 'O')}
 carlos.pes.rdf.ref = mol.init_rdf(**carlos.pes.rdf.kwarg)
 carlos.job.settings = s
-carlos.armc.iter_len = 100
-carlos.armc.sub_iter_len = 10
+carlos.armc.iter_len = 12
+carlos.armc.sub_iter_len = 3
