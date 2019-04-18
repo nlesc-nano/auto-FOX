@@ -79,15 +79,15 @@ def update_cp2k_settings(settings, param):
     """
     # Update atomic charges
     charge = param.loc['charge', :]
-    for i, j in zip(charge['keys'], charge['param']):
+    for i, j in zip(charge['key'], charge['param']):
         settings.input.mm.forcefield[i].charge = j
 
     # Update the Lennard-Jones epsilon parameters
     epsilon = param.loc['epsilon', :]
-    for i, j in zip(epsilon['keys'], epsilon['param']):
+    for i, j in zip(epsilon['key'], epsilon['param']):
         settings.input.mm.forcefield.nonbonded[i].epsilon = j
 
     # Update the Lennard-Jones sigma parameters
     sigma = param.loc['sigma', :]
-    for i, j in zip(sigma['keys'], sigma['param']):
+    for i, j in zip(sigma['key'], sigma['param']):
         settings.input.mm.forcefield.nonbonded[i].sigma = j
