@@ -32,7 +32,8 @@ setup(
     package_dir={'FOX': 'FOX'},
     package_data={'FOX': [
         'data/*.xyz',
-        'data/*.yaml'
+        'data/*.yaml',
+        'data/*.str'
     ]},
     include_package_data=True,
     license="GNU General Public License v3 or later",

@@ -19,7 +19,7 @@ except ImportError:
                   \n\t'h5py' can be installed via anaconda with the following command:\
                   \n\tconda install --name FOX -y -c conda-forge h5py"
 
-from ..functions.utils import (get_shape, assert_error)
+from ..functions.utils import (get_shape, assert_error, array_to_index)
 
 
 @assert_error(H5PY_ERROR)
@@ -140,7 +140,7 @@ def to_hdf5(dict_, i, j, path=None, name='MC.hdf5'):
     :parameter int i: The iteration in the outer loop of :meth:`ARMC.init_armc`.
     :parameter int j: The subiteration in the inner loop of :meth:`ARMC.init_armc`.
     :parameter str path: The path where the the hdf5 file is stored.
-    :parameter str name: The name (including extension) of the hdf5 file
+    :parameter str name: The name (including extension) of the hdf5 file.
     """
     path = path or os.getcwd()
     filename = join(path, name)
@@ -151,3 +151,84 @@ def to_hdf5(dict_, i, j, path=None, name='MC.hdf5'):
         f.subiteration = j
         for key, value in dict_.items():
             f[key][k] = value
+
+
+@assert_error(H5PY_ERROR)
+def from_hdf5(datasets=None, path=None, name='MC.hdf5'):
+    """ Retrieve all user-specified datasets from **name**, returning a dicionary of arrays.
+    If matching *index* and *columns*/*name* datasets are found (see :func:`FOX.index_to_hdf5`)
+    an array will be converted into a (list) of DataFrame(s)/Series.
+
+    :parameter list datasets: A list of to be retrieved dataset names.
+        Will retrieve all datasets if *None*.
+    :parameter str path: The path where the the hdf5 file is stored.
+    :parameter str name: The name (including extension) of the hdf5 file.
+    :return: A dicionary with dataset names as keys and the matching data as values.
+    :rtype: |dict|_ (keys: |str|_, values: |np.ndarray|_, |pd.DataFrame|_ and/or |pd.Series|_)
+    """
+    path = path or os.getcwd()
+    filename = join(path, name)
+    ret = {}
+
+    with h5py.File(filename, 'r') as f:
+        datasets = datasets or f.keys()
+        tup = ('.index', '.columns', '.name')
+        for key in f:
+            if not any([i in key for i in tup]):
+                ret[key] = _get_dset(f, key)
+
+    return ret
+
+
+@assert_error(H5PY_ERROR)
+def _get_dset(f, key):
+    """ Take a h5py dataset and convert it into either a NumPy array or
+    a Pandas DataFrame or Series.
+
+    :parameter f: An opened hdf5 file.
+    :type f: |h5py.File|_
+    :parameter str key: The dataset name.
+    :return: A NumPy array or a Pandas DataFrame or Series retrieved from **key** in **f**.
+    :rtype: |np.ndarray|_, |pd.DataFrame|_ or |pd.Series|_
+    """
+    if key + '.columns' in f:
+        return _dset_to_df(f, key)
+    elif key + '.name' in f:
+        return _dset_to_series(f, key)
+    return f[key][:]
+
+
+@assert_error(H5PY_ERROR)
+def _dset_to_series(f, key):
+    """ Take a h5py dataset and convert it into a Pandas Series or list of Pandas Series.
+
+    :parameter f: An opened hdf5 file.
+    :type f: |h5py.File|_
+    :parameter str key: The dataset name.
+    :return: A Pandas Series retrieved from **key** in **f**.
+    :rtype: |pd.Series|_ or |list|_ [|pd.Series|_]
+    """
+    name = f[key + '.name'][0].decode()
+    index = array_to_index(f[key + '.index'][:])
+    data = f[key][:]
+    if data.ndim == 1:
+        return pd.Series(f[key][:], index=index, name=name)
+    return [pd.Series(i, index=index, name=name) for i in data]
+
+
+@assert_error(H5PY_ERROR)
+def _dset_to_df(f, key):
+    """ Take a h5py dataset and convert it into a Pandas DataFrame or list of Pandas DataFrames.
+
+    :parameter f: An opened hdf5 file.
+    :type f: |h5py.File|_
+    :parameter str key: The dataset name.
+    :return: A Pandas DataFrame retrieved from **key** in **f**.
+    :rtype: |pd.DataFrame|_ or |list|_ [|pd.DataFrame|_]
+    """
+    columns = array_to_index(f[key + '.columns'][:])
+    index = array_to_index(f[key + '.index'][:])
+    data = f[key][:]
+    if data.ndim == 2:
+        return pd.DataFrame(data, index=index, columns=columns)
+    return [pd.DataFrame(i, index=index, columns=columns) for i in data]

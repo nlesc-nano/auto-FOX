@@ -1,16 +1,23 @@
 """ A work in progress recipe for MM-MD parameter optimizations with CP2K. """
 
+import os
 from os.path import join
 
 import pandas as pd
 
-from scm.plams import Settings
+from scm.plams import Settings, add_to_class
+from scm.plams.interfaces.thirdparty.cp2k import Cp2kJob
 
 from FOX.classes.monte_carlo import ARMC
 from FOX.classes.multi_mol import MultiMolecule
 from FOX.examples.example_xyz import get_example_xyz
 from FOX.functions.utils import (get_template, dict_to_pandas, template_to_df)
 from FOX.functions.cp2k_utils import (set_subsys_kind, set_lennard_jones, set_atomic_charges)
+
+
+@add_to_class(Cp2kJob)
+def get_runscript(self):
+    return 'cp2k.ssmp -i {} -o {}'.format(self._filename('inp'), self._filename('out'))
 
 
 # Read the .xyz file
@@ -53,11 +60,19 @@ charge_constrain.OG2D2 = {'Cd': -2, 'Se': 2}
 # Prepare the ARMC settings
 carlos = ARMC(param, mol)
 carlos.job.path = path
+carlos.job.keep_files = True
 carlos.job.charge_series = df['charge'].copy()
 carlos.job.charge_series.index = df['atom type']
+carlos.job.settings.input.motion.md.time_start_val = 50
+carlos.job.settings.input.motion.md.steps = 100
+carlos.job.settings.input.motion.md.max_steps = 150
+carlos.job.settings.input.motion.md.timestep = 50.0
 carlos.pes.rdf.func = MultiMolecule.init_rdf
 carlos.pes.rdf.kwarg = {'atom_subset': ('Cd', 'Se', 'O')}
 carlos.pes.rdf.ref = mol.init_rdf(**carlos.pes.rdf.kwarg)
 carlos.job.settings = s
 carlos.armc.iter_len = 12
 carlos.armc.sub_iter_len = 3
+
+os.remove(join(path, 'MC.hdf5'))
+carlos.init_armc()

@@ -22,15 +22,15 @@ except ImportError:
 
 
 def assert_error(error_msg=''):
-    """ Take a function or class; if **error_msg** is not *false* then calling said function/class
-    will raise a ModuleNotFoundError.
+    """ Take an error message, if not *false* then cause a function or class
+    to raise a ModuleNotFoundError upon being called.
 
 
     Indended for use as a decorater:
 
     .. code:: python
 
-        >>> @assert_error(error_msg='An error was raised by {}')
+        >>> @assert_error('An error was raised by {}')
         >>> def my_custom_func():
         >>>     print(True)
 
@@ -38,7 +38,8 @@ def assert_error(error_msg=''):
         ModuleNotFoundError: An error was raised by my_custom_func
 
     :parameter str error_msg: A to-be printed error message.
-        Curly brackets will be replaced with the function/class name.
+        If available, a single set of curly brackets will be replaced
+        with the function or class name.
     """
     type_dict = {'function': _function_error, 'type': _class_error}
 
@@ -303,3 +304,23 @@ def update_charge(at, charge, series, constrain_dict={}):
     criterion = [i not in at_list for i in series.index]
     i = series[criterion].sum() / net_charge
     series[criterion] /= i
+
+
+def array_to_index(ar):
+    """ Convert a NumPy array into a Pandas Index or MultiIndex.
+    Raises a ValueError if the dimensionality of **ar** is greater than 2.
+
+    :parameter ar: A NumPy array.
+    :type ar: 1D or 2D |np.ndarrat|_
+    :return: A Pandas Index or MultiIndex constructed from **ar**.
+    :rtype: |pd.Index|_ or |pd.MultiIndex|_
+    """
+    if 'bytes' in ar.dtype.name:
+        ar = ar.astype(str, copy=False)
+
+    if ar.dim == 1:
+        return pd.Index(ar)
+    elif ar.dim == 2:
+        return pd.MultiIndex.from_arrays(ar)
+    raise ValueError('Could not construct a Pandas (Multi)Index from an \
+                     {:d}-dimensional array'.format(ar.dim))

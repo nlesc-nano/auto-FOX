@@ -70,10 +70,10 @@ class MonteCarlo():
 
         # Settings for generating Monte Carlo moves
         self.move = Settings()
-        self.move.range = None
         self.move.func = np.add
         self.move.kwarg = {}
         self.move.charge_constraints = {}
+        self.move.range = None
         self.reconfigure_move_range()
 
         # Set user-specified keywords
@@ -114,7 +114,7 @@ class MonteCarlo():
         """
         i = self.param.loc[:, 'param'].sample()
         j = np.random.choice(self.move.range, 1)
-        i[:] = self.move.func(i, j, **self.move.kwarg)
+        self.param.loc[i.index, 'param'] = self.move.func(i, j, **self.move.kwarg)
 
         # Constrain the atomic charges
         if 'charge' in i:
@@ -146,31 +146,6 @@ class MonteCarlo():
         self.job.mol = mol.as_Molecule(-1)[0]
         return mol, job.path
 
-    def run_first_md(self):
-        """ Run the first MD job (before starting the actual main for-loop) and construct a
-        matching list of PES descriptors.
-
-        * The MD job is constructed according to the provided settings in **self.job**.
-
-        * The PES descriptors are constructed by the provided settings in **self.pes**.
-
-        :return: A dictionary, containing a list with one or more PES descriptors, and
-            the first (and only) key in aforementioned dictionary.
-        :rtype: |dict|_ (keys: |tuple|_, values: |list|_) and |tuple|_
-        """
-        # Run MD
-        key = tuple(self.param)
-        mol, path = self.run_md()
-
-        # Create PES descriptors
-        values = {i: self.pes[i].func(mol, **self.pes[i].kwarg) for i in self.pes}
-        history_dict = {key: self.apply_phi(values)}
-
-        # Delete the output directory and return
-        if not self.job.keep_files:
-            shutil.rmtree(path)
-        return history_dict, key
-
     def get_pes_descriptors(self, history_dict, key):
         """ Check if a **key** is already present in **history_dict**.
         If *True*, return the matching list of PES descriptors;
@@ -187,14 +162,15 @@ class MonteCarlo():
         """
         if key in history_dict:
             return history_dict[key]
-        else:
-            mol, path = self.run_md()
-            ret = {i: self.pes[i].func(mol, **self.pes[i].kwarg) for i in self.pes}
 
-            # Delete the output directory and return
-            if not self.job.keep_files:
-                shutil.rmtree(path)
-            return ret
+        # Generate PES descriptors
+        mol, path = self.run_md()
+        ret = {key: value.func(mol, **value.kwarg) for key, value in self.pes.items()}
+
+        # Delete the output directory and return
+        if not self.job.keep_files:
+            shutil.rmtree(path)
+        return ret
 
     def reconfigure_move_range(self, start=0.005, stop=0.1, step=0.005):
         """ Generate an with array of all allowed moves, the moves spanning both the positive and
@@ -293,10 +269,12 @@ class ARMC(MonteCarlo):
         # Construct the HDF5 file
         create_hdf5(self)
 
-        # Initialize
+        # Initialize the first MD calculation
         init(path=self.job.path, folder='MM_MD_workdir')
         config.default_jobmanager.settings.hashing = None
-        history_dict, key_new = self.run_first_md()
+        history_dict = {}
+        key_new = tuple(self.param['param'].values)
+        history_dict[key_new] = self.get_pes_descriptors(history_dict, key_new)
 
         # Start the main loop
         for i in range(super_iter):
@@ -321,10 +299,10 @@ class ARMC(MonteCarlo):
         hdf5_kwarg = {'param': self.param, 'acceptance': False}
 
         for j in range(self.armc.sub_iter_len):
-            print(j)
             # Step 1: Perform a random move
             key_old = key_new
             key_new = self.move_param()
+            print('Iteration {} - {}:'.format(i, j), key_new)
 
             # Step 2: Check if the move has been performed already; calculate PES descriptors if not
             pes_new = self.get_pes_descriptors(history_dict, key_new)
@@ -359,9 +337,9 @@ class ARMC(MonteCarlo):
         :return: An array with *n* auxilary errors
         :rtype: *n* |np.ndarray|_ [|np.float64|_]
         """
-        def get_norm(a, b):
+        def norm_sum(a, b):
             return np.linalg.norm(a - b, axis=0).sum()
-        return np.array([get_norm(pes_dict[j], self.pes[j].ref) for i, j in enumerate(pes_dict)])
+        return np.array([norm_sum(pes_dict[i], self.pes[i].ref) for i in pes_dict])
 
     def apply_phi(self, pes_dict):
         """ Apply **self.phi.phi** to all PES descriptors in **pes_dict**.
