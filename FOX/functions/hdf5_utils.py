@@ -145,8 +145,8 @@ def to_hdf5(dict_, i, j, path=None, name='MC.hdf5'):
     k = j + i * j
 
     with h5py.File(filename, 'r+') as f:
-        f.attr.modify('iteration', i)
-        f.attr.modify('subiteration', j)
+        f.attrs.modify('iteration', i)
+        f.attrs.modify('subiteration', j)
         for key, value in dict_.items():
             f[key][k] = value
 
