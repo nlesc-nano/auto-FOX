@@ -1,6 +1,6 @@
 """ Functions for storing Monte Carlo results in hdf5 format. """
 
-__all__ = ['create_hdf5', 'index_to_hdf5', 'to_hdf5']
+__all__ = ['create_hdf5', 'to_hdf5', 'from_hdf5']
 
 import os
 from os.path import join
@@ -23,7 +23,7 @@ from ..functions.utils import (get_shape, assert_error, array_to_index)
 
 
 @assert_error(H5PY_ERROR)
-def create_hdf5(mc_kwarg, name='MC.hdf5'):
+def create_hdf5(mc_kwarg, path=None, name='MC.hdf5'):
     """ Create a hdf5 file to hold all addaptive rate Mone Carlo results (:class:`FOX.ARMC`).
     Datasets are created to hold a number of results following results over the course of the
     MC optimization:
@@ -35,29 +35,28 @@ def create_hdf5(mc_kwarg, name='MC.hdf5'):
 
     :parameter mc_kwarg: An ARMC object.
     :type mc_kwarg: |FOX.ARMC|_
+    :parameter str path: The path where the the hdf5 file is stored.
     :parameter str name: The name (including extension) of the hdf5 file.
     """
-    path = mc_kwarg.job.path
+    path = path or os.getcwd()
     filename = join(path, name)
 
     # Create a Settings object with the shape and dtype of all to-be stored data
     shape_dict = Settings()
     shape_dict.param.shape = mc_kwarg.armc.iter_len, len(mc_kwarg.param)
-    shape_dict.param.dtype = np.float64
+    shape_dict.param.dtype = float
     shape_dict.acceptance.shape = (mc_kwarg.armc.iter_len, )
     shape_dict.acceptance.dtype = bool
     for key, value in mc_kwarg.pes.items():
         shape_dict[key].shape = (mc_kwarg.armc.iter_len, ) + get_shape(value.ref)
-        shape_dict[key].dtype = np.float64
+        shape_dict[key].dtype = float
 
     # Create a hdf5 file with *n* datasets
     with h5py.File(filename, 'w-') as f:
         f.iteration = -1
         f.subiteration = -1
         for key, value in shape_dict.items():
-            shape = value.shape
-            dtype = value.dtype
-            f.create_dataset(name=key, shape=shape, maxshape=shape, dtype=dtype)
+            f.create_dataset(name=key, shape=value.shape, dtype=value.dtype)
 
     # Store the *index*, *column* and *name* attributes of dataframes/series in the hdf5 file
     pd_dict = {'param': mc_kwarg.param}
@@ -183,7 +182,7 @@ def from_hdf5(datasets=None, path=None, name='MC.hdf5'):
 @assert_error(H5PY_ERROR)
 def _get_dset(f, key):
     """ Take a h5py dataset and convert it into either a NumPy array or
-    a Pandas DataFrame or Series.
+    a Pandas DataFrame (:func:`FOX.dset_to_df`) or Series (:func:`FOX.dset_to_series`).
 
     :parameter f: An opened hdf5 file.
     :type f: |h5py.File|_
@@ -192,14 +191,14 @@ def _get_dset(f, key):
     :rtype: |np.ndarray|_, |pd.DataFrame|_ or |pd.Series|_
     """
     if key + '.columns' in f:
-        return _dset_to_df(f, key)
+        return dset_to_df(f, key)
     elif key + '.name' in f:
-        return _dset_to_series(f, key)
+        return dset_to_series(f, key)
     return f[key][:]
 
 
 @assert_error(H5PY_ERROR)
-def _dset_to_series(f, key):
+def dset_to_series(f, key):
     """ Take a h5py dataset and convert it into a Pandas Series or list of Pandas Series.
 
     :parameter f: An opened hdf5 file.
@@ -217,7 +216,7 @@ def _dset_to_series(f, key):
 
 
 @assert_error(H5PY_ERROR)
-def _dset_to_df(f, key):
+def dset_to_df(f, key):
     """ Take a h5py dataset and convert it into a Pandas DataFrame or list of Pandas DataFrames.
 
     :parameter f: An opened hdf5 file.

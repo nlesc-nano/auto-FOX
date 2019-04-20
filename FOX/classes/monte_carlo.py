@@ -67,6 +67,7 @@ class MonteCarlo():
         self.job.name = self._get_name()
         self.job.path = os.getcwd()
         self.job.keep_files = False
+        self.hdf5_path = self.job.path
 
         # Settings for generating Monte Carlo moves
         self.move = Settings()
@@ -267,7 +268,7 @@ class ARMC(MonteCarlo):
         super_iter = self.armc.iter_len // self.armc.sub_iter_len
 
         # Construct the HDF5 file
-        create_hdf5(self)
+        create_hdf5(self, path=self.hdf5_path)
 
         # Initialize the first MD calculation
         init(path=self.job.path, folder='MM_MD_workdir')
@@ -323,7 +324,7 @@ class ARMC(MonteCarlo):
             hdf5_kwarg['param'] = self.param['param']
             hdf5_kwarg.update(pes_new)
             hdf5_kwarg['acceptance'] = accept
-            to_hdf5(hdf5_kwarg, i, j, self.job.path)
+            to_hdf5(hdf5_kwarg, i, j, self.hdf5_path)
 
         self.update_phi(acceptance)
         return key_new
