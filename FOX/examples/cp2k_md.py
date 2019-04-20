@@ -1,6 +1,6 @@
 """ A work in progress recipe for MM-MD parameter optimizations with CP2K. """
 
-import os
+import FOX
 from os.path import join
 
 import pandas as pd
@@ -71,5 +71,7 @@ carlos.pes.rdf.ref = mol.init_rdf(**carlos.pes.rdf.kwarg)
 carlos.job.settings = s
 carlos.armc.iter_len = 12
 carlos.armc.sub_iter_len = 3
+carlos.hdf5_path = '/Users/bvanbeek/Documents'
 
-carlos.init_armc()
+FOX.create_hdf5(carlos, path)
+#carlos.init_armc()

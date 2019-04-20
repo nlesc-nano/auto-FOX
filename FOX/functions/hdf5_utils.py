@@ -53,8 +53,8 @@ def create_hdf5(mc_kwarg, path=None, name='MC.hdf5'):
 
     # Create a hdf5 file with *n* datasets
     with h5py.File(filename, 'w-') as f:
-        f.iteration = -1
-        f.subiteration = -1
+        f.attrs.create('iteration', -1)
+        f.attrs.create('subiteration', -1)
         for key, value in shape_dict.items():
             f.create_dataset(name=key, shape=value.shape, dtype=value.dtype)
 
@@ -94,12 +94,11 @@ def index_to_hdf5(pd_dict, path=None, name='MC.hdf5'):
 
     with h5py.File(filename, 'r+') as f:
         for key, value in pd_dict.items():
-            key += '.{}'
             for attr_name in attr_tup:
                 if hasattr(value, attr_name):
                     attr = getattr(value, attr_name)
-                    i, j = key.format(attr_name), _attr_to_array(attr)
-                    f.create_dataset(i, data=j)
+                    i = _attr_to_array(attr)
+                    f[key].attrs.create(attr_name, i)
 
 
 def _attr_to_array(item):
@@ -146,8 +145,8 @@ def to_hdf5(dict_, i, j, path=None, name='MC.hdf5'):
     k = j + i * j
 
     with h5py.File(filename, 'r+') as f:
-        f.iteration = i
-        f.subiteration = j
+        f.attr.modify('iteration', i)
+        f.attr.modify('subiteration', j)
         for key, value in dict_.items():
             f[key][k] = value
 
@@ -171,10 +170,8 @@ def from_hdf5(datasets=None, path=None, name='MC.hdf5'):
 
     with h5py.File(filename, 'r') as f:
         datasets = datasets or f.keys()
-        tup = ('.index', '.columns', '.name')
         for key in f:
-            if not any([i in key for i in tup]):
-                ret[key] = _get_dset(f, key)
+            ret[key] = _get_dset(f, key)
 
     return ret
 
@@ -190,11 +187,12 @@ def _get_dset(f, key):
     :return: A NumPy array or a Pandas DataFrame or Series retrieved from **key** in **f**.
     :rtype: |np.ndarray|_, |pd.DataFrame|_ or |pd.Series|_
     """
-    if key + '.columns' in f:
+    if not f[key].attrs.keys():
+        return f[key][:]
+    elif 'columns' in f[key].attrs.keys():
         return dset_to_df(f, key)
-    elif key + '.name' in f:
+    elif 'name' in f[key].attrs.keys():
         return dset_to_series(f, key)
-    return f[key][:]
 
 
 @assert_error(H5PY_ERROR)
@@ -207,8 +205,8 @@ def dset_to_series(f, key):
     :return: A Pandas Series retrieved from **key** in **f**.
     :rtype: |pd.Series|_ or |list|_ [|pd.Series|_]
     """
-    name = f[key + '.name'][0].decode()
-    index = array_to_index(f[key + '.index'][:])
+    name = f[key].attrs['name'][0].decode()
+    index = array_to_index(f[key].attrs['index'][:])
     data = f[key][:]
     if data.ndim == 1:
         return pd.Series(f[key][:], index=index, name=name)
@@ -225,8 +223,8 @@ def dset_to_df(f, key):
     :return: A Pandas DataFrame retrieved from **key** in **f**.
     :rtype: |pd.DataFrame|_ or |list|_ [|pd.DataFrame|_]
     """
-    columns = array_to_index(f[key + '.columns'][:])
-    index = array_to_index(f[key + '.index'][:])
+    columns = array_to_index(f[key].attrs['columns'][:])
+    index = array_to_index(f[key].attrs['index'][:])
     data = f[key][:]
     if data.ndim == 2:
         return pd.DataFrame(data, index=index, columns=columns)
