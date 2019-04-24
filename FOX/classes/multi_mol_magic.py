@@ -162,8 +162,22 @@ class _MultiMolecule(np.ndarray):
 
     """ ##################################  Magic methods  #################################### """
 
-    def copy(self, order='C'):
+    def copy(self, order='C', copy_attr=True):
+        """ Return a copy of the MultiMolecule object.
+        
+        :parameter str order: Controls the memory layout of the copy.
+            see np.ndarray.copy()_ for more details.
+        :parameter bool copy_attr: Whether or not the attributes of **self** should returned as
+            copies or views.
+        :return: A copy of **self**.
+        :rtype: |FOX.MultiMolecule|_
+        .. _np.ndarray.copy(): https://docs.scipy.org/doc/numpy/reference/generated/numpy.ndarray.copy.html
+        """
         ret = super().copy(order)
+        if not copy_attr:
+            return ret
+        
+        # Copy attributes
         for key, value in vars(self).items():
             try:
                 setattr(ret, key, value.copy())
