@@ -186,9 +186,10 @@ class MonteCarlo():
         :parameter float stop: End of the interval. The interval includes this value.
         :parameter float step: Spacing between values.
         """
-        rng_range1 = np.arange(1 + start, 1 + stop + step, step)
-        rng_range2 = np.arange(1 - start, 1 - stop + step, step)
+        rng_range1 = np.arange(1 + start, 1 + stop, step)
+        rng_range2 = np.arange(1 - stop, 1 - start , step)
         self.move.range = np.concatenate((rng_range1, rng_range2))
+        self.move.range.sort()
 
     def reconfigure_move_atr(self, move_range=None, func=np.add, kwarg={}):
         """ Reconfigure the attributes in **self.move**., the latter containg all settings related
