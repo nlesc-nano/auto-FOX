@@ -122,6 +122,10 @@ class MonteCarlo():
             for (_, at), charge in i.iteritems():
                 pass
             update_charge(at, charge, self.job.charge_series, self.move.charge_constraints)
+            idx_set = set(self.job.charge_series.index)
+            for at in idx_set:
+                if ('charge', at) in self.param.index:
+                    self.param.loc[('charge', at), 'param'] = self.job.charge_series[at].iloc[0]
 
         # Return a tuple with the new parameters
         return tuple(self.param['param'].values)
