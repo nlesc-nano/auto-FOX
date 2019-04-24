@@ -15,7 +15,6 @@ class _MultiMolecule(np.ndarray):
     @property decorated methods of *MultiMolecule*.
     """
     def __new__(cls, coords, atoms=None, bonds=None, properties=None):
-        assert isinstance(coords, np.ndarray)
         obj = np.asarray(coords).view(cls)
         atoms, bonds, properties = _MultiMolecule._sanitize_new(atoms, bonds, properties)
 
@@ -35,21 +34,26 @@ class _MultiMolecule(np.ndarray):
     @staticmethod
     def _sanitize_new(atoms, bonds, properties):
         """ A function for sanitizing the arguments of __new__(). """
+        type_error = "A '{}' object was supplied, expected a '{}' object"
+        
         # Sanitize **bonds**
         if bonds is not None:
-            assert isinstance(bonds, np.ndarray)
+            bonds = np.asarray(bonds)
 
         # Sanitize **atoms**
         if atoms is None:
             atoms = {}
         else:
-            assert isinstance(atoms, dict)
+            if not isinstance(atoms, dict)
+                raise TypeError(type_error.format('dict', atoms.__class__.__name__))
 
         # Sanitize **properties**
         if properties is None:
             properties = Settings({'atom': None, 'bond': None, 'Molecule': None})
         else:
-            assert isinstance(properties, dict)
+            if not isinstance(properties, dict)
+                raise TypeError(type_error.format('dict', properties.__class__.__name__))
+            properties = Settings(properties)
 
         return atoms, bonds, properties
 
@@ -57,7 +61,7 @@ class _MultiMolecule(np.ndarray):
 
     @property
     def atom12(self):
-        """ Return the indices of the atoms for all bonds in **self.bonds** as 2d array"""
+        """ Return the indices of the atoms for all bonds in **self.bonds** as 2D array"""
         return self.bonds[:, 0:2]
 
     @atom12.setter
@@ -66,7 +70,7 @@ class _MultiMolecule(np.ndarray):
 
     @property
     def atom1(self):
-        """ Return the indices of the first atoms in all bonds of **self.bonds** as 1d array"""
+        """ Return the indices of the first atoms in all bonds of **self.bonds** as 1D array"""
         return self.bonds[:, 0]
 
     @atom1.setter
@@ -75,7 +79,7 @@ class _MultiMolecule(np.ndarray):
 
     @property
     def atom2(self):
-        """ Return the indices of the second atoms in all bonds of **self.bonds** as 1d array. """
+        """ Return the indices of the second atoms in all bonds of **self.bonds** as 1D array. """
         return self.bonds[:, 1]
 
     @atom2.setter
@@ -84,7 +88,7 @@ class _MultiMolecule(np.ndarray):
 
     @property
     def order(self):
-        """ Return the bond orders for all bonds in **self.bonds** as 1d array. """
+        """ Return the bond orders for all bonds in **self.bonds** as 1D array. """
         return self.bonds[:, 2] / 10.0
 
     @order.setter
@@ -93,32 +97,44 @@ class _MultiMolecule(np.ndarray):
 
     @property
     def x(self):
-        """ Return the x coordinates for all atoms in **self.coords** as 2d array. """
+        """ Return the x coordinates for all atoms in **self** as 2D array. """
         return self[:, :, 0]
 
+    @x.setter
+    def x(self, value):
+        self[:, :, 0] = value
+    
     @property
     def y(self):
-        """ Return the y coordinates for all atoms in **self.coords** as 2d array. """
+        """ Return the y coordinates for all atoms in **self** as 2D array. """
         return self[:, :, 1]
 
+    @y.setter
+    def y(self, value):
+        self[:, :, 1] = value
+    
     @property
     def z(self):
-        """ Return the z coordinates for all atoms in **self.coords** as 2d array. """
+        """ Return the z coordinates for all atoms in **self** as 2D array. """
         return self[:, :, 2]
 
+    @z.setter
+    def z(self, value):
+        self[:, :, 2] = value
+    
     @property
     def symbol(self):
-        """ Return the atomic symbols of all atoms in **self.atoms** as 1d array. """
+        """ Return the atomic symbols of all atoms in **self.atoms** as 1D array. """
         return self._get_atomic_property('symbol')
 
     @property
     def atnum(self):
-        """ Return the atomic numbers of all atoms in **self.atoms** as 1d array. """
+        """ Return the atomic numbers of all atoms in **self.atoms** as 1D array. """
         return self._get_atomic_property('atnum')
 
     @property
     def mass(self):
-        """ Return the atomic masses of all atoms in **self.atoms** as 1d array. """
+        """ Return the atomic masses of all atoms in **self.atoms** as 1D array. """
         return self._get_atomic_property('mass')
 
     @property
@@ -128,7 +144,7 @@ class _MultiMolecule(np.ndarray):
 
     @property
     def connectors(self):
-        """ Return the atomic connectors of all atoms in **self.atoms** as 1d array. """
+        """ Return the atomic connectors of all atoms in **self.atoms** as 1D array. """
         return self._get_atomic_property('connectors')
 
     def _get_atomic_property(self, prop='symbol'):
