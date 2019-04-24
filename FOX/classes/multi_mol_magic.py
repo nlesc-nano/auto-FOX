@@ -186,7 +186,10 @@ class _MultiMolecule(np.ndarray):
         return ret
 
     def __copy__(self):
-        return self.copy(order='K')
+        return self.copy(order='K', copy_attr=False)
+    
+    def __deepcopy__(self, memo):
+        return self.copy(order='K', copy_attr=True)
 
     def __str__(self):
         ret = 'Atomic coordinates:\n'
