@@ -171,7 +171,8 @@ man_pages = [
 #  dir menu entry, description, category)
 texinfo_documents = [
     (master_doc, 'Auto-FOX', 'Auto-FOX Documentation', author, 'Auto-FOX',
-     'Auto-FOX is a tool for parameterizing forcefields by reproducing radial distribution functions.',
+     'Auto-FOX is a library for analyzing potential energy surfaces (PESs) and \
+     using the resulting PES descriptors for constructing forcefield parameters.',
      'Miscellaneous')
 ]
 
