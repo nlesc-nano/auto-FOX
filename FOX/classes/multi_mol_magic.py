@@ -141,12 +141,9 @@ class _MultiMolecule(np.ndarray):
         :return: A dictionary with atomic indices as keys and atomic symbols as values.
         :rtype: |np.array|_ [|np.float64|_, |str|_ or |np.int64|_].
         """
-        def get_symbol(symbol):
-            return symbol
-
         # Interpret the **values** argument
         prop_dict = {
-            'symbol': get_symbol,
+            'symbol': lambda x: x,
             'radius': PeriodicTable.get_radius,
             'atnum': PeriodicTable.get_atomic_number,
             'mass': PeriodicTable.get_mass,
