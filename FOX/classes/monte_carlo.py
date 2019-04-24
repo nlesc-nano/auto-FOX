@@ -187,7 +187,7 @@ class MonteCarlo():
         :parameter float step: Spacing between values.
         """
         rng_range1 = np.arange(1 + start, 1 + stop, step)
-        rng_range2 = np.arange(1 - stop, 1 - start , step)
+        rng_range2 = np.arange(1 - stop, 1 - start + step , step)
         self.move.range = np.concatenate((rng_range1, rng_range2))
         self.move.range.sort()
 
