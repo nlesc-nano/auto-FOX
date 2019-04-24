@@ -4,7 +4,6 @@ __all__ = ['MonteCarlo', 'ARMC']
 
 import os
 import shutil
-from os.path import isdir
 
 import numpy as np
 
@@ -104,7 +103,7 @@ class MonteCarlo():
             self.job.molecule = self.job.molecule.as_Molecule(-1)[0]
 
         assert isinstance(self.job.name, str)
-        assert isdir(self.job.path)
+        assert os.path.isdir(self.job.path)
 
     def move_param(self):
         """ Update a random parameter in **self.param** by a random value from **self.move.range**.
@@ -278,7 +277,7 @@ class ARMC(MonteCarlo):
         init(path=self.job.path, folder='MM_MD_workdir')
         config.default_jobmanager.settings.hashing = None
         history_dict = {}
-        key_new = tuple(self.param['param'].values)
+        key_new = tuple(self.param['param'].values.round(8))
         history_dict[key_new] = self.get_pes_descriptors(history_dict, key_new)
 
         # Start the main loop
