@@ -127,7 +127,7 @@ class MonteCarlo():
                     self.param.loc[('charge', at), 'param'] = self.job.charge_series[at].iloc[0]
 
         # Return a tuple with the new parameters
-        return tuple(self.param['param'].values)
+        return tuple(self.param['param'].values.round(8))
 
     def run_md(self):
         """ Run an MD job, updating the cartesian coordinates of **self.job.mol** and returning
