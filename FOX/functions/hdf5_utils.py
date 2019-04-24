@@ -40,15 +40,16 @@ def create_hdf5(mc_kwarg, path=None, name='MC.hdf5'):
     """
     path = path or os.getcwd()
     filename = join(path, name)
+    shape = mc_kwarg.armc.iter_len // mc_kwarg.armc.sub_iter_len, mc_kwarg.armc.sub_iter_len
 
     # Create a Settings object with the shape and dtype of all to-be stored data
     shape_dict = Settings()
-    shape_dict.param.shape = mc_kwarg.armc.iter_len, len(mc_kwarg.param)
+    shape_dict.param.shape = shape + (len(mc_kwarg.param), )
     shape_dict.param.dtype = float
-    shape_dict.acceptance.shape = (mc_kwarg.armc.iter_len, )
+    shape_dict.acceptance.shape = shape
     shape_dict.acceptance.dtype = bool
     for key, value in mc_kwarg.pes.items():
-        shape_dict[key].shape = (mc_kwarg.armc.iter_len, ) + get_shape(value.ref)
+        shape_dict[key].shape = shape + get_shape(value.ref)
         shape_dict[key].dtype = float
 
     # Create a hdf5 file with *n* datasets
@@ -59,7 +60,7 @@ def create_hdf5(mc_kwarg, path=None, name='MC.hdf5'):
             f.create_dataset(name=key, shape=value.shape, dtype=value.dtype)
 
     # Store the *index*, *column* and *name* attributes of dataframes/series in the hdf5 file
-    pd_dict = {'param': mc_kwarg.param}
+    pd_dict = {'param': mc_kwarg.param['param']}
     for key, value in mc_kwarg.pes.items():
         pd_dict[key] = value.ref
     index_to_hdf5(pd_dict, path)
@@ -97,7 +98,7 @@ def index_to_hdf5(pd_dict, path=None, name='MC.hdf5'):
             for attr_name in attr_tup:
                 if hasattr(value, attr_name):
                     attr = getattr(value, attr_name)
-                    i = _attr_to_array(attr)
+                    i = _attr_to_array(attr).T
                     f[key].attrs.create(attr_name, i)
 
 
@@ -142,13 +143,12 @@ def to_hdf5(dict_, i, j, path=None, name='MC.hdf5'):
     """
     path = path or os.getcwd()
     filename = join(path, name)
-    k = j + i * j
 
     with h5py.File(filename, 'r+') as f:
-        f.attrs.modify('iteration', i)
-        f.attrs.modify('subiteration', j)
+        f.attrs['iteration'] = i
+        f.attrs['subiteration'] = j
         for key, value in dict_.items():
-            f[key][k] = value
+            f[key][i, j] = value
 
 
 @assert_error(H5PY_ERROR)
@@ -170,7 +170,9 @@ def from_hdf5(datasets=None, path=None, name='MC.hdf5'):
 
     with h5py.File(filename, 'r') as f:
         datasets = datasets or f.keys()
-        for key in f:
+        if isinstance(datasets, str):
+            datasets = (datasets, )
+        for key in datasets:
             ret[key] = _get_dset(f, key)
 
     return ret
@@ -188,7 +190,12 @@ def _get_dset(f, key):
     :rtype: |np.ndarray|_, |pd.DataFrame|_ or |pd.Series|_
     """
     if not f[key].attrs.keys():
-        return f[key][:]
+        ret = f[key][:]
+        if ret.ndim == 2:
+            return ret.flatten()
+        else:
+            ret.shape = np.product(ret.shape[:-1]), -1
+            return ret
     elif 'columns' in f[key].attrs.keys():
         return dset_to_df(f, key)
     elif 'name' in f[key].attrs.keys():
@@ -197,7 +204,7 @@ def _get_dset(f, key):
 
 @assert_error(H5PY_ERROR)
 def dset_to_series(f, key):
-    """ Take a h5py dataset and convert it into a Pandas Series or list of Pandas Series.
+    """ Take a h5py dataset and convert it into a Pandas Series (if 1D) or Pandas Series (if 2D).
 
     :parameter f: An opened hdf5 file.
     :type f: |h5py.File|_
@@ -208,14 +215,19 @@ def dset_to_series(f, key):
     name = f[key].attrs['name'][0].decode()
     index = array_to_index(f[key].attrs['index'][:])
     data = f[key][:]
+    data.shape = np.product(data.shape[:-1]), -1
     if data.ndim == 1:
         return pd.Series(f[key][:], index=index, name=name)
-    return [pd.Series(i, index=index, name=name) for i in data]
+    else:
+        columns = index
+        index = pd.MultiIndex.from_product([[name], np.arange(data.shape[0])])
+        return pd.DataFrame(data, index=index, columns=columns)
 
 
 @assert_error(H5PY_ERROR)
 def dset_to_df(f, key):
-    """ Take a h5py dataset and convert it into a Pandas DataFrame or list of Pandas DataFrames.
+    """ Take a h5py dataset and convert it into a Pandas DataFrame (if 2D) or list of Pandas
+    DataFrames (if 3D).
 
     :parameter f: An opened hdf5 file.
     :type f: |h5py.File|_
@@ -226,6 +238,7 @@ def dset_to_df(f, key):
     columns = array_to_index(f[key].attrs['columns'][:])
     index = array_to_index(f[key].attrs['index'][:])
     data = f[key][:]
+    data.shape = np.product(data.shape[:-2]), data.shape[-2], -1
     if data.ndim == 2:
         return pd.DataFrame(data, index=index, columns=columns)
     return [pd.DataFrame(i, index=index, columns=columns) for i in data]

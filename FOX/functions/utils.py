@@ -6,6 +6,7 @@ from os.path import join
 from functools import wraps
 from pkg_resources import resource_filename
 
+import numpy as np
 import pandas as pd
 
 from scm.plams import (Settings, add_to_class)
@@ -301,9 +302,9 @@ def update_charge(at, charge, series, constrain_dict={}):
             series[series.index == at2] *= constrain_dict[at][at2]
 
     # Update all unconstrained charges
-    criterion = [i not in at_list for i in series.index]
-    i = series[criterion].sum() / net_charge
-    series[criterion] /= i
+    criterion = np.array([i not in at_list for i in series.index])
+    i = (net_charge - series[~criterion].sum()) / series[criterion].sum()
+    series[criterion] *= i
 
 
 def array_to_index(ar):
@@ -318,9 +319,9 @@ def array_to_index(ar):
     if 'bytes' in ar.dtype.name:
         ar = ar.astype(str, copy=False)
 
-    if ar.dim == 1:
+    if ar.ndim == 1:
         return pd.Index(ar)
-    elif ar.dim == 2:
+    elif ar.ndim == 2:
         return pd.MultiIndex.from_arrays(ar)
     raise ValueError('Could not construct a Pandas (Multi)Index from an \
                      {:d}-dimensional array'.format(ar.dim))

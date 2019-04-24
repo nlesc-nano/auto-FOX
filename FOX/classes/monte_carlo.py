@@ -70,7 +70,7 @@ class MonteCarlo():
 
         # Settings for generating Monte Carlo moves
         self.move = Settings()
-        self.move.func = np.add
+        self.move.func = np.multiply
         self.move.kwarg = {}
         self.move.charge_constraints = {}
         self.move.range = None
@@ -115,6 +115,7 @@ class MonteCarlo():
         i = self.param.loc[:, 'param'].sample()
         j = np.random.choice(self.move.range, 1)
         self.param.loc[i.index, 'param'] = self.move.func(i, j, **self.move.kwarg)
+        i = self.param.loc[i.index, 'param']
 
         # Constrain the atomic charges
         if 'charge' in i:
@@ -185,8 +186,9 @@ class MonteCarlo():
         :parameter float stop: End of the interval. The interval includes this value.
         :parameter float step: Spacing between values.
         """
-        rng_range = np.arange(start, stop + step, step)
-        self.move.range = np.concatenate((-rng_range, rng_range))
+        rng_range1 = np.arange(1 + start, 1 + stop + step, step)
+        rng_range2 = np.arange(1 - start, 1 - stop + step, step)
+        self.move.range = np.concatenate((rng_range1, rng_range2))
 
     def reconfigure_move_atr(self, move_range=None, func=np.add, kwarg={}):
         """ Reconfigure the attributes in **self.move**., the latter containg all settings related
@@ -306,7 +308,6 @@ class ARMC(MonteCarlo):
             # Step 1: Perform a random move
             key_old = key_new
             key_new = self.move_param()
-            print('Iteration {} - {}:'.format(i, j), key_new)
 
             # Step 2: Check if the move has been performed already; calculate PES descriptors if not
             pes_new = self.get_pes_descriptors(history_dict, key_new)
@@ -315,9 +316,10 @@ class ARMC(MonteCarlo):
             pes_old = history_dict[key_old]
             accept = bool(sum(self.get_aux_error(pes_old) - self.get_aux_error(pes_new)))
 
-            # Step 4: Update the PES descriptor history
+            # Step 4: Update the PES descriptor history & apply phi based on the acceptance
+            acceptance[j] = accept
+            history_dict[key_new] = pes_new
             if accept:
-                acceptance[j] = True
                 history_dict[key_new] = self.apply_phi(pes_new)
                 update_cp2k_settings(self.job.settings, self.param)
             else:
