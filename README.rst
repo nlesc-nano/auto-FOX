@@ -10,8 +10,8 @@
 Automated Forcefield Optimization Extension 0.3.0
 #################################################
 
-**Auto-FOX** is a library for parameterizing forcefields by reproducing
-radial distribution functions.
+**Auto-FOX** is a library for analyzing potential energy surfaces (PESs) and 
+using the resulting PES descriptors for constructing forcefield parameters.
 Further details are provided in the documentation_.
 
 
