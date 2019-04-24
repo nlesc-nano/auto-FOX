@@ -16,12 +16,13 @@ class _MultiMolecule(np.ndarray):
     """
     def __new__(cls, coords, atoms=None, bonds=None, properties=None):
         obj = np.asarray(coords).view(cls)
-        atoms, bonds, properties = _MultiMolecule._sanitize_new(atoms, bonds, properties)
+        _MultiMolecule._sanitize_arg(obj)
+        atoms, bonds, properties = _MultiMolecule._sanitize_kwarg(atoms, bonds, properties)
 
         # Set attributes
-        obj.atoms = atoms
-        obj.bonds = bonds
-        obj.properties = properties
+        obj.atoms = _MultiMolecule._sanitize_atoms(atoms)
+        obj.bonds = _MultiMolecule._sanitize_bonds(bonds)
+        obj.properties = _MultiMolecule._sanitize_properties(properties)
         return obj
 
     def __array_finalize__(self, obj):
@@ -32,30 +33,55 @@ class _MultiMolecule(np.ndarray):
         self.properties = getattr(obj, 'properties', None)
 
     @staticmethod
-    def _sanitize_new(atoms, bonds, properties):
-        """ A function for sanitizing the arguments of __new__(). """
-        type_error = "A '{}' object was supplied, expected a '{}' object"
-        
-        # Sanitize **bonds**
+    def _sanitize_coords(coords):
+        """ A function for sanitizing the 'coords' arguments in :meth:`_MultiMolecule.__new__`. """
+        shape_error = "The 'coords' argument expects a 'm*n*3' list-like object with.\
+                       The following shape was observed: '{}'"
+        dtype_error = "The 'coords' argument expects a list-like object consisting exclusively of integers.\
+                       The following type was observed: '{}'"
+
+        if not coords.ndim == 3 or coords.shape[2] == 3:
+            shape = ''.join('*' + str(i) for i in coords.shape)[1:]
+            raise ValueError(shape_error.format(shape))
+        if not isinstance(coords[0, 0, 0], np.float):
+            ar_type = coords[0, 0, 0].__class__.__name__
+            raise ValueError(dtype_error.format(ar_type))
+
+    @staticmethod
+    def _sanitize_bonds(bonds):
+        """ A function for sanitizing the 'bonds' arguments in :meth:`_MultiMolecule.__new__`. """
+        shape_error = "The 'bonds' argument expects a 2-dimensional list-like object, \
+                       a {:d}-dimensional object was supplied"
+
         if bonds is not None:
-            bonds = np.asarray(bonds)
+            bonds = np.asarray(bonds, dtype=int)
+            if not bonds.ndim == 2:
+                raise ValueError(shape_error.format(bonds.ndim))
+        return bonds
 
-        # Sanitize **atoms**
+    @staticmethod
+    def _sanitize_atoms(atoms):
+        """ A function for sanitizing the 'atoms' arguments in :meth:`_MultiMolecule.__new__`. """
+        type_error = "The 'atoms' argument expects a 'dict' object; a '{}' object was supplied"
+
         if atoms is None:
-            atoms = {}
+            return {}
         else:
-            if not isinstance(atoms, dict)
-                raise TypeError(type_error.format('dict', atoms.__class__.__name__))
+            if not isinstance(atoms, dict):
+                raise TypeError(type_error.format(atoms.__class__.__name__))
+            return atoms
 
-        # Sanitize **properties**
+    @staticmethod
+    def _sanitize_properties(properties):
+        """ A function for sanitizing the 'properties' arguments in :meth:`_MultiMolecule.__new__`. """
+        type_error = "The 'properties' argument expects a 'dict' object; a '{}' object was supplied"
+
         if properties is None:
-            properties = Settings({'atom': None, 'bond': None, 'Molecule': None})
+            return Settings({'atom': None, 'bond': None, 'Molecule': None})
         else:
-            if not isinstance(properties, dict)
-                raise TypeError(type_error.format('dict', properties.__class__.__name__))
-            properties = Settings(properties)
-
-        return atoms, bonds, properties
+            if not isinstance(properties, dict):
+                raise TypeError(type_error.format(properties.__class__.__name__))
+            return Settings(properties)
 
     """ ##############################  plams-based properties  ############################### """
 
@@ -103,7 +129,7 @@ class _MultiMolecule(np.ndarray):
     @x.setter
     def x(self, value):
         self[:, :, 0] = value
-    
+
     @property
     def y(self):
         """ Return the y coordinates for all atoms in **self** as 2D array. """
@@ -112,7 +138,7 @@ class _MultiMolecule(np.ndarray):
     @y.setter
     def y(self, value):
         self[:, :, 1] = value
-    
+
     @property
     def z(self):
         """ Return the z coordinates for all atoms in **self** as 2D array. """
@@ -121,7 +147,7 @@ class _MultiMolecule(np.ndarray):
     @z.setter
     def z(self, value):
         self[:, :, 2] = value
-    
+
     @property
     def symbol(self):
         """ Return the atomic symbols of all atoms in **self.atoms** as 1D array. """
@@ -180,7 +206,7 @@ class _MultiMolecule(np.ndarray):
 
     def copy(self, order='C', copy_attr=True):
         """ Return a copy of the MultiMolecule object.
-        
+
         :parameter str order: Controls the memory layout of the copy.
             see np.ndarray.copy()_ for more details.
         :parameter bool copy_attr: Whether or not the attributes of **self** should returned as
@@ -192,7 +218,7 @@ class _MultiMolecule(np.ndarray):
         ret = super().copy(order)
         if not copy_attr:
             return ret
-        
+
         # Copy attributes
         for key, value in vars(self).items():
             try:
@@ -203,7 +229,7 @@ class _MultiMolecule(np.ndarray):
 
     def __copy__(self):
         return self.copy(order='K', copy_attr=False)
-    
+
     def __deepcopy__(self, memo):
         return self.copy(order='K', copy_attr=True)
 
