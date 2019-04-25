@@ -1,10 +1,8 @@
 """ A module with miscellaneous functions related to CP2K. """
 
-__all__ = ['set_subsys_kind', 'set_lennard_jones', 'set_atomic_charges', 'update_cp2k_settings']
+__all__ = ['update_cp2k_settings', 'set_keys']
 
 import itertools
-
-import numpy as np
 
 from scm.plams import Settings
 
@@ -82,14 +80,12 @@ def update_cp2k_settings(settings, param):
     :type param: |pd.DataFrame|_
     """
     # Update the Lennard-Jones epsilon parameters
-    epsilon = param.loc['epsilon', :]
-    for i, j in zip(epsilon['key'], epsilon['param']):
-        settings.input.force_eval.mm.forcefield.nonbonded[i].epsilon = j
+    for _, (i, j, *_) in param.loc['epsilon', :].iterrows():
+        settings.input.force_eval.mm.forcefield.nonbonded['lennard-jones'][int(j)].epsilon = i
 
     # Update the Lennard-Jones sigma parameters
-    sigma = param.loc['sigma', :]
-    for i, j in zip(sigma['key'], sigma['param']):
-        settings.input.force_eval.mm.forcefield.nonbonded[i].sigma = j
+    for _, (i, j, *_) in param.loc['sigma', :].iterrows():
+        settings.input.force_eval.mm.forcefield.nonbonded['lennard-jones'][int(j)].sigma = i
 
 
 def set_keys(settings, param, rcut=12.0):
@@ -109,12 +105,10 @@ def set_keys(settings, param, rcut=12.0):
                          'atoms': at})
 
     # Generate the keys for atomic charges (note: there are no charge keys)
-    key_list = [np.nan for _ in param.loc['charge'].index]
+    key_list = [-1 for _ in param.loc['charge'].index]
 
     # Create a list for all CP2K &LENNARD-JONES blocks
     lj_list = [_get_settings(param, at) for at in param.loc['epsilon'].index]
-
-
     settings.input.force_eval.mm.forcefield.nonbonded.update({'lennard-jones': lj_list})
     key_list += 2 * [i for i, _ in enumerate(param.loc['epsilon'].index)]
     return key_list

@@ -3,6 +3,8 @@
 import os
 from os.path import join
 
+import numpy as np
+
 from scm.plams import Settings, add_to_class
 from scm.plams.interfaces.thirdparty.cp2k import Cp2kJob
 
@@ -18,7 +20,7 @@ def get_runscript(self):
     return 'cp2k.ssmp -i {} -o {}'.format(self._filename('inp'), self._filename('out'))
 
 
-path = '/Users/basvanbeek/Downloads'
+path = '/Users/bvanbeek/Downloads'
 
 # Read the .xyz file
 mol = MultiMolecule(filename=get_example_xyz())
@@ -37,7 +39,8 @@ set_subsys_kind(s, df)
 
 # Generate a dataframe of parameters
 param = dict_to_pandas(get_template('param.yaml'), 'param')
-set_keys(s, param)
+param['key'] = set_keys(s, param)
+param['param_old'] = np.nan
 
 # Set charge constraints
 charge_constrain = Settings()
@@ -59,7 +62,7 @@ carlos.pes.rdf.func = MultiMolecule.init_rdf
 carlos.pes.rdf.kwarg = {'atom_subset': ('Cd', 'Se', 'O')}
 carlos.pes.rdf.ref = mol.init_rdf(**carlos.pes.rdf.kwarg)
 
-carlos.armc.iter_len = 100
+carlos.armc.iter_len = 30
 carlos.armc.sub_iter_len = 10
 
 try:

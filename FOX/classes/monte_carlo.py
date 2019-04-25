@@ -134,7 +134,7 @@ class MonteCarlo():
                     param.loc[('charge', at), 'param'] = df.loc[condition, 'charge'].iloc[0]
 
         # Return a tuple with the new parameters
-        return tuple(self.param['param'].values.round(8))
+        return tuple(self.param['param'].values)
 
     def run_md(self):
         """ Run an MD job, updating the cartesian coordinates of **self.job.mol** and returning
@@ -285,10 +285,11 @@ class ARMC(MonteCarlo):
         # Initialize the first MD calculation
         init(path=self.job.path, folder='MM_MD_workdir')
         config.default_jobmanager.settings.hashing = None
-        key_new = tuple(self.param['param'].values.round(8))
+        key_new = tuple(self.param['param'].values)
         history_dict = {}
         pes_new = self.get_pes_descriptors(history_dict, key_new)
         history_dict[key_new] = self.get_aux_error(pes_new)
+        self.param['param_old'] = self.param['param']
 
         # Start the main loop
         for i in range(super_iter):
@@ -319,6 +320,7 @@ class ARMC(MonteCarlo):
 
             # Step 2: Check if the move has been performed already; calculate PES descriptors if not
             pes_new = self.get_pes_descriptors(history_dict, key_new)
+            hdf5_kwarg.update(pes_new)
 
             # Step 3: Evaluate the auxiliary error
             if not pes_new:
@@ -327,20 +329,25 @@ class ARMC(MonteCarlo):
             else:
                 aux_new = self.get_aux_error(pes_new)
             aux_old = history_dict[key_old]
-            accept = bool(sum(aux_old - aux_new))
+            accept = bool(sum(aux_new - aux_old))
 
-            # Step 4: Update the auxiliary error history & apply phi
+            # Step 4: Update the auxiliary error history, apply phi & update job settings
             acceptance[j] = accept
             if accept:
                 history_dict[key_new] = self.apply_phi(aux_new)
+                update_cp2k_settings(self.job.settings, self.param)
+                self.param['param_old'] = self.param['param']
+                hdf5_kwarg['aux_error_mod'] = np.append(self.param['param'].values, self.phi.phi)
             else:
                 history_dict[key_new] = aux_new
                 history_dict[key_old] = self.apply_phi(aux_old)
                 key_new = key_old
+                hdf5_kwarg['aux_error_mod'] = np.append(self.param['param_old'].values, self.phi.phi)
 
             # Step 5: Export the results to HDF5
             hdf5_kwarg['param'] = self.param['param']
             hdf5_kwarg['acceptance'] = accept
+            hdf5_kwarg['aux_error'] = aux_new
             to_hdf5(hdf5_kwarg, i, j, self.phi.phi, self.hdf5_path)
 
         self.update_phi(acceptance)
