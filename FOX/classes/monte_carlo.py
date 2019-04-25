@@ -112,20 +112,26 @@ class MonteCarlo():
         :return: A tuple with the (new) values in the *param* column of **self.param**.
         :rtype: |tuple|_ [|float|_]
         """
-        i = self.param.loc[:, 'param'].sample()
+        # Unpack arguments
+        param = self.param
+        df = self.job.psf.atoms
+
+        # Perform a move
+        i = param.loc[:, 'param'].sample()
         j = np.random.choice(self.move.range, 1)
-        self.param.loc[i.index, 'param'] = self.move.func(i, j, **self.move.kwarg)
-        i = self.param.loc[i.index, 'param']
+        param.loc[i.index, 'param'] = self.move.func(i, j, **self.move.kwarg)
+        i = param.loc[i.index, 'param']
 
         # Constrain the atomic charges
         if 'charge' in i:
             for (_, at), charge in i.iteritems():
                 pass
-            update_charge(at, charge, self.job.psf, self.move.charge_constraints)
-            idx_set = set(self.job.psf['atoms']['atom type'].values)
+            update_charge(at, charge, df, self.move.charge_constraints)
+            idx_set = set(df['atom type'].values)
             for at in idx_set:
-                if ('charge', at) in self.param.index:
-                    self.param.loc[('charge', at), 'param'] = self.job.psf['atoms'][at].iloc[0]
+                if ('charge', at) in param.index:
+                    condition = df['atom type'] == at
+                    param.loc[('charge', at), 'param'] = df.loc[condition, 'charge'].iloc[0]
 
         # Return a tuple with the new parameters
         return tuple(self.param['param'].values.round(8))

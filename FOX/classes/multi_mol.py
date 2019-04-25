@@ -843,8 +843,7 @@ class MultiMolecule(_MultiMolecule):
         # Prepare atoms
         if self.properties.atoms is None:
             self._set_psf_block()
-        ret['atoms'] = self.properties.atoms.T
-        ret['atoms'].reset_index(level=0, inplace=True)
+        ret['atoms'] = self.properties.atoms
 
         # Prepare bonds, angles, dihedrals and impropers
         if self.bonds is not None:

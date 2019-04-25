@@ -291,15 +291,15 @@ def update_charge(at, charge, charge_df, constrain_dict={}):
     net_charge = charge_df['charge'].sum()
 
     # Update all constrained charges
-    charge_df.loc[charge_df.index == at, 'charge'] = charge
+    charge_df.loc[charge_df['atom type'] == at, 'charge'] = charge
     at_list = [at]
     if at in constrain_dict:
         for at2 in constrain_dict[at]:
             at_list.append(at2)
-            charge_df.loc[charge_df.index == at2, 'charge'] *= constrain_dict[at][at2]
+            charge_df.loc[charge_df['atom type'] == at2, 'charge'] *= constrain_dict[at][at2]
 
     # Update all unconstrained charges
-    criterion = np.array([i not in at_list for i in charge_df.index])
+    criterion = np.array([i not in at_list for i in charge_df['atom type']])
     i = net_charge - charge_df.loc[~criterion, 'charge'].sum()
     i /= charge_df.loc[criterion, 'charge'].sum()
     charge_df.loc[criterion, 'charge'] *= i
@@ -349,10 +349,10 @@ def write_psf(atoms=None, bonds=None, angles=None, dihedrals=None, impropers=Non
     top += '\n{:>10.10} https://github.com/nlesc-nano/auto-FOX'.format('REMARKS')
 
     # Prepare the !NATOM block
-    top += '\n\n{:>10d} !NATOM\n'.format(atoms.shape[1])
+    top += '\n\n{:>10d} !NATOM\n'.format(atoms.shape[0])
     string = '{:>10d} {:8.8} {:<8d} {:8.8} {:8.8} {:6.6} {:>9f} {:>15f} {:>8d}'
-    for key in atoms.columns[1:]:
-        top += string.format(*[key]+[i for i in atoms[key]]) + '\n'
+    for i, j in atoms.iterrows():
+        top += string.format(*[i]+j.values.tolist()) + '\n'
 
     # Prepare arguments
     items_per_row = [4, 3, 2, 2]
