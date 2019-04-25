@@ -172,7 +172,7 @@ class MonteCarlo():
         :rtype: |dict|_ (keys: |str|_, values: |np.ndarray|_ [|np.float64|_])
         """
         if key in history_dict:
-            return history_dict[key]
+            return False
 
         # Generate PES descriptors
         mol, path = self.run_md()
@@ -285,9 +285,10 @@ class ARMC(MonteCarlo):
         # Initialize the first MD calculation
         init(path=self.job.path, folder='MM_MD_workdir')
         config.default_jobmanager.settings.hashing = None
-        history_dict = {}
         key_new = tuple(self.param['param'].values.round(8))
-        history_dict[key_new] = self.get_pes_descriptors(history_dict, key_new)
+        history_dict = {}
+        pes_new = self.get_pes_descriptors(history_dict, key_new)
+        history_dict[key_new] = self.get_aux_error(pes_new)
 
         # Start the main loop
         for i in range(super_iter):
@@ -320,23 +321,27 @@ class ARMC(MonteCarlo):
             pes_new = self.get_pes_descriptors(history_dict, key_new)
 
             # Step 3: Evaluate the auxiliary error
-            pes_old = history_dict[key_old]
-            accept = bool(sum(self.get_aux_error(pes_old) - self.get_aux_error(pes_new)))
-
-            # Step 4: Update the PES descriptor history & apply phi based on the acceptance
-            acceptance[j] = accept
-            history_dict[key_new] = pes_new
-            if accept:
-                history_dict[key_new] = self.apply_phi(pes_new)
-                update_cp2k_settings(self.job.settings, self.param)
+            if not pes_new:
+                aux_new = history_dict[key_new]
+                pes_new = {key: np.nan for key in self.pes}
             else:
-                history_dict[key_old] = self.apply_phi(pes_old)
+                aux_new = self.get_aux_error(pes_new)
+            aux_old = history_dict[key_old]
+            accept = bool(sum(aux_old - aux_new))
+
+            # Step 4: Update the auxiliary error history & apply phi
+            acceptance[j] = accept
+            if accept:
+                history_dict[key_new] = self.apply_phi(aux_new)
+            else:
+                history_dict[key_new] = aux_new
+                history_dict[key_old] = self.apply_phi(aux_old)
+                key_new = key_old
 
             # Step 5: Export the results to HDF5
             hdf5_kwarg['param'] = self.param['param']
-            hdf5_kwarg.update(pes_new)
             hdf5_kwarg['acceptance'] = accept
-            to_hdf5(hdf5_kwarg, i, j, self.hdf5_path)
+            to_hdf5(hdf5_kwarg, i, j, self.phi.phi, self.hdf5_path)
 
         self.update_phi(acceptance)
         return key_new
@@ -354,22 +359,17 @@ class ARMC(MonteCarlo):
             return np.linalg.norm(a - b, axis=0).sum()
         return np.array([norm_sum(pes_dict[i], self.pes[i].ref) for i in pes_dict])
 
-    def apply_phi(self, pes_dict):
-        """ Apply **self.phi.phi** to all PES descriptors in **pes_dict**.
+    def apply_phi(self, aux_error):
+        """ Apply **self.phi.phi** to all auxiliary errors in **aux_error**.
 
         * The values are updated according to the provided settings in **self.armc**.
 
-        :parameter values: A dictionary with PES descriptors.
-        :type pes_dict: |dict|_ (values: |pd.DataFrame|_, |pd.Series|_ and/or |np.ndarray|_)
-        :return: **pes_dict** with updated values.
-        :rtype: |dict|_ (values: |pd.DataFrame|_, |pd.Series|_ and/or |np.ndarray|_)
+        :parameter aux_error: An array with auxiliary errors
+        :type aux_error: |np.ndarray|_ [|np.float64|_]
+        :return: **aux_error** with updated values.
+        :rtype: |np.ndarray|_ [|np.float64|_]
         """
-        phi = self.phi.phi
-        func = self.phi.func
-        kwarg = self.phi.kwarg
-        for key, value in pes_dict.items():
-            pes_dict[key] = func(value, phi, **kwarg)
-        return pes_dict
+        return self.phi.func(aux_error, self.phi.phi, **self.phi.kwarg)
 
     def update_phi(self, acceptance):
         """ Update **self.phi** based on **self.armc.a_target** and **acceptance**.

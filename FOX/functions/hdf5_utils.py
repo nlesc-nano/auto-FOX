@@ -57,7 +57,7 @@ def create_hdf5(mc_kwarg, path=None, name='MC.hdf5'):
         f.attrs.create('iteration', -1)
         f.attrs.create('subiteration', -1)
         for key, value in shape_dict.items():
-            f.create_dataset(name=key, shape=value.shape, dtype=value.dtype)
+            f.create_dataset(name=key, shape=value.shape, dtype=value.dtype, compression='gzip')
 
     # Store the *index*, *column* and *name* attributes of dataframes/series in the hdf5 file
     pd_dict = {'param': mc_kwarg.param['param']}
@@ -131,7 +131,7 @@ def _attr_to_array(item):
 
 
 @assert_error(H5PY_ERROR)
-def to_hdf5(dict_, i, j, path=None, name='MC.hdf5'):
+def to_hdf5(dict_, i, j, phi, path=None, name='MC.hdf5'):
     """ Export results from **dict_** to the hdf5 file **name**.
 
     :parameter dict dict_: A dictionary with dataset names as keys and matching array-like objects
@@ -147,18 +147,18 @@ def to_hdf5(dict_, i, j, path=None, name='MC.hdf5'):
     with h5py.File(filename, 'r+') as f:
         f.attrs['iteration'] = i
         f.attrs['subiteration'] = j
+        f.attrs['phi'] = phi
         for key, value in dict_.items():
             f[key][i, j] = value
 
 
 @assert_error(H5PY_ERROR)
 def from_hdf5(datasets=None, path=None, name='MC.hdf5'):
-    """ Retrieve all user-specified datasets from **name**, returning a dicionary of arrays.
-    If matching *index* and *columns*/*name* datasets are found (see :func:`FOX.index_to_hdf5`)
-    an array will be converted into a (list) of DataFrame(s)/Series.
+    """ Retrieve all user-specified datasets from **name**, returning a dicionary of
+    DataFrames and/or Series.
 
     :parameter list datasets: A list of to be retrieved dataset names.
-        Will retrieve all datasets if *None*.
+        All datasets will be retrieved if *None*.
     :parameter str path: The path where the the hdf5 file is stored.
     :parameter str name: The name (including extension) of the hdf5 file.
     :return: A dicionary with dataset names as keys and the matching data as values.
@@ -189,17 +189,18 @@ def _get_dset(f, key):
     :return: A NumPy array or a Pandas DataFrame or Series retrieved from **key** in **f**.
     :rtype: |np.ndarray|_, |pd.DataFrame|_ or |pd.Series|_
     """
-    if not f[key].attrs.keys():
-        ret = f[key][:]
-        if ret.ndim == 2:
-            return ret.flatten()
-        else:
-            ret.shape = np.product(ret.shape[:-1]), -1
-            return ret
-    elif 'columns' in f[key].attrs.keys():
+    if 'columns' in f[key].attrs.keys():
         return dset_to_df(f, key)
     elif 'name' in f[key].attrs.keys():
         return dset_to_series(f, key)
+    elif f[key].ndim == 2:
+        return pd.Series(f[key][:].flatten(), name=key)
+    elif f[key].ndim == 3:
+        data = f[key][:]
+        data.shape = np.product(data.shape[:-1]), -1
+        columns = pd.MultiIndex.from_product([[key], np.arange(data.shape[-1])])
+        return pd.DataFrame(data, columns=columns)
+    raise TypeError()
 
 
 @assert_error(H5PY_ERROR)
@@ -220,7 +221,7 @@ def dset_to_series(f, key):
         return pd.Series(f[key][:], index=index, name=name)
     else:
         columns = index
-        index = pd.MultiIndex.from_product([[name], np.arange(data.shape[0])])
+        index = pd.Index(np.arange(data.shape[0]), name=name)
         return pd.DataFrame(data, index=index, columns=columns)
 
 

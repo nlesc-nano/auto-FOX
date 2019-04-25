@@ -4,6 +4,10 @@ __all__ = ['set_subsys_kind', 'set_lennard_jones', 'set_atomic_charges', 'update
 
 import itertools
 
+import numpy as np
+
+from scm.plams import Settings
+
 
 def set_subsys_kind(settings, df):
     """ Set the FORCE_EVAL/SUBSYS/KIND_ keyword(s) in CP2K job settings.
@@ -86,3 +90,31 @@ def update_cp2k_settings(settings, param):
     sigma = param.loc['sigma', :]
     for i, j in zip(sigma['key'], sigma['param']):
         settings.input.force_eval.mm.forcefield.nonbonded[i].sigma = j
+
+
+def set_keys(settings, param, rcut=12.0):
+    """ Find and return the keys in **settings** matching all parameters in **param**.
+
+    :parameter param: A dataframe with a 2-level multiindex.
+    :parameter param: |pd.DataFrame|_ (index: |pd.MultiIndex|_)
+    :parameter settings: Job settings.
+    :type settings: |plams.Settings|_
+    :return: A list of all matched keys.
+    :rtype: |list|_ [|str|_]
+    """
+    def _get_settings(param, at):
+        return Settings({'epsilon': param.loc[('epsilon', at), 'param'],
+                         'sigma': param.loc[('sigma', at), 'param'],
+                         'rcut': rcut,
+                         'atoms': at})
+
+    # Generate the keys for atomic charges (note: there are no charge keys)
+    key_list = [np.nan for _ in param.loc['charge'].index]
+
+    # Create a list for all CP2K &LENNARD-JONES blocks
+    lj_list = [_get_settings(param, at) for at in param.loc['epsilon'].index]
+
+
+    settings.input.force_eval.mm.forcefield.nonbonded.update({'lennard-jones': lj_list})
+    key_list += 2 * [i for i, _ in enumerate(param.loc['epsilon'].index)]
+    return key_list

@@ -784,7 +784,7 @@ class MultiMolecule(_MultiMolecule):
 
     """ #################################  Type conversion  ################################### """
 
-    def _set_psf_block(self, inplace=True):
+    def generate_psf_block(self, inplace=True):
         """ """
         res = self.residue_argsort(concatenate=False)
         plams_mol = self.as_Molecule(0)[0]
@@ -799,7 +799,7 @@ class MultiMolecule(_MultiMolecule):
         df['atom type'] = df['atom name']
         df['charge'] = [at.properties.charge for at in plams_mol]
         df['mass'] = self.mass
-        df[0] = 0
+        df['0'] = 0
 
         key = set(df.loc[df['residue ID'] == 1, 'atom type'])
         value = range(1, len(key) + 1)
@@ -816,13 +816,13 @@ class MultiMolecule(_MultiMolecule):
 
         if not inplace:
             return df
-        self.properties.atoms = df
+        self.properties.psf = df
 
-    def _update_atom_type(self, filename='mol.str'):
+    def update_atom_type(self, filename='mol.str'):
         """ """
-        if self.properties.atoms is None:
-            self._set_psf_block()
-        df = self.properties.atoms
+        if self.properties.psf is None:
+            self.generate_psf_block()
+        df = self.properties.psf
 
         at_type, charge = read_str_file(filename)
         id_range = range(2, max(df['residue ID'])+1)
@@ -841,9 +841,9 @@ class MultiMolecule(_MultiMolecule):
         ret = {'filename': filename}
 
         # Prepare atoms
-        if self.properties.atoms is None:
-            self._set_psf_block()
-        ret['atoms'] = self.properties.atoms
+        if self.properties.psf is None:
+            self.generate_psf_block()
+        ret['atoms'] = self.properties.psf
 
         # Prepare bonds, angles, dihedrals and impropers
         if self.bonds is not None:
