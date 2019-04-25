@@ -60,7 +60,7 @@ class MonteCarlo():
         # Settings for running the actual MD calculations
         self.job = Settings()
         self.job.molecule = molecule
-        self.job.charge_series = None
+        self.job.psf = None
         self.job.func = Cp2kJob
         self.job.settings = get_template('md_cp2k.yaml')
         self.job.name = self._get_name()
@@ -121,11 +121,11 @@ class MonteCarlo():
         if 'charge' in i:
             for (_, at), charge in i.iteritems():
                 pass
-            update_charge(at, charge, self.job.charge_series, self.move.charge_constraints)
-            idx_set = set(self.job.charge_series.index)
+            update_charge(at, charge, self.job.psf, self.move.charge_constraints)
+            idx_set = set(self.job.psf['atoms']['atom type'].values)
             for at in idx_set:
                 if ('charge', at) in self.param.index:
-                    self.param.loc[('charge', at), 'param'] = self.job.charge_series[at].iloc[0]
+                    self.param.loc[('charge', at), 'param'] = self.job.psf['atoms'][at].iloc[0]
 
         # Return a tuple with the new parameters
         return tuple(self.param['param'].values.round(8))
@@ -187,7 +187,7 @@ class MonteCarlo():
         :parameter float step: Spacing between values.
         """
         rng_range1 = np.arange(1 + start, 1 + stop, step)
-        rng_range2 = np.arange(1 - stop, 1 - start + step , step)
+        rng_range2 = np.arange(1 - stop, 1 - start + step, step)
         self.move.range = np.concatenate((rng_range1, rng_range2))
         self.move.range.sort()
 

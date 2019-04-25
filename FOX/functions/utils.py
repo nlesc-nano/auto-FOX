@@ -259,7 +259,7 @@ def dict_to_pandas(input_dict, name=0, object_type='DataFrame'):
         return pd.DataFrame(list(flat_dict.values()), index=idx, columns=[name])
 
 
-def update_charge(at, charge, series, constrain_dict={}):
+def update_charge(at, charge, charge_df, constrain_dict={}):
     """ Set the atomic charge of **at** to **charge**, imposing the following constrains to
     all remaining values in **series**:
 
@@ -284,27 +284,25 @@ def update_charge(at, charge, series, constrain_dict={}):
 
     :parameter str at: An atom type such as *Se*, *Cd* or *OG2D2*.
     :parameter float charge: The new charge associated with **at**.
-    :parameter series: A series of atomic charges. **series.index** should consist of
-        atom types (see **at**).
+    :parameter charge_df: A dataframe of atomic charges.
     :type series: |pd.Series|_ (index: |pd.Index|_, values: |np.float64|_)
     :parameter dict constrain_dict: A dictionary with charge constrains.
     """
-    if at not in series.index:
-        raise IndexError('{} not available in series.index'.format(str(at)))
-    net_charge = series.sum()
+    net_charge = charge_df['charge'].sum()
 
     # Update all constrained charges
-    series[series.index == at] = charge
+    charge_df.loc[charge_df.index == at, 'charge'] = charge
     at_list = [at]
     if at in constrain_dict:
         for at2 in constrain_dict[at]:
             at_list.append(at2)
-            series[series.index == at2] *= constrain_dict[at][at2]
+            charge_df.loc[charge_df.index == at2, 'charge'] *= constrain_dict[at][at2]
 
     # Update all unconstrained charges
-    criterion = np.array([i not in at_list for i in series.index])
-    i = (net_charge - series[~criterion].sum()) / series[criterion].sum()
-    series[criterion] *= i
+    criterion = np.array([i not in at_list for i in charge_df.index])
+    i = net_charge - charge_df.loc[~criterion, 'charge'].sum()
+    i /= charge_df.loc[criterion, 'charge'].sum()
+    charge_df.loc[criterion, 'charge'] *= i
 
 
 def array_to_index(ar):
@@ -325,3 +323,56 @@ def array_to_index(ar):
         return pd.MultiIndex.from_arrays(ar)
     raise ValueError('Could not construct a Pandas (Multi)Index from an \
                      {:d}-dimensional array'.format(ar.dim))
+
+
+def write_psf(atoms=None, bonds=None, angles=None, dihedrals=None, impropers=None,
+              filename='mol.psf'):
+    """ Create a protein structure file (.psf).
+
+    :parameter atoms: A Pandas DataFrame holding the *atoms* block.
+    :type atoms: |pd.DataFrame|_
+    :parameter bonds: An array holding the indices of all atom-pairs defining bonds.
+    :type bonds: *i*2* |np.ndarray|_ [|np.int64|_]
+    :parameter angles: An array holding the indices of all atoms defining angles.
+    :type angles: *j*3* |np.ndarray|_ [|np.int64|_]
+    :parameter dihedrals: An array holding the indices of all atoms defining proper
+        dihedral angles.
+    :type dihedrals: *k*4* |np.ndarray|_ [|np.int64|_]
+    :parameter impropers: An array holding the indices of all atoms defining improper
+        dihedral angles.
+    :type impropers: *l*4* |np.ndarray|_ [|np.int64|_]
+    """
+    # Prepare the !NTITLE block
+    top = 'PSF EXT\n'
+    top += '\n{:>10d} !NTITLE'.format(2)
+    top += '\n{:>10.10} PSF file generated with Auto-FOX:'.format('REMARKS')
+    top += '\n{:>10.10} https://github.com/nlesc-nano/auto-FOX'.format('REMARKS')
+
+    # Prepare the !NATOM block
+    top += '\n\n{:>10d} !NATOM\n'.format(atoms.shape[1])
+    string = '{:>10d} {:8.8} {:<8d} {:8.8} {:8.8} {:6.6} {:>9f} {:>15f} {:>8d}'
+    for key in atoms.columns[1:]:
+        top += string.format(*[key]+[i for i in atoms[key]]) + '\n'
+
+    # Prepare arguments
+    items_per_row = [4, 3, 2, 2]
+    bottom_headers = {
+        '{:>10d} !NBOND: bonds': bonds,
+        '{:>10d} !NTHETA: angles': angles,
+        '{:>10d} !NPHI: dihedrals': dihedrals,
+        '{:>10d} !NIMPHI: impropers': impropers
+    }
+
+    # Prepare the !NBOND, !NTHETA, !NPHI and !NIMPHI blocks
+    bottom = ''
+    for i, (key, value) in zip(items_per_row, bottom_headers.items()):
+        if value is None:
+            bottom += '\n\n' + key.format(0)
+        else:
+            bottom += '\n\n' + key.format(value.shape[0])
+            bottom += '\n' + serialize_array(value, i)
+
+    # Write the .psf file
+    with open(filename, 'w') as f:
+        f.write(top)
+        f.write(bottom[1:])

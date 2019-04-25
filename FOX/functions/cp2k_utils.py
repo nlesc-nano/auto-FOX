@@ -77,11 +77,6 @@ def update_cp2k_settings(settings, param):
     :parameter param: A dataframe with (variable) forcefield parameters.
     :type param: |pd.DataFrame|_
     """
-    # Update atomic charges
-    charge = param.loc['charge', :]
-    for i, j in zip(charge['key'], charge['param']):
-        settings.input.force_eval.mm.forcefield[i].charge = j
-
     # Update the Lennard-Jones epsilon parameters
     epsilon = param.loc['epsilon', :]
     for i, j in zip(epsilon['key'], epsilon['param']):

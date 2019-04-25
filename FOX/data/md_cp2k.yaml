@@ -36,7 +36,6 @@ input:
             timestep: 1.0
             time_start_val: 5000
             steps: 10000
-            max_steps: 15000
             thermostat:
                 type: CSVR
                 csvr:

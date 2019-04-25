@@ -14,7 +14,7 @@ from .molecule_utils import Molecule
 from .multi_mol_magic import _MultiMolecule
 from ..functions.rdf import (get_rdf, get_rdf_lowmem, get_rdf_df)
 from ..functions.adf import (get_adf, get_adf_df)
-from ..functions.utils import (serialize_array, read_str_file)
+from ..functions.utils import (read_str_file, write_psf)
 
 
 class MultiMolecule(_MultiMolecule):
@@ -831,53 +831,36 @@ class MultiMolecule(_MultiMolecule):
             df.loc[j, 'atom type'] = at_type
             df.loc[j, 'charge'] = charge
 
-    def as_psf(self, filename='mol.psf'):
+    def as_psf(self, filename='mol.psf', return_blocks=False):
         """ Convert a *MultiMolecule* object into a Protein Structure File (.psf).
 
-        :parameter str
+        :parameter str filename: The path+filename of the to-be create .psf file.
+        :parameter bool return_blocks: Return a dicionary with all psf blocks in addition to
+            writing the psf file itself.
         """
-        # Prepare the !NTITLE block
-        top = 'PSF EXT\n'
-        top += '\n' + '{:>10.10}'.format(str(2)) + ' !NTITLE'
-        top += '\n' + '{:>10.10}'.format('REMARKS') + ' PSF file generated with Auto-FOX:'
-        top += '\n' + '{:>10.10}'.format('REMARKS') + ' https://github.com/nlesc-nano/auto-FOX'
-        top += '\n\n' + '{:>10.10}'.format(str(self.shape[1])) + ' !NATOM\n'
+        ret = {'filename': filename}
 
-        # Prepare the !NATOM block
+        # Prepare atoms
         if self.properties.atoms is None:
             self._set_psf_block()
-        df = self.properties.atoms.T
-        df.reset_index(level=0, inplace=True)
-        mid = ''
-        for key in df.columns[1:]:
-            string = '{:>10d} {:8.8} {:<8d} {:8.8} {:8.8} {:6.6} {:>9f} {:>15f} {:>8d}'
-            mid += string.format(*[key]+[i for i in df[key]]) + '\n'
+        ret['atoms'] = self.properties.atoms.T
+        ret['atoms'].reset_index(level=0, inplace=True)
 
-        # Prepare the !NBOND, !NTHETA, !NPHI and !NIMPHI blocks
-        bottom = ''
-        bottom_headers = ['{:>10.10} !NBOND: bonds', '{:>10.10} !NTHETA: angles',
-                          '{:>10.10} !NPHI: dihedrals', '{:>10.10} !NIMPHI: impropers']
-        if self.bonds is None:
-            for header in bottom_headers:
-                bottom += '\n\n' + header.format('0')
-            bottom += '\n\n'
-        else:
+        # Prepare bonds, angles, dihedrals and impropers
+        if self.bonds is not None:
             plams_mol = self.as_Molecule(0)[0]
             plams_mol.fix_bond_orders()
-            connectivity = [self.bonds[:, 0:2] + 1, plams_mol.get_angles(),
-                            plams_mol.get_dihedrals(), plams_mol.get_impropers()]
-            items_per_row = [4, 3, 2, 2]
-
-            for i, conn, header in zip(items_per_row, connectivity, bottom_headers):
-                bottom += '\n\n' + header.format(str(len(conn)))
-                bottom += '\n' + serialize_array(conn, i)
-            bottom += '\n'
+            ret['bonds'] = self.bonds[:, 0:2] + 1
+            ret['angles'] = plams_mol.get_angles()
+            ret['dihedrals'] = plams_mol.get_dihedrals()
+            ret['impropers'] = plams_mol.get_impropers()
+        else:
+            ret.update({'bonds': None, 'angles': None, 'dihedrals': None, 'impropers': None})
 
         # Export the .psf file
-        with open(filename, 'w') as file:
-            file.write(top)
-            file.write(mid)
-            file.write(bottom[1:])
+        write_psf(**ret)
+        if return_blocks:
+            return ret
 
     def _mol_to_file(self, filename, outputformat=None, mol_subset=0):
         """ Create files using the plams.Molecule.write() method.
