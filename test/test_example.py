@@ -2,7 +2,7 @@
 
 __all__ = []
 
-from os.path import join
+from os.path import (join, isfile)
 
 import numpy as np
 
@@ -15,6 +15,7 @@ REF_DIR = 'test/test_files'
 def test_input():
     """ Test :mod:`FOX.examples.input`. """
     path = join(FOX.__path__[0], 'examples/input.py')
+    assert isfile(path)
     with open(path, 'r') as f:
         exec(f.read())
 
