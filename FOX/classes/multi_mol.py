@@ -493,7 +493,7 @@ class MultiMolecule(_MultiMolecule):
 
         # Calculate the RDF with respect to the center of mass
         at_dummy = np.zeros_like(mol_cp[:, 0, :])[:, None, :]
-        mol_cp = np.hstack((mol_cp, at_dummy))
+        mol_cp = MultiMolecule(np.hstack((mol_cp, at_dummy)), atoms=mol_cp.atoms)
         mol_cp.atoms['origin'] = [mol_cp.shape[1] - 1]
         atom_subset = ('origin', ) + atom_subset
         with np.errstate(divide='ignore', invalid='ignore'):
