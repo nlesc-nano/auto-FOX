@@ -1,4 +1,4 @@
-""" A module for testing the FOX.MultiMolecule class. """
+""" A module for testing the :class:`FOX.MultiMolecule` class. """
 
 __all__ = []
 

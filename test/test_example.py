@@ -1,4 +1,4 @@
-""" A module for testing files in the FOX/examples directory. """
+""" A module for testing example input files in the FOX/examples directory. """
 
 __all__ = []
 
