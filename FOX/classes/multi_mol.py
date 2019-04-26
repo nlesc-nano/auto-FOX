@@ -100,11 +100,12 @@ class MultiMolecule(_MultiMolecule):
             update of **self**.
         """
         if p <= 0.0 or p >= 1.0:
-            raise IndexError('The probability, p, must be larger than 0.0 and smaller than 1.0')
+            raise ValueError("The supplied probability, 'p': {:f}, must be larger "
+                             "than 0.0 and smaller than 1.0".format(p))
 
         stop = stop or self.shape[0]
         idx_range = np.arange(start, stop)
-        size = p * len(idx_range)
+        size = int(p * len(idx_range))
         idx = np.random.choice(idx_range, size=size, replace=False)
 
         if inplace:
@@ -150,7 +151,7 @@ class MultiMolecule(_MultiMolecule):
         else:
             return coords @ rotmat
 
-    def sort(self, sort_by='symbol', reverse=False):
+    def sort(self, sort_by='symbol', reverse=False, inplace=True):
         """ Sort the atoms in **self** and **self.atoms**, performing in inplace update.
 
         :parameter sort_by: The property which is to be used for sorting. Accepted values:
@@ -582,7 +583,7 @@ class MultiMolecule(_MultiMolecule):
         """
         # If **atom_subset** is None: extract atomic symbols from they keys of **self.atoms**
         atom_subset = atom_subset or tuple(self.atoms.keys())
-        atom_pairs = self.get_pair_dict(atom_subset)
+        atom_pairs = self.get_pair_dict(atom_subset, r=2)
 
         # Construct an empty dataframe with appropiate dimensions, indices and keys
         df = get_rdf_df(atom_pairs, dr, r_max)
@@ -640,12 +641,13 @@ class MultiMolecule(_MultiMolecule):
         return ret
 
     @staticmethod
-    def get_pair_dict(atom_subset):
+    def get_pair_dict(atom_subset, r=2):
         """ Take a subset of atoms and return a dictionary.
 
         :parameter atom_subset: A subset of atoms.
+        :parameter int r: The length of the to-be returned subsets.
         """
-        values = list(combinations_with_replacement(atom_subset, 2))
+        values = list(combinations_with_replacement(atom_subset, r))
 
         if not isinstance(atom_subset[0], str):
             str_ = 'series' + ''.join(' {:d}' for _ in values[0])
@@ -674,7 +676,7 @@ class MultiMolecule(_MultiMolecule):
         """
         # If **atom_subset** is None: extract atomic symbols from they keys of **self.atoms**
         atom_subset = atom_subset or tuple(self.atoms.keys())
-        atom_pairs = list(combinations_with_replacement(atom_subset, 3))
+        atom_pairs = self.get_pair_dict(atom_subset, r=3)
 
         # Construct an empty dataframe with appropiate dimensions, indices and keys
         df = get_adf_df(atom_pairs)
@@ -831,7 +833,7 @@ class MultiMolecule(_MultiMolecule):
         ret = {'filename': filename}
 
         # Prepare atoms
-        if self.properties.psf is None:
+        if not self.properties.psf:
             self.generate_psf_block()
         ret['atoms'] = self.properties.psf
 
