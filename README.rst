@@ -29,7 +29,7 @@ functionalities are currently implemented:
 - A root mean squared fluctuation generator (RMSF). (5_)
 - Tools for describing shell structures in, *e.g.*,
   nanocrystals or dissolved solutes. (6_)
-
+- A Monte Carlo forcefield parameter optimizer. 
 
 Using **Auto-FOX**
 ==================
@@ -88,7 +88,7 @@ Installing **Auto-FOX**
 
 Optional dependencies
 ---------------------
-- "Just give me all optional dependancies (7_)":
+- "Just give me all optional dependancies (8_)":
 
    - Anaconda:   ``conda install --name FOX -y -c
      conda-forge matplotlib h5py pyyaml``
@@ -114,7 +114,8 @@ Optional dependencies
 .. _4: https://auto-fox.readthedocs.io/en/latest/2_rmsd.html#root-mean-squared-displacement
 .. _5: https://auto-fox.readthedocs.io/en/latest/2_rmsd.html#root-mean-squared-fluctuation
 .. _6: https://auto-fox.readthedocs.io/en/latest/2_rmsd.html#discerning-shell-structures
-.. _7: https://www.youtube.com/watch?v=hFDcoX7s6rE
+.. _7: https://auto-fox.readthedocs.io/en/latest/4_monte_carlo.html
+.. _8: https://www.youtube.com/watch?v=hFDcoX7s6rE
 .. _documentation: https://auto-fox.readthedocs.io/en/latest/
 .. _Miniconda: http://conda.pydata.org/miniconda.html
 .. _Anaconda: https://www.anaconda.com/distribution/#download-section
