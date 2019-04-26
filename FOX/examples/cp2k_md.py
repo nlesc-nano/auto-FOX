@@ -2,15 +2,13 @@
 
 from scm.plams import Settings
 
-from FOX.classes.monte_carlo import ARMC
-from FOX.classes.multi_mol import MultiMolecule
-from FOX.examples.example_xyz import get_example_xyz
-from FOX.functions.utils import (get_template, dict_to_pandas)
+from FOX import (ARMC, MultiMolecule)
+from FOX.functions.utils import (get_template, dict_to_pandas, get_example_xyz)
 from FOX.functions.cp2k_utils import (set_subsys_kind, set_keys)
 
 
 # Read the .xyz file
-mol = MultiMolecule(filename=get_example_xyz())
+mol = MultiMolecule.from_xyz(get_example_xyz())
 mol.guess_bonds(atom_subset=['C', 'O', 'H'])
 mol.generate_psf_block()
 mol.update_atom_type('formate.str')

@@ -12,6 +12,7 @@ from scm.plams import (Atom, Bond)
 
 from .molecule_utils import Molecule
 from .multi_mol_magic import _MultiMolecule
+from ..functions.read_xyz import read_multi_xyz
 from ..functions.rdf import (get_rdf, get_rdf_lowmem, get_rdf_df)
 from ..functions.adf import (get_adf, get_adf_df)
 from ..functions.utils import (read_str_file, write_psf)
@@ -43,15 +44,14 @@ class MultiMolecule(_MultiMolecule):
         limited to (multi-) .xyz files. If *None*, try to infere the filetype from **filename**.
     :type inputformat: |None|_ or |str|_
     """
-
-    def guess_bonds(self, charge=0, atom_subset=None):
+    def guess_bonds(self, atom_subset=None):
         """ Guess bonds within the molecules based on atom type and inter-atomic distances.
-        Bonds are guessed based on the first molecule in **self.coords**
+        Bonds are guessed based on the first molecule in **self**
         Performs an inplace modification of **self.bonds**
 
         :parameter atom_subset: A tuple of atomic symbols. Bonds are guessed between all atoms
             whose atomic symbol is in **atom_subset**. If *None*, guess bonds for all atoms in
-            **self.coords**.
+            **self**.
         :type atom_subset: |None|_ or |tuple|_ [|str|_]
         :parameter int charge: The total charge of all atoms in **atom_subset**.
         """
@@ -64,7 +64,7 @@ class MultiMolecule(_MultiMolecule):
         mol = self.as_Molecule(mol_subset=0, atom_subset=atom_subset)[0]
         mol.guess_bonds()
         mol.fix_bond_orders()
-        self.from_Molecule(mol, subset='bonds', allow_different_length=True)
+        self.bonds = MultiMolecule.from_Molecule(mol, subset='bonds').bonds
 
         # Update indices in **self.bonds** to account for **atom_subset**
         self.atom1 = atom_subset[self.atom1]
@@ -74,46 +74,44 @@ class MultiMolecule(_MultiMolecule):
         self.bonds = self.bonds[idx]
 
     def slice(self, start=0, stop=None, step=1, inplace=False):
-        """ Construct a new *MultiMolecule* by iterating through **self.coords**
+        """ Construct a new *MultiMolecule* by iterating through **self**
         along a set interval.
 
         :parameter int start: Start of the interval.
         :parameter int stop: End of the interval.
         :parameter int step: Spacing between values.
-        :parameter bool inplace: If *True*, perform an inplace update of **self** instead of
-            returning a new *MultiMolecule* object.
+        :parameter bool inplace: Instead of returning the new coordinates, perform an inplace
+            update of **self**.
         """
         if inplace:
-            self.coords = self[start:stop:step]
+            self[:] = self[start:stop:step]
         else:
-            ret = self.deepcopy(subset=('atoms', 'bonds', 'properties'))
-            ret.coords = self[start:stop:step].copy()
-            return ret
+            return self[start:stop:step].copy()
 
     def random_slice(self, start=0, stop=None, p=0.5, inplace=False):
-        """ Construct a new *MultiMolecule* by iterating through **self.coords** at random
+        """ Construct a new *MultiMolecule* by iterating through **self** at random
         intervals. The probability of including a particular element is equivalent to **p**.
 
         :parameter int start: Start of the interval.
         :parameter int stop: End of the interval.
         :parameter float p: The probability of including each particular molecule in
-            **self.coords**. Values must be between 0.0 (0%) and 1.0 (100%).
-        :parameter bool inplace: If *True*, perform an inplace update of **self** instead of
-            returning a new *MultiMoleule* object.
+            **self**. Values must be between 0.0 (0%) and 1.0 (100%).
+        :parameter bool inplace: Instead of returning the new coordinates, perform an inplace
+            update of **self**.
         """
         if p <= 0.0 or p >= 1.0:
-            raise IndexError('The probability, p, must be larger than 0.0 and smaller than 1.0')
+            raise ValueError("The supplied probability, 'p': {:f}, must be larger "
+                             "than 0.0 and smaller than 1.0".format(p))
 
         stop = stop or self.shape[0]
         idx_range = np.arange(start, stop)
-        size = p * len(idx_range)
+        size = int(p * len(idx_range))
         idx = np.random.choice(idx_range, size=size, replace=False)
+
         if inplace:
-            self.coords = self[idx]
+            self[:] = self[idx]
         else:
-            ret = self.deepcopy(subset=('atoms', 'bonds', 'properties'))
-            ret.coords = self[idx]
-            return ret
+            return self[idx].copy()
 
     def reset_origin(self, mol_subset=None, atom_subset=None, inplace=True):
         """ Reallign all molecules in **self**, rotating and translating them, by performing a
@@ -128,14 +126,14 @@ class MultiMolecule(_MultiMolecule):
             in **self** if *None*.
         :type atom_subset: |None|_, |int|_ or |str|_
         :parameter bool inplace: Instead of returning the new coordinates, perform an inplace
-            update of **self.coords**.
+            update of **self**.
         """
         # Prepare slices
         i = self._get_mol_subset(mol_subset)
         j = self._get_atom_subset(atom_subset)
 
         # Remove translations
-        coords = self[i, j, :] - np.mean(self[i, j, :], axis=1)[:, None, :]
+        coords = self[i, j, :] - self[i, j, :].mean(axis=1)[:, None, :]
 
         # Peform a singular value decomposition on the covariance matrix
         H = np.swapaxes(coords[0:], 1, 2) @ coords[0]
@@ -147,16 +145,14 @@ class MultiMolecule(_MultiMolecule):
         rotmat[:, 2, 2] = np.linalg.det(V @ Ut)
         rotmat *= V@Ut
 
-        # Return or perform an inplace update of **self.coords**
+        # Return or perform an inplace update of **self**
         if inplace:
             self[i, j, :] = coords @ np.swapaxes(rotmat, 1, 2)
         else:
-            ret = self.deepcopy()
-            ret[i, j, :] = coords @ rotmat
-            return ret
+            return coords @ rotmat
 
-    def sort(self, sort_by='symbol', reverse=False):
-        """ Sort the atoms in **self.coords** and **self.atoms**, performing in inplace update.
+    def sort(self, sort_by='symbol', reverse=False, inplace=True):
+        """ Sort the atoms in **self** and **self.atoms**, performing in inplace update.
 
         :parameter sort_by: The property which is to be used for sorting. Accepted values:
             **symbol** (*i.e.* alphabetical), **atnum**, **mass**, **radius** or
@@ -178,8 +174,8 @@ class MultiMolecule(_MultiMolecule):
         if reverse:
             idx_range.reverse()
 
-        # Sort **self.coords**
-        self.coords = self[:, idx_range]
+        # Sort **self**
+        self[:] = self[:, idx_range]
 
         # Refill **self.atoms**
         symbols = self.symbol[idx_range]
@@ -349,28 +345,29 @@ class MultiMolecule(_MultiMolecule):
 
     def get_rmsd(self, mol_subset=None, atom_subset=None):
         """ Calculate the root mean square displacement (RMSD) with respect to the first molecule
-        **self.coords**. Returns a dataframe with the RMSD as a function of the XYZ frame numbers.
+        **self**. Returns a dataframe with the RMSD as a function of the XYZ frame numbers.
         """
         i = self._get_mol_subset(mol_subset)
         j = self._get_atom_subset(atom_subset)
 
-        # Calculate and return the RMSD per molecule in **self.coords**
+        # Calculate and return the RMSD per molecule in **self**
         dist = np.linalg.norm(self[i, j, :] - self[0, j, :], axis=2)
         return np.sqrt(np.einsum('ij,ij->i', dist, dist) / dist.shape[1])
 
     def get_rmsf(self, mol_subset=None, atom_subset=None):
-        """ Calculate the root mean square fluctuation (RMSF) of **self.coords**.
+        """ Calculate the root mean square fluctuation (RMSF) of **self**.
         Returns a dataframe as a function of atomic indices. """
         # Prepare slices
         i = self._get_mol_subset(mol_subset)
         j = self._get_atom_subset(atom_subset)
 
-        # Calculate the RMSF per molecule in **self.coords**
+        # Calculate the RMSF per molecule in **self**
         mean_coords = np.mean(self[i, j, :], axis=0)[None, ...]
         displacement = np.linalg.norm(self[i, j, :] - mean_coords, axis=2)**2
         return np.mean(displacement, axis=0)
 
-    def _get_rmsd_columns(self, rmsd, loop=False, atom_subset=None):
+    @staticmethod
+    def _get_rmsd_columns(rmsd, loop=False, atom_subset=None):
         """ Return the columns for the RMSD dataframe. """
         if loop:  # Plan A: **atom_subset** is a *list* of *str* or nested *list* of *int*
             if isinstance(atom_subset[0], str):  # Use atomic symbols or general indices as keys
@@ -414,7 +411,8 @@ class MultiMolecule(_MultiMolecule):
 
         return columns, data
 
-    def _get_loop(self, subset):
+    @staticmethod
+    def _get_loop(subset):
         """ Figure out if the supplied subset warrants a for loop or not. """
         if subset is None:
             return True  # subset is *None*
@@ -464,7 +462,7 @@ class MultiMolecule(_MultiMolecule):
         :rtype: |pd.DataFrame|_, |pd.Series|_ and |pd.DataFrame|_
         """
         def _get_mean_dist(mol_cp, at):
-            ret = np.linalg.norm(mol_cp.coords[:, mol_cp.atoms[at]], axis=2).mean(axis=0)
+            ret = np.linalg.norm(mol_cp[:, mol_cp.atoms[at]], axis=2).mean(axis=0)
             at_idx = np.argsort(ret)
             return at_idx, sorted(ret)
 
@@ -475,8 +473,7 @@ class MultiMolecule(_MultiMolecule):
         # Calculate the mean distance (per atom) with respect to the center of mass
         # Conceptually similar an RMSF, the "fluctuation" being with respect to the center of mass
         dist_mean = []
-        mol_cp = self.deepcopy()
-        mol_cp.coords = mol_cp[i]
+        mol_cp = self.copy()[i]
         mol_cp -= mol_cp.get_center_of_mass()[:, None, :]
         at_idx, dist_mean = zip(*[_get_mean_dist(mol_cp, at) for at in atom_subset])
 
@@ -495,8 +492,8 @@ class MultiMolecule(_MultiMolecule):
         rmsf.index.name = 'Arbitrary atomic index'
 
         # Calculate the RDF with respect to the center of mass
-        at_dummy = np.zeros_like(mol_cp.coords[:, 0, :])[:, None, :]
-        mol_cp.coords = np.hstack((mol_cp.coords, at_dummy))
+        at_dummy = np.zeros_like(mol_cp[:, 0, :])[:, None, :]
+        mol_cp = MultiMolecule(np.hstack((mol_cp, at_dummy)), atoms=mol_cp.atoms)
         mol_cp.atoms['origin'] = [mol_cp.shape[1] - 1]
         atom_subset = ('origin', ) + atom_subset
         with np.errstate(divide='ignore', invalid='ignore'):
@@ -586,54 +583,39 @@ class MultiMolecule(_MultiMolecule):
         """
         # If **atom_subset** is None: extract atomic symbols from they keys of **self.atoms**
         atom_subset = atom_subset or tuple(self.atoms.keys())
-
-        # Construct a list of 2-tuples containing all unique atom pairs
-        atom_pairs = list(combinations_with_replacement(atom_subset, 2))
+        atom_pairs = self.get_pair_dict(atom_subset, r=2)
 
         # Construct an empty dataframe with appropiate dimensions, indices and keys
-        df = get_rdf_df(dr, r_max, atom_pairs)
+        df = get_rdf_df(atom_pairs, dr, r_max)
+        kwarg = {'dr': dr, 'r_max': r_max}
 
-        # Fill the dataframe with RDF's, averaged over all conformations in **self.coords**
-        kwarg1 = {'dr': dr, 'r_max': r_max}
-        if low_mem:
-            # Slower low memory approach
-            kwarg2 = {'mol_subset': None, 'atom_subset': None}
-            for i, _ in enumerate(self):
-                kwarg2['mol_subset'] = i
-                for j, (at1, at2) in enumerate(atom_pairs, 1):
-                    kwarg2['atom_subset'] = (at1, at2)
-                    try:
-                        df[at1 + ' ' + at2] += get_rdf_lowmem(self.get_dist_mat(**kwarg2), **kwarg1)
-                    except TypeError:
-                        df['series ' + str(j)] += get_rdf_lowmem(self.get_dist_mat(**kwarg2),
-                                                                 **kwarg1)
-
-            df.iloc[0] = 0.0
+        # Fill the dataframe with RDF's, averaged over all conformations in **self**
+        if low_mem:  # Slower low memory approach
+            for i in range(self.shape[0]):
+                for key, at in atom_pairs.items():
+                    dist_mat = self.get_dist_mat(mol_subset=i, atom_subset=at)
+                    df[key] += get_rdf_lowmem(dist_mat, **kwarg)
+            df.loc[0.0] = 0.0
             df /= self.shape[0]
-        else:
-            # Faster high memory approach
-            kwarg2 = {'mol_subset': None, 'atom_subset': None}
-            for i, (at1, at2) in enumerate(atom_pairs, 1):
-                kwarg2['atom_subset'] = (at1, at2)
-                try:
-                    df[at1 + ' ' + at2] = get_rdf(self.get_dist_mat(**kwarg2), **kwarg1)
-                except TypeError:
-                    df['series ' + str(i)] = get_rdf(self.get_dist_mat(**kwarg2), **kwarg1)
+
+        else:  # Faster high memory approach
+            for key, at in atom_pairs.items():
+                dist_mat = self.get_dist_mat(atom_subset=at)
+                df[key] = get_rdf(dist_mat, **kwarg)
 
         return df
 
     def get_dist_mat(self, mol_subset=None, atom_subset=(None, None)):
-        """ Create and return a distance matrix for all molecules and atoms in **self.coords**.
+        """ Create and return a distance matrix for all molecules and atoms in **self**.
         Returns a 3D array.
 
         :parameter mol_subset: Create a distance matrix from a subset of molecules in
-            **self.coords**. If *None*, create a distance matrix for all molecules in
-            **self.coords**.
+            **self**. If *None*, create a distance matrix for all molecules in **self**.
         :type mol_subset: |None|_ or |tuple|_ [|int|_]
         :parameter atom_subset: Create a distance matrix from a subset of atoms per molecule in
-            **self.coords**. Values have to be supplied for all 2 dimensions. Atomic indices
+            **self**. Values have to be supplied for all 2 dimensions. Atomic indices
             (on or multiple), atomic symbols (one or multiple) and *None* can be freely mixed.
-            If *None*, pick all atoms from **self.coords** for that partical dimension; if an
+            If *None*, pick all atoms from **self** for that partical dimension; if an
             atomic symbol, do the same for all indices associated with that particular symbol.
         :type atom_subset: |tuple|_ [|None|_], |tuple|_ [|int|_]
         :return: A 3D distance matrix of *m* molecules, created out of two sets of *n* and
@@ -658,6 +640,23 @@ class MultiMolecule(_MultiMolecule):
             ret[k] = cdist(a, b)
         return ret
 
+    @staticmethod
+    def get_pair_dict(atom_subset, r=2):
+        """ Take a subset of atoms and return a dictionary.
+
+        :parameter atom_subset: A subset of atoms.
+        :parameter int r: The length of the to-be returned subsets.
+        """
+        values = list(combinations_with_replacement(atom_subset, r))
+
+        if not isinstance(atom_subset[0], str):
+            str_ = 'series' + ''.join(' {:d}' for _ in values[0])
+            return {str_.format(*[i.index(j) for j in i]): i for i in values}
+
+        else:
+            str_ = ''.join(' {}' for _ in values[0])[1:]
+            return {str_.format(*i): i for i in values}
+
     """ ############################  Angular Distribution Functions  ######################### """
 
     def init_adf(self, atom_subset=None, low_mem=True):
@@ -677,50 +676,38 @@ class MultiMolecule(_MultiMolecule):
         """
         # If **atom_subset** is None: extract atomic symbols from they keys of **self.atoms**
         atom_subset = atom_subset or tuple(self.atoms.keys())
-
-        # Construct a list of 3-tuples containing all unique atom pairs
-        atom_pairs = list(combinations_with_replacement(atom_subset, 3))
+        atom_pairs = self.get_pair_dict(atom_subset, r=3)
 
         # Construct an empty dataframe with appropiate dimensions, indices and keys
         df = get_adf_df(atom_pairs)
 
-        # Fill the dataframe with RDF's, averaged over all conformations in **self.coords**
+        # Fill the dataframe with RDF's, averaged over all conformations in **self**
         if low_mem:  # Slower low memory approach
-            kwarg = {'mol_subset': None, 'atom_subset': None, 'get_r_max': True}
-            for i, _ in enumerate(self):
-                kwarg['mol_subset'] = i
-                for j, (at1, at2, at3) in enumerate(atom_pairs, 1):
-                    kwarg['atom_subset'] = (at1, at2, at3)
-                    a_mat, r_max = self.get_angle_mat(**kwarg)
-                    try:
-                        df[at1 + ' ' + at2 + ' ' + at3] += get_adf(a_mat, r_max=r_max)
-                    except TypeError:
-                        df['series ' + str(j)] += get_adf(self.get_angle_mat(**kwarg))
+            for i in range(self.shape[0]):
+                for key, at in atom_pairs.items():
+                    a_mat, r_max = self.get_angle_mat(atom_subset=at, mol_subset=i, get_r_max=True)
+                    df[key] += get_adf(a_mat, r_max=r_max)
             df /= self.shape[0]
+
         else:  # Faster high memory approach
-            kwarg = {'mol_subset': None, 'atom_subset': None, 'get_r_max': True}
-            for i, (at1, at2, at3) in enumerate(atom_pairs, 1):
-                kwarg['atom_subset'] = (at1, at2, at3)
-                a_mat, r_max = self.get_angle_mat(**kwarg)
-                try:
-                    df[at1 + ' ' + at2 + ' ' + at3] = get_adf(a_mat, r_max=r_max)
-                except TypeError:
-                    df['series ' + str(i)] = get_adf(a_mat, r_max=r_max)
+            for key, at in atom_pairs.items():
+                a_mat, r_max = self.get_angle_mat(atom_subset=at, get_r_max=True)
+                df[key] = get_adf(a_mat, r_max=r_max)
 
         return df
 
     def get_angle_mat(self, mol_subset=0, atom_subset=(None, None, None), get_r_max=False):
-        """ Create and return an angle matrix for all molecules and atoms in **self.coords**.
+        """ Create and return an angle matrix for all molecules and atoms in **self**.
         Returns a 4D array.
 
         :parameter mol_subset: Create a distance matrix from a subset of molecules in
-            **self.coords**. If *None*, create a distance matrix for all molecules in
-            **self.coords**.
+            **self**. If *None*, create a distance matrix for all molecules in
+            **self**.
         :type mol_subset: |None|_ or |tuple|_ [|int|_]
         :parameter atom_subset: Create a distance matrix from a subset of atoms per molecule in
-            **self.coords**. Values have to be supplied for all 3 dimensions. Atomic indices
+            **self**. Values have to be supplied for all 3 dimensions. Atomic indices
             (on or multiple), atomic symbols (one or multiple) and *None* can be freely mixed.
-            If *None*, pick all atoms from **self.coords** for that partical dimension; if an
+            If *None*, pick all atoms from **self** for that partical dimension; if an
             atomic symbol, do the same for all indices associated with that particular symbol.
         :type atom_subset: |None|_ or |tuple|_ [|str|_]
         :parameter bool get_r_max: Whether or not the maximum distance should be returned or not.
@@ -755,32 +742,37 @@ class MultiMolecule(_MultiMolecule):
                 return np.arccos(np.einsum('ijkl,ijml->ijkm', unit_vec1, unit_vec2)), r_max
             return np.arccos(np.einsum('ijkl,ijml->ijkm', unit_vec1, unit_vec2))
 
-    def _get_atom_subset(self, arg):
+    def _get_atom_subset(self, subset):
         """ Grab and return a list of indices from **self.atoms**.
         Return *at* if it is *None*, an *int* or iterable container consisting of *int*. """
-        if arg is None:
+        if subset is None:
             return slice(0, None)
-        elif isinstance(arg, (int, np.integer)):
-            return [arg]
-        elif isinstance(arg[0], (int, np.integer)):
-            return arg
-        elif isinstance(arg, str):
-            return self.atoms[arg]
-        elif isinstance(arg[0], str):
-            return list(chain.from_iterable(self.atoms[i] for i in arg))
-        elif isinstance(arg[0][0], (int, np.integer)):
-            return list(chain.from_iterable(arg))
-        raise TypeError(str(type(arg)) + ': ' + str(arg) + ' is not a valid object type for /'
+        elif isinstance(subset, slice):
+            return subset
+
+        elif isinstance(subset, (int, np.integer)):
+            return [subset]
+        elif isinstance(subset[0], (int, np.integer)):
+            return subset
+        elif isinstance(subset, str):
+            return self.atoms[subset]
+        elif isinstance(subset[0], str):
+            return list(chain.from_iterable(self.atoms[i] for i in subset))
+        elif isinstance(subset[0][0], (int, np.integer)):
+            return list(chain.from_iterable(subset))
+
+        raise TypeError(str(type(subset)) + ': ' + str(subset) + ' is not a valid object type for /'
                         'the atom_subset argument')
 
-    def _get_mol_subset(self, arg):
+    @staticmethod
+    def _get_mol_subset(subset):
         """ """
-        if arg is None:
+        if subset is None:
             return slice(0, None)
-        elif isinstance(arg, (int, np.integer)):
-            return [arg]
+        elif isinstance(subset, (int, np.integer)):
+            return [subset]
         else:
-            return arg
+            return subset
 
     """ #################################  Type conversion  ################################### """
 
@@ -841,7 +833,7 @@ class MultiMolecule(_MultiMolecule):
         ret = {'filename': filename}
 
         # Prepare atoms
-        if self.properties.psf is None:
+        if 'psf' not in self.properties:
             self.generate_psf_block()
         ret['atoms'] = self.properties.psf
 
@@ -930,7 +922,7 @@ class MultiMolecule(_MultiMolecule):
         mol_subset = self._get_mol_subset(mol_subset)
         at = self.symbol[:, None]
         header = str(len(at)) + '\n' + 'frame '
-        kwarg = {'fmt': ['%-2.2s', '%-15s', '%-15s', '%-15s'],
+        kwarg = {'fmt': ['%-10.10s', '%-15s', '%-15s', '%-15s'],
                  'delimiter': '     ', 'comments': ''}
 
         # Create the .xyz file
@@ -939,7 +931,7 @@ class MultiMolecule(_MultiMolecule):
                 np.savetxt(file, np.hstack((at, xyz)), header=header+str(i), **kwarg)
 
     def as_mass_weighted(self, mol_subset=None, atom_subset=None, inplace=False):
-        """ Transform the Cartesian of **self.coords** into mass-weighted Cartesian coordinates.
+        """ Transform the Cartesian of **self** into mass-weighted Cartesian coordinates.
 
         :parameter mol_subset: Perform the calculation on a subset of molecules in **self**, as
             determined by their moleculair index. Include all *m* molecules in **self** if *None*.
@@ -949,7 +941,7 @@ class MultiMolecule(_MultiMolecule):
             in **self** if *None*.
         :type atom_subset: |None|_, |int|_ or |str|_
         :parameter bool inplace: Instead of returning the new coordinates, perform an inplace
-            update of **self.coords**.
+            update of **self**.
         :return: An array of mass-weighted Cartesian coordinates of *m* molecules with *n* atoms
             and, optionally, an array of *n* atomic masses.
         :rtype: *m*n*3* |np.ndarray|_ [|np.float64|_] and, optionally,
@@ -961,13 +953,13 @@ class MultiMolecule(_MultiMolecule):
 
         # Create an array of mass-weighted Cartesian coordinates
         if inplace:
-            self.coords = self[i, j, :] * self.mass[None, j, None]
+            self[i, j, :] *= self.mass[None, j, None]
         else:
             return self[i, j, :] * self.mass[None, j, None]
 
     def from_mass_weighted(self, mol_subset=None, atom_subset=None):
-        """ Transform **self.coords** from mass-weighted Cartesian into Cartesian coordinates.
-        Performs an inplace update of **self.coords**.
+        """ Transform **self** from mass-weighted Cartesian into Cartesian coordinates.
+        Performs an inplace update of **self**.
 
         :parameter mol_subset: Perform the calculation on a subset of molecules in **self**, as
             determined by their moleculair index. Include all *m* molecules in **self** if *None*.
@@ -981,17 +973,17 @@ class MultiMolecule(_MultiMolecule):
         i = self._get_mol_subset(mol_subset)
         j = self._get_atom_subset(atom_subset)
 
-        # Update **self.coords**
+        # Update **self**
         self[i, j, :] /= self.mass[None, j, None]
 
     def as_Molecule(self, mol_subset=None, atom_subset=None):
         """ Convert a *MultiMolecule* object into a *list* of *plams.Molecule*.
 
-        :parameter mol_subset: Convert a subset of molecules in **self.coords** as based on their
+        :parameter mol_subset: Convert a subset of molecules in **self** as based on their
             indices. If *None*, convert all molecules.
         :type mol_subset: |None|_, |int|_ or |tuple|_ [|int|_]
         :parameter atom_subset: Convert a only subset of atoms within each molecule in
-            **self.coords**, as based on their indices. If *None*, convert all atoms per molecule.
+            **self**, as based on their indices. If *None*, convert all atoms per molecule.
         :type atom_subset: |None|_, |int|_ or |tuple|_ [|int|_]
         :return: A list of *m* PLAMS molecules.
         :rtype: |list|_ [|plams.Molecule|_].
@@ -1004,7 +996,6 @@ class MultiMolecule(_MultiMolecule):
         at_symbols = self.symbol
 
         # Construct a template molecule and fill it with atoms
-        assert self.coords is not None
         assert self.atoms is not None
         mol_template = Molecule()
         mol_template.properties = self.properties.copy()
@@ -1032,103 +1023,57 @@ class MultiMolecule(_MultiMolecule):
 
         return ret
 
-    def from_Molecule(self, mol_list, subset=None, allow_different_length=False):
-        """ Convert a list of PLAMS molecules into a *MultiMolecule* object.
-        Performs an inplace modification of **self**.
+    @classmethod
+    def from_Molecule(cls, mol_list, subset='atoms'):
+        """ Convert a PLAMS molecule or a list of PLAMS molecules into a new *MultiMolecule* object.
 
         :parameter mol_list: A PLAMS molecule or list of PLAMS molecules.
         :type mol_list: |plams.Molecule|_ or |list|_ [|plams.Molecule|_]
         :parameter subset: Transfer a subset of *plams.Molecule* attributes to **self**. If *None*,
             transfer all attributes. Accepts one or more of the following values as strings:
             *properties*, *atoms* and/or *bonds*.
-        :type subset: |None|_, |str|_ or |tuple|_ [|str|_]
-        :parameter bool allow_different_length: If *True*, allow **mol_list** and **self.coords**
-            to have different lengths.
+        :return: A FOX.MultiMolecule constructed from **mol_list**.
+        :rtype: |FOX.MultiMolecule|_
         """
         if isinstance(mol_list, Molecule):
             plams_mol = mol_list
+            mol_list = [mol_list]
         else:
             plams_mol = mol_list[0]
         subset = subset or ('atoms', 'bonds', 'properties')
 
-        if not allow_different_length:
-            # Raise an error if mol_list and self.coords are of different lengths
-            if len(mol_list) != self.shape[0]:
-                error = 'from_Molecule: Shape mismatch, the mol_list is of length '
-                error += str(len(mol_list)) + ' while self.coords is of length: '
-                error += str(self.shape[0])
-                raise IndexError(error)
-
-        # Convert properties
-        if 'properties' in subset:
-            self.properties = plams_mol.properties
+        # Convert coordinates
+        coords = np.array([mol.as_array() for mol in mol_list])
+        kwarg = {}
 
         # Convert atoms
         if 'atoms' in subset:
-            dummy = Molecule()
-            idx = slice(0, None)
-            self.coords = np.array([dummy.as_array(atom_subset=mol.atoms[idx]) for mol in mol_list])
-            for i, at in enumerate(plams_mol.atoms[idx]):
+            kwarg['atoms'] = {}
+            for i, at in enumerate(plams_mol.atoms):
                 try:
-                    self.atoms[at].append(i)
+                    kwarg['atoms'][at].append(i)
                 except KeyError:
-                    self.atoms[at] = [i]
+                    kwarg['atoms'][at] = [i]
+
+        # Convert properties
+        if 'properties' in subset:
+            kwarg['properties'] = plams_mol.properties.copy()
 
         # Convert bonds
         if 'bonds' in subset:
-            plams_mol.set_atoms_id()
-            self.bonds = np.empty((len(plams_mol.bonds), 3), dtype=int)
-            for i, bond in enumerate(plams_mol.bonds):
-                self.bonds[i] = bond.atom1.id, bond.atom2.id, bond.order * 10
-            self.bonds[:, 0:2] -= 1
+            plams_mol.set_atoms_id(start=0)
+            kwarg['bonds'] = np.array([(bond.atom1.id, bond.atom2.id, bond.order * 10) for
+                                       bond in plams_mol.bonds], dtype=int)
             plams_mol.unset_atoms_id()
 
-    """ ####################################  Copying  ######################################## """
+        return cls(coords, **kwarg)
 
-    def copy(self, subset=None, deep=False):
-        """ Create and return a new *MultiMolecule* object and fill its attributes with
-        views of their respective counterparts in **self**, creating a shallow copy.
+    @classmethod
+    def from_xyz(cls, xyz_file):
+        """ Convert a (multi) .xyz file into a FOX.MultiMolecule.
 
-        :parameter subset: Copy a subset of attributes from **self**; if *None*, copy all
-            attributes. Accepts one or more of the following attribute names as strings: *coords*,
-            *atoms*, *bonds* and/or *properties*.
-        :type subset: |None|_, |str|_ or |tuple|_ [|str|_]
-        :parameter bool deep: If *True*, perform a deep copy instead of a shallow copy.
+        :parameter str xyz_file: The path + filename of an .xyz file
+        :return: A FOX.MultiMolecule constructed from **xyz_file**.
+        :rtype: |FOX.MultiMolecule|_
         """
-        # Perform a deep copy instead of a shallow copy
-        if deep:
-            return self.deepcopy(subset)
-
-        attr_dict = vars(self)
-        subset = subset or attr_dict
-        if isinstance(subset, str):
-            subset = (subset)
-
-        ret = MultiMolecule()
-        for i in attr_dict:
-            if i in subset:
-                setattr(ret, i, attr_dict[i])
-        return ret
-
-    def deepcopy(self, subset=None):
-        """ Create and return a new *MultiMolecule* object and fill its attributes with
-        copies of their respective counterparts in **self**, creating a deep copy.
-
-        :parameter subset: Deep copy a subset of attributes from **self**; if *None*, deep copy all
-            attributes. Accepts one or more of the following attribute names as strings: *coords*,
-            *atoms*, *bonds* and/or *properties*.
-        :type subset: |None|_, |str|_ or |tuple|_ [|str|_]
-        """
-        attr_dict = vars(self)
-        subset = subset or attr_dict
-        if isinstance(subset, str):
-            subset = (subset)
-
-        ret = MultiMolecule()
-        for i in attr_dict:
-            if i in subset:
-                try:
-                    setattr(ret, i, attr_dict[i].copy())
-                except AttributeError:
-                    pass
-        return ret
+        return cls(*read_multi_xyz(xyz_file))

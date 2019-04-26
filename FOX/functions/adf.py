@@ -10,21 +10,17 @@ def get_adf_df(atom_pairs):
     """ Construct and return a pandas dataframe filled with zeros to hold angular distribution
     functions.
 
-    :parameter atom_pairs: An list of 3-tuples representing the keys of the dataframe.
-    :type atom_pairs: |list|_ [|tuple|_ [|str|_]]
+    :parameter atom_pairs: An dictionary of 3-tuples representing the keys of the dataframe.
+    :type atom_pairs: |dict|_ [|tuple|_]
     :return: An empty dataframe.
     :rtype: |pd.DataFrame|_
     """
     # Prepare the DataFrame arguments
     shape = 181, len(atom_pairs)
     index = np.arange(181)
-    try:  # If **atom_pairs** consists of atomic symbols
-        columns = [at1 + ' ' + at2 + ' ' + at3 for at1, at2, at3 in atom_pairs]
-    except TypeError:  # If **atom_pairs** consists of atomic indices
-        columns = ['series ' + str(i) for i, _ in enumerate(atom_pairs, 1)]
 
     # Create and return the DataFrame
-    df = pd.DataFrame(np.zeros(shape), index=index, columns=columns)
+    df = pd.DataFrame(np.zeros(shape), index=index, columns=atom_pairs)
     df.columns.name = 'Atom pairs'
     df.index.name = 'phi  /  Degrees'
     return df

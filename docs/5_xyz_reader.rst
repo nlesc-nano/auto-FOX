@@ -11,8 +11,18 @@ molecules. The herein implemented
 function allows for the fast, and memory-effiecient, retrieval of the
 various molecular geometries stored in an .xyz file.
 
-An .xyz file, ``xyz_file``, can also be directly converted into
-a *MultiMolecule* object: ``rdf = MultiMolecule(input=xyz)``.
+An .xyz file, ``example_xyz_file``, can also be directly converted into
+a :class:`FOX.MultiMolecule` object.
+
+.. code:: python
+
+    >>> from FOX import (MultiMolecule, get_example_xyz)
+
+    >>> example_xyz_file = get_example_xyz()
+    >>> mol = MultiMolecule.from_xyz(example_xyz_file)
+    >>> type(mol)
+    FOX.classes.multi_mol.MultiMolecule
+
 
 API
 ---

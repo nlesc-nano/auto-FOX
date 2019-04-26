@@ -6,23 +6,21 @@ import numpy as np
 import pandas as pd
 
 
-def get_rdf_df(dr, r_max, atom_pairs):
+def get_rdf_df(atom_pairs, dr=0.05, r_max=12.0):
     """ Construct and return a pandas dataframe filled with zeros.
+
     :parameter float dr: The integration step-size in Angstrom, *i.e.* the distance between
         concentric spheres.
     :parameter float r_max: The maximum to be evaluated interatomic distance.
-    :parameter atom_pairs: An list of 2-tuples representing the keys of the dataframe.
-    :type atom_pairs: list [tuple [str]]"""
+    :parameter atom_pairs: An dictionary of 2-tuples representing the keys of the dataframe.
+    :type atom_pairs: |dict|_ [|tuple|_]
+    """
     # Prepare the DataFrame arguments
     shape = 1 + int(r_max / dr), len(atom_pairs)
     index = np.arange(0, r_max + dr, dr)
-    try:  # If **atom_pairs** consists of atomic symbols
-        columns = [at1 + ' ' + at2 for at1, at2 in atom_pairs]
-    except TypeError:  # If **atom_pairs** consists of atomic indices
-        columns = ['series ' + str(i) for i, _ in enumerate(atom_pairs, 1)]
 
     # Create and return the DataFrame
-    df = pd.DataFrame(np.zeros(shape), index=index, columns=columns)
+    df = pd.DataFrame(np.zeros(shape), index=index, columns=atom_pairs)
     df.columns.name = 'Atom pairs'
     df.index.name = 'r  /  Ångström'
     return df

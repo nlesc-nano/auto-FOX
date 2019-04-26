@@ -19,9 +19,14 @@ moleculair indices in a MD trajectory.
         )^2
     }
 
-Given a trajectory, ``mol``, stored as a *MultiMolecule* object, the RMSD
-can be calculated with the :meth:`.MultiMolecule.init_rmsd` method using the
-following command:``rmsd = mol.init_rmsd(atom_subset=None)``.
+Given a trajectory, ``mol``, stored as a :class:`FOX.MultiMolecule` object,
+the RMSD can be calculated with the :meth:`.MultiMolecule.init_rmsd`
+method using the following command:
+
+.. code:: python
+
+    >>> rmsd = mol.init_rmsd(atom_subset=None)
+
 The resulting ``rmsd`` is a Pandas_ dataframe, an object which is effectively a
 hybrid between a dictionary and a NumPy_ array.
 
@@ -30,22 +35,19 @@ The RMSD is printed for cadmium, selenium and oxygen atoms.
 
 .. code:: python
 
-    >>> from FOX.classes.multi_mol import MultiMolecule
-    >>> from FOX.examples.example_xyz import get_example_xyz
+    >>> from FOX import (MultiMolecule, get_example_xyz)
 
     >>> example_xyz_file = get_example_xyz()
-    >>> mol = MultiMolecule(filename=example_xyz_file)
+    >>> mol = MultiMolecule.from_xyz(example_xyz_file)
     >>> rmsd = mol.init_rmsd(atom_subset=('Cd', 'Se', 'O'))
     >>> rmsd.plot(title='RMSD')
 
 
 .. plot::
 
-    from FOX.classes.multi_mol import MultiMolecule
-    from FOX.examples.example_xyz import get_example_xyz
+    from FOX import (MultiMolecule, get_example_xyz)
     atoms = ('Cd', 'Se', 'O')
-    xyz_file = get_example_xyz()
-    mol = MultiMolecule(filename=xyz_file)
+    mol = MultiMolecule.from_xyz(get_example_xyz())
     rmsd = mol.init_rmsd(atom_subset=atoms)
     rmsd.plot(title='RMSD')
 
@@ -65,9 +67,14 @@ of atomic indices.
         \right\rangle
     }
 
-Given a trajectory, ``mol``, stored as a *MultiMolecule* object, the RMSF
-can be calculated with the :meth:`.MultiMolecule.init_rmsf` method using the
-following command: ``rmsf = mol.init_rmsf(atom_subset=None)``.
+Given a trajectory, ``mol``, stored as a :class:`FOX.MultiMolecule` object,
+the RMSF can be calculated with the :meth:`.MultiMolecule.init_rmsf`
+method using the following command:
+
+.. code:: python
+
+    >>> rmsd = mol.init_rmsf(atom_subset=None)
+
 The resulting ``rmsf`` is a Pandas_ dataframe, an object which is effectively a
 hybrid between a dictionary and a Numpy_ array.
 
@@ -76,22 +83,19 @@ The RMSF is printed for cadmium, selenium and oxygen atoms.
 
 .. code:: python
 
-    >>> from FOX.classes.multi_mol import MultiMolecule
-    >>> from FOX.examples.example_xyz import get_example_xyz
+    >>> from FOX import (MultiMolecule, get_example_xyz)
 
     >>> example_xyz_file = get_example_xyz()
-    >>> mol = MultiMolecule(filename=example_xyz_file)
+    >>> mol = MultiMolecule.from_xyz(example_xyz_file)
     >>> rmsd = mol.init_rmsf(atom_subset=('Cd', 'Se', 'O'))
     >>> rmsd.plot(title='RMSF')
 
 
 .. plot::
 
-    from FOX.classes.multi_mol import MultiMolecule
-    from FOX.examples.example_xyz import get_example_xyz
+    from FOX import (MultiMolecule, get_example_xyz)
     atoms = ('Cd', 'Se', 'O')
-    xyz_file = get_example_xyz()
-    mol = MultiMolecule(filename=xyz_file)
+    mol = MultiMolecule.from_xyz(get_example_xyz())
     rmsd = mol.init_rmsf(atom_subset=atoms)
     rmsd.plot(title='RMSF')
 
@@ -102,12 +106,11 @@ See the :meth:`.MultiMolecule.init_shell_search` method.
 
 .. code:: python
 
-    >>> from FOX.classes.multi_mol import MultiMolecule
-    >>> from FOX.examples.example_xyz import get_example_xyz
+    >>> from FOX import (MultiMolecule, get_example_xyz)
     >>> import matplotlib.pyplot as plt
 
     >>> example_xyz_file = get_example_xyz()
-    >>> mol = MultiMolecule(filename=example_xyz_file)
+    >>> mol = MultiMolecule.from_xyz(example_xyz_file)
     >>> rmsf, rmsf_idx, rdf = mol.init_shell_search(atom_subset=('Cd', 'Se'))
 
     >>> fig, (ax, ax2) = plt.subplots(ncols=2)
@@ -118,11 +121,10 @@ See the :meth:`.MultiMolecule.init_shell_search` method.
 
 .. plot::
 
-    from FOX.classes.multi_mol import MultiMolecule
-    from FOX.examples.example_xyz import get_example_xyz
+    from FOX import (MultiMolecule, get_example_xyz)
     import matplotlib.pyplot as plt
 
-    mol = MultiMolecule(filename=get_example_xyz())
+    mol = MultiMolecule.from_xyz(get_example_xyz())
     rmsf, rmsf_idx, rdf = mol.init_shell_search(atom_subset=('Cd', 'Se'))
 
     fig, (ax, ax2) = plt.subplots(ncols=2)
@@ -161,7 +163,7 @@ atomic indices based on aforementioned distance ranges.
      }
 
 It is even possible to use this dictionary with atom names & indices for
-renaming atoms in a ``FOX.MultiMolecule`` object:
+renaming atoms in a :class:`FOX.MultiMolecule` object:
 
 .. code:: python
 
