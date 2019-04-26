@@ -12,7 +12,7 @@ A module for constructing angular distribution functions.
 cp2k_utils.py_
 ~~~~~~~~~~~~~~
 
-A module with miscellaneous functions related to CP2K.
+A module with miscellaneous functions related to CP2K_.
 
 ~~~~~~~~~~~~~~
 hdf5_utils.py_
@@ -45,3 +45,4 @@ A module with miscellaneous functions.
 .. _rdf: https://github.com/nlesc-nano/auto-FOX/blob/master/FOX/functions/rdf.py
 .. _read_xyz: https://github.com/nlesc-nano/auto-FOX/blob/master/FOX/functions/read_xyz.py
 .. _utils: https://github.com/nlesc-nano/auto-FOX/blob/master/FOX/functions/utils.py
+.. _CP2K: https://www.cp2k.org/
