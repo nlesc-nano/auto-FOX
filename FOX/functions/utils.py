@@ -1,6 +1,6 @@
 """ A module with miscellaneous functions. """
 
-__all__ = ['get_template', 'template_to_df', 'update_charge']
+__all__ = ['get_template', 'template_to_df', 'update_charge', 'get_example_xyz']
 
 from os.path import join
 from functools import wraps
@@ -376,3 +376,8 @@ def write_psf(atoms=None, bonds=None, angles=None, dihedrals=None, impropers=Non
     with open(filename, 'w') as f:
         f.write(top)
         f.write(bottom[1:])
+
+
+def get_example_xyz(name='Cd68Se55_26COO_MD_trajec.xyz'):
+    """ Return the path + name of the example multi-xyz file. """
+    return resource_filename('FOX', join('data', name))

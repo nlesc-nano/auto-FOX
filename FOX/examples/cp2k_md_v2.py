@@ -10,8 +10,7 @@ from scm.plams.interfaces.thirdparty.cp2k import Cp2kJob
 
 from FOX.classes.monte_carlo import ARMC
 from FOX.classes.multi_mol import MultiMolecule
-from FOX.examples.example_xyz import get_example_xyz
-from FOX.functions.utils import (get_template, dict_to_pandas)
+from FOX.functions.utils import (get_template, dict_to_pandas, get_example_xyz)
 from FOX.functions.cp2k_utils import (set_subsys_kind, set_keys)
 
 
