@@ -162,20 +162,6 @@ def test_adf():
     np.testing.assert_allclose(adf, ref)
 
 
-def test_as_psf():
-    """ Test :meth:`FOX.MultiMolecule.as_psf`. """
-    mol = MOL.copy()
-
-    mol.guess_bonds(atom_subset=['H', 'C', 'O'])
-    mol.as_psf(join(REF_DIR, 'mol.psf'))
-    with open(join(REF_DIR, 'mol.psf')) as f:
-        psf = f.read()
-    remove(join(REF_DIR, 'mol.psf'))
-    with open(join(REF_DIR, 'as_psf.psf')) as f:
-        ref = f.read()
-    assert psf == ref
-
-
 def test_as_mass_weighted():
     """ Test :meth:`FOX.MultiMolecule.as_mass_weighted`. """
     mol = MOL.copy()
