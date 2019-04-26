@@ -32,7 +32,8 @@ setup(
     package_dir={'FOX': 'FOX'},
     package_data={'FOX': [
         'data/*.xyz',
-        'data/*.yaml'
+        'data/*.yaml',
+        'data/*.str'
     ]},
     include_package_data=True,
     license="GNU General Public License v3 or later",
@@ -46,7 +47,7 @@ setup(
         'python-3.7',
     ],
     classifiers=[
-        'Development Status :: 3 - Alpha',
+        'Development Status :: 4 - Beta',
         'Intended Audience :: Science/Research',
         'Topic :: Scientific/Engineering :: Chemistry'
         'License :: OSI Approved :: GNU Lesser General Public License',
@@ -58,7 +59,7 @@ setup(
         'numpy',
         'scipy',
         'pandas',
-        'plams@git+https://github.com/SCM-NV/PLAMS@release'
+        'plams@git+https://github.com/SCM-NV/PLAMS@master'
     ],
     setup_requires=[
         'pytest-runner',
@@ -73,6 +74,7 @@ setup(
     ],
     extras_require={
         'test': ['pytest', 'pytest-cov', 'pytest-mock', 'nbsphinx', 'pycodestyle'],
-        'doc': ['sphinx', 'sphinx_rtd_theme', 'nbsphinx', 'matplotlib']
+        'doc': ['sphinx', 'sphinx_rtd_theme', 'nbsphinx', 'matplotlib'],
+        'MC': ['pyyaml']
     }
 )

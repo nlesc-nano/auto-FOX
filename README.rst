@@ -7,11 +7,11 @@
    :target: https://www.python.org
 
 #################################################
-Automated Forcefield Optimization Extension 0.2.3
+Automated Forcefield Optimization Extension 0.3.0
 #################################################
 
-**Auto-FOX** is a library for parameterizing forcefields by reproducing
-radial distribution functions.
+**Auto-FOX** is a library for analyzing potential energy surfaces (PESs) and 
+using the resulting PES descriptors for constructing forcefield parameters.
 Further details are provided in the documentation_.
 
 
@@ -27,8 +27,9 @@ functionalities are currently implemented:
 - A radial and angular distribution generator (RDF & ADF). (3_)
 - A root mean squared displacement generator (RMSD). (4_)
 - A root mean squared fluctuation generator (RMSF). (5_)
-- Tools for describing shell structures in, *e.g.*, nanocrystals or dissolved solutes. (6_)
-
+- Tools for describing shell structures in, *e.g.*,
+  nanocrystals or dissolved solutes. (6_)
+- A Monte Carlo forcefield parameter optimizer. 
 
 Using **Auto-FOX**
 ==================
@@ -87,23 +88,24 @@ Installing **Auto-FOX**
 
 Optional dependencies
 ---------------------
--  "Just give me all optional dependancies (7_)":
+- "Just give me all optional dependancies (8_)":
 
-   -  Anaconda:   ``conda install --name FOX -y -c conda-forge matplotlib h5py pyyaml``
+   - Anaconda:   ``conda install --name FOX -y -c
+     conda-forge matplotlib h5py pyyaml``
 
 |
 
--  The plotting of data produced by **Auto-FOX** requires Matplotlib_.
-   Matplotlib is distributed by both PyPi and Anaconda:
+- The plotting of data produced by **Auto-FOX** requires Matplotlib_.
+  Matplotlib is distributed by both PyPi and Anaconda:
 
-   -  Anaconda:   ``conda install --name FOX -y -c conda-forge matplotlib``
+   - Anaconda:   ``conda install --name FOX -y -c conda-forge matplotlib``
 
-   -  PyPi:       ``pip install matplotlib``
+   - PyPi:       ``pip install matplotlib``
 
--  Use of the FOX.monte_carlo_ module requires h5py_ and PyYAML_.
-   Note: h5py is not distrbuted via PyPi:
+- Use of the FOX.monte_carlo_ module requires h5py_ and PyYAML_.
+  Note: h5py is not distrbuted via PyPi:
 
-   -  Anaconda:   ``conda install --name FOX -y -c conda-forge h5py pyyaml``
+   - Anaconda:   ``conda install --name FOX -y -c conda-forge h5py pyyaml``
 
 
 .. _1: https://auto-fox.readthedocs.io/en/latest/3_multimolecule.html
@@ -112,7 +114,8 @@ Optional dependencies
 .. _4: https://auto-fox.readthedocs.io/en/latest/2_rmsd.html#root-mean-squared-displacement
 .. _5: https://auto-fox.readthedocs.io/en/latest/2_rmsd.html#root-mean-squared-fluctuation
 .. _6: https://auto-fox.readthedocs.io/en/latest/2_rmsd.html#discerning-shell-structures
-.. _7: https://www.youtube.com/watch?v=hFDcoX7s6rE
+.. _7: https://auto-fox.readthedocs.io/en/latest/4_monte_carlo.html
+.. _8: https://www.youtube.com/watch?v=hFDcoX7s6rE
 .. _documentation: https://auto-fox.readthedocs.io/en/latest/
 .. _Miniconda: http://conda.pydata.org/miniconda.html
 .. _Anaconda: https://www.anaconda.com/distribution/#download-section
