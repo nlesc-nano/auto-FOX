@@ -10,7 +10,7 @@ from FOX.functions.cp2k_utils import (set_subsys_kind, set_keys)
 
 
 # Read the .xyz file
-mol = MultiMolecule(filename=get_example_xyz())
+mol = MultiMolecule.from_xyz(get_example_xyz())
 mol.guess_bonds(atom_subset=['C', 'O', 'H'])
 mol.generate_psf_block()
 mol.update_atom_type('formate.str')
