@@ -3,7 +3,7 @@
 The MultiMolecule Class
 =======================
 
-The API of the FOX.MultiMolecule class.
+The API of the :class:`FOX.MultiMolecule` class.
 
 API
 ---

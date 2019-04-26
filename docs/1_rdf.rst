@@ -4,7 +4,7 @@ Radial & Angular Distribution Function
 ======================================
 
 Radial and angular distribution function (RDF & ADF) generators have been
-implemented in the :mod:`FOX.classes.multi_molecule` class.
+implemented in the :class:`FOX.MultiMolecule` class.
 The radial distribution function, or pair correlation function, describes how
 the particale density in a system varies as a function of distance from a
 reference particle. The herein implemented function is designed for
@@ -37,11 +37,10 @@ oxygen (Cd_Cd, Cd_Se, Cd_O, Se_Se, Se_O and O_O).
 
 .. code:: python
 
-    >>> from FOX.classes.multi_mol import MultiMolecule
-    >>> from FOX.examples.example_xyz import get_example_xyz
+    >>> from FOX import (MultiMolecule, get_example_xyz)
 
     >>> example_xyz_file = get_example_xyz()
-    >>> mol = MultiMolecule(filename=example_xyz_file)
+    >>> mol = MultiMolecule.from_xyz(example_xyz_file)
     >>> rdf = mol.init_rdf(atom_subset=('Cd', 'Se', 'O'))
     >>> adf = mol.init_adf(atom_subset=('Cd', 'Se', 'O'))
     >>> rdf.plot()
@@ -50,11 +49,9 @@ oxygen (Cd_Cd, Cd_Se, Cd_O, Se_Se, Se_O and O_O).
 
 .. plot::
 
-    from FOX.classes.multi_mol import MultiMolecule
-    from FOX.examples.example_xyz import get_example_xyz
+    from FOX import (MultiMolecule, get_example_xyz)
     atoms = ('Cd', 'Se', 'O')
-    xyz_file = get_example_xyz()
-    mol = MultiMolecule(filename=xyz_file)
+    mol = MultiMolecule.from_xyz(get_example_xyz())
     rdf = mol.init_rdf(atom_subset=atoms)
     adf = mol.init_adf(atom_subset=atoms)
     rdf.plot()

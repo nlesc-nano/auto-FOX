@@ -3,7 +3,7 @@
 The MonteCarlo Class & Sub Classes
 ==================================
 
-The API of the FOX.MonteCarlo and the FOX.ARMC subclass.
+The API of the :class:`FOX.MonteCarlo` and the :class:`FOX.ARMC` subclass.
 
 MonteCarlo API
 --------------
