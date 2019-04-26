@@ -13,13 +13,14 @@ class Molecule(Molecule):
     additional methods. """
 
     def separate_mod(self):
-        """ A modified version of the PLAMS separate()_ function. Separates the molecule into
+        """ A modified version of the PLAMS Molecule.separate_ method. Separates the molecule into
         connected component as based on its bonds.
         Returns aforementioned components as a nested list of atomic indices.
 
         :return: A nested list of atomic indices, each sublist representing a set of unconnected
             moleculair fragments.
         :rtype: |list|_ [|list|_ [|int|_]].
+        _Molecule.separate: https://www.scm.com/doc/plams/components/molecule.html#scm.plams.core.basemol.Molecule.separate
         """
         if len(self.bonds) == 0:
             raise MoleculeError('separate_mod: No bonds were found in plams_mol')
@@ -71,11 +72,12 @@ class Molecule(Molecule):
                     at2.properties.charge += at2_saturation
 
     def set_atoms_id(self, start=1):
-        """ A modified version of the PLAMS set_atoms_id()_ function.
+        """ A modified version of the PLAMS Molecule.set_atoms_id_ method.
         Equip each atom in **self** of the molecule with the *id* attribute based on enumeration of
         **self.atoms**.
 
         :parameter bool start: The starting value for the enumeration procedure.
+        _Molecule.set_atoms_id: https://www.scm.com/doc/plams/components/molecule.html#scm.plams.core.basemol.Molecule.set_atoms_id
         """
         for i, at in enumerate(self, start):
             at.id = i
