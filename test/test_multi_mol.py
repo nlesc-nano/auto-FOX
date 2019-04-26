@@ -8,8 +8,7 @@ from os.path import join
 import pytest
 import numpy as np
 
-from FOX import MultiMolecule
-from FOX.examples.example_xyz import get_example_xyz
+from FOX import (MultiMolecule, get_example_xyz)
 
 
 MOL = MultiMolecule.from_xyz(get_example_xyz())
