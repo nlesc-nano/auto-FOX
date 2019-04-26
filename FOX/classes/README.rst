@@ -18,14 +18,14 @@ A module for performing Monte Carlo-based forcefield parameter optimizations.
 multi_mol_magic.py_
 ~~~~~~~~~~~~~~~~~~~
 
-A Module for setting up the magic methods and properties of the
+A module for setting up the magic methods and properties of the
 MultiMolecule class.
 
 ~~~~~~~~~~~~~
 multi_mol.py_
 ~~~~~~~~~~~~~
 
-A Module for the MultiMolecule class.
+A module for the MultiMolecule class.
 
 
 .. _molecule_utils: https://github.com/nlesc-nano/auto-FOX/blob/master/FOX/classes/molecule_utils.py
