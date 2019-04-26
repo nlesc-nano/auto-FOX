@@ -4,18 +4,17 @@ __all__ = ['MonteCarlo', 'ARMC']
 
 import os
 import shutil
-from os.path import isdir
 
 import numpy as np
 
 from scm.plams import Molecule
 from scm.plams.core.results import Results
 from scm.plams.core.settings import Settings
-from scm.plams.core.functions import (init, finish, add_to_class)
+from scm.plams.core.functions import (init, finish, add_to_class, config)
 from scm.plams.interfaces.thirdparty.cp2k import Cp2kJob
 
 from .multi_mol import MultiMolecule
-from ..functions.utils import (get_template, update_charge)
+from ..functions.utils import (get_template, update_charge, write_psf)
 from ..functions.cp2k_utils import (update_cp2k_settings)
 from ..functions.hdf5_utils import (create_hdf5, to_hdf5)
 
@@ -40,9 +39,7 @@ class MonteCarlo():
     :parameter molecule: A molecule.
     :type molecule: |plams.Molecule|_ or |FOX.MultiMolecule|_
 
-    :Atributes:     * **ref** (|list|_) – See the **ref** parameter.
-
-                    * **param** (|np.ndarray|_ [|np.float64|_]) – See the **param** parameter.
+    :Atributes:     * **param** (|pd.DataFrame|_ – See the **param** parameter.
 
                     * **pes** (|plams.Settings|_) – See :meth:`MonteCarlo.reconfigure_pes_atr`
 
@@ -63,19 +60,21 @@ class MonteCarlo():
         # Settings for running the actual MD calculations
         self.job = Settings()
         self.job.molecule = molecule
-        self.job.charge_series = None
+        self.job.psf = None
         self.job.func = Cp2kJob
         self.job.settings = get_template('md_cp2k.yaml')
         self.job.name = self._get_name()
         self.job.path = os.getcwd()
         self.job.keep_files = False
+        self.hdf5_path = self.job.path
 
         # Settings for generating Monte Carlo moves
         self.move = Settings()
-        self.move.range = self.reconfigure_move_range()
-        self.move.func = np.add
+        self.move.func = np.multiply
         self.move.kwarg = {}
         self.move.charge_constraints = {}
+        self.move.range = None
+        self.reconfigure_move_range()
 
         # Set user-specified keywords
         for key in kwarg:
@@ -104,26 +103,39 @@ class MonteCarlo():
             self.job.molecule = self.job.molecule.as_Molecule(-1)[0]
 
         assert isinstance(self.job.name, str)
-        assert isdir(self.job.path)
+        assert os.path.isdir(self.job.path)
 
-    def move(self):
+    def move_param(self):
         """ Update a random parameter in **self.param** by a random value from **self.move.range**.
         Performs in inplace update of the *param* column in **self.param**.
 
         :return: A tuple with the (new) values in the *param* column of **self.param**.
         :rtype: |tuple|_ [|float|_]
         """
-        i = self.param.loc[:, 'param'].sample()
+        # Unpack arguments
+        param = self.param
+        df = self.job.psf.atoms
+
+        # Perform a move
+        i = param.loc[:, 'param'].sample()
         j = np.random.choice(self.move.range, 1)
-        i[:] = self.move.func(i, j, **self.move.kwarg)
+        param.loc[i.index, 'param'] = self.move.func(i, j, **self.move.kwarg)
+        i = param.loc[i.index, 'param']
 
         # Constrain the atomic charges
         if 'charge' in i:
             for (_, at), charge in i.iteritems():
                 pass
-            update_charge(at, charge, self.job.charge_series, self.move.charge_constraints)
+            update_charge(at, charge, df, self.move.charge_constraints)
+            idx_set = set(df['atom type'].values)
+            for at in idx_set:
+                if ('charge', at) in param.index:
+                    condition = df['atom type'] == at
+                    param.loc[('charge', at), 'param'] = df.loc[condition, 'charge'].iloc[0]
+            write_psf(**self.job.psf)
 
-        # Return a tuple with the new parameters
+        # Update job settings and return a tuple with new parameters
+        update_cp2k_settings(self.job.settings, self.param)
         return tuple(self.param['param'].values)
 
     def run_md(self):
@@ -144,33 +156,8 @@ class MonteCarlo():
 
         # Construct and return a MultiMolecule object
         mol = MultiMolecule(filename=results.get_xyz_path())
-        self.job.mol = mol.as_Molecule(0)[0]
+        self.job.mol = mol.as_Molecule(-1)[0]
         return mol, job.path
-
-    def run_first_md(self):
-        """ Run the first MD job (before starting the actual main for-loop) and construct a
-        matching list of PES descriptors.
-
-        * The MD job is constructed according to the provided settings in **self.job**.
-
-        * The PES descriptors are constructed by the provided settings in **self.pes**.
-
-        :return: A dictionary, containing a list with one or more PES descriptors, and
-            the first (and only) key in aforementioned dictionary.
-        :rtype: |dict|_ (keys: |tuple|_, values: |list|_) and |tuple|_
-        """
-        # Run MD
-        key = tuple(self.param)
-        mol, path = self.run_md()
-
-        # Create PES descriptors
-        values = {i: self.pes[i].func(mol, **self.pes[i].kwarg) for i in self.pes}
-        history_dict = {key: self.apply_phi(values)}
-
-        # Delete the output directory and return
-        if self.job.keep_files:
-            shutil.rmtree(path)
-        return history_dict, key
 
     def get_pes_descriptors(self, history_dict, key):
         """ Check if a **key** is already present in **history_dict**.
@@ -187,15 +174,16 @@ class MonteCarlo():
         :rtype: |dict|_ (keys: |str|_, values: |np.ndarray|_ [|np.float64|_])
         """
         if key in history_dict:
-            return history_dict[key]
-        else:
-            mol, path = self.run_md()
-            ret = {i: self.pes[i].func(mol, **self.pes[i].kwarg) for i in self.pes}
+            return False
 
-            # Delete the output directory and return
-            if not self.job.keep_files:
-                shutil.rmtree(path)
-            return ret
+        # Generate PES descriptors
+        mol, path = self.run_md()
+        ret = {key: value.func(mol, **value.kwarg) for key, value in self.pes.items()}
+
+        # Delete the output directory and return
+        if not self.job.keep_files:
+            shutil.rmtree(path)
+        return ret
 
     def reconfigure_move_range(self, start=0.005, stop=0.1, step=0.005):
         """ Generate an with array of all allowed moves, the moves spanning both the positive and
@@ -206,8 +194,10 @@ class MonteCarlo():
         :parameter float stop: End of the interval. The interval includes this value.
         :parameter float step: Spacing between values.
         """
-        rng_range = np.arange(start, start + step, step)
-        self.move_range = np.concatenate((-rng_range, rng_range))
+        rng_range1 = np.arange(1 + start, 1 + stop, step)
+        rng_range2 = np.arange(1 - stop, 1 - start + step, step)
+        self.move.range = np.concatenate((rng_range1, rng_range2))
+        self.move.range.sort()
 
     def reconfigure_move_atr(self, move_range=None, func=np.add, kwarg={}):
         """ Reconfigure the attributes in **self.move**., the latter containg all settings related
@@ -220,7 +210,9 @@ class MonteCarlo():
             The function in **func** is applied to floats.
         :parameter dict kwarg: Keyword arguments used in **func**.
         """
-        self.move.range = move_range or self.set_move_range()
+        self.move.range = move_range
+        if move_range is None:
+            self.set_move_range()
         self.move.func = func
         self.move.kwarg = kwarg
 
@@ -287,47 +279,82 @@ class ARMC(MonteCarlo):
         :rtype: |pd.DataFrame|_ (index: |pd.MultiIndex|_, values: |np.float64|_)
         """
         # Unpack attributes
-        acceptance = np.zeros(self.armc.sub_iter_len, dtype=bool)
         super_iter = self.armc.iter_len // self.armc.sub_iter_len
 
         # Construct the HDF5 file
-        create_hdf5(self)
-        hdf5_kwarg = {'param': self.param, 'acceptance': None}
+        create_hdf5(self, path=self.hdf5_path)
 
-        # Initialize
+        # Initialize the first MD calculation
         init(path=self.job.path, folder='MM_MD_workdir')
-        key_new, history_dict = self.run_first_md()
+        config.default_jobmanager.settings.hashing = None
+        key_new = tuple(self.param['param'].values)
+        history_dict = {}
+        pes_new = self.get_pes_descriptors(history_dict, key_new)
+        history_dict[key_new] = self.get_aux_error(pes_new)
+        self.param['param_old'] = self.param['param']
+
+        # Start the main loop
         for i in range(super_iter):
-            for j in range(self.armc.sub_iter_len):
-                # Step 1: Perform a random move
-                key_old = key_new
-                key_new = self.move()
-                hdf5_kwarg['param'] = self.param
-
-                # Step 2: Check if the move has been performed already
-                pes_new = self.get_pes_descriptors(history_dict, key_new)
-                hdf5_kwarg.update(pes_new)
-
-                # Step 3: Evaluate the auxilary error
-                pes_old = history_dict[key_old]
-                accept = bool(sum(self.get_aux_error(pes_old) - self.get_aux_error(pes_new)))
-                hdf5_kwarg['acceptance'] = accept
-
-                # Step 4: Update the PES descriptor history
-                if accept:
-                    acceptance[j] = True
-                    history_dict[key_new] = self.apply_phi(pes_new)
-                    update_cp2k_settings(self.job.settings, self.param)
-                else:
-                    history_dict[key_old] = self.apply_phi(pes_old)
-
-                # Step 5: Export the results to HDF5
-                to_hdf5(hdf5_kwarg, i, j, self.job.path)
-
-            self.update_phi(acceptance)
-            acceptance[:] = False
+            key_new = self.do_inner(i, history_dict, key_new)
         finish()
         return self.param
+
+    def do_inner(self, i, history_dict, key_new):
+        """ A method that handles the inner loop of the :meth:`ARMC.init_armc` method.
+
+        :parameter int i: The superiteration in :meth:`ARMC.init_armc`.
+        :parameter history_dict: A dictionary with parameters as keys and a list of PES descriptors
+            as values.
+        :type history_dict: |dict|_ (keys: |tuple|_, values: |dict|_ [|pd.DataFrame|_])
+        :parameter key_new: A tuple with the latest set of forcefield parameters.
+        :type key_new: |tuple|_ [|int|_]
+        :return: The latest set of parameters and the acceptance rate over the course of the inner
+            loop.
+        :rtype: |tuple|_ [|int|_] and |np.ndarray|_ [|bool|_]
+        """
+        acceptance = np.zeros(self.armc.sub_iter_len, dtype=bool)
+        hdf5_kwarg = {'param': self.param, 'acceptance': False}
+
+        for j in range(self.armc.sub_iter_len):
+            # Step 1: Perform a random move
+            key_old = key_new
+            key_new = self.move_param()
+
+            # Step 2: Check if the move has been performed already; calculate PES descriptors if not
+            pes_new = self.get_pes_descriptors(history_dict, key_new)
+            hdf5_kwarg.update(pes_new)
+
+            # Step 3: Evaluate the auxiliary error
+            if not pes_new:
+                aux_new = history_dict[key_new]
+                pes_new = {key: np.nan for key in self.pes}
+            else:
+                aux_new = self.get_aux_error(pes_new)
+            aux_old = history_dict[key_old]
+            accept = bool(sum(aux_new - aux_old))
+
+            # Step 4: Update the auxiliary error history, apply phi & update job settings
+            acceptance[j] = accept
+            if accept:
+                history_dict[key_new] = self.apply_phi(aux_new)
+                self.param['param_old'] = self.param['param']
+                hdf5_kwarg['aux_error_mod'] = np.append(self.param['param'].values, self.phi.phi)
+            else:
+                history_dict[key_new] = aux_new
+                history_dict[key_old] = self.apply_phi(aux_old)
+                key_new = key_old
+                self.param['param'] = self.param['param_old']
+                hdf5_kwarg['aux_error_mod'] = np.append(self.param['param_old'].values,
+                                                        self.phi.phi)
+
+            # Step 5: Export the results to HDF5
+            hdf5_kwarg['param'] = self.param['param']
+            hdf5_kwarg['acceptance'] = accept
+            hdf5_kwarg['aux_error'] = aux_new
+            to_hdf5(hdf5_kwarg, i, j, self.phi.phi, self.hdf5_path)
+
+        self.update_phi(acceptance)
+        return key_new
 
     def get_aux_error(self, pes_dict):
         """ Return the auxiliary error of the PES descriptors in **values** with respect to
@@ -338,23 +365,21 @@ class ARMC(MonteCarlo):
         :return: An array with *n* auxilary errors
         :rtype: *n* |np.ndarray|_ [|np.float64|_]
         """
-        def get_norm(a, b):
+        def norm_sum(a, b):
             return np.linalg.norm(a - b, axis=0).sum()
-        return np.array([get_norm(pes_dict[j], self.pes[j].ref) for i, j in enumerate(pes_dict)])
+        return np.array([norm_sum(pes_dict[i], self.pes[i].ref) for i in pes_dict])
 
-    def apply_phi(self, values):
-        """ Apply **self.phi.phi** to all PES descriptors in **values**.
+    def apply_phi(self, aux_error):
+        """ Apply **self.phi.phi** to all auxiliary errors in **aux_error**.
 
         * The values are updated according to the provided settings in **self.armc**.
 
-        :parameter values: A list of *n* PES descriptors.
-        :type values: *n* |list|_ [|float|_ or |np.ndarray|_ [|np.float64|_]]
+        :parameter aux_error: An array with auxiliary errors
+        :type aux_error: |np.ndarray|_ [|np.float64|_]
+        :return: **aux_error** with updated values.
+        :rtype: |np.ndarray|_ [|np.float64|_]
         """
-        phi = self.phi.phi
-        func = self.phi.func
-        kwarg = self.phi.kwargf
-        for i in values:
-            func(i, phi, **kwarg, out=i)
+        return self.phi.func(aux_error, self.phi.phi, **self.phi.kwarg)
 
     def update_phi(self, acceptance):
         """ Update **self.phi** based on **self.armc.a_target** and **acceptance**.

@@ -3,11 +3,13 @@
 __all__ = ['get_template', 'template_to_df', 'update_charge']
 
 from os.path import join
-import pkg_resources as pkg
+from functools import wraps
+from pkg_resources import resource_filename
 
+import numpy as np
 import pandas as pd
 
-from scm.plams import Settings
+from scm.plams import (Settings, add_to_class)
 
 try:
     import yaml
@@ -20,6 +22,54 @@ except ImportError:
                   \n\tpip install pyyaml"
 
 
+def assert_error(error_msg=''):
+    """ Take an error message, if not *false* then cause a function or class
+    to raise a ModuleNotFoundError upon being called.
+
+
+    Indended for use as a decorater:
+
+    .. code:: python
+
+        >>> @assert_error('An error was raised by {}')
+        >>> def my_custom_func():
+        >>>     print(True)
+
+        >>> my_func()
+        ModuleNotFoundError: An error was raised by my_custom_func
+
+    :parameter str error_msg: A to-be printed error message.
+        If available, a single set of curly brackets will be replaced
+        with the function or class name.
+    """
+    type_dict = {'function': _function_error, 'type': _class_error}
+
+    def decorator(func):
+        return type_dict[func.__class__.__name__](func, error_msg)
+    return decorator
+
+
+def _function_error(f_type, error_msg):
+    """ A function for processing functions fed into :func:`assert_error`. """
+    if not error_msg:
+        return f_type
+
+    @wraps(f_type)
+    def wrapper(*arg, **kwarg):
+        raise ModuleNotFoundError(error_msg.format(f_type.__name__))
+    return wrapper
+
+
+def _class_error(f_type, error_msg):
+    """ A function for processing classes fed into :func:`assert_error`. """
+    if error_msg:
+        @add_to_class(f_type)
+        def __init__(self, *arg, **kwarg):
+            raise ModuleNotFoundError(error_msg.format(f_type.__name__))
+    return f_type
+
+
+@assert_error(YAML_ERROR)
 def get_template(name, path=None, as_settings=True):
     """ Grab a .yaml template and turn it into a Settings object.
 
@@ -31,7 +81,7 @@ def get_template(name, path=None, as_settings=True):
     :rtype: |plams.Settings|_ or |dict|_
     """
     if path is None:
-        path = pkg.resource_filename('FOX', join('data', name))
+        path = resource_filename('FOX', join('data', name))
     else:
         path = join(path, name)
 
@@ -209,7 +259,7 @@ def dict_to_pandas(input_dict, name=0, object_type='DataFrame'):
         return pd.DataFrame(list(flat_dict.values()), index=idx, columns=[name])
 
 
-def update_charge(at, charge, series, constrain_dict={}):
+def update_charge(at, charge, charge_df, constrain_dict={}):
     """ Set the atomic charge of **at** to **charge**, imposing the following constrains to
     all remaining values in **series**:
 
@@ -234,34 +284,95 @@ def update_charge(at, charge, series, constrain_dict={}):
 
     :parameter str at: An atom type such as *Se*, *Cd* or *OG2D2*.
     :parameter float charge: The new charge associated with **at**.
-    :parameter series: A series of atomic charges. **series.index** should consist of
-        atom types (see **at**).
+    :parameter charge_df: A dataframe of atomic charges.
     :type series: |pd.Series|_ (index: |pd.Index|_, values: |np.float64|_)
     :parameter dict constrain_dict: A dictionary with charge constrains.
     """
-    if at not in series.index:
-        raise IndexError('{} not available in series.index'.format(str(at)))
-    net_charge = series.sum()
+    net_charge = charge_df['charge'].sum()
 
     # Update all constrained charges
-    series[series.index == at] = charge
+    charge_df.loc[charge_df['atom type'] == at, 'charge'] = charge
     at_list = [at]
     if at in constrain_dict:
         for at2 in constrain_dict[at]:
             at_list.append(at2)
-            series[series.index == at2] *= constrain_dict[at][at2]
+            charge_df.loc[charge_df['atom type'] == at2, 'charge'] *= constrain_dict[at][at2]
 
     # Update all unconstrained charges
-    criterion = [i not in at_list for i in series.index]
-    i = series[criterion].sum() / net_charge
-    series[criterion] /= i
+    criterion = np.array([i not in at_list for i in charge_df['atom type']])
+    i = net_charge - charge_df.loc[~criterion, 'charge'].sum()
+    i /= charge_df.loc[criterion, 'charge'].sum()
+    charge_df.loc[criterion, 'charge'] *= i
 
 
-# If pyyaml is not installed
-if YAML_ERROR:
-    _doc = get_template.__doc__
+def array_to_index(ar):
+    """ Convert a NumPy array into a Pandas Index or MultiIndex.
+    Raises a ValueError if the dimensionality of **ar** is greater than 2.
 
-    def get_template(name, path=None):
-        raise ModuleNotFoundError(YAML_ERROR.format('get_template'))
+    :parameter ar: A NumPy array.
+    :type ar: 1D or 2D |np.ndarrat|_
+    :return: A Pandas Index or MultiIndex constructed from **ar**.
+    :rtype: |pd.Index|_ or |pd.MultiIndex|_
+    """
+    if 'bytes' in ar.dtype.name:
+        ar = ar.astype(str, copy=False)
 
-    get_template.__doc__ = _doc
+    if ar.ndim == 1:
+        return pd.Index(ar)
+    elif ar.ndim == 2:
+        return pd.MultiIndex.from_arrays(ar)
+    raise ValueError('Could not construct a Pandas (Multi)Index from an \
+                     {:d}-dimensional array'.format(ar.dim))
+
+
+def write_psf(atoms=None, bonds=None, angles=None, dihedrals=None, impropers=None,
+              filename='mol.psf'):
+    """ Create a protein structure file (.psf).
+
+    :parameter atoms: A Pandas DataFrame holding the *atoms* block.
+    :type atoms: |pd.DataFrame|_
+    :parameter bonds: An array holding the indices of all atom-pairs defining bonds.
+    :type bonds: *i*2* |np.ndarray|_ [|np.int64|_]
+    :parameter angles: An array holding the indices of all atoms defining angles.
+    :type angles: *j*3* |np.ndarray|_ [|np.int64|_]
+    :parameter dihedrals: An array holding the indices of all atoms defining proper
+        dihedral angles.
+    :type dihedrals: *k*4* |np.ndarray|_ [|np.int64|_]
+    :parameter impropers: An array holding the indices of all atoms defining improper
+        dihedral angles.
+    :type impropers: *l*4* |np.ndarray|_ [|np.int64|_]
+    """
+    # Prepare the !NTITLE block
+    top = 'PSF EXT\n'
+    top += '\n{:>10d} !NTITLE'.format(2)
+    top += '\n{:>10.10} PSF file generated with Auto-FOX:'.format('REMARKS')
+    top += '\n{:>10.10} https://github.com/nlesc-nano/auto-FOX'.format('REMARKS')
+
+    # Prepare the !NATOM block
+    top += '\n\n{:>10d} !NATOM\n'.format(atoms.shape[0])
+    string = '{:>10d} {:8.8} {:<8d} {:8.8} {:8.8} {:6.6} {:>9f} {:>15f} {:>8d}'
+    for i, j in atoms.iterrows():
+        top += string.format(*[i]+j.values.tolist()) + '\n'
+
+    # Prepare arguments
+    items_per_row = [4, 3, 2, 2]
+    bottom_headers = {
+        '{:>10d} !NBOND: bonds': bonds,
+        '{:>10d} !NTHETA: angles': angles,
+        '{:>10d} !NPHI: dihedrals': dihedrals,
+        '{:>10d} !NIMPHI: impropers': impropers
+    }
+
+    # Prepare the !NBOND, !NTHETA, !NPHI and !NIMPHI blocks
+    bottom = ''
+    for i, (key, value) in zip(items_per_row, bottom_headers.items()):
+        if value is None:
+            bottom += '\n\n' + key.format(0)
+        else:
+            bottom += '\n\n' + key.format(value.shape[0])
+            bottom += '\n' + serialize_array(value, i)
+
+    # Write the .psf file
+    with open(filename, 'w') as f:
+        f.write(top)
+        f.write(bottom[1:])

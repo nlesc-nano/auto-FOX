@@ -23,7 +23,6 @@ input:
                 abc: '[angstrom] 50.0 50.0 50.0'
                 periodic: NONE
             topology:
-                charge_beta: ''
                 coord_file_format: 'OFF'
                 conn_file_format: PSF
                 conn_file_name: ''
@@ -37,7 +36,6 @@ input:
             timestep: 1.0
             time_start_val: 5000
             steps: 10000
-            max_steps: 15000
             thermostat:
                 type: CSVR
                 csvr:

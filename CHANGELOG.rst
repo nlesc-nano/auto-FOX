@@ -5,6 +5,27 @@ Change Log
 All notable changes to this project will be documented in this file.
 This project adheres to `Semantic Versioning <http://semver.org/>`_.
 
+0.3.0
+*****
+
+Added
+-----
+
+* Wrapped up implementation of the Monte Carlo forcefield optimizer.
+  (see https://github.com/nlesc-nano/auto-FOX/issues/17)
+
+
+0.2.3
+*****
+
+Added
+-----
+
+* Introduced two new methods to the FOX.MultiMolecule class for identifying
+  shell structures in, *e.g.*, nanocrystals or dissolved solutes.
+  (see https://github.com/nlesc-nano/auto-FOX/issues/29)
+
+
 0.2.2
 *****
 
@@ -36,8 +57,8 @@ Changed
 * Improved the get_rdf() function
 
 
-0.2
-***
+0.2.0
+*****
 
 Added
 -----
@@ -48,8 +69,8 @@ Added
   bonds and coordinates.
 
 
-0.1
-***
+0.1.0
+*****
 
 Added
 -----
