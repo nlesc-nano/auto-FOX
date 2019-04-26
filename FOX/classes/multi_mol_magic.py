@@ -12,12 +12,11 @@ from scm.plams.core.settings import Settings
 
 class _MultiMolecule(np.ndarray):
     """ A class for handling the magic methods and
-    @property decorated methods of *MultiMolecule*.
+    @property decorated methods of :class:`FOX.MultiMolecule`.
     """
     def __new__(cls, coords, atoms=None, bonds=None, properties=None):
         obj = np.asarray(coords).view(cls)
-        _MultiMolecule._sanitize_arg(obj)
-        atoms, bonds, properties = _MultiMolecule._sanitize_kwarg(atoms, bonds, properties)
+        _MultiMolecule._sanitize_coords(obj)
 
         # Set attributes
         obj.atoms = _MultiMolecule._sanitize_atoms(atoms)
@@ -35,12 +34,12 @@ class _MultiMolecule(np.ndarray):
     @staticmethod
     def _sanitize_coords(coords):
         """ A function for sanitizing the 'coords' arguments in :meth:`_MultiMolecule.__new__`. """
-        shape_error = "The 'coords' argument expects a 'm*n*3' list-like object with.\
-                       The following shape was observed: '{}'"
-        dtype_error = "The 'coords' argument expects a list-like object consisting exclusively of integers.\
-                       The following type was observed: '{}'"
+        shape_error = ("The 'coords' argument expects a 'm*n*3' list-like object with."
+                       "The following shape was observed: '{}'")
+        dtype_error = ("The 'coords' argument expects a list-like object consisting exclusively of "
+                       "integers. The following type was observed: '{}'")
 
-        if not coords.ndim == 3 or coords.shape[2] == 3:
+        if not coords.ndim == 3 or coords.shape[2] != 3:
             shape = ''.join('*' + str(i) for i in coords.shape)[1:]
             raise ValueError(shape_error.format(shape))
         if not isinstance(coords[0, 0, 0], np.float):
@@ -50,8 +49,8 @@ class _MultiMolecule(np.ndarray):
     @staticmethod
     def _sanitize_bonds(bonds):
         """ A function for sanitizing the 'bonds' arguments in :meth:`_MultiMolecule.__new__`. """
-        shape_error = "The 'bonds' argument expects a 2-dimensional list-like object, \
-                       a {:d}-dimensional object was supplied"
+        shape_error = ("The 'bonds' argument expects a 2-dimensional list-like object, "
+                       "a {:d}-dimensional object was supplied")
 
         if bonds is not None:
             bonds = np.asarray(bonds, dtype=int)
@@ -73,7 +72,8 @@ class _MultiMolecule(np.ndarray):
 
     @staticmethod
     def _sanitize_properties(properties):
-        """ A function for sanitizing the 'properties' arguments in :meth:`_MultiMolecule.__new__`. """
+        """ A function for sanitizing the 'properties' arguments in :meth:`_MultiMolecule.__new__`.
+        """
         type_error = "The 'properties' argument expects a 'dict' object; a '{}' object was supplied"
 
         if properties is None:
@@ -208,12 +208,12 @@ class _MultiMolecule(np.ndarray):
         """ Return a copy of the MultiMolecule object.
 
         :parameter str order: Controls the memory layout of the copy.
-            see np.ndarray.copy()_ for more details.
+            see np.ndarray.copy_ for more details.
         :parameter bool copy_attr: Whether or not the attributes of **self** should returned as
             copies or views.
         :return: A copy of **self**.
         :rtype: |FOX.MultiMolecule|_
-        .. _np.ndarray.copy(): https://docs.scipy.org/doc/numpy/reference/generated/numpy.ndarray.copy.html
+        .. _np.ndarray.copy: https://docs.scipy.org/doc/numpy/reference/generated/numpy.ndarray.copy.html
         """
         ret = super().copy(order)
         if not copy_attr:
