@@ -1,4 +1,4 @@
-""" A module fo running MD simulations. """
+""" A module for performing Monte Carlo-based forcefield parameter optimizations. """
 
 __all__ = ['MonteCarlo', 'ARMC']
 

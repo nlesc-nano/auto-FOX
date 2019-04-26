@@ -1,4 +1,4 @@
-""" A Module for setting up the magic methods of the MultiMolecule class. """
+""" A Module for setting up the magic methods and properties of the MultiMolecule class. """
 
 __all__ = []
 
