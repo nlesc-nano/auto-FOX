@@ -7,10 +7,10 @@
    :target: https://www.python.org
 
 #################################################
-Automated Forcefield Optimization Extension 0.3.0
+Automated Forcefield Optimization Extension 0.3.1
 #################################################
 
-**Auto-FOX** is a library for analyzing potential energy surfaces (PESs) and 
+**Auto-FOX** is a library for analyzing potential energy surfaces (PESs) and
 using the resulting PES descriptors for constructing forcefield parameters.
 Further details are provided in the documentation_.
 
@@ -29,7 +29,7 @@ functionalities are currently implemented:
 - A root mean squared fluctuation generator (RMSF). (5_)
 - Tools for describing shell structures in, *e.g.*,
   nanocrystals or dissolved solutes. (6_)
-- A Monte Carlo forcefield parameter optimizer. 
+- A Monte Carlo forcefield parameter optimizer. (7_)
 
 Using **Auto-FOX**
 ==================
