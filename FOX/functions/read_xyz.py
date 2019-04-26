@@ -20,33 +20,51 @@ def read_multi_xyz(xyz_file):
     """
     # Define constants and construct a dictionary: {atomic symbols: [atomic indices]}
     with open(xyz_file, 'r') as f:
-        atom_count = _get_mol_size(f)
+        atom_count = _get_atom_count(f)
         idx_dict = _get_idx_dict(f, mol_size=atom_count, subtract=1)
-        file_size = _get_file_size(f, add=[2, atom_count])
+        line_count = _get_line_count(f, add=[2, atom_count])
 
     # Check if mol_count is fractional, smaller than 1 or if atom_count is smaller than 1
-    mol_count = file_size / (2 + atom_count)
-    if not mol_count.is_integer():
-        error = 'A non-integer number of molecules was found in ' + xyz_file + ': ' + str(mol_count)
-        raise IndexError(error)
-    elif mol_count < 1.0:
-        raise IndexError(str(int(mol_count)) + ' molecules were found in ' + xyz_file)
-    if atom_count < 1:
-        raise IndexError(str(atom_count) + ' atoms per molecule were found in ' + xyz_file)
-    mol_count = int(mol_count)
+    mol_count = line_count / (2 + atom_count)
+    validate_xyz(mol_count, atom_count, xyz_file)
 
     # Create an empty (m*n)*3 xyz array
-    shape = mol_count, atom_count, 3
+    shape = int(mol_count), atom_count, 3
     xyz = np.empty(shape)
 
     # Fill the xyz array with cartesian coordinates
     with open(xyz_file, 'r') as f:
         for i, _ in enumerate(f):
-            xyz[i] = [at.split()[1:] for _, at in zip(range(atom_count+1), f)][1:]
+            next(f)
+            xyz[i] = [at.split()[1:] for _, at in zip(range(atom_count), f)]
     return xyz, idx_dict
 
 
-def _get_mol_size(f):
+class XYZError(Exception):
+    """ Raise when there are issues related to parsing .xyz files. """
+    pass
+
+
+def validate_xyz(mol_count, atom_count, xyz_file):
+    """ Validate **mol_count** and **atom_count** in **xyz_file**.
+
+    :parameter float mol_count: The number of molecules in the xyz file.
+        Expects float that is finite with integral value (*e.g.* 5.0, 6.0 or 3.0).
+    :parameter int atom_count: The number of atoms per molecule.
+    :parameter str xyz_file: The path + filename of a (multi) .xyz file.
+    """
+    if not mol_count.is_integer():
+        error = "A non-integer number of molecules ({:d}) was found in '{}'"
+        raise XYZError(error.format(mol_count, xyz_file))
+    elif mol_count < 1.0:
+        error = "No molecules were found in '{}'; mol count: {:f}"
+        raise XYZError(error.format(xyz_file, mol_count))
+    if atom_count < 1:
+        error = "No atoms were found in '{}'; atom count per molecule: {:d}"
+        raise XYZError(error.format(xyz_file, atom_count))
+
+
+def _get_atom_count(f):
     """ Extract the number of atoms per molecule from the first line in an .xyz file.
 
     :parameter f: An opened .xyz file.
@@ -58,12 +76,11 @@ def _get_mol_size(f):
     try:
         return int(ret)
     except ValueError:
-        error = str(ret) + ' is not a valid integer, the first line in an .xyz file should '
-        error += 'contain the number of atoms per molecule'
-        raise IndexError(error)
+        raise XYZError("{} is not a valid integer, the first line in '{}' should "
+                       "contain the number of atoms per molecule".format(ret, f.name))
 
 
-def _get_file_size(f, add=0):
+def _get_line_count(f, add=0):
     """ Extract the total number lines from **f**.
 
     :parameter f: An opened .xyz file.
