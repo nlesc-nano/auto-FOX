@@ -29,7 +29,7 @@ functionalities are currently implemented:
 - A root mean squared fluctuation generator (RMSF). (5_)
 - Tools for describing shell structures in, *e.g.*,
   nanocrystals or dissolved solutes. (6_)
-- A Monte Carlo forcefield parameter optimizer. 
+- A Monte Carlo forcefield parameter optimizer. (7_)
 
 Using **Auto-FOX**
 ==================
