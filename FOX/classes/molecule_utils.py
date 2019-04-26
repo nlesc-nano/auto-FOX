@@ -20,7 +20,8 @@ class Molecule(Molecule):
         :return: A nested list of atomic indices, each sublist representing a set of unconnected
             moleculair fragments.
         :rtype: |list|_ [|list|_ [|int|_]].
-        _Molecule.separate: https://www.scm.com/doc/plams/components/molecule.html#scm.plams.core.basemol.Molecule.separate
+        _Molecule.separate: https://www.scm.com/doc/plams/components/molecule.html\
+    #scm.plams.core.basemol.Molecule.separate
         """
         if len(self.bonds) == 0:
             raise MoleculeError('separate_mod: No bonds were found in plams_mol')
@@ -77,7 +78,8 @@ class Molecule(Molecule):
         **self.atoms**.
 
         :parameter bool start: The starting value for the enumeration procedure.
-        _Molecule.set_atoms_id: https://www.scm.com/doc/plams/components/molecule.html#scm.plams.core.basemol.Molecule.set_atoms_id
+        _Molecule.set_atoms_id: https://www.scm.com/doc/plams/components/molecule.html#\
+    scm.plams.core.basemol.Molecule.set_atoms_id
         """
         for i, at in enumerate(self, start):
             at.id = i

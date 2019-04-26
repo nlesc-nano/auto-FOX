@@ -213,7 +213,8 @@ class _MultiMolecule(np.ndarray):
             copies or views.
         :return: A copy of **self**.
         :rtype: |FOX.MultiMolecule|_
-        .. _np.ndarray.copy: https://docs.scipy.org/doc/numpy/reference/generated/numpy.ndarray.copy.html
+        .. _np.ndarray.copy: https://docs.scipy.org/doc/numpy/reference/generated/\
+    numpy.ndarray.copy.html
         """
         ret = super().copy(order)
         if not copy_attr:

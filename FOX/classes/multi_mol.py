@@ -833,7 +833,7 @@ class MultiMolecule(_MultiMolecule):
         ret = {'filename': filename}
 
         # Prepare atoms
-        if not 'psf' in self.properties.keys():
+        if 'psf' not in self.properties:
             self.generate_psf_block()
         ret['atoms'] = self.properties.psf
 
