@@ -12,8 +12,7 @@ from FOX import (MultiMolecule, get_example_xyz)
 
 
 MOL = MultiMolecule.from_xyz(get_example_xyz())
-# REF_DIR = 'test/test_files'
-REF_DIR = '/Users/basvanbeek/Documents/GitHub/auto-FOX/test/test_files'
+REF_DIR = 'test/test_files'
 
 
 def test_guess_bonds():
@@ -230,26 +229,3 @@ def test_from_xyz():
 
     mol_new = MultiMolecule.from_xyz(get_example_xyz())
     np.testing.assert_allclose(mol_new, mol)
-
-
-"""
-test_guess_bonds()
-test_slice()
-test_random_slice()
-test_reset_origin()
-test_sort()
-test_residue_argsort()
-test_get_center_of_mass()
-test_get_bonds_per_atom()
-test_rdf()
-test_rmsf()
-test_rmsd()
-# test_adf()  # slow
-test_as_psf()
-test_as_mass_weighted()
-test_from_mass_weighted()
-test_as_Molecule()
-test_from_Molecule()
-test_as_xyz
-test_from_xyz()
-"""
