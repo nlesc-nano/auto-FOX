@@ -18,13 +18,13 @@ A module for testing pep8 compliance.
 test_multi_mol.py_
 ~~~~~~~~~~~~~~~~~~
 
-A module for testing the :class:`FOX.MultiMolecule` class.
+A module for testing the MultiMolecule class.
 
 ~~~~~~~~~~~~~~
 test_utils.py_
 ~~~~~~~~~~~~~~
 
-A module for testing files in the :mod:`FOX.functions.utils` module.
+A module for testing files in the FOX.functions.utils module.
 
 
 .. _test_example.py: https://github.com/nlesc-nano/auto-FOX/blob/master/test/test_example.py

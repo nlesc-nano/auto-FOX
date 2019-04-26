@@ -18,7 +18,7 @@ A module with miscellaneous functions related to CP2K_.
 hdf5_utils.py_
 ~~~~~~~~~~~~~~
 
-Functions for storing Monte Carlo results in hdf5 format.
+Functions for storing Monte Carlo results in hdf5_ format.
 
 ~~~~~~~
 rdf.py_
@@ -46,3 +46,4 @@ A module with miscellaneous functions.
 .. _read_xyz: https://github.com/nlesc-nano/auto-FOX/blob/master/FOX/functions/read_xyz.py
 .. _utils: https://github.com/nlesc-nano/auto-FOX/blob/master/FOX/functions/utils.py
 .. _CP2K: https://www.cp2k.org/
+.. _hdf5: https://www.h5py.org/
