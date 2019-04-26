@@ -10,7 +10,15 @@ This project adheres to `Semantic Versioning <http://semver.org/>`_.
 
 Added
 -----
-* Added new tests
+* Added new tests for the FOX.MultiMolecule class.
+  (see https://github.com/nlesc-nano/auto-FOX/issues/18)
+
+Changed
+-------
+* Minor style changes to the documentation and the .xyz reader.
+* The FOX.MultiMolecule has been changed into a np.ndarray subclass.
+  (see https://github.com/nlesc-nano/auto-FOX/issues/30)
+  
 
 0.3.0
 *****
