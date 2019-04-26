@@ -5,6 +5,16 @@ Change Log
 All notable changes to this project will be documented in this file.
 This project adheres to `Semantic Versioning <http://semver.org/>`_.
 
+0.3.0
+*****
+
+Added
+-----
+
+* Wrapped up implementation of the Monte Carlo forcefield optimizer.
+  (see https://github.com/nlesc-nano/auto-FOX/issues/17)
+
+
 0.2.3
 *****
 
