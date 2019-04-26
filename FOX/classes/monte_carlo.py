@@ -14,7 +14,7 @@ from scm.plams.core.functions import (init, finish, add_to_class, config)
 from scm.plams.interfaces.thirdparty.cp2k import Cp2kJob
 
 from .multi_mol import MultiMolecule
-from ..functions.utils import (get_template, update_charge)
+from ..functions.utils import (get_template, update_charge, write_psf)
 from ..functions.cp2k_utils import (update_cp2k_settings)
 from ..functions.hdf5_utils import (create_hdf5, to_hdf5)
 
@@ -132,8 +132,10 @@ class MonteCarlo():
                 if ('charge', at) in param.index:
                     condition = df['atom type'] == at
                     param.loc[('charge', at), 'param'] = df.loc[condition, 'charge'].iloc[0]
+            write_psf(**self.job.psf)
 
-        # Return a tuple with the new parameters
+        # Update job settings and return a tuple with new parameters
+        update_cp2k_settings(self.job.settings, self.param)
         return tuple(self.param['param'].values)
 
     def run_md(self):
@@ -335,14 +337,15 @@ class ARMC(MonteCarlo):
             acceptance[j] = accept
             if accept:
                 history_dict[key_new] = self.apply_phi(aux_new)
-                update_cp2k_settings(self.job.settings, self.param)
                 self.param['param_old'] = self.param['param']
                 hdf5_kwarg['aux_error_mod'] = np.append(self.param['param'].values, self.phi.phi)
             else:
                 history_dict[key_new] = aux_new
                 history_dict[key_old] = self.apply_phi(aux_old)
                 key_new = key_old
-                hdf5_kwarg['aux_error_mod'] = np.append(self.param['param_old'].values, self.phi.phi)
+                self.param['param'] = self.param['param_old']
+                hdf5_kwarg['aux_error_mod'] = np.append(self.param['param_old'].values,
+                                                        self.phi.phi)
 
             # Step 5: Export the results to HDF5
             hdf5_kwarg['param'] = self.param['param']

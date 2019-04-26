@@ -68,7 +68,7 @@ def create_hdf5(mc_kwarg, path=None, name='MC.hdf5'):
     # Store the *index*, *column* and *name* attributes of dataframes/series in the hdf5 file
     idx = mc_kwarg.param['param'].index.append(pd.MultiIndex.from_tuples([('phi', '')]))
     pd_dict = {'param': mc_kwarg.param['param'],
-               'phi': pd.Series(np.nan, index=np.arange(shape[0]), name='phi'),
+               'phi': pd.Series(np.nan, name='phi'),
                'aux_error': pd.Series(np.nan, index=list(mc_kwarg.pes), name='aux_error'),
                'aux_error_mod': pd.Series(np.nan, index=idx, name='aux_error_mod')}
     for key, value in mc_kwarg.pes.items():

@@ -55,6 +55,7 @@ carlos.job.path = path
 carlos.job.settings = s
 carlos.job.settings.input.motion.md.steps //= 100
 carlos.job.settings.input.motion.md.time_start_val //= 100
+carlos.job.settings.input.force_eval.mm.forcefield.spline.emax_spline = 1.0
 carlos.job.keep_files = True
 carlos.job.psf = mol.as_psf(join(path, 'qd.psf'), return_blocks=True)
 
@@ -62,7 +63,7 @@ carlos.pes.rdf.func = MultiMolecule.init_rdf
 carlos.pes.rdf.kwarg = {'atom_subset': ('Cd', 'Se', 'O')}
 carlos.pes.rdf.ref = mol.init_rdf(**carlos.pes.rdf.kwarg)
 
-carlos.armc.iter_len = 30
+carlos.armc.iter_len = 100
 carlos.armc.sub_iter_len = 10
 
 try:
