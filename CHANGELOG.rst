@@ -5,6 +5,13 @@ Change Log
 All notable changes to this project will be documented in this file.
 This project adheres to `Semantic Versioning <http://semver.org/>`_.
 
+0.3.1
+*****
+
+Added
+-----
+* Added new tests
+
 0.3.0
 *****
 
@@ -46,7 +53,7 @@ Changed
 Added
 -----
 
-* Introduced new MutliMolecule methods for slicing MD trajectories
+* Introduced new FOX.MutliMolecule methods for slicing MD trajectories
 * Added the MonteCarlo API to the documentation
 * WiP: Split the MonteCarlo class into 2 classes: MonteCarlo & ARMC (subclass)
 
@@ -65,7 +72,7 @@ Added
 
 * Added a root mean squared displacement generator (RMSD).
 * Added a root mean squared fluctuation generator (RMSF).
-* Introduced the MultiMolecule class for handling and storing all atoms,
+* Introduced the FOX.MultiMolecule class for handling and storing all atoms,
   bonds and coordinates.
 
 
