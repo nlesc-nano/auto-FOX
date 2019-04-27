@@ -258,6 +258,103 @@ class MultiMolecule(_MultiMolecule):
 
     """ ################################## Root Mean Squared ################################## """
 
+    def get_velocity(self, timestep=1.0, mol_subset=None, atom_subset=None):
+        """ Calculate the velocty (in fs/A) for all atoms in **atom_subset** over the course of a
+        trajectory.
+
+        :parameter float timestep: The stepsize, in femtoseconds, between subsequent frames.
+        :parameter mol_subset: Perform the calculation on a subset of molecules in **self**, as
+            determined by their moleculair index. Include all *m* molecules in **self** if *None*.
+        :type mol_subset: |None|_, |int|_ or |list|_ [|int|_]
+        :parameter atom_subset: Perform the calculation on a subset of atoms in **self**, as
+            determined by their atomic index or atomic symbol.  Include all *n* atoms per molecule
+            in **self** if *None*.
+        :type atom_subset: |None|_, |int|_ or |str|_
+        :return: A 2D array with *m-1* velocities of *n* atoms.
+        :rtype: *(m-1)*n* |np.ndarray|_ [|np.float64|_]
+        """
+        # Prepare slices
+        i = self._get_mol_subset(mol_subset)
+        j = self._get_atom_subset(atom_subset)
+
+        # Slice the XYZ array
+        xyz_slice = self[i, j]
+        dim1, dim2, dim3 = xyz_slice.shape
+        shape = (dim1 - 1) * dim2, dim3
+
+        # Calculate the velocity
+        A = xyz_slice[:-1].reshape(shape)
+        B = xyz_slice[1:].reshape(shape)
+        v = np.linalg.norm(A - B, axis=1)
+        v.shape = (dim1 - 1), dim2
+        return v
+
+    def get_average_velocity(self, timestep=1.0, mol_subset=None, atom_subset=None):
+        """ Calculate the average velocty (in fs/A) for all atoms in **atom_subset** over the
+        course of a trajectory. The velocity is averaged over all atoms in a particular atom subset.
+
+        :parameter float timestep: The stepsize, in femtoseconds, between subsequent frames.
+        :parameter mol_subset: Perform the calculation on a subset of molecules in **self**, as
+            determined by their moleculair index. Include all *m* molecules in **self** if *None*.
+        :type mol_subset: |None|_, |int|_ or |list|_ [|int|_]
+        :parameter atom_subset: Perform the calculation on a subset of atoms in **self**, as
+            determined by their atomic index or atomic symbol.  Include all *n* atoms per molecule
+            in **self** if *None*.
+        :type atom_subset: |None|_, |int|_ or |str|_
+        :return: A dataframe holding *m-1* velocities averaged over one or more atom subsets.
+        :rtype: |pd.DataFrame|_ (values: |np.float64|_)
+        """
+        # Prpare arguments
+        atom_subset = atom_subset or tuple(self.atoms.keys())
+        loop = self._get_loop(atom_subset)
+        arg = [timestep, mol_subset]
+
+        # Calculate and average the velocity
+        if loop:
+            v_out = np.array([self.get_velocity(*arg, at).mean(axis=1) for at in atom_subset]).T
+        else:
+            v_out = self.get_velocity(*arg, atom_subset).mean(axis=1).T
+
+        # Cast the velocity in a dataframe
+        arg = timestep / 2, timestep * (self.shape[0] - 1) + timestep / 2
+        idx = pd.Index(np.arange(*arg), name='Time / fs')
+        columns = pd.Index(self._get_rmsd_columns(v_out, loop, atom_subset), name='Atoms')
+        return pd.DataFrame(v_out, index=idx, columns=columns)
+
+    def get_time_averaged_velocity(self, timestep=1.0, mol_subset=None, atom_subset=None):
+        """ Calculate the time-averaged velocty (in fs/A) for all atoms in **atom_subset** over the
+        course of a trajectory.
+
+        :parameter float timestep: The stepsize, in femtoseconds, between subsequent frames.
+        :parameter mol_subset: Perform the calculation on a subset of molecules in **self**, as
+            determined by their moleculair index. Include all *m* molecules in **self** if *None*.
+        :type mol_subset: |None|_, |int|_ or |list|_ [|int|_]
+        :parameter atom_subset: Perform the calculation on a subset of atoms in **self**, as
+            determined by their atomic index or atomic symbol.  Include all *n* atoms per molecule
+            in **self** if *None*.
+        :type atom_subset: |None|_, |int|_ or |str|_
+        :return: A dataframe holding *m-1* velocities averaged over one or more atom subsets.
+        :rtype: |pd.DataFrame|_ (values: |np.float64|_)
+        """
+        # Prepare arguments
+        arg = [timestep, mol_subset]
+        atom_subset = atom_subset or tuple(self.atoms)
+        loop = self._get_loop(atom_subset)
+
+        # Get the time-averaged velocity
+        if loop:
+            v = [self.get_velocity(*arg, at).mean(axis=0) for at in atom_subset]
+        else:
+            v = self.get_velocity(*arg, atom_subset).mean(axis=0)
+
+        # Construct arguments for the dataframe
+        idx = pd.Index(np.arange(0, self.shape[1]), name='Abritrary atomic index')
+        columns, data = self._get_rmsf_columns(v, idx, loop=loop, atom_subset=atom_subset)
+        columns = pd.Index(columns, name='Atoms')
+
+        # Create and return a dataframe with the time-averaged velocity
+        return pd.DataFrame(data, index=idx, columns=columns)
+
     def init_rmsd(self, mol_subset=None, atom_subset=None, reset_origin=True):
         """ Initialize the RMSD calculation, returning a dataframe.
 
