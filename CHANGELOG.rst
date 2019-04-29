@@ -12,7 +12,7 @@ Added
 -----
 * Simplified the FOX.ARMC input and updated its documentation.
   (see https://github.com/nlesc-nano/auto-FOX/issues/33)
-* Added 2 net methods to the FOX.MultiMolecule class for calculating
+* Added 2 new methods to the FOX.MultiMolecule class for calculating
   average and time-averaged atomic velocities.
 
 
