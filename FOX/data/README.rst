@@ -20,11 +20,11 @@ md_cp2k.yaml_
 
 A YAML_ file with CP2K classical MD settings.
 
-~~~~~~~~~~~
-param.yaml_
-~~~~~~~~~~~
+~~~~~~~~~~
+armc.yaml_
+~~~~~~~~~~
 
-A YAML_ file with atomic charges and Lennard-Jones parameters.
+A YAML_ file with settings for the FOX.ARMC class.
 
 
 .. _molecule_utils: https://github.com/nlesc-nano/auto-FOX/blob/master/FOX/data/Cd68Se55_26COO_MD_trajec.xyz

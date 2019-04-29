@@ -2,9 +2,6 @@
 
 __all__ = ['create_hdf5', 'to_hdf5', 'from_hdf5']
 
-import os
-from os.path import join
-
 import numpy as np
 import pandas as pd
 
@@ -23,7 +20,7 @@ from ..functions.utils import (get_shape, assert_error, array_to_index)
 
 
 @assert_error(H5PY_ERROR)
-def create_hdf5(mc_kwarg, path=None, name='MC.hdf5'):
+def create_hdf5(mc_kwarg, filename='MC.hdf5'):
     """ Create a hdf5 file to hold all addaptive rate Mone Carlo results (:class:`FOX.ARMC`).
     Datasets are created to hold a number of results following results over the course of the
     MC optimization:
@@ -38,8 +35,6 @@ def create_hdf5(mc_kwarg, path=None, name='MC.hdf5'):
     :parameter str path: The path where the the hdf5 file is stored.
     :parameter str name: The name (including extension) of the hdf5 file.
     """
-    path = path or os.getcwd()
-    filename = join(path, name)
     shape = mc_kwarg.armc.iter_len // mc_kwarg.armc.sub_iter_len, mc_kwarg.armc.sub_iter_len
 
     # Create a Settings object with the shape and dtype of all datasets
@@ -73,11 +68,11 @@ def create_hdf5(mc_kwarg, path=None, name='MC.hdf5'):
                'aux_error_mod': pd.Series(np.nan, index=idx, name='aux_error_mod')}
     for key, value in mc_kwarg.pes.items():
         pd_dict[key] = value.ref
-    index_to_hdf5(pd_dict, path)
+    index_to_hdf5(pd_dict, filename)
 
 
 @assert_error(H5PY_ERROR)
-def index_to_hdf5(pd_dict, path=None, name='MC.hdf5'):
+def index_to_hdf5(pd_dict, filename='MC.hdf5'):
     """ Export the *index* and *columns* / *name* attributes of a Pandas dataframe/series to a
     pre-existing hdf5 file.
     Attributes are exported for all dataframes/series in **pd_dict** and skipped otherwise.
@@ -99,8 +94,6 @@ def index_to_hdf5(pd_dict, path=None, name='MC.hdf5'):
     :parameter str path: The path where the the hdf5 file is stored.
     :parameter str name: The name (including extension) of the hdf5 file.
     """
-    path = path or os.getcwd()
-    filename = join(path, name)
     attr_tup = ('index', 'columns', 'name')
 
     with h5py.File(filename, 'r+') as f:
@@ -141,7 +134,7 @@ def _attr_to_array(item):
 
 
 @assert_error(H5PY_ERROR)
-def to_hdf5(dict_, i, j, phi, path=None, name='MC.hdf5'):
+def to_hdf5(dict_, i, j, phi, filename='MC.hdf5'):
     """ Export results from **dict_** to the hdf5 file **name**.
 
     :parameter dict dict_: A dictionary with dataset names as keys and matching array-like objects
@@ -151,9 +144,6 @@ def to_hdf5(dict_, i, j, phi, path=None, name='MC.hdf5'):
     :parameter str path: The path where the the hdf5 file is stored.
     :parameter str name: The name (including extension) of the hdf5 file.
     """
-    path = path or os.getcwd()
-    filename = join(path, name)
-
     with h5py.File(filename, 'r+') as f:
         f.attrs['iteration'] = i
         f.attrs['subiteration'] = j
@@ -163,7 +153,7 @@ def to_hdf5(dict_, i, j, phi, path=None, name='MC.hdf5'):
 
 
 @assert_error(H5PY_ERROR)
-def from_hdf5(datasets=None, path=None, name='MC.hdf5'):
+def from_hdf5(datasets=None, filename='MC.hdf5'):
     """ Retrieve all user-specified datasets from **name**, returning a dicionary of
     DataFrames and/or Series.
 
@@ -174,10 +164,7 @@ def from_hdf5(datasets=None, path=None, name='MC.hdf5'):
     :return: A dicionary with dataset names as keys and the matching data as values.
     :rtype: |dict|_ (values:|pd.DataFrame|_ and/or |pd.Series|_)
     """
-    path = path or os.getcwd()
-    filename = join(path, name)
     ret = {}
-
     with h5py.File(filename, 'r') as f:
         datasets = datasets or f.keys()
         if isinstance(datasets, str):

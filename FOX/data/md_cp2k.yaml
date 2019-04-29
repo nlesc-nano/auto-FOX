@@ -25,7 +25,7 @@ input:
             topology:
                 coord_file_format: 'OFF'
                 conn_file_format: PSF
-                conn_file_name: qd.psf
+                conn_file_name: mol.psf
                 center_coordinates:
                     center_point: 0.0 0.0 0.0
 

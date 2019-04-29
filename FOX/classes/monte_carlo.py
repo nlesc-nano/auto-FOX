@@ -7,16 +7,16 @@ import shutil
 
 import numpy as np
 
-from scm.plams import Molecule
 from scm.plams.core.results import Results
 from scm.plams.core.settings import Settings
 from scm.plams.core.functions import (init, finish, add_to_class, config)
 from scm.plams.interfaces.thirdparty.cp2k import Cp2kJob
 
 from .multi_mol import MultiMolecule
-from ..functions.utils import (get_template, update_charge, write_psf)
-from ..functions.cp2k_utils import (update_cp2k_settings)
+from ..functions.utils import (get_template, update_charge, write_psf, _get_move_range)
+from ..functions.cp2k_utils import (update_cp2k_settings, set_subsys_kind)
 from ..functions.hdf5_utils import (create_hdf5, to_hdf5)
+from ..functions.armc_sanitization import init_armc_sanitization
 
 
 @add_to_class(Results)
@@ -47,7 +47,7 @@ class MonteCarlo():
 
                     * **job** (|plams.Settings|_) – See :meth:`MonteCarlo.reconfigure_job_atr`
     """
-    def __init__(self, param, molecule, **kwarg):
+    def __init__(self, molecule, param, **kwarg):
         # Set the inital forcefield parameters
         self.param = param
 
@@ -63,18 +63,19 @@ class MonteCarlo():
         self.job.psf = None
         self.job.func = Cp2kJob
         self.job.settings = get_template('md_cp2k.yaml')
-        self.job.name = self._get_name()
-        self.job.path = os.getcwd()
+        self.job.name = self.job.func.__name__.lower()
+        self.job.dir = os.getcwd()
         self.job.keep_files = False
-        self.hdf5_path = self.job.path
+
+        # HDF5 settings
+        self.hdf5_file = self.job.dir
 
         # Settings for generating Monte Carlo moves
         self.move = Settings()
         self.move.func = np.multiply
         self.move.kwarg = {}
         self.move.charge_constraints = {}
-        self.move.range = None
-        self.reconfigure_move_range()
+        self.move.range = self.get_move_range()
 
         # Set user-specified keywords
         for key in kwarg:
@@ -85,25 +86,8 @@ class MonteCarlo():
             elif key in self.job:
                 self.job[key] = kwarg[key]
 
-        self._sanitize()
-
     def __str__(self):
         return str(Settings(vars(self)))
-
-    def _get_name(self):
-        """ Return a jobname derived from **self.job.func**. """
-        ret = str(self.job.func)
-        ret = ret.rsplit("'", 1)[0].rsplit('.', 1)[-1]
-        return ret.lower()
-
-    def _sanitize(self):
-        """ Sanitize and validate all arguments of __init__(). """
-        assert isinstance(self.job.molecule, (Molecule, MultiMolecule))
-        if isinstance(self.job.molecule, MultiMolecule):
-            self.job.molecule = self.job.molecule.as_Molecule(-1)[0]
-
-        assert isinstance(self.job.name, str)
-        assert os.path.isdir(self.job.path)
 
     def move_param(self):
         """ Update a random parameter in **self.param** by a random value from **self.move.range**.
@@ -185,19 +169,10 @@ class MonteCarlo():
             shutil.rmtree(path)
         return ret
 
-    def reconfigure_move_range(self, start=0.005, stop=0.1, step=0.005):
-        """ Generate an with array of all allowed moves, the moves spanning both the positive and
-        negative range.
-        Performs an inplace update of **self.move.range**.
-
-        :parameter float start: Start of the interval. The interval includes this value.
-        :parameter float stop: End of the interval. The interval includes this value.
-        :parameter float step: Spacing between values.
-        """
-        rng_range1 = np.arange(1 + start, 1 + stop, step)
-        rng_range2 = np.arange(1 - stop, 1 - start + step, step)
-        self.move.range = np.concatenate((rng_range1, rng_range2))
-        self.move.range.sort()
+    @staticmethod
+    def get_move_range(start=0.005, stop=0.1, step=0.005):
+        return _get_move_range(start, stop, step)
+    get_move_range.__doc__ = _get_move_range.__doc__
 
     def reconfigure_move_atr(self, move_range=None, func=np.add, kwarg={}):
         """ Reconfigure the attributes in **self.move**., the latter containg all settings related
@@ -210,9 +185,7 @@ class MonteCarlo():
             The function in **func** is applied to floats.
         :parameter dict kwarg: Keyword arguments used in **func**.
         """
-        self.move.range = move_range
-        if move_range is None:
-            self.set_move_range()
+        self.move.range = move_range or self.get_move_range()
         self.move.func = func
         self.move.kwarg = kwarg
 
@@ -240,7 +213,7 @@ class MonteCarlo():
         self.job.func = func
         self.job.settings = settings or get_template('md_cp2k.yaml')
         self.job.name = name or self._get_name()
-        self.job.path = path or os.getcwd()
+        self.job.dir = path or os.getcwd()
         self.job.keep_files = keep_files
 
 
@@ -251,8 +224,8 @@ class ARMC(MonteCarlo):
 
                     * **phi** (|plams.Settings|_) – See :meth:`ARMC.reconfigure_phi_atr`
     """
-    def __init__(self, param, molecule, **kwarg):
-        MonteCarlo.__init__(self, param, molecule, **kwarg)
+    def __init__(self, molecule, param, **kwarg):
+        MonteCarlo.__init__(self, molecule, param, **kwarg)
 
         # Settings specific to addaptive rate Monte Carlo (ARMC)
         self.armc = Settings()
@@ -278,7 +251,10 @@ class ARMC(MonteCarlo):
 
     @classmethod
     def from_dict(cls, dict_):
-        return cls(**dict_)
+        molecule, param, dict_ = init_armc_sanitization(dict_)
+        set_subsys_kind(dict_.job.settings, molecule.properties.psf)
+        molecule = molecule.as_Molecule(-1)[0]
+        return cls(molecule, param, **dict_)
 
     def init_armc(self):
         """ Initialize the Addaptive Rate Monte Carlo procedure.
@@ -290,10 +266,10 @@ class ARMC(MonteCarlo):
         super_iter = self.armc.iter_len // self.armc.sub_iter_len
 
         # Construct the HDF5 file
-        create_hdf5(self, path=self.hdf5_path)
+        create_hdf5(self, self.hdf5_file)
 
         # Initialize the first MD calculation
-        init(path=self.job.path, folder='MM_MD_workdir')
+        init(path=self.job.dir, folder='MM_MD_workdir')
         config.default_jobmanager.settings.hashing = None
         key_new = tuple(self.param['param'].values)
         history_dict = {}
@@ -359,7 +335,7 @@ class ARMC(MonteCarlo):
             hdf5_kwarg['param'] = self.param['param']
             hdf5_kwarg['acceptance'] = accept
             hdf5_kwarg['aux_error'] = aux_new
-            to_hdf5(hdf5_kwarg, i, j, self.phi.phi, self.hdf5_path)
+            to_hdf5(hdf5_kwarg, i, j, self.phi.phi, self.hdf5_file)
 
         self.update_phi(acceptance)
         return key_new

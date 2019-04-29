@@ -381,3 +381,20 @@ def write_psf(atoms=None, bonds=None, angles=None, dihedrals=None, impropers=Non
 def get_example_xyz(name='Cd68Se55_26COO_MD_trajec.xyz'):
     """ Return the path + name of the example multi-xyz file. """
     return resource_filename('FOX', join('data', name))
+
+
+def _get_move_range(start=0.005, stop=0.1, step=0.005):
+    """ Generate an with array of all allowed moves, the moves spanning both the positive and
+    negative range.
+
+    :parameter float start: Start of the interval. The interval includes this value.
+    :parameter float stop: End of the interval. The interval includes this value.
+    :parameter float step: Spacing between values.
+    :return: An array with allowed moves.
+    :rtype: |np.ndarray|_ [|np.int64|_]
+    """
+    rng_range1 = np.arange(1 + start, 1 + stop, step, dtype=float)
+    rng_range2 = np.arange(1 - stop, 1 - start + step, step, dtype=float)
+    ret = np.concatenate((rng_range1, rng_range2))
+    ret.sort()
+    return ret

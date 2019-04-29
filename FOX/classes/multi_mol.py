@@ -876,7 +876,7 @@ class MultiMolecule(_MultiMolecule):
 
     def update_atom_type(self, filename='mol.str'):
         """ """
-        if self.properties.psf is None:
+        if 'psf' not in self.properties:
             self.generate_psf_block()
         df = self.properties.psf
 
@@ -886,6 +886,13 @@ class MultiMolecule(_MultiMolecule):
             j = df[df['residue ID'] == i].index
             df.loc[j, 'atom type'] = at_type
             df.loc[j, 'charge'] = charge
+
+    def update_atom_charge(self, atom_type, charge):
+        """ """
+        if 'psf' not in self.properties:
+            self.generate_psf_block()
+        df = self.properties.psf
+        df.loc[df['atom type'] == atom_type, 'charge'] = charge
 
     def as_psf(self, filename='mol.psf', return_blocks=False):
         """ Convert a *MultiMolecule* object into a Protein Structure File (.psf).
