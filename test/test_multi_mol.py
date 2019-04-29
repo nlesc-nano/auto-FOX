@@ -124,9 +124,11 @@ def test_rdf():
     mol = MOL.copy()
 
     atoms = ('Cd', 'Se', 'O')
-    rdf = mol.init_rdf(atom_subset=atoms).values
+    rdf1 = mol.init_rdf(atom_subset=atoms).values
+    rdf2 = mol.init_rdf(atom_subset=atoms, lowmem=True).values
     ref = np.load(join(REF_DIR, 'rdf.npy'))
-    np.testing.assert_allclose(rdf, ref)
+    np.testing.assert_allclose(rdf1, ref)
+    np.testing.assert_allclose(rdf2, ref)
 
 
 def test_rmsf():
