@@ -1,7 +1,6 @@
 """ A Recipe for MM-MD parameter optimizations with CP2K 3.1 or 6.1. """
 
-from FOX import (ARMC, MultiMolecule)
-from FOX.functions.utils import (get_template, get_example_xyz)
+from FOX import (ARMC, MultiMolecule, get_template, get_example_xyz)
 
 
 # Read the .xyz file and generate
