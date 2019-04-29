@@ -30,4 +30,3 @@ s = get_template('armc.yaml')
 s.job.psf = psf
 s.job.molecule = mol
 carlos = ARMC.from_dict(s)
-

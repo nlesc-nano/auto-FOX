@@ -15,7 +15,6 @@ from .cp2k_utils import set_keys
 from ..classes.multi_mol import MultiMolecule
 
 
-
 TYPE_ERR = "{} expects an object of type '{}', not '{}'"
 TYPE_ERR2 = "{} expects an object of type '{}' or '{}', not '{}'"
 TYPE_DICT = {
