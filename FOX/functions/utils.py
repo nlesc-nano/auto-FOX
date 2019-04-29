@@ -100,7 +100,7 @@ def template_to_df(name, path=None):
     :return: A dataframe as constructed from the template file.
     :rtype: |pd.DataFrame|_
     """
-    template_dict = get_template(name, path=None, as_settings=False)
+    template_dict = get_template(name, path=path, as_settings=False)
     try:
         return pd.DataFrame(template_dict).T
     except ValueError:

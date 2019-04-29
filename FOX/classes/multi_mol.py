@@ -266,35 +266,35 @@ class MultiMolecule(_MultiMolecule):
 
         # Get the time-averaged property
         if loop:
-            data = [method(atom_subset=at, **kwarg).mean(axis=0) for at in atom_subset]
+            data = [method(atom_subset=at, **kwarg) for at in atom_subset]
         else:
-            data = method(atom_subset=atom_subset, **kwarg).mean(axis=0)
+            data = method(atom_subset=atom_subset, **kwarg)
 
         # Construct and return the dataframe
         idx_range = np.arange(0, self.shape[1])
         idx = pd.Index(idx_range, name='Abritrary atomic index')
-        column_range, data = self._get_column_range(data, idx, loop=loop, atom_subset=atom_subset)
+        column_range, data = self._get_rmsf_columns(data, idx, loop=loop, atom_subset=atom_subset)
         columns = pd.Index(column_range, name='Atoms')
         return pd.DataFrame(data, index=idx, columns=columns)
 
     def _get_average_prop(self, method, atom_subset=None, kwarg={}):
         """ """
         # Prpare arguments
-        atom_subset = atom_subset or tuple(self.atoms.keys())
+        atom_subset = atom_subset or tuple(self.atoms)
         loop = self._get_loop(atom_subset)
 
         # Calculate and averaged property
         if loop:
-            data = np.array([method(atom_subset=at, **kwarg).mean(axis=1) for at in atom_subset]).T
+            data = np.array([method(atom_subset=at, **kwarg) for at in atom_subset]).T
         else:
-            data = method(atom_subset=atom_subset, **kwarg).mean(axis=1).T
+            data = method(atom_subset=atom_subset, **kwarg).T
 
         # Construct and return the dataframe
-        column_range = self._get_column_range(data, loop, atom_subset)
+        column_range = self._get_rmsd_columns(data, loop, atom_subset)
         columns = pd.Index(column_range, name='Atoms')
         return pd.DataFrame(data, columns=columns)
 
-    def get_average_velocity(self, timestep=1.0, mol_subset=None, atom_subset=None):
+    def init_average_velocity(self, timestep=1.0, mol_subset=None, atom_subset=None):
         """ Calculate the average velocty (in fs/A) for all atoms in **atom_subset** over the
         course of a trajectory. The velocity is averaged over all atoms in a particular atom subset.
 
@@ -310,11 +310,11 @@ class MultiMolecule(_MultiMolecule):
         :rtype: |pd.DataFrame|_ (values: |np.float64|_)
         """
         kwarg = {'mol_subset': mol_subset, 'timestep': timestep}
-        df = self._get_time_averaged_prop(self.get_velocity, atom_subset, kwarg)
+        df = self._get_average_prop(self.get_average_velocity, atom_subset, kwarg)
         df.index.name = 'Time / fs'
         return df
 
-    def get_time_averaged_velocity(self, timestep=1.0, mol_subset=None, atom_subset=None):
+    def init_time_averaged_velocity(self, timestep=1.0, mol_subset=None, atom_subset=None):
         """ Calculate the time-averaged velocty (in fs/A) for all atoms in **atom_subset** over the
         course of a trajectory.
 
@@ -330,7 +330,7 @@ class MultiMolecule(_MultiMolecule):
         :rtype: |pd.DataFrame|_ (values: |np.float64|_)
         """
         kwarg = {'mol_subset': mol_subset, 'timestep': timestep}
-        return self._get_time_averaged_prop(self.get_velocity, atom_subset, kwarg)
+        return self._get_time_averaged_prop(self.get_time_averaged_velocity, atom_subset, kwarg)
 
     def init_rmsd(self, mol_subset=None, atom_subset=None, reset_origin=True):
         """ Initialize the RMSD calculation, returning a dataframe.
@@ -350,8 +350,10 @@ class MultiMolecule(_MultiMolecule):
             (*e.g.* 'series 2'). Molecular indices are used as indices.
         :rtype: |pd.DataFrame|_ (keys: |str|_, values: |np.float64|_, indices: |np.int64|_).
         """
+        if reset_origin:
+            self.reset_origin()
         kwarg = {'mol_subset': mol_subset}
-        df = self._get_time_averaged_prop(self.get_velocity, atom_subset, kwarg)
+        df = self._get_average_prop(self.get_rmsd, atom_subset, kwarg)
         df.index.name = 'XYZ frame number'
         return df
 
@@ -373,8 +375,20 @@ class MultiMolecule(_MultiMolecule):
             (*e.g.* 'series 2'). Molecular indices are used as indices.
         :rtype: |pd.DataFrame|_ (keys: |str|_, values: |np.float64|_, indices: |np.int64|_).
         """
+        if reset_origin:
+            self.reset_origin()
         kwarg = {'mol_subset': mol_subset}
         return self._get_time_averaged_prop(self.get_rmsf, atom_subset, kwarg)
+
+    def get_average_velocity(self, timestep=1.0, mol_subset=None, atom_subset=None):
+        """ """
+        v = self.get_velocity(timestep, mol_subset, atom_subset)
+        return v.mean(axis=1)
+
+    def get_time_averaged_velocity(self, timestep=1.0, mol_subset=None, atom_subset=None):
+        """ """
+        v = self.get_velocity(timestep, mol_subset, atom_subset)
+        return v.mean(axis=0)
 
     def get_velocity(self, timestep=1.0, mol_subset=None, atom_subset=None):
         """ Calculate the velocty (in fs/A) for all atoms in **atom_subset** over the course of a
@@ -446,7 +460,7 @@ class MultiMolecule(_MultiMolecule):
 
         return columns
 
-    def _get_column_range(self, rmsf, index, loop, atom_subset=None):
+    def _get_rmsf_columns(self, rmsf, index, loop, atom_subset=None):
         """ Return the columns and data for the RMSF dataframe. """
         if loop:  # Plan A: **atom_subset** is a *list* of *str* or nested *list* of *int*
             if isinstance(atom_subset[0], str):  # Use atomic symbols or general indices as keys
@@ -550,7 +564,7 @@ class MultiMolecule(_MultiMolecule):
         # Cast the modified RMSF results in a dataframe
         index = np.arange(0, self.shape[1])
         kwarg = {'loop': True, 'atom_subset': atom_subset}
-        columns, data = mol_cp._get_column_range(dist_mean, index, **kwarg)
+        columns, data = mol_cp._get_rmsf_columns(dist_mean, index, **kwarg)
         rmsf = pd.DataFrame(data, columns=columns, index=index)
         rmsf.columns.name = 'Distance from origin\n  /  Ångström'
         rmsf.index.name = 'Arbitrary atomic index'
@@ -610,7 +624,7 @@ class MultiMolecule(_MultiMolecule):
             try:
                 dist_range = sorted(dist_dict[key])
             except KeyError:
-                dist_range = np.inf
+                dist_range = [np.inf]
             dist_min = 0.0
             name = key + '_{:d}'
 
@@ -857,7 +871,7 @@ class MultiMolecule(_MultiMolecule):
         df['mass'] = self.mass
         df['0'] = 0
 
-        key = set(df.loc[df['residue ID'] == 1, 'atom type'])
+        key = sorted(set(df.loc[df['residue ID'] == 1, 'atom type']))
         value = range(1, len(key) + 1)
         segment_dict = dict(zip(key, value))
         value_max = 'MOL' + str(value.stop)
