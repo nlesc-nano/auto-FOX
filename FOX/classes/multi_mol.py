@@ -258,6 +258,124 @@ class MultiMolecule(_MultiMolecule):
 
     """ ################################## Root Mean Squared ################################## """
 
+    def _get_time_averaged_prop(self, method, atom_subset=None, kwarg={}):
+        """ """
+        # Prepare arguments
+        atom_subset = atom_subset or tuple(self.atoms)
+        loop = self._get_loop(atom_subset)
+
+        # Get the time-averaged property
+        if loop:
+            data = [method(atom_subset=at, **kwarg).mean(axis=0) for at in atom_subset]
+        else:
+            data = method(atom_subset=atom_subset, **kwarg).mean(axis=0)
+
+        # Construct and return the dataframe
+        idx_range = np.arange(0, self.shape[1])
+        idx = pd.Index(idx_range, name='Abritrary atomic index')
+        column_range, data = self._get_column_range(data, idx, loop=loop, atom_subset=atom_subset)
+        columns = pd.Index(column_range, name='Atoms')
+        return pd.DataFrame(data, index=idx, columns=columns)
+
+    def _get_average_prop(self, method, atom_subset=None, kwarg={}):
+        """ """
+        # Prpare arguments
+        atom_subset = atom_subset or tuple(self.atoms.keys())
+        loop = self._get_loop(atom_subset)
+
+        # Calculate and averaged property
+        if loop:
+            data = np.array([method(atom_subset=at, **kwarg).mean(axis=1) for at in atom_subset]).T
+        else:
+            data = method(atom_subset=atom_subset, **kwarg).mean(axis=1).T
+
+        # Construct and return the dataframe
+        column_range = self._get_column_range(data, loop, atom_subset)
+        columns = pd.Index(column_range, name='Atoms')
+        return pd.DataFrame(data, columns=columns)
+
+    def get_average_velocity(self, timestep=1.0, mol_subset=None, atom_subset=None):
+        """ Calculate the average velocty (in fs/A) for all atoms in **atom_subset** over the
+        course of a trajectory. The velocity is averaged over all atoms in a particular atom subset.
+
+        :parameter float timestep: The stepsize, in femtoseconds, between subsequent frames.
+        :parameter mol_subset: Perform the calculation on a subset of molecules in **self**, as
+            determined by their moleculair index. Include all *m* molecules in **self** if *None*.
+        :type mol_subset: |None|_, |int|_ or |list|_ [|int|_]
+        :parameter atom_subset: Perform the calculation on a subset of atoms in **self**, as
+            determined by their atomic index or atomic symbol.  Include all *n* atoms per molecule
+            in **self** if *None*.
+        :type atom_subset: |None|_, |int|_ or |str|_
+        :return: A dataframe holding *m-1* velocities averaged over one or more atom subsets.
+        :rtype: |pd.DataFrame|_ (values: |np.float64|_)
+        """
+        kwarg = {'mol_subset': mol_subset, 'timestep': timestep}
+        df = self._get_time_averaged_prop(self.get_velocity, atom_subset, kwarg)
+        df.index.name = 'Time / fs'
+        return df
+
+    def get_time_averaged_velocity(self, timestep=1.0, mol_subset=None, atom_subset=None):
+        """ Calculate the time-averaged velocty (in fs/A) for all atoms in **atom_subset** over the
+        course of a trajectory.
+
+        :parameter float timestep: The stepsize, in femtoseconds, between subsequent frames.
+        :parameter mol_subset: Perform the calculation on a subset of molecules in **self**, as
+            determined by their moleculair index. Include all *m* molecules in **self** if *None*.
+        :type mol_subset: |None|_, |int|_ or |list|_ [|int|_]
+        :parameter atom_subset: Perform the calculation on a subset of atoms in **self**, as
+            determined by their atomic index or atomic symbol.  Include all *n* atoms per molecule
+            in **self** if *None*.
+        :type atom_subset: |None|_, |int|_ or |str|_
+        :return: A dataframe holding *m-1* velocities averaged over one or more atom subsets.
+        :rtype: |pd.DataFrame|_ (values: |np.float64|_)
+        """
+        kwarg = {'mol_subset': mol_subset, 'timestep': timestep}
+        return self._get_time_averaged_prop(self.get_velocity, atom_subset, kwarg)
+
+    def init_rmsd(self, mol_subset=None, atom_subset=None, reset_origin=True):
+        """ Initialize the RMSD calculation, returning a dataframe.
+
+        :parameter mol_subset: Perform the calculation on a subset of molecules in **self**, as
+            determined by their moleculair index. Include all *m* molecules in **self** if *None*.
+        :type mol_subset: |None|_, |int|_ or |list|_ [|int|_]
+        :parameter atom_subset: Perform the calculation on a subset of atoms in **self**, as
+            determined by their atomic index or atomic symbol.  Include all *n* atoms per molecule
+            in **self** if *None*.
+        :type atom_subset:  |None|_, |int|_ or |str|_
+        :parameter bool reset_origin: Reset the origin of each molecule in **self** by means of
+            a partial Procrustes superimposition, translating and rotating the molecules.
+        :return: A dataframe of RMSDs with one column for every string or list of ints in
+            **atom_subset**. Keys consist of atomic symbols (*e.g.* 'Cd') if **atom_subset**
+            contains strings, otherwise a more generic 'series ' + str(int) scheme is adopted
+            (*e.g.* 'series 2'). Molecular indices are used as indices.
+        :rtype: |pd.DataFrame|_ (keys: |str|_, values: |np.float64|_, indices: |np.int64|_).
+        """
+        kwarg = {'mol_subset': mol_subset}
+        df = self._get_time_averaged_prop(self.get_velocity, atom_subset, kwarg)
+        df.index.name = 'XYZ frame number'
+        return df
+
+    def init_rmsf(self, mol_subset=None, atom_subset=None, reset_origin=True):
+        """ Initialize the RMSF calculation, returning a dataframe.
+
+        :parameter mol_subset: Perform the calculation on a subset of molecules in **self**, as
+            determined by their moleculair index. Include all *m* molecules in **self** if *None*.
+        :type mol_subset: |None|_, |int|_ or |list|_ [|int|_]
+        :parameter atom_subset: Perform the calculation on a subset of atoms in **self**, as
+            determined by their atomic index or atomic symbol.  Include all *n* atoms per molecule
+            in **self** if *None*.
+        :type atom_subset:  |None|_, |int|_ or |str|_
+        :parameter bool reset_origin: Reset the origin of each molecule in **self** by means of
+            a partial Procrustes superimposition, translating and rotating the molecules.
+        :return: A dataframe of RMSFs with one column for every string or list of ints in
+            **atom_subset**. Keys consist of atomic symbols (*e.g.* 'Cd') if **atom_subset**
+            contains strings, otherwise a more generic 'series ' + str(int) scheme is adopted
+            (*e.g.* 'series 2'). Molecular indices are used as indices.
+        :rtype: |pd.DataFrame|_ (keys: |str|_, values: |np.float64|_, indices: |np.int64|_).
+        """
+        kwarg = {'mol_subset': mol_subset}
+        return self._get_time_averaged_prop(self.get_rmsf, atom_subset, kwarg)
+
     def get_velocity(self, timestep=1.0, mol_subset=None, atom_subset=None):
         """ Calculate the velocty (in fs/A) for all atoms in **atom_subset** over the course of a
         trajectory.
@@ -289,157 +407,6 @@ class MultiMolecule(_MultiMolecule):
         v.shape = (dim1 - 1), dim2
         return v
 
-    def get_average_velocity(self, timestep=1.0, mol_subset=None, atom_subset=None):
-        """ Calculate the average velocty (in fs/A) for all atoms in **atom_subset** over the
-        course of a trajectory. The velocity is averaged over all atoms in a particular atom subset.
-
-        :parameter float timestep: The stepsize, in femtoseconds, between subsequent frames.
-        :parameter mol_subset: Perform the calculation on a subset of molecules in **self**, as
-            determined by their moleculair index. Include all *m* molecules in **self** if *None*.
-        :type mol_subset: |None|_, |int|_ or |list|_ [|int|_]
-        :parameter atom_subset: Perform the calculation on a subset of atoms in **self**, as
-            determined by their atomic index or atomic symbol.  Include all *n* atoms per molecule
-            in **self** if *None*.
-        :type atom_subset: |None|_, |int|_ or |str|_
-        :return: A dataframe holding *m-1* velocities averaged over one or more atom subsets.
-        :rtype: |pd.DataFrame|_ (values: |np.float64|_)
-        """
-        # Prpare arguments
-        atom_subset = atom_subset or tuple(self.atoms.keys())
-        loop = self._get_loop(atom_subset)
-        arg = [timestep, mol_subset]
-
-        # Calculate and average the velocity
-        if loop:
-            v_out = np.array([self.get_velocity(*arg, at).mean(axis=1) for at in atom_subset]).T
-        else:
-            v_out = self.get_velocity(*arg, atom_subset).mean(axis=1).T
-
-        # Cast the velocity in a dataframe
-        arg = timestep / 2, timestep * (self.shape[0] - 1) + timestep / 2
-        idx = pd.Index(np.arange(*arg), name='Time / fs')
-        columns = pd.Index(self._get_rmsd_columns(v_out, loop, atom_subset), name='Atoms')
-        return pd.DataFrame(v_out, index=idx, columns=columns)
-
-    def get_time_averaged_velocity(self, timestep=1.0, mol_subset=None, atom_subset=None):
-        """ Calculate the time-averaged velocty (in fs/A) for all atoms in **atom_subset** over the
-        course of a trajectory.
-
-        :parameter float timestep: The stepsize, in femtoseconds, between subsequent frames.
-        :parameter mol_subset: Perform the calculation on a subset of molecules in **self**, as
-            determined by their moleculair index. Include all *m* molecules in **self** if *None*.
-        :type mol_subset: |None|_, |int|_ or |list|_ [|int|_]
-        :parameter atom_subset: Perform the calculation on a subset of atoms in **self**, as
-            determined by their atomic index or atomic symbol.  Include all *n* atoms per molecule
-            in **self** if *None*.
-        :type atom_subset: |None|_, |int|_ or |str|_
-        :return: A dataframe holding *m-1* velocities averaged over one or more atom subsets.
-        :rtype: |pd.DataFrame|_ (values: |np.float64|_)
-        """
-        # Prepare arguments
-        arg = [timestep, mol_subset]
-        atom_subset = atom_subset or tuple(self.atoms)
-        loop = self._get_loop(atom_subset)
-
-        # Get the time-averaged velocity
-        if loop:
-            v = [self.get_velocity(*arg, at).mean(axis=0) for at in atom_subset]
-        else:
-            v = self.get_velocity(*arg, atom_subset).mean(axis=0)
-
-        # Construct arguments for the dataframe
-        idx = pd.Index(np.arange(0, self.shape[1]), name='Abritrary atomic index')
-        columns, data = self._get_rmsf_columns(v, idx, loop=loop, atom_subset=atom_subset)
-        columns = pd.Index(columns, name='Atoms')
-
-        # Create and return a dataframe with the time-averaged velocity
-        return pd.DataFrame(data, index=idx, columns=columns)
-
-    def init_rmsd(self, mol_subset=None, atom_subset=None, reset_origin=True):
-        """ Initialize the RMSD calculation, returning a dataframe.
-
-        :parameter mol_subset: Perform the calculation on a subset of molecules in **self**, as
-            determined by their moleculair index. Include all *m* molecules in **self** if *None*.
-        :type mol_subset: |None|_, |int|_ or |list|_ [|int|_]
-        :parameter atom_subset: Perform the calculation on a subset of atoms in **self**, as
-            determined by their atomic index or atomic symbol.  Include all *n* atoms per molecule
-            in **self** if *None*.
-        :type atom_subset:  |None|_, |int|_ or |str|_
-        :parameter bool reset_origin: Reset the origin of each molecule in **self** by means of
-            a partial Procrustes superimposition, translating and rotating the molecules.
-        :return: A dataframe of RMSDs with one column for every string or list of ints in
-            **atom_subset**. Keys consist of atomic symbols (*e.g.* 'Cd') if **atom_subset**
-            contains strings, otherwise a more generic 'series ' + str(int) scheme is adopted
-            (*e.g.* 'series 2'). Molecular indices are used as indices.
-        :rtype: |pd.DataFrame|_ (keys: |str|_, values: |np.float64|_, indices: |np.int64|_).
-        """
-        # Set the origin of all frames to their center of mass
-        if reset_origin:
-            self.reset_origin(mol_subset, inplace=True)
-
-        # Figure out if the RMSD should be calculated as a single or multiple series
-        atom_subset = atom_subset or tuple(self.atoms.keys())
-        loop = self._get_loop(atom_subset)
-
-        # Get the RMSD
-        if loop:
-            rmsd = np.array([self.get_rmsd(mol_subset, at) for at in atom_subset]).T
-        else:
-            rmsd = self.get_rmsd(mol_subset, atom_subset)
-
-        # Construct arguments for the dataframe
-        columns = self._get_rmsd_columns(rmsd, loop, atom_subset)
-        index = mol_subset or np.arange(0, self.shape[0])
-        data = rmsd
-
-        # Create, fill and return a dataframe with the RMSD
-        df = pd.DataFrame(data=data, index=index, columns=columns)
-        df.columns.name = 'RMSD  /  Ångström'
-        df.index.name = 'XYZ frame number'
-        return df
-
-    def init_rmsf(self, mol_subset=None, atom_subset=None, reset_origin=True):
-        """ Initialize the RMSF calculation, returning a dataframe.
-
-        :parameter mol_subset: Perform the calculation on a subset of molecules in **self**, as
-            determined by their moleculair index. Include all *m* molecules in **self** if *None*.
-        :type mol_subset: |None|_, |int|_ or |list|_ [|int|_]
-        :parameter atom_subset: Perform the calculation on a subset of atoms in **self**, as
-            determined by their atomic index or atomic symbol.  Include all *n* atoms per molecule
-            in **self** if *None*.
-        :type atom_subset:  |None|_, |int|_ or |str|_
-        :parameter bool reset_origin: Reset the origin of each molecule in **self** by means of
-            a partial Procrustes superimposition, translating and rotating the molecules.
-        :return: A dataframe of RMSFs with one column for every string or list of ints in
-            **atom_subset**. Keys consist of atomic symbols (*e.g.* 'Cd') if **atom_subset**
-            contains strings, otherwise a more generic 'series ' + str(int) scheme is adopted
-            (*e.g.* 'series 2'). Molecular indices are used as indices.
-        :rtype: |pd.DataFrame|_ (keys: |str|_, values: |np.float64|_, indices: |np.int64|_).
-        """
-        # Set the origin of all frames to their center of mass
-        if reset_origin:
-            self.reset_origin(mol_subset, inplace=True)
-
-        # Figure out if the RMSD should be calculated as a single or multiple series
-        atom_subset = atom_subset or tuple(self.atoms.keys())
-        loop = self._get_loop(atom_subset)
-
-        # Get the RMSF
-        if loop:
-            rmsf = [self.get_rmsf(mol_subset, at) for at in atom_subset]
-        else:
-            rmsf = self.get_rmsf(mol_subset, atom_subset)
-
-        # Construct arguments for the dataframe
-        index = np.arange(0, self.shape[1])
-        columns, data = self._get_rmsf_columns(rmsf, index, loop=loop, atom_subset=atom_subset)
-
-        # Create, fill and return a dataframe with the RMSF
-        df = pd.DataFrame(data=data, index=index, columns=columns)
-        df.columns.name = 'RMSF  /  Ångström'
-        df.index.name = 'Arbitrary atomic index'
-        return df
-
     def get_rmsd(self, mol_subset=None, atom_subset=None):
         """ Calculate the root mean square displacement (RMSD) with respect to the first molecule
         **self**. Returns a dataframe with the RMSD as a function of the XYZ frame numbers.
@@ -464,7 +431,7 @@ class MultiMolecule(_MultiMolecule):
         return np.mean(displacement, axis=0)
 
     @staticmethod
-    def _get_rmsd_columns(rmsd, loop=False, atom_subset=None):
+    def _get_rmsd_columns(rmsd, loop, atom_subset=None):
         """ Return the columns for the RMSD dataframe. """
         if loop:  # Plan A: **atom_subset** is a *list* of *str* or nested *list* of *int*
             if isinstance(atom_subset[0], str):  # Use atomic symbols or general indices as keys
@@ -479,7 +446,7 @@ class MultiMolecule(_MultiMolecule):
 
         return columns
 
-    def _get_rmsf_columns(self, rmsf, index, loop=False, atom_subset=None):
+    def _get_column_range(self, rmsf, index, loop, atom_subset=None):
         """ Return the columns and data for the RMSF dataframe. """
         if loop:  # Plan A: **atom_subset** is a *list* of *str* or nested *list* of *int*
             if isinstance(atom_subset[0], str):  # Use atomic symbols or general indices as keys
@@ -523,9 +490,9 @@ class MultiMolecule(_MultiMolecule):
         elif isinstance(subset[0], str):
             return True  # subset is an iterable of *str*
         elif isinstance(subset[0], int):
-            return False  # subset is an iterable of *str*
+            return False  # subset is an iterable of *int*
         elif isinstance(subset[0][0], int):
-            return True  # subset is a nested iterable of *str*
+            return True  # subset is a nested iterable of *int*
         raise TypeError()
 
     """ #############################  Determining shell structures  ######################### """
@@ -583,7 +550,7 @@ class MultiMolecule(_MultiMolecule):
         # Cast the modified RMSF results in a dataframe
         index = np.arange(0, self.shape[1])
         kwarg = {'loop': True, 'atom_subset': atom_subset}
-        columns, data = mol_cp._get_rmsf_columns(dist_mean, index, **kwarg)
+        columns, data = mol_cp._get_column_range(dist_mean, index, **kwarg)
         rmsf = pd.DataFrame(data, columns=columns, index=index)
         rmsf.columns.name = 'Distance from origin\n  /  Ångström'
         rmsf.index.name = 'Arbitrary atomic index'
