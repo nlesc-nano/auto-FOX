@@ -35,7 +35,7 @@ def test_assert_error():
 
 def test_get_template():
     """ Test :func:`FOX.get_template`. """
-    s = get_template(name='param.yaml')
+    s = get_template(name='armc.yaml')
     assert isinstance(s, Settings)
 
     dict_ = get_template(name='md_cp2k.yaml', as_settings=False)
@@ -45,7 +45,7 @@ def test_get_template():
 
 def test_template_to_df():
     """ Test :func:`FOX.template_to_df`. """
-    df = template_to_df('param.yaml')
+    df = template_to_df('param.yaml', path=REF_DIR)
     assert isinstance(df, pd.DataFrame)
 
     idx = np.array(['charge', 'epsilon', 'sigma'], dtype=object)
