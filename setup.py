@@ -73,7 +73,7 @@ setup(
         'pycodestyle',
     ],
     extras_require={
-        'MC': ['pyyaml'],
+        'MC': ['pyyaml', 'schema'],
         'doc': ['sphinx', 'sphinx_rtd_theme', 'nbsphinx', 'matplotlib'],
         'test': ['pytest', 'pytest-cov', 'pytest-mock', 'nbsphinx',
                  'pycodestyle', 'pyyaml', 'matplotlib'],

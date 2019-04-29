@@ -272,6 +272,14 @@ class ARMC(MonteCarlo):
             if key in self.armc:
                 self.armc[key] = kwarg[key]
 
+    @staticmethod
+    def from_yaml(yml_file):
+        return ARMC.from_dict(get_template(yml_file))
+
+    @classmethod
+    def from_dict(cls, dict_):
+        return cls(**dict_)
+
     def init_armc(self):
         """ Initialize the Addaptive Rate Monte Carlo procedure.
 
