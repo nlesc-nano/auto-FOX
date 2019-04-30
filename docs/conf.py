@@ -217,8 +217,9 @@ autodoc_mock_imports = [
 # A string of reStructuredText that will be included at the end of every source file that is read.
 # This is a possible place to add substitutions that should be available in every file (another being rst_prolog).
 rst_epilog = """
-.. _FOX.MultiMolecule: 3_multimolecule.html
-.. _FOX.MonteCarlo: 4_monte_carlo.html
+.. _FOX.MultiMolecule: 3_multimolecule.html#api
+.. _FOX.MonteCarlo: 4_monte_carlo.html#fox-montecarlo-api
+.. _FOX.ARMC: 4_monte_carlo.html#fox-armc-api
 .. _plams.PeriodicTable: https://www.scm.com/doc/plams/components/utils.html#periodic-table
 .. _plams.Job: https://www.scm.com/doc/plams/components/jobs.html#job-api
 .. _plams.Settings: https://www.scm.com/doc/plams/components/settings.html
@@ -240,6 +241,8 @@ rst_epilog = """
 .. _type: https://docs.python.org/3/library/functions.html#type
 .. _None: https://docs.python.org/3/library/constants.html#None
 
+.. |FOX.ARMC| replace:: *FOX.ARMC*
+.. |FOX.MonteCarlo| replace:: *FOX.MonteCarlo*
 .. |FOX.MultiMolecule| replace:: *FOX.MultiMolecule*
 .. |plams.Job| replace:: *plams.Job*
 .. |plams.Molecule| replace:: *plams.Molecule*

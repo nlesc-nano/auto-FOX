@@ -32,8 +32,7 @@ def create_hdf5(mc_kwarg, filename='MC.hdf5'):
 
     :parameter mc_kwarg: An ARMC object.
     :type mc_kwarg: |FOX.ARMC|_
-    :parameter str path: The path where the the hdf5 file is stored.
-    :parameter str name: The name (including extension) of the hdf5 file.
+    :parameter str filename: The path+name of the hdf5 file.
     """
     shape = mc_kwarg.armc.iter_len // mc_kwarg.armc.sub_iter_len, mc_kwarg.armc.sub_iter_len
 
@@ -91,8 +90,7 @@ def index_to_hdf5(pd_dict, filename='MC.hdf5'):
 
     :parameter pd_dict: A dictionary with dataset names as keys and matching array-like objects
         as values.
-    :parameter str path: The path where the the hdf5 file is stored.
-    :parameter str name: The name (including extension) of the hdf5 file.
+    :parameter str filename: The path+name of the hdf5 file.
     """
     attr_tup = ('index', 'columns', 'name')
 
@@ -118,7 +116,7 @@ def _attr_to_array(item):
         >>> _attr_to_array(item)
         array([0, 1, 2, 3, 4, 5])
 
-    :parameter object item: An object that may or may not belong to the pd.Index class.
+    :parameter object item: An object that may or may not be an instance of pd.Index.
     :return: An array created fron **item**.
     :rtype: |np.ndarray|_
     """
@@ -139,10 +137,12 @@ def to_hdf5(dict_, i, j, phi, filename='MC.hdf5'):
 
     :parameter dict dict_: A dictionary with dataset names as keys and matching array-like objects
         as values.
-    :parameter int i: The iteration in the outer loop of :meth:`ARMC.init_armc`.
-    :parameter int j: The subiteration in the inner loop of :meth:`ARMC.init_armc`.
-    :parameter str path: The path where the the hdf5 file is stored.
-    :parameter str name: The name (including extension) of the hdf5 file.
+    :parameter int i: The super-iteration, :math:`\kappa`, in the outer loop of
+        :meth:`.ARMC.init_armc`.
+    :parameter int j: The sub-iteration, :math:`\omega`, in the inner loop of
+        :meth:`.ARMC.init_armc`.
+    :parameter float phi: The value of the :class:`.ARMC` variable :math:`\phi`.
+    :parameter str filename: The path+name of the hdf5 file.
     """
     with h5py.File(filename, 'r+') as f:
         f.attrs['iteration'] = i
@@ -159,8 +159,7 @@ def from_hdf5(datasets=None, filename='MC.hdf5'):
 
     :parameter list datasets: A list of to be retrieved dataset names.
         All datasets will be retrieved if *None*.
-    :parameter str path: The path where the the hdf5 file is stored.
-    :parameter str name: The name (including extension) of the hdf5 file.
+    :parameter str filename: The path+name of the hdf5 file.
     :return: A dicionary with dataset names as keys and the matching data as values.
     :rtype: |dict|_ (values:|pd.DataFrame|_ and/or |pd.Series|_)
     """

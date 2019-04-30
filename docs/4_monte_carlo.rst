@@ -12,6 +12,7 @@ Carlo (ARMC, 1_) method described by S. Cosseddu *et al* in
 
 The implemented algorithm can be summarized as following:
 
+
 The algorithm
 -------------
 
@@ -25,7 +26,7 @@ The algorithm
         :math:`S_{l}`.
 
 .. math::
-    :label: Eq. 1
+    :label: 1
 
     p(k \leftarrow l) =
     \Biggl \lbrace
@@ -38,10 +39,10 @@ The algorithm
 3.  The move is accepted if the new set of parameters, :math:`S_{l}`, lowers
     the auxiliary error (:math:`\Delta \varepsilon_{QM-MM}`) with respect to
     the previous set of accepted parameters, :math:`S_{k}`
-    (see :eq:`Eq. 1` & :eq:`Eq. 2`).
+    (see :eq:`1` & :eq:`2`).
 
 .. math::
-    :label: Eq. 2
+    :label: 2
 
     \Delta \varepsilon_{QM-MM} =
     \sum_{n} \sqrt{
@@ -51,12 +52,12 @@ The algorithm
 4.  The parameter history is updated.
     Based on whether or not the new parameter set is accepted the
     auxiliary error of either :math:`S_{l}` or :math:`S_{k}` is increased
-    by the variable :math:`\phi` (see :eq:`Eq. 3`). In this manner, the
+    by the variable :math:`\phi` (see :eq:`3`). In this manner, the
     underlying PES is continuously modified, preventing the optimizer
     from getting stuck in a (local) minima in the parameter space.
 
 .. math::
-    :label: Eq. 3
+    :label: 3
 
     \Delta \varepsilon_{QM-MM} ( S_{x} ) + \phi =
     \Biggl \lbrace
@@ -68,13 +69,13 @@ The algorithm
 
 5.  The parameter :math:`\phi` is updated at regular intervals
     in order to maintain a constant acceptance rate, :math:`\alpha_{t}`.
-    This is illustrated in :eq:`Eq. 4`, where :math:`\phi` is updated
+    This is illustrated in :eq:`4`, where :math:`\phi` is updated
     the begining of every super-iteration :math:`\kappa`. In this example
     the total number of iterations, :math:`\kappa \omega`, is divided into
     :math:`\kappa` super- and :math:`\omega` sub-iterations.
 
 .. math::
-    :label: Eq. 4
+    :label: 4
 
     \phi_{\kappa \omega} =
     \phi_{ ( \kappa - 1 ) \omega} * \gamma^{
@@ -82,6 +83,35 @@ The algorithm
     }
     \quad
     \kappa = 1, 2, 3, ..., N
+
+
+Arguments
+---------
+
+========================== =============== ===========================================================================================================
+ Parameter                  Default         Parameter description
+========================== =============== ===========================================================================================================
+ param.charge               -               A dictionary with atoms and matching charges
+ param.epsilon              -               A dictionary with atom-pairs and the matching Lennard-Jones :math:`\epsilon` parameter
+ param.sigma                -               A dictionary with atom-pairs and the matching Lennard-Jones :math:`\sigma` parameter
+ armc.iter_len              50000           The total number of ARMC iterations :math:`\kappa \omega`
+ armc.sub_iter_len          100             The length of each ARMC subiteration :math:`\omega`
+ armc.gamma                 2.0             The constant :math:`gamma`, see :eq:`4`
+ armc.a_target              0.25            The target acceptance rate :math:`\alpha_{t}`, see :eq:`4`
+ armc.phi                   1.0             The initial value of the variable :math:`\phi`, see :eq:`3` and :eq:`4`
+ job.molecule               -               A :class:`.MultiMolecule` instance or .xyz filename
+ job.settings               md_cp2k.yaml    A dictionary of job settings or the filename of YAML_ file containing job settings
+ job.type                   Cp2kJob         The job type, see Job_
+ job.name                   cp2kjob         The base name of the various molecular dynamics jobs, see Job.name_
+ job.workdir                MM_MD_workdir   The name of the to-be created directory which is to contain all molecular dynamics jobs, see init.folder_
+ job.keepfiles              False           Whether the raw MD results should be saved or deleted
+ hdf5_file                  ARMC.hdf5       The filename of the to-be created HDF5_ file containing all ARMC results
+ move.range.start           0.005           Controls the minimum stepsize of Monte Carlo moves
+ move.range.stop            0.1             Controls the maximum stepsize of Monte Carlo moves
+ move.range.step            0.005           Controls the allowed stepsize values between the minima and maxima
+ move.charge_constraints    -               Controls constraints applied to the atomic charges during Monte Carlo moves
+========================== =============== ===========================================================================================================
+
 
 
 Implementation
@@ -97,7 +127,7 @@ Example ARMC code.
     >>> from FOX import (ARMC, MultiMolecule, get_template, get_example_xyz)
 
 
-    # Read the .xyz file and create a .psf file
+    # Read the .xyz file and create all settings for generating protein structure files (.psf)
     >>> str_file = join(FOX.__path__[0], 'data/formate.str')
     >>> mol = MultiMolecule.from_xyz(get_example_xyz())
     >>> mol.guess_bonds(atom_subset=['C', 'O', 'H'])
@@ -115,38 +145,13 @@ Example ARMC code.
     >>> armc = ARMC.from_dict(s)
     >>> armc.init_armc()
 
-Arguments
----------
-
-========================== =============== ===========================================================================================
- Parameter                  Default         Parameter description
-========================== =============== ===========================================================================================
- param.charge               -               A dictionary with atoms and matching charges
- param.epsilon              -               A dictionary with atom-pairs and the matching Lennard-Jones :math:`\epsilon` parameter
- param.sigma                -               A dictionary with atom-pairs and the matching Lennard-Jones :math:`\sigma` parameter
- armc.iter_len              50000           The total number of ARMC iterations :math:`\kappa \omega`
- armc.sub_iter_len          100             The length of each ARMC subiteration :math:`\omega`
- armc.gamma                 2.0             The constant :math:`gamma`, see :eq:`Eq. 4`
- armc.a_target              0.25            The target acceptance rate :math:`\alpha_{t}`, see :eq:`Eq. 4`
- armc.phi                   1.0             The initial value of the variable :math:`\phi`, see :eq:`Eq. 3` and :eq:`Eq. 4`
- job.molecule               -               A :class:`.MultiMolecule` instance or .xyz filename
- job.settings               md_cp2k.yaml    A dictionary of job settings or the filename of .yaml file containing job settings
- job.type                   Cp2kJob         The job type
- job.name                   cp2kjob         The base name of the various molecular dynamics jobs
- job.workdir                MM_MD_workdir   The name of the to-be created directory which is to contain all molecular dynamics jobs
- job.keepfiles              False           Whether the raw MD results should be saved or deleted
- hdf5_file                  ARMC.hdf5       The filename of the to-be created hdf5 file containing all ARMC results
- move.range.start           0.005           Controls the minimum stepsize of Monte Carlo moves
- move.range.stop            0.1             Controls the maximum stepsize of Monte Carlo moves
- move.range.step            0.005           Controls the allowed stepsize values between the minima and maxima
- move.charge_constraints    -               Controls constraints applied to the atomic charges during Monte Carlo moves
-========================== =============== ===========================================================================================
 
 FOX.MonteCarlo API
 ------------------
 
 .. autoclass:: FOX.classes.monte_carlo.MonteCarlo
     :members:
+
 
 FOX.ARMC API
 ------------
@@ -156,3 +161,8 @@ FOX.ARMC API
 
 
 .. _1: https://dx.doi.org/10.1021/acs.jctc.6b01089
+.. _YAML: https://yaml.org/
+.. _HDF5: https://www.h5py.org/
+.. _Job: https://www.scm.com/doc/plams/components/jobs.html#scm.plams.core.basejob.Job
+.. _Job.name: https://www.scm.com/doc/plams/components/jobs.html#scm.plams.core.basejob.Job
+.. _init.folder: https://www.scm.com/doc/plams/components/functions.html#scm.plams.core.functions.init
