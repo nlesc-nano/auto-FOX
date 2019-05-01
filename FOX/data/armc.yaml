@@ -41,17 +41,8 @@ job:
 hdf5_file: ARMC.hdf5
 
 move:
+    charge_constraints: 'Cd = -1 * Se = -0.5 * O'
     range:
         start: 0.005
         stop: 0.1
         step: 0.005
-    charge_constraints:
-        Cd:
-            Se: -1
-            OG2D2: -0.5
-        Se:
-            Cd: -1
-            OG2D2: 0.5
-        OG2D2:
-            Cd: -2
-            OG2D2: 2

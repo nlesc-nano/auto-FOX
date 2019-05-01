@@ -259,52 +259,6 @@ def dict_to_pandas(input_dict, name=0, object_type='DataFrame'):
         return pd.DataFrame(list(flat_dict.values()), index=idx, columns=[name])
 
 
-def update_charge(at, charge, charge_df, constrain_dict={}):
-    """ Set the atomic charge of **at** to **charge**, imposing the following constrains to
-    all remaining values in **series**:
-
-        * The total charge must be equal to the sum of all atomic charges in **series**.
-        * Optional constraints, as provided in **constrain_dict**, must be satisfied.
-    Performs an inplace update of **series**.
-
-    |
-
-    Example input (and the resulting charge constrains) for **constrain_dict**:
-
-    .. code-block:: python
-
-        constrain_dict = {}
-        constrain_dict['Cd'] = {'Se': -1, 'OG2D2': -0.5}
-        constrain_dict['Se'] = {'Cd': -1, 'OG2D2': 0.5}
-        constrain_dict['OG2D2'] = {'Se': 2, 'Cd': -2}
-
-    .. math::
-
-        q_{Cd} = -1*q_{Se} = -0.5*q_{OG2D2}
-
-    :parameter str at: An atom type such as *Se*, *Cd* or *OG2D2*.
-    :parameter float charge: The new charge associated with **at**.
-    :parameter charge_df: A dataframe of atomic charges.
-    :type series: |pd.Series|_ (index: |pd.Index|_, values: |np.float64|_)
-    :parameter dict constrain_dict: A dictionary with charge constrains.
-    """
-    net_charge = charge_df['charge'].sum()
-
-    # Update all constrained charges
-    charge_df.loc[charge_df['atom type'] == at, 'charge'] = charge
-    at_list = [at]
-    if at in constrain_dict:
-        for at2 in constrain_dict[at]:
-            at_list.append(at2)
-            charge_df.loc[charge_df['atom type'] == at2, 'charge'] *= constrain_dict[at][at2]
-
-    # Update all unconstrained charges
-    criterion = np.array([i not in at_list for i in charge_df['atom type']])
-    i = net_charge - charge_df.loc[~criterion, 'charge'].sum()
-    i /= charge_df.loc[criterion, 'charge'].sum()
-    charge_df.loc[criterion, 'charge'] *= i
-
-
 def array_to_index(ar):
     """ Convert a NumPy array into a Pandas Index or MultiIndex.
     Raises a ValueError if the dimensionality of **ar** is greater than 2.

@@ -13,9 +13,10 @@ from scm.plams.core.functions import (init, finish, add_to_class, config)
 from scm.plams.interfaces.thirdparty.cp2k import Cp2kJob
 
 from .multi_mol import MultiMolecule
-from ..functions.utils import (get_template, update_charge, write_psf, _get_move_range)
+from ..functions.utils import (get_template, write_psf, _get_move_range)
 from ..functions.cp2k_utils import (update_cp2k_settings, set_subsys_kind)
 from ..functions.hdf5_utils import (create_hdf5, to_hdf5)
+from ..functions.charge_utils import update_charge
 from ..functions.armc_sanitization import init_armc_sanitization
 
 
@@ -100,7 +101,7 @@ class MonteCarlo():
         """
         # Unpack arguments
         param = self.param
-        df = self.job.psf['atoms']
+        psf = self.job.psf['atoms']
 
         # Perform a move
         i = param.loc[:, 'param'].sample()
@@ -112,12 +113,12 @@ class MonteCarlo():
         if 'charge' in i:
             for (_, at), charge in i.iteritems():
                 pass
-            update_charge(at, charge, df, self.move.charge_constraints)
-            idx_set = set(df['atom type'].values)
+            update_charge(at, charge, psf, self.move.charge_constraints)
+            idx_set = set(psf['atom type'].values)
             for at in idx_set:
                 if ('charge', at) in param.index:
-                    condition = df['atom type'] == at
-                    param.loc[('charge', at), 'param'] = df.loc[condition, 'charge'].iloc[0]
+                    condition = psf['atom type'] == at, 'charge'
+                    param.loc[('charge', at), 'param'] = psf.loc[condition].iloc[0]
             write_psf(**self.job.psf)
 
         # Update job settings and return a tuple with new parameters

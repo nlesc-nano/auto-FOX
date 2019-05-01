@@ -10,7 +10,8 @@ from .functions import (
     get_rdf, get_rdf_lowmem,
     get_template, assert_error, get_example_xyz,
     get_adf,
-    create_hdf5, to_hdf5, from_hdf5
+    create_hdf5, to_hdf5, from_hdf5,
+    update_charge, get_charge_constraints
 )
 
 from .classes import (
@@ -24,6 +25,7 @@ __all__ = [
     'get_rdf', 'get_rdf_lowmem',
     'get_template', 'assert_error', 'get_example_xyz',
     'get_adf',
+    'update_charge', 'get_charge_constraints',
     'create_hdf5', 'to_hdf5', 'from_hdf5',
     'MultiMolecule',
     'MonteCarlo', 'ARMC',
