@@ -13,7 +13,7 @@ def update_charge(at, charge, df, constrain_dict={}, exclude=[]):
 
         * The total charge remains constant.
         * Optional constraints specified in **constrain_dict**
-          (see :func:`.get_charge_constraints`).
+          (see :func:`.update_constrained_charge`).
 
     Performs an inplace update of the *charge* column in **df**.
 
@@ -32,9 +32,14 @@ def update_charge(at, charge, df, constrain_dict={}, exclude=[]):
         exclude += update_constrained_charge(at, df, constrain_dict)
         update_unconstrained_charge(net_charge, df, exclude)
     else:
-        update_unconstrained_charge(net_charge, df, exclude)
-        exclude += update_constrained_charge(at, df, constrain_dict)
-        update_constrained_charge(at, df, constrain_dict)
+        update_unconstrained_charge(net_charge, df, exclude + [at])
+        charge = net_charge - df.loc[df['atom type'] == at, 'charge'].sum()
+        atomic_charge = find_q(df, charge, constrain_dict)
+        for key, value in constrain_dict.items():
+            func = invert_ufunc(value['func'])
+            df.loc[df['atom type'] == key, 'charge'] = func(atomic_charge, value['arg'])
+            update_constrained_charge(key, df, constrain_dict)
+            break
 
 
 def update_constrained_charge(at, df, constrain_dict={}):
@@ -50,27 +55,40 @@ def update_constrained_charge(at, df, constrain_dict={}):
     """
     charge = df.loc[df['atom type'] == at, 'charge'].iloc[0]
     exclude = []
-    func1 = constrain_dict[at].func
-    i = constrain_dict[at].arg
+    func1 = invert_ufunc(constrain_dict[at]['func'])
+    i = constrain_dict[at]['arg']
 
     # Perform a constrained charge update
-    for at2, values in constrain_dict[at].items():
+    for at2, values in constrain_dict.items():
         exclude.append(at2)
         if at2 == at:
             continue
 
-        # Slice the dataframe
-        df_slice = df.loc[df['atom type'] == at2, 'charge']
-
         # Unpack values
-        func2 = invert_ufunc(values.func)
-        j = values.arg
+        func2 = values['func']
+        j = values['arg']
 
         # Update the charges
-        func1(charge, i, out=df_slice)
-        func2(charge, j, out=df_slice)
+        df.loc[df['atom type'] == at2, 'charge'] = func2(func1(charge, i), j)
 
     return exclude
+
+
+def update_unconstrained_charge(net_charge, df, exclude=[]):
+    """ Perform an unconstrained update of atomic charges.
+    Performs an inplace update of the *charge* column in **df**.
+
+    :parameter float net_charge: The total charge of the system.
+    :parameter df: A dataframe with atomic charges.
+    :type df: |pd.DataFrame|_
+    :parameter dict constrain_dict: A list of atom types whose atomic charges should not be updated.
+    """
+    include = np.array([i not in exclude for i in df['atom type']])
+    if not include.any():
+        return
+    i = net_charge - df.loc[~include, 'charge'].sum()
+    i /= df.loc[include, 'charge'].sum()
+    df.loc[include, 'charge'] *= i
 
 
 def find_q(df, Q=0.0, constrain_dict={}):
@@ -79,10 +97,10 @@ def find_q(df, Q=0.0, constrain_dict={}):
 
     .. math::
 
-        Q = \sum_{i, m_{i}} m_{i} * (q * a_{i}) + \sum_{j, n_{j}} n_{j} * (q + b_{j})
+        Q = \sum_{i} (q * a_{i}) * \sum_{m_{i}} m_{i} + \sum_{j} (q + b_{j}) * \sum_{n_{j}} n_{j}
 
-        q = \frac{\sum_{j, n_{j}} n_{j} * (q * b_{j})}
-            {\sum_{i, m_{i}} m_{i} * (q * a_{i}) + \sum_{j, n_{j}} n_{j}}
+        q = \frac{Q + \sum_{j} (q * b_{j}) * \sum_{n_{j}} n_{j}}
+            {\sum_{i} (q * a_{i}) * \sum_{m_{i}} m_{i} + \sum_{j, n_{j}} n_{j}}
 
     :parameter float Q: The sum of all atomic charges.
     :parameter df: A dataframe with atomic charges.
@@ -96,28 +114,12 @@ def find_q(df, Q=0.0, constrain_dict={}):
 
     for key, value in constrain_dict.items():
         at_count = len(df.loc[df['atom type'] == key])
-        if value.ufunc == np.add:
+        if value['func'] == np.add:
             A += at_count * value.arg
             B += at_count
-        elif value.ufunc == np.multiply:
+        elif value['func'] == np.multiply:
             B += at_count * value.arg
-
     return A / B
-
-
-def update_unconstrained_charge(net_charge, df, exclude=[]):
-    """ Perform an unconstrained update of atomic charges.
-    Performs an inplace update of the *charge* column in **df**.
-
-    :parameter float net_charge: The total charge of the system.
-    :parameter df: A dataframe with atomic charges.
-    :type df: |pd.DataFrame|_
-    :parameter dict constrain_dict: A list of atom types whose atomic charges should not be updated.
-    """
-    include = np.array([i not in exclude for i in df['atom type']])
-    i = net_charge - df.loc[~include, 'charge'].sum()
-    i /= df.loc[include, 'charge'].sum()
-    df.loc[include, 'charge'] *= i
 
 
 def get_charge_constraints(constrain):
@@ -183,10 +185,7 @@ def get_charge_constraints(constrain):
                 return split[0], split[1], operator
         return split[0], 1.0, '*'
 
-    operator_dict = {
-        '+': np.add, '/': np.divide, '**': np.power, '*': np.multiply, '-': np.subtract
-    }
-
+    operator_dict = {'+': np.add, '*': np.multiply}
     list_ = [i for i in constrain.split('=') if i]
     ret = Settings()
     for i in list_:
@@ -196,9 +195,10 @@ def get_charge_constraints(constrain):
         # Identify keys and values
         try:
             arg = float(arg1)
+            key = arg2.split()[0]
         except ValueError:
             arg = float(arg2)
-        key = arg
+            key = arg1.split()[0]
 
         # Prepare and return the arguments and operators
         ret[key].arg = arg
@@ -224,14 +224,4 @@ def invert_ufunc(ufunc):
         return invert_dict[ufunc]
     except KeyError:
         raise KeyError("'{}' is not a supported ufunc. Supported ufuncs consist of: "
-                       "'add' & 'multiply' ".format(ufunc.__name__))
-
-
-def recipropal_power(x1, x2, **kwarg):
-    """ First array elements raised to powers of the recipropal from second array, element-wise.
-
-    :parameter x1: The bases.
-    :parameter x2: The exponents.
-    :return: :math:`{x_{1}}^{1/x_{2}}`
-    """
-    return np.power(x1, 1/x2, **kwarg)
+                       "'add' & 'multiply'".format(ufunc.__name__))

@@ -133,7 +133,7 @@ def _attr_to_array(item):
 
 @assert_error(H5PY_ERROR)
 def to_hdf5(dict_, i, j, phi, filename='MC.hdf5'):
-    """ Export results from **dict_** to the hdf5 file **name**.
+    r""" Export results from **dict_** to the hdf5 file **name**.
 
     :parameter dict dict_: A dictionary with dataset names as keys and matching array-like objects
         as values.
