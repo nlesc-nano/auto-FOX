@@ -4,6 +4,7 @@ __all__ = ['MonteCarlo', 'ARMC']
 
 import os
 import shutil
+from os.path import (join, basename)
 
 import numpy as np
 
@@ -65,11 +66,12 @@ class MonteCarlo():
         self.job.func = Cp2kJob
         self.job.settings = get_template('md_cp2k.yaml')
         self.job.name = self.job.func.__name__.lower()
-        self.job.dir = os.getcwd()
+        self.job.path = os.getcwd()
+        self.job.folder = 'MM_MD_workdir'
         self.job.keep_files = False
 
         # HDF5 settings
-        self.hdf5_file = self.job.dir
+        self.hdf5_file = join(self.job.path, 'ARMC.hdf5')
 
         # Settings for generating Monte Carlo moves
         self.move = Settings()
@@ -77,15 +79,6 @@ class MonteCarlo():
         self.move.kwarg = {}
         self.move.charge_constraints = {}
         self.move.range = self.get_move_range()
-
-        # Set user-specified keywords
-        for key in kwarg:
-            if key in self.param:
-                self.param[key] = kwarg[key]
-            elif key in self.move:
-                self.move[key] = kwarg[key]
-            elif key in self.job:
-                self.job[key] = kwarg[key]
 
     def __str__(self):
         return str(Settings(vars(self)))
@@ -237,7 +230,7 @@ class MonteCarlo():
         self.job.func = func
         self.job.settings = settings or get_template('md_cp2k.yaml')
         self.job.name = name or self.job.func.__name__
-        self.job.dir = path or os.getcwd()
+        self.job.path = path or os.getcwd()
         self.job.keep_files = keep_files
 
 
@@ -266,9 +259,12 @@ class ARMC(MonteCarlo):
         self.phi.kwarg = {}
 
         # Set user-specified keywords
-        for key in kwarg:
-            if key in self.armc:
-                self.armc[key] = kwarg[key]
+        for key, value in kwarg.items():
+            if hasattr(self, key):
+                try:
+                    getattr(self, key).update(value)
+                except AttributeError:
+                    setattr(self, key, value)
 
     @staticmethod
     def from_yaml(yml_file):
@@ -307,8 +303,9 @@ class ARMC(MonteCarlo):
         create_hdf5(self, self.hdf5_file)
 
         # Initialize
-        init(path=self.job.dir, folder='MM_MD_workdir')
+        init(path=self.job.path, folder=self.job.folder)
         config.default_jobmanager.settings.hashing = None
+        write_psf(**self.job.psf)
 
         # Initialize the first MD calculation
         history_dict = {}

@@ -2,7 +2,7 @@
 
 __all__ = ['init_armc_sanitization']
 
-from os.path import isfile, split
+from os.path import isfile, isdir, split
 
 import numpy as np
 
@@ -12,6 +12,7 @@ from scm.plams.interfaces.thirdparty.cp2k import Cp2kJob
 
 from .utils import (get_template, _get_move_range, dict_to_pandas)
 from .cp2k_utils import set_keys
+from .charge_utils import get_charge_constraints
 from ..classes.multi_mol import MultiMolecule
 
 
@@ -163,8 +164,10 @@ def sanitize_job(job):
     else:
         raise TypeError(TYPE_ERR2.format('job.settings', 'dict', 'str', get_name(job.settings)))
 
+    assert isdir(job.path)
+
     assert_type(job.name, str, 'job.name')
-    assert_type(job.workdir, str, 'job.workdir')
+    assert_type(job.folder, str, 'job.workdir')
     assert_type(job.keep_files, bool, 'job.keep_files')
     return job
 
@@ -173,4 +176,5 @@ def sanitize_move(move):
     move.range = _get_move_range(**move.range)
     move.func = np.multiply
     move.kwarg = {}
+    move.charge_constraints = get_charge_constraints(move.charge_constraints)
     return move

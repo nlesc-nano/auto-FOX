@@ -12,6 +12,17 @@ class Molecule(Molecule):
     """ A modified version of the PLAMS Molecule_ class, suplemented with a number of
     additional methods. """
 
+    def __getitem__(self, key):
+        if isinstance(key, (int, np.integer)):
+            if key == 0:
+                raise MoleculeError('Numbering of atoms starts with 1')
+            if key < 0:
+                return self.atoms[key]
+            return self.atoms[key-1]
+        if isinstance(key, tuple) and len(key) == 2:
+            return self.find_bond(self[key[0]], self[key[1]])
+        raise MoleculeError('Molecule: invalid argument {} inside []'.format(key))
+
     def separate_mod(self):
         """ A modified version of the PLAMS Molecule.separate_ method. Separates the molecule into
         connected component as based on its bonds.
@@ -137,4 +148,9 @@ class Molecule(Molecule):
                     at2, at3, at4 = [bond.other_end(at1) for bond in at1.bonds]
                     impropers.append((at1.id, at2.id, at3.id, at4.id))
 
-        return np.array(impropers, dtype=int) + 1
+        ret = np.array(impropers, dtype=int) + 1
+        mass = np.array([[self[int(j)].mass for j in i] for i in ret[:, 1:]])
+        idx = np.argsort(mass, axis=1)[:, ::-1] + 1
+        idx = np.hstack((np.zeros_like(idx[:, 0])[:, None], idx))
+        import pdb; pdb.set_trace()
+        return ret[idx]

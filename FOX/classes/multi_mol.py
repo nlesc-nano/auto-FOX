@@ -912,7 +912,7 @@ class MultiMolecule(_MultiMolecule):
         """ Convert a *MultiMolecule* object into a Protein Structure File (.psf).
 
         :parameter str filename: The path+filename of the to-be create .psf file.
-        :parameter bool return_blocks: Return a dicionary with all psf blocks in addition to
+        :parameter bool return_blocks: Return a dicionary with all psf blocks instead of
             writing the psf file itself.
         """
         ret = {'filename': filename}
@@ -934,9 +934,11 @@ class MultiMolecule(_MultiMolecule):
             ret.update({'bonds': None, 'angles': None, 'dihedrals': None, 'impropers': None})
 
         # Export the .psf file
-        write_psf(**ret)
         if return_blocks:
             return ret
+        else:
+            write_psf(**ret)
+
 
     def _mol_to_file(self, filename, outputformat=None, mol_subset=0):
         """ Create files using the plams.Molecule.write() method.

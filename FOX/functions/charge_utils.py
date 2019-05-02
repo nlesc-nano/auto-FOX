@@ -142,7 +142,7 @@ def get_charge_constraints(constrain):
             arg:   -1.0
             func: 	<ufunc 'multiply'>
 
-    Another example where the following (nonensical) constrain is applied:
+    Another example where the following (nonensical) constraint is applied:
     :math:`q_{Cd} = q_{H} - 1 = q_{O} + 1.5 = 0.5 * q_{Se}`:
 
     .. code:: python
