@@ -75,7 +75,7 @@ def get_template(name, path=None, as_settings=True):
 
     :parameeter str name: The name of the template file.
     :parameter str path: The path where **name** is located.
-        Will default to the FOX.data directory if *None*.
+        Will default to the :mod:`FOX.data` directory if *None*.
     :parameter bool as_settings: If *False*, return a dictionary rather than a settings object.
     :return: A settings object or dictionary as constructed from the template file.
     :rtype: |plams.Settings|_ or |dict|_
@@ -96,11 +96,11 @@ def template_to_df(name, path=None):
 
     :parameeter str name: The name of the template file.
     :parameter str path: The path where **name** is located.
-        Will default to the FOX.data directory if *None*.
+        Will default to the :mod:`FOX.data` directory if *None*.
     :return: A dataframe as constructed from the template file.
     :rtype: |pd.DataFrame|_
     """
-    template_dict = get_template(name, path=None, as_settings=False)
+    template_dict = get_template(name, path=path, as_settings=False)
     try:
         return pd.DataFrame(template_dict).T
     except ValueError:
@@ -259,58 +259,12 @@ def dict_to_pandas(input_dict, name=0, object_type='DataFrame'):
         return pd.DataFrame(list(flat_dict.values()), index=idx, columns=[name])
 
 
-def update_charge(at, charge, charge_df, constrain_dict={}):
-    """ Set the atomic charge of **at** to **charge**, imposing the following constrains to
-    all remaining values in **series**:
-
-        * The total charge must be equal to the sum of all atomic charges in **series**.
-        * Optional constraints, as provided in **constrain_dict**, must be satisfied.
-    Performs an inplace update of **series**.
-
-    |
-
-    Example input (and the resulting charge constrains) for **constrain_dict**:
-
-    .. code-block:: python
-
-        constrain_dict = {}
-        constrain_dict['Cd'] = {'Se': -1, 'OG2D2': -0.5}
-        constrain_dict['Se'] = {'Cd': -1, 'OG2D2': 0.5}
-        constrain_dict['OG2D2'] = {'Se': 2, 'Cd': -2}
-
-    .. math::
-
-        q_{Cd} = -1*q_{Se} = -0.5*q_{OG2D2}
-
-    :parameter str at: An atom type such as *Se*, *Cd* or *OG2D2*.
-    :parameter float charge: The new charge associated with **at**.
-    :parameter charge_df: A dataframe of atomic charges.
-    :type series: |pd.Series|_ (index: |pd.Index|_, values: |np.float64|_)
-    :parameter dict constrain_dict: A dictionary with charge constrains.
-    """
-    net_charge = charge_df['charge'].sum()
-
-    # Update all constrained charges
-    charge_df.loc[charge_df['atom type'] == at, 'charge'] = charge
-    at_list = [at]
-    if at in constrain_dict:
-        for at2 in constrain_dict[at]:
-            at_list.append(at2)
-            charge_df.loc[charge_df['atom type'] == at2, 'charge'] *= constrain_dict[at][at2]
-
-    # Update all unconstrained charges
-    criterion = np.array([i not in at_list for i in charge_df['atom type']])
-    i = net_charge - charge_df.loc[~criterion, 'charge'].sum()
-    i /= charge_df.loc[criterion, 'charge'].sum()
-    charge_df.loc[criterion, 'charge'] *= i
-
-
 def array_to_index(ar):
     """ Convert a NumPy array into a Pandas Index or MultiIndex.
     Raises a ValueError if the dimensionality of **ar** is greater than 2.
 
     :parameter ar: A NumPy array.
-    :type ar: 1D or 2D |np.ndarrat|_
+    :type ar: 1D or 2D |np.ndarray|_
     :return: A Pandas Index or MultiIndex constructed from **ar**.
     :rtype: |pd.Index|_ or |pd.MultiIndex|_
     """
@@ -332,15 +286,15 @@ def write_psf(atoms=None, bonds=None, angles=None, dihedrals=None, impropers=Non
     :parameter atoms: A Pandas DataFrame holding the *atoms* block.
     :type atoms: |pd.DataFrame|_
     :parameter bonds: An array holding the indices of all atom-pairs defining bonds.
-    :type bonds: *i*2* |np.ndarray|_ [|np.int64|_]
+    :type bonds: :math:`i*2` |np.ndarray|_ [|np.int64|_]
     :parameter angles: An array holding the indices of all atoms defining angles.
-    :type angles: *j*3* |np.ndarray|_ [|np.int64|_]
+    :type angles: :math:`j*3` |np.ndarray|_ [|np.int64|_]
     :parameter dihedrals: An array holding the indices of all atoms defining proper
         dihedral angles.
-    :type dihedrals: *k*4* |np.ndarray|_ [|np.int64|_]
+    :type dihedrals: :math:`k*4` |np.ndarray|_ [|np.int64|_]
     :parameter impropers: An array holding the indices of all atoms defining improper
         dihedral angles.
-    :type impropers: *l*4* |np.ndarray|_ [|np.int64|_]
+    :type impropers: :math:`l*4` |np.ndarray|_ [|np.int64|_]
     """
     # Prepare the !NTITLE block
     top = 'PSF EXT\n'
@@ -381,3 +335,20 @@ def write_psf(atoms=None, bonds=None, angles=None, dihedrals=None, impropers=Non
 def get_example_xyz(name='Cd68Se55_26COO_MD_trajec.xyz'):
     """ Return the path + name of the example multi-xyz file. """
     return resource_filename('FOX', join('data', name))
+
+
+def _get_move_range(start=0.005, stop=0.1, step=0.005):
+    """ Generate an with array of all allowed moves, the moves spanning both the positive and
+    negative range.
+
+    :parameter float start: Start of the interval. The interval includes this value.
+    :parameter float stop: End of the interval. The interval includes this value.
+    :parameter float step: Spacing between values.
+    :return: An array with allowed moves.
+    :rtype: |np.ndarray|_ [|np.int64|_]
+    """
+    rng_range1 = np.arange(1 + start, 1 + stop, step, dtype=float)
+    rng_range2 = np.arange(1 - stop, 1 - start + step, step, dtype=float)
+    ret = np.concatenate((rng_range1, rng_range2))
+    ret.sort()
+    return ret

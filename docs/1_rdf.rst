@@ -4,7 +4,7 @@ Radial & Angular Distribution Function
 ======================================
 
 Radial and angular distribution function (RDF & ADF) generators have been
-implemented in the :class:`FOX.MultiMolecule` class.
+implemented in the :class:`.MultiMolecule` class.
 The radial distribution function, or pair correlation function, describes how
 the particale density in a system varies as a function of distance from a
 reference particle. The herein implemented function is designed for
@@ -56,6 +56,7 @@ oxygen (Cd_Cd, Cd_Se, Cd_O, Se_Se, Se_O and O_O).
     adf = mol.init_adf(atom_subset=atoms)
     rdf.plot()
     adf.plot()
+
 
 API
 ---

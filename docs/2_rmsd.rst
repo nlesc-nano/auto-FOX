@@ -3,6 +3,7 @@
 Root Mean Squared Displacement & Fluctuation
 ============================================
 
+
 Root Mean Squared Displacement
 ------------------------------
 
@@ -19,7 +20,7 @@ moleculair indices in a MD trajectory.
         )^2
     }
 
-Given a trajectory, ``mol``, stored as a :class:`FOX.MultiMolecule` object,
+Given a trajectory, ``mol``, stored as a :class:`.MultiMolecule` instance,
 the RMSD can be calculated with the :meth:`.MultiMolecule.init_rmsd`
 method using the following command:
 
@@ -51,6 +52,7 @@ The RMSD is printed for cadmium, selenium and oxygen atoms.
     rmsd = mol.init_rmsd(atom_subset=atoms)
     rmsd.plot(title='RMSD')
 
+
 Root Mean Squared Fluctuation
 -----------------------------
 
@@ -67,7 +69,7 @@ of atomic indices.
         \right\rangle
     }
 
-Given a trajectory, ``mol``, stored as a :class:`FOX.MultiMolecule` object,
+Given a trajectory, ``mol``, stored as a :class:`.MultiMolecule` instance,
 the RMSF can be calculated with the :meth:`.MultiMolecule.init_rmsf`
 method using the following command:
 
@@ -98,6 +100,7 @@ The RMSF is printed for cadmium, selenium and oxygen atoms.
     mol = MultiMolecule.from_xyz(get_example_xyz())
     rmsd = mol.init_rmsf(atom_subset=atoms)
     rmsd.plot(title='RMSF')
+
 
 Discerning shell structures
 ---------------------------
@@ -163,7 +166,7 @@ atomic indices based on aforementioned distance ranges.
      }
 
 It is even possible to use this dictionary with atom names & indices for
-renaming atoms in a :class:`FOX.MultiMolecule` object:
+renaming atoms in a :class:`.MultiMolecule` instance:
 
 .. code:: python
 
@@ -203,6 +206,7 @@ in ``atoms``.
 It should be noted that lists and/or tuples can be interchanged for any other \
 iterable container (*e.g.* a Numpy_ array), as long as the iterables elements \
 can be accessed by their index.
+
 
 API
 ---

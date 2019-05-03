@@ -6,11 +6,13 @@ __email__ = 'b.f.van.beek@vu.nl'
 from .__version__ import __version__
 
 from .functions import (
-    read_multi_xyz,
-    get_rdf, get_rdf_lowmem,
-    get_template, assert_error, get_example_xyz,
+    get_rdf_lowmem, get_rdf,
     get_adf,
-    create_hdf5, to_hdf5, from_hdf5
+    get_template, assert_error, get_example_xyz,
+    read_multi_xyz,
+    read_prm, write_prm, rename_atom_types,
+    create_hdf5, to_hdf5, from_hdf5,
+    update_charge, get_charge_constraints
 )
 
 from .classes import (
@@ -20,11 +22,13 @@ from .classes import (
 )
 
 __all__ = [
-    'read_multi_xyz',
-    'get_rdf', 'get_rdf_lowmem',
-    'get_template', 'assert_error', 'get_example_xyz',
+    'get_rdf_lowmem', 'get_rdf',
     'get_adf',
+    'get_template', 'assert_error', 'get_example_xyz',
+    'read_multi_xyz',
+    'read_prm', 'write_prm', 'rename_atom_types',
     'create_hdf5', 'to_hdf5', 'from_hdf5',
+    'update_charge', 'get_charge_constraints',
     'MultiMolecule',
     'MonteCarlo', 'ARMC',
     'Molecule'

@@ -5,6 +5,18 @@ Change Log
 All notable changes to this project will be documented in this file.
 This project adheres to `Semantic Versioning <http://semver.org/>`_.
 
+0.3.2
+*****
+
+Added
+-----
+* Simplified the FOX.ARMC input and updated its documentation.
+  (see https://github.com/nlesc-nano/auto-FOX/issues/33)
+* Added 2 new methods to the FOX.MultiMolecule class for calculating
+  average and time-averaged atomic velocities.
+* Added 2 modules for handling atomic charges and .prm files.
+
+
 0.3.1
 *****
 
@@ -18,7 +30,7 @@ Changed
 * Minor style changes to the documentation and the .xyz reader.
 * The FOX.MultiMolecule has been changed into a np.ndarray subclass.
   (see https://github.com/nlesc-nano/auto-FOX/issues/30)
-  
+
 
 0.3.0
 *****
@@ -47,12 +59,12 @@ Added
 Added
 -----
 
-* Introduced an angular distribution generator in the MultiMolecule class
+* Introduced an angular distribution generator in the MultiMolecule class.
 
 Changed
 -------
 
-* Fixed a renormalization bug in the 0.2.1 improved get_rdf() function
+* Fixed a renormalization bug in the 0.2.1 improved get_rdf() function.
 
 
 0.2.1
@@ -61,15 +73,15 @@ Changed
 Added
 -----
 
-* Introduced new FOX.MutliMolecule methods for slicing MD trajectories
-* Added the MonteCarlo API to the documentation
-* WiP: Split the MonteCarlo class into 2 classes: MonteCarlo & ARMC (subclass)
+* Introduced new FOX.MutliMolecule methods for slicing MD trajectories.
+* Added the MonteCarlo API to the documentation.
+* WiP: Split the MonteCarlo class into 2 classes: MonteCarlo & ARMC (subclass).
 
 Changed
 -------
 
-* Minor update to copy/deepcopy-related methods
-* Improved the get_rdf() function
+* Minor update to copy/deepcopy-related methods.
+* Improved the get_rdf() function.
 
 
 0.2.0
@@ -100,4 +112,4 @@ Added
 Added
 -----
 
-* Empty Python project directory structure
+* Empty Python project directory structure.

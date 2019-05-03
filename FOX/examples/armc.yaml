@@ -1,0 +1,49 @@
+param:
+    charge:
+        Se: -2.0
+        Cd: 2.0
+        O_1: -0.76
+        C_1: 0.52
+    epsilon:
+        Se Se: 51.30851
+        Cd Cd: 37.29669
+        Cd Se: 183.1158
+        Se O_1: 194.0607
+        Cd O_1: 220.5809
+    sigma:
+        Se Se: 4.852
+        Cd Cd: 1.234
+        Cd Se: 2.940
+        Se O_1: 3.526
+        Cd O_1: 2.471
+
+armc:
+    iter_len: 50000
+    sub_iter_len: 100
+    gamma: 2.0
+    a_target: 0.25
+    phi: 1.0
+
+pes:
+    rdf:
+        func: MultiMolecule.init_rdf
+        kwarg:
+            atom_subset: [Cd, Se, O]
+
+job:
+    molecule: Cd68Se55_26COO_MD_trajec.xyz
+    settings: md_cp2k.yaml
+    type: Cp2kJob
+    name: cp2kjob
+    path: .
+    folder: MM_MD_workdir
+    keep_files: False
+
+hdf5_file: ARMC.hdf5
+
+move:
+    charge_constraints: 'Cd = -1 * Se = -0.5 * O_1'
+    range:
+        start: 0.005
+        stop: 0.1
+        step: 0.005

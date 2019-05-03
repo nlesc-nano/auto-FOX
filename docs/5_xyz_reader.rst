@@ -12,7 +12,7 @@ function allows for the fast, and memory-effiecient, retrieval of the
 various molecular geometries stored in an .xyz file.
 
 An .xyz file, ``example_xyz_file``, can also be directly converted into
-a :class:`FOX.MultiMolecule` object.
+a :class:`.MultiMolecule` instance.
 
 .. code:: python
 

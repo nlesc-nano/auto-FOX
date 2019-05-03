@@ -30,8 +30,9 @@ def get_rdf(dist, dr=0.05, r_max=12.0):
     """ Calculate and return the radial distribution function (RDF) based on the 3D distance matrix
     **dist**.
 
-    :parameter dist: A 3D array representing *m* distance matrices of *n* by *k* atoms.
-    :type dist: *m*n*k* |np.ndarray|_ [|np.float64|_]
+    :parameter dist: A 3D array representing :math:`m` distance matrices of :math:`n` by
+        :math:`k` atoms.
+    :type dist: :math:`m*n*k` |np.ndarray|_ [|np.float64|_]
     :parameter float dr: The integration step-size in Angstrom, *i.e.* the distance between
         concentric spheres.
     :parameter float r_max: The maximum to be evaluated interatomic distance.
@@ -60,10 +61,10 @@ def get_rdf(dist, dr=0.05, r_max=12.0):
 def get_rdf_lowmem(dist, dr=0.05, r_max=12.0):
     """ Calculate and return the radial distribution function (RDF) based on the 2D distance matrix
     **dist**. A more memory efficient implementation of :func:`FOX.functions.rdf.get_rdf`,
-    which operates on a 3D dstance matrix.
+    which operates on a 3D distance matrix.
 
-    :parameter dist: A 2D array representing a distance matrix of *n* by *k* atoms.
-    :type dist: *1*m*n* |np.ndarray|_ [|np.float64|_]
+    :parameter dist: A 2D array representing a distance matrix of :math:`n` by :math:`k` atoms.
+    :type dist: :math:`n*k` |np.ndarray|_ [|np.float64|_]
     :parameter float dr: The integration step-size in Angstrom, *i.e.* the distance between
         concentric spheres.
     :parameter float r_max: The maximum to be evaluated interatomic distance.

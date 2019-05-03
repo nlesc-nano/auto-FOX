@@ -9,7 +9,7 @@ input:
         mm:
             forcefield:
                 ignore_missing_critical_params: ''
-                parm_file_name: ''
+                parm_file_name: par_all36_cgenff.prm
                 parmtype: CHM
                 do_nonbonded: ''
                 shift_cutoff: .TRUE.
@@ -25,9 +25,9 @@ input:
             topology:
                 coord_file_format: 'OFF'
                 conn_file_format: PSF
-                conn_file_name: ''
+                conn_file_name: mol.psf
                 center_coordinates:
-                    center_point: '0.0 0.0 0.0'
+                    center_point: 0.0 0.0 0.0
 
     motion:
         md:

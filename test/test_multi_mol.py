@@ -1,4 +1,4 @@
-""" A module for testing the FOX.MultiMolecule class. """
+""" A module for testing the :class:`FOX.MultiMolecule` class. """
 
 __all__ = []
 
@@ -8,7 +8,7 @@ from os.path import join
 import pytest
 import numpy as np
 
-from FOX import (MultiMolecule, get_example_xyz)
+from FOX import (MultiMolecule, get_example_xyz, get_template)
 
 
 MOL = MultiMolecule.from_xyz(get_example_xyz())
@@ -124,9 +124,11 @@ def test_rdf():
     mol = MOL.copy()
 
     atoms = ('Cd', 'Se', 'O')
-    rdf = mol.init_rdf(atom_subset=atoms).values
+    rdf1 = mol.init_rdf(atom_subset=atoms).values
+    rdf2 = mol.init_rdf(atom_subset=atoms, low_mem=True).values
     ref = np.load(join(REF_DIR, 'rdf.npy'))
-    np.testing.assert_allclose(rdf, ref)
+    np.testing.assert_allclose(rdf1, ref)
+    np.testing.assert_allclose(rdf2, ref)
 
 
 def test_rmsf():
@@ -151,6 +153,28 @@ def test_rmsd():
     np.testing.assert_allclose(rmsd, ref)
 
 
+def test_time_averaged_velocity():
+    """ Test :meth:`FOX.MultiMolecule.init_time_averaged_velocity`. """
+    mol = MOL.copy()
+
+    atoms = ('Cd', 'Se', 'O')
+    v = mol.init_time_averaged_velocity(atom_subset=atoms).values
+    np.nan_to_num(v, copy=False)
+    ref = np.load(join(REF_DIR, 'time_averaged_velocity.npy'))
+    np.nan_to_num(ref, copy=False)
+    np.testing.assert_allclose(v, ref)
+
+
+def test_average_velocity():
+    """ Test :meth:`FOX.MultiMolecule.init_average_velocity`. """
+    mol = MOL.copy()
+
+    atoms = ('Cd', 'Se', 'O')
+    v = mol.init_average_velocity(atom_subset=atoms).values
+    ref = np.load(join(REF_DIR, 'average_velocity.npy'))
+    np.testing.assert_allclose(v, ref)
+
+
 @pytest.mark.slow
 def test_adf():
     """ Test :meth:`FOX.MultiMolecule.init_adf`. """
@@ -160,6 +184,36 @@ def test_adf():
     adf = mol.init_adf(atom_subset=atoms).values
     ref = np.load(join(REF_DIR, 'adf.npy'))
     np.testing.assert_allclose(adf, ref)
+
+
+def test_shell_search():
+    """ Test :meth:`FOX.MultiMolecule.init_shell_search`. """
+    mol = MOL.copy()
+
+    rmsf, idx_series, rdf = mol.init_shell_search()
+    np.nan_to_num(rmsf, copy=False)
+
+    ref_rmsf = np.load(join(REF_DIR, 'shell_rmsf.npy'))
+    np.nan_to_num(ref_rmsf, copy=False)
+    ref_idx = np.load(join(REF_DIR, 'shell_idx.npy'))
+    ref_rdf = np.load(join(REF_DIR, 'shell_rdf.npy'))
+
+    np.testing.assert_allclose(ref_rmsf, rmsf)
+    np.testing.assert_allclose(ref_idx, idx_series)
+    np.testing.assert_allclose(ref_rdf, rdf)
+
+
+def test_get_at_idx():
+    """ Test :meth:`FOX.MultiMolecule.get_at_idx`. """
+    mol = MOL.copy()
+
+    rmsf, idx_series, rdf = mol.init_shell_search()
+    dist = 3.0, 6.5, 10.0
+    dist_dict = {'Cd': dist, 'Se': dist, 'O': dist, 'C': dist, 'H': dist}
+    dict_ = mol.get_at_idx(rmsf, idx_series, dist_dict)
+    ref = get_template('idx_series.yaml', path=REF_DIR)
+    for key in dict_:
+        assert dict_[key] == ref[key]
 
 
 def test_as_mass_weighted():

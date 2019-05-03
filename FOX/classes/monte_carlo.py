@@ -4,19 +4,21 @@ __all__ = ['MonteCarlo', 'ARMC']
 
 import os
 import shutil
+from os.path import join
 
 import numpy as np
 
-from scm.plams import Molecule
 from scm.plams.core.results import Results
 from scm.plams.core.settings import Settings
 from scm.plams.core.functions import (init, finish, add_to_class, config)
 from scm.plams.interfaces.thirdparty.cp2k import Cp2kJob
 
 from .multi_mol import MultiMolecule
-from ..functions.utils import (get_template, update_charge, write_psf)
-from ..functions.cp2k_utils import (update_cp2k_settings)
+from ..functions.utils import (get_template, write_psf, _get_move_range)
+from ..functions.cp2k_utils import (update_cp2k_settings, set_subsys_kind)
 from ..functions.hdf5_utils import (create_hdf5, to_hdf5)
+from ..functions.charge_utils import update_charge
+from ..functions.armc_sanitization import init_armc_sanitization
 
 
 @add_to_class(Results)
@@ -29,11 +31,11 @@ def get_xyz_path(self):
 
 
 class MonteCarlo():
-    """ The base MonteCarlo class.
+    """ The base :class:`.MonteCarlo` class.
 
-    :parameter ref: A list with *n* PES descriptors as derived from , *e.g.*,
+    :parameter ref: A list with :math:`n` PES descriptors as derived from , *e.g.*,
         an *Ab Initio* MD simulation.
-    :type ref: *n* |list|_ [|float|_ or |np.ndarray|_ [|np.float64|_]]
+    :type ref: :math:`n` |list|_ [|float|_ or |np.ndarray|_ [|np.float64|_]]
     :parameter param: An array with the initial to be optimized forcefield parameters.
     :type param: |np.ndarray|_ [|np.float64|_]
     :parameter molecule: A molecule.
@@ -41,13 +43,15 @@ class MonteCarlo():
 
     :Atributes:     * **param** (|pd.DataFrame|_ – See the **param** parameter.
 
-                    * **pes** (|plams.Settings|_) – See :meth:`MonteCarlo.reconfigure_pes_atr`
+                    * **pes** (|plams.Settings|_) – See :meth:`MonteCarlo.reconfigure_pes_atr`.
 
-                    * **move** (|plams.Settings|_) – See :meth:`MonteCarlo.reconfigure_move_atr`
+                    * **job** (|plams.Settings|_) – See :meth:`MonteCarlo.reconfigure_job_atr`.
 
-                    * **job** (|plams.Settings|_) – See :meth:`MonteCarlo.reconfigure_job_atr`
+                    * **hdf5_file** (|str|_) – The hdf5 path+filename.
+
+                    * **move** (|plams.Settings|_) – See :meth:`MonteCarlo.reconfigure_move_atr`.
     """
-    def __init__(self, param, molecule, **kwarg):
+    def __init__(self, molecule, param, **kwarg):
         # Set the inital forcefield parameters
         self.param = param
 
@@ -60,61 +64,39 @@ class MonteCarlo():
         # Settings for running the actual MD calculations
         self.job = Settings()
         self.job.molecule = molecule
-        self.job.psf = None
+        self.job.psf = {}
         self.job.func = Cp2kJob
         self.job.settings = get_template('md_cp2k.yaml')
-        self.job.name = self._get_name()
+        self.job.name = self.job.func.__name__.lower()
         self.job.path = os.getcwd()
+        self.job.folder = 'MM_MD_workdir'
         self.job.keep_files = False
-        self.hdf5_path = self.job.path
+
+        # HDF5 settings
+        self.hdf5_file = join(self.job.path, 'ARMC.hdf5')
 
         # Settings for generating Monte Carlo moves
         self.move = Settings()
         self.move.func = np.multiply
         self.move.kwarg = {}
         self.move.charge_constraints = {}
-        self.move.range = None
-        self.reconfigure_move_range()
-
-        # Set user-specified keywords
-        for key in kwarg:
-            if key in self.param:
-                self.param[key] = kwarg[key]
-            elif key in self.move:
-                self.move[key] = kwarg[key]
-            elif key in self.job:
-                self.job[key] = kwarg[key]
-
-        self._sanitize()
+        self.move.range = self.get_move_range()
 
     def __str__(self):
         return str(Settings(vars(self)))
 
-    def _get_name(self):
-        """ Return a jobname derived from **self.job.func**. """
-        ret = str(self.job.func)
-        ret = ret.rsplit("'", 1)[0].rsplit('.', 1)[-1]
-        return ret.lower()
-
-    def _sanitize(self):
-        """ Sanitize and validate all arguments of __init__(). """
-        assert isinstance(self.job.molecule, (Molecule, MultiMolecule))
-        if isinstance(self.job.molecule, MultiMolecule):
-            self.job.molecule = self.job.molecule.as_Molecule(-1)[0]
-
-        assert isinstance(self.job.name, str)
-        assert os.path.isdir(self.job.path)
-
     def move_param(self):
         """ Update a random parameter in **self.param** by a random value from **self.move.range**.
         Performs in inplace update of the *param* column in **self.param**.
+        By default the move is applied in a multiplicative manner
+        (see :meth:`MonteCarlo.reconfigure_move_atr`).
 
         :return: A tuple with the (new) values in the *param* column of **self.param**.
         :rtype: |tuple|_ [|float|_]
         """
         # Unpack arguments
         param = self.param
-        df = self.job.psf.atoms
+        psf = self.job.psf['atoms']
 
         # Perform a move
         i = param.loc[:, 'param'].sample()
@@ -126,12 +108,13 @@ class MonteCarlo():
         if 'charge' in i:
             for (_, at), charge in i.iteritems():
                 pass
-            update_charge(at, charge, df, self.move.charge_constraints)
-            idx_set = set(df['atom type'].values)
+            exclude = [i for i in psf if i in param.loc['charge'].index]
+            update_charge(at, charge, psf, self.move.charge_constraints, exclude)
+            idx_set = set(psf['atom type'].values)
             for at in idx_set:
                 if ('charge', at) in param.index:
-                    condition = df['atom type'] == at
-                    param.loc[('charge', at), 'param'] = df.loc[condition, 'charge'].iloc[0]
+                    condition = psf['atom type'] == at, 'charge'
+                    param.loc[('charge', at), 'param'] = psf.loc[condition].iloc[0]
             write_psf(**self.job.psf)
 
         # Update job settings and return a tuple with new parameters
@@ -139,13 +122,13 @@ class MonteCarlo():
         return tuple(self.param['param'].values)
 
     def run_md(self):
-        """ Run an MD job, updating the cartesian coordinates of **self.job.mol** and returning
-        a new MultiMolecule object.
+        """ Run a molecular dynamics (MD) job, updating the cartesian coordinates of
+        **self.job.mol** and returning a new :class:`.MultiMolecule` instance.
 
         * The MD job is constructed according to the provided settings in **self.job**.
 
-        :return: A MultiMolecule object constructed from the MD trajectory & the path to the PLAMS
-            results directory.
+        :return: A :class:`.MultiMolecule` instance constructed from the MD trajectory &
+            the path to the PLAMS results directory.
         :rtype: |FOX.MultiMolecule|_ and |str|_
         """
         # Run an MD calculation
@@ -185,24 +168,36 @@ class MonteCarlo():
             shutil.rmtree(path)
         return ret
 
-    def reconfigure_move_range(self, start=0.005, stop=0.1, step=0.005):
-        """ Generate an with array of all allowed moves, the moves spanning both the positive and
-        negative range.
-        Performs an inplace update of **self.move.range**.
+    @staticmethod
+    def get_move_range(start=0.005, stop=0.1, step=0.005):
+        """ Generate an with array of all allowed moves.
+        The move range spans a range of 1.0 +- **stop** and moves are thus intended to
+        applied in a multiplicative manner (see :meth:`MonteCarlo.move_param`).
+
+
+        Example:
+
+        .. code: python
+
+            >>> move_range = ARMC.get_move_range(start=0.005, stop=0.1, step=0.005)
+            >>> print(move_range)
+            [0.9   0.905 0.91  0.915 0.92  0.925 0.93  0.935 0.94  0.945
+             0.95  0.955 0.96  0.965 0.97  0.975 0.98  0.985 0.99  0.995
+             1.005 1.01  1.015 1.02  1.025 1.03  1.035 1.04  1.045 1.05
+             1.055 1.06  1.065 1.07  1.075 1.08  1.085 1.09  1.095 1.1  ]
 
         :parameter float start: Start of the interval. The interval includes this value.
         :parameter float stop: End of the interval. The interval includes this value.
         :parameter float step: Spacing between values.
+        :return: An array with allowed moves.
+        :rtype: |np.ndarray|_ [|np.int64|_]
         """
-        rng_range1 = np.arange(1 + start, 1 + stop, step)
-        rng_range2 = np.arange(1 - stop, 1 - start + step, step)
-        self.move.range = np.concatenate((rng_range1, rng_range2))
-        self.move.range.sort()
+        return _get_move_range(start, stop, step)
 
-    def reconfigure_move_atr(self, move_range=None, func=np.add, kwarg={}):
-        """ Reconfigure the attributes in **self.move**., the latter containg all settings related
+    def reconfigure_move_atr(self, move_range=None, func=np.multiply, kwarg={}):
+        """ Reconfigure the attributes in **self.move**, the latter containg all settings related
         to generating Monte Carlo moves.
-        See :meth:`MonteCarlo.set_move_range` for more extensive **set_move_range** options.
+        See :meth:`MonteCarlo.get_move_range` for more extensive **move_range** options.
 
         :parameter move_range: An array of allowed moves.
         :type move_range: |None|_ or |np.ndarray|_ [|np.float64|_]
@@ -210,9 +205,7 @@ class MonteCarlo():
             The function in **func** is applied to floats.
         :parameter dict kwarg: Keyword arguments used in **func**.
         """
-        self.move.range = move_range
-        if move_range is None:
-            self.set_move_range()
+        self.move.range = move_range or self.get_move_range()
         self.move.func = func
         self.move.kwarg = kwarg
 
@@ -239,20 +232,21 @@ class MonteCarlo():
             self.job.molecule = molecule
         self.job.func = func
         self.job.settings = settings or get_template('md_cp2k.yaml')
-        self.job.name = name or self._get_name()
+        self.job.name = name or self.job.func.__name__
         self.job.path = path or os.getcwd()
         self.job.keep_files = keep_files
 
 
 class ARMC(MonteCarlo):
-    """ The addaptive rate Monte Carlo (ARMC) class, a subclass of the FOX.MonteCarlo_.
+    """ The Addaptive Rate Monte Carlo class (:class:`.ARMC`), a subclass of the base
+    :class:`.MonteCarlo` class.
 
     :Atributes:     * **armc** (|plams.Settings|_) – See :meth:`ARMC.reconfigure_armc_atr`
 
                     * **phi** (|plams.Settings|_) – See :meth:`ARMC.reconfigure_phi_atr`
     """
-    def __init__(self, param, molecule, **kwarg):
-        MonteCarlo.__init__(self, param, molecule, **kwarg)
+    def __init__(self, molecule, param, **kwarg):
+        MonteCarlo.__init__(self, molecule, param, **kwarg)
 
         # Settings specific to addaptive rate Monte Carlo (ARMC)
         self.armc = Settings()
@@ -268,9 +262,38 @@ class ARMC(MonteCarlo):
         self.phi.kwarg = {}
 
         # Set user-specified keywords
-        for key in kwarg:
-            if key in self.armc:
-                self.armc[key] = kwarg[key]
+        for key, value in kwarg.items():
+            if not hasattr(self, key):
+                continue
+
+            try:
+                getattr(self, key).update(value)
+            except AttributeError:
+                setattr(self, key, value)
+
+    @staticmethod
+    def from_yaml(yml_file):
+        """ Create a :class:`.ARMC` instance from a .yaml file.
+
+        :parameter str yml_file: The path+filename of a .yaml file containing all :class:`ARMC`
+            settings.
+        :return: A :class:`ARMC` instance.
+        :rtype: |FOX.ARMC|_
+        """
+        return ARMC.from_dict(get_template(yml_file))
+
+    @classmethod
+    def from_dict(cls, dict_):
+        """ Create a :class:`.ARMC` instance from a dictionary.
+
+        :parameter dict dict_: A dictionary containing all :class:`ARMC` settings.
+        :return: A :class:`ARMC` instance.
+        :rtype: |FOX.ARMC|_
+        """
+        molecule, param, dict_ = init_armc_sanitization(dict_)
+        set_subsys_kind(dict_.job.settings, molecule.properties.psf)
+        molecule = molecule.as_Molecule(-1)[0]
+        return cls(molecule, param, **dict_)
 
     def init_armc(self):
         """ Initialize the Addaptive Rate Monte Carlo procedure.
@@ -282,40 +305,43 @@ class ARMC(MonteCarlo):
         super_iter = self.armc.iter_len // self.armc.sub_iter_len
 
         # Construct the HDF5 file
-        create_hdf5(self, path=self.hdf5_path)
+        create_hdf5(self.hdf5_file, self)
+
+        # Initialize
+        init(path=self.job.path, folder=self.job.folder)
+        config.default_jobmanager.settings.hashing = None
+        write_psf(**self.job.psf)
 
         # Initialize the first MD calculation
-        init(path=self.job.path, folder='MM_MD_workdir')
-        config.default_jobmanager.settings.hashing = None
-        key_new = tuple(self.param['param'].values)
         history_dict = {}
+        key_new = tuple(self.param['param'].values)
         pes_new = self.get_pes_descriptors(history_dict, key_new)
         history_dict[key_new] = self.get_aux_error(pes_new)
         self.param['param_old'] = self.param['param']
 
         # Start the main loop
-        for i in range(super_iter):
-            key_new = self.do_inner(i, history_dict, key_new)
+        for kappa in range(super_iter):
+            key_new = self.do_inner(kappa, history_dict, key_new)
         finish()
         return self.param
 
-    def do_inner(self, i, history_dict, key_new):
-        """ A method that handles the inner loop of the :meth:`ARMC.init_armc` method.
+    def do_inner(self, kappa, history_dict, key_new):
+        r""" A method that handles the inner loop of the :meth:`ARMC.init_armc` method.
 
-        :parameter int i: The superiteration in :meth:`ARMC.init_armc`.
+        :parameter int kappa: The super-iteration, :math:`\kappa`, in :meth:`ARMC.init_armc`.
         :parameter history_dict: A dictionary with parameters as keys and a list of PES descriptors
             as values.
         :type history_dict: |dict|_ (keys: |tuple|_, values: |dict|_ [|pd.DataFrame|_])
         :parameter key_new: A tuple with the latest set of forcefield parameters.
         :type key_new: |tuple|_ [|int|_]
-        :return: The latest set of parameters and the acceptance rate over the course of the inner
-            loop.
+        :return: The latest set of parameters and the acceptance rate, :math:`\alpha`, over the
+            course of the inner loop.
         :rtype: |tuple|_ [|int|_] and |np.ndarray|_ [|bool|_]
         """
         acceptance = np.zeros(self.armc.sub_iter_len, dtype=bool)
         hdf5_kwarg = {'param': self.param, 'acceptance': False}
 
-        for j in range(self.armc.sub_iter_len):
+        for omega in range(self.armc.sub_iter_len):
             # Step 1: Perform a random move
             key_old = key_new
             key_new = self.move_param()
@@ -334,13 +360,13 @@ class ARMC(MonteCarlo):
             accept = bool(sum(aux_new - aux_old))
 
             # Step 4: Update the auxiliary error history, apply phi & update job settings
-            acceptance[j] = accept
+            acceptance[omega] = accept
+            history_dict[key_new] = aux_new
             if accept:
                 history_dict[key_new] = self.apply_phi(aux_new)
                 self.param['param_old'] = self.param['param']
                 hdf5_kwarg['aux_error_mod'] = np.append(self.param['param'].values, self.phi.phi)
             else:
-                history_dict[key_new] = aux_new
                 history_dict[key_old] = self.apply_phi(aux_old)
                 key_new = key_old
                 self.param['param'] = self.param['param_old']
@@ -351,14 +377,24 @@ class ARMC(MonteCarlo):
             hdf5_kwarg['param'] = self.param['param']
             hdf5_kwarg['acceptance'] = accept
             hdf5_kwarg['aux_error'] = aux_new
-            to_hdf5(hdf5_kwarg, i, j, self.phi.phi, self.hdf5_path)
+            to_hdf5(self.hdf5_file, hdf5_kwarg, kappa, omega, self.phi.phi)
 
         self.update_phi(acceptance)
         return key_new
 
     def get_aux_error(self, pes_dict):
-        """ Return the auxiliary error of the PES descriptors in **values** with respect to
-        **self.ref**.
+        r""" Return the auxiliary error, :math:`\Delta \varepsilon_{QM-MM}`, of the PES descriptors
+        in **values** with respect to **self.ref**.
+
+
+        The default is equivalent to:
+
+        .. math::
+
+            \Delta \varepsilon_{QM-MM} =
+            \sum_{n} \sqrt{
+                \sum_{r_{ij}=0}^{r_{max}} (\Delta g_{n} (r_{ij}))^2
+            }
 
         :parameter pes_dict: A dictionary of *n* PES descriptors.
         :type pes_dict: *n* |dict|_ (keys: |str|_, values: |np.ndarray|_ [|np.float64|_])
@@ -370,9 +406,17 @@ class ARMC(MonteCarlo):
         return np.array([norm_sum(pes_dict[i], self.pes[i].ref) for i in pes_dict])
 
     def apply_phi(self, aux_error):
-        """ Apply **self.phi.phi** to all auxiliary errors in **aux_error**.
+        r""" Apply :math:`\phi` to all auxiliary errors, :math:`\Delta \varepsilon_{QM-MM}`,
+        in **aux_error**.
 
         * The values are updated according to the provided settings in **self.armc**.
+
+
+        The default is equivalent to:
+
+        .. math::
+
+            \Delta \varepsilon_{QM-MM} = \Delta \varepsilon_{QM-MM} + \phi
 
         :parameter aux_error: An array with auxiliary errors
         :type aux_error: |np.ndarray|_ [|np.float64|_]
@@ -382,9 +426,20 @@ class ARMC(MonteCarlo):
         return self.phi.func(aux_error, self.phi.phi, **self.phi.kwarg)
 
     def update_phi(self, acceptance):
-        """ Update **self.phi** based on **self.armc.a_target** and **acceptance**.
+        r""" Update :math:`\phi` based on the target accepatance rate, :math:`\alpha_{t}`, and the
+        acceptance rate, **acceptance**, in the current super-iteration.
 
         * The values are updated according to the provided settings in **self.armc**.
+
+
+        The default is equivalent to:
+
+        .. math::
+
+            \phi_{\kappa \omega} =
+            \phi_{ ( \kappa - 1 ) \omega} * \gamma^{
+                \text{sgn} ( \alpha_{t} - \overline{\alpha}_{ ( \kappa - 1 ) })
+            }
 
         :parameter acceptance: An array denoting the accepted moves within a sub-iteration.
         :type acceptance: |np.ndarray|_ [|bool|_]
@@ -393,13 +448,14 @@ class ARMC(MonteCarlo):
         self.phi.phi *= self.armc.gamma**sign
 
     def reconfigure_armc_atr(self, iter_len=50000, sub_iter_len=100, gamma=2.0, a_target=0.25):
-        """ Reconfigure the attributes in **self.armc**, the latter containing all settings
-        specific to addaptive rate Monte Carlo (except phi).
+        r""" Reconfigure the attributes in **self.armc**, the latter containing all settings
+        specific to addaptive rate Monte Carlo (except :math:`phi`,
+        see :meth:`.reconfigure_phi_atr`).
 
-        :parameter int iter_len: The total number of iterations (including sub-iterations).
-        :parameter int sub_iter_len: The length of each sub-iteration.
-        :parameter float gamma: The parameter gamma.
-        :parameter float a_target: The target acceptance rate.
+        :parameter int iter_len: The total number of iterations :math:`\kappa \omega`.
+        :parameter int sub_iter_len: The length of each sub-iteration :math:`\omega`.
+        :parameter float gamma: The parameter :math:`\gamma`.
+        :parameter float a_target: The target acceptance rate :math:`\alpha_{t}`.
         """
         self.armc.iter_len = iter_len
         self.armc.sub_iter_len = sub_iter_len
@@ -407,10 +463,10 @@ class ARMC(MonteCarlo):
         self.armc.a_target = a_target
 
     def reconfigure_phi_atr(self, phi=1.0, func=np.add, kwarg={}):
-        """ Reconfigure the attributes in **self.phi**, the latter containing all settings specific
+        r""" Reconfigure the attributes in **self.phi**, the latter containing all settings specific
         to the phi parameter in addaptive rate Monte Carlo.
 
-        :parameter float phi: The parameter phi.
+        :parameter float phi: The parameter :math:`\phi`.
         :parameter type func: A type object of a function used for performing moves.
             The function in **func** is applied to scalars, arrays and/or dataframes.
         :parameter dict kwarg: Keyword arguments used in **func**.

@@ -2,6 +2,12 @@
 Examples
 ########
 
+~~~~~~~~~~
+armc.yaml_
+~~~~~~~~~~
+
+A YAML_ file with settings for running Addaptive Rate Monte Carlo (ARMC) jobs.
+
 ~~~~~~~~~
 input.py_
 ~~~~~~~~~

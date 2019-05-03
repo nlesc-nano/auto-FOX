@@ -19,7 +19,7 @@ REF_DIR = 'test/test_files'
 
 
 def test_assert_error():
-    """ Test :func:`FOX.assert_error`. """
+    """ Test :func:`FOX.functions.utils.assert_error`. """
     msg = 'test error {}'
     @assert_error(msg)
     def test_func():
@@ -34,8 +34,8 @@ def test_assert_error():
 
 
 def test_get_template():
-    """ Test :func:`FOX.get_template`. """
-    s = get_template(name='param.yaml')
+    """ Test :func:`FOX.functions.utils.get_template`. """
+    s = get_template(name='md_cp2k.yaml')
     assert isinstance(s, Settings)
 
     dict_ = get_template(name='md_cp2k.yaml', as_settings=False)
@@ -44,8 +44,8 @@ def test_get_template():
 
 
 def test_template_to_df():
-    """ Test :func:`FOX.template_to_df`. """
-    df = template_to_df('param.yaml')
+    """ Test :func:`FOX.functions.utils.template_to_df`. """
+    df = template_to_df('param.yaml', path=REF_DIR)
     assert isinstance(df, pd.DataFrame)
 
     idx = np.array(['charge', 'epsilon', 'sigma'], dtype=object)
@@ -58,7 +58,7 @@ def test_template_to_df():
 
 
 def test_serialize_array():
-    """ Test :func:`FOX.serialize_array`. """
+    """ Test :func:`FOX.functions.utils.serialize_array`. """
     zeros = np.zeros((10, 2), dtype=bool)
     ref = ('         0         0         0         0         0         0         0         '
            '0\n         0         0         0         0         0         0         0         '
@@ -67,14 +67,14 @@ def test_serialize_array():
 
 
 def test_read_str_file():
-    """ Test :func:`FOX.read_str_file`. """
+    """ Test :func:`FOX.functions.utils.read_str_file`. """
     at, charge = read_str_file(join(REF_DIR, 'ligand.str'))
     assert at == ('CG2O3', 'HGR52', 'OG2D2', 'OG2D2')
     assert charge == (0.52, 0.0, -0.76, -0.76)
 
 
 def test_get_shape():
-    """ Test :func:`FOX.get_shape`. """
+    """ Test :func:`FOX.functions.utils.get_shape`. """
     a = np.random.rand(100, 10)
     b = a[0:15, 0].tolist()
     c = 5
@@ -85,7 +85,7 @@ def test_get_shape():
 
 
 def test_flatten_dict():
-    """ Test :func:`FOX.flatten_dict`. """
+    """ Test :func:`FOX.functions.utils.flatten_dict`. """
     dict_ = {}
     dict_['a'] = {'a1': 1, 'a2': 2, 'a3': 3}
     dict_['b'] = {'b1': 4, 'b2': 5}
@@ -103,7 +103,7 @@ def test_flatten_dict():
 
 
 def test_dict_to_pandas():
-    """ Test :func:`FOX.dict_to_pandas`. """
+    """ Test :func:`FOX.functions.utils.dict_to_pandas`. """
     dict_ = {}
     dict_['a'] = {'a1': 1, 'a2': 2, 'a3': 3}
     dict_['b'] = {'b1': 4, 'b2': 5}

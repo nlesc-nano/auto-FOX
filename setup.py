@@ -33,7 +33,8 @@ setup(
     package_data={'FOX': [
         'data/*.xyz',
         'data/*.yaml',
-        'data/*.str'
+        'data/*.str',
+        'data/*.prm'
     ]},
     include_package_data=True,
     license="GNU General Public License v3 or later",
