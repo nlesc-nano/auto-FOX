@@ -4,17 +4,22 @@ __all__ = ['Molecule']
 
 import numpy as np
 
-from scm.plams import Molecule
+from scm.plams import Molecule as _Molecule
 from scm.plams.core.errors import MoleculeError
 
 
-class Molecule(Molecule):
-    """ A modified version of the PLAMS Molecule_ class, suplemented with a number of
-    additional methods. """
+class Molecule(_Molecule):
+    """ A modified version of the plams.Molecule_ class, suplemented with a number of
+    additional methods.
 
+
+    .. _plams.Molecule: https://www.scm.com/doc/plams/components/mol_api.html
+    """
     def __getitem__(self, key):
-        """ Modified Molecule.__getitem__ method.
-        Atoms can now be sliced with instances of both ``int`` and ``np.integer``.
+        """ Modified `Molecule.__getitem__ <https://www.scm.com/doc/plams/components/mol_api.html\
+    #scm.plams.mol.molecule.Molecule.__getitem__>`_ method; atoms can now be sliced with instances
+        of both ``int`` and ``np.integer``.
+
         """
         if isinstance(key, (int, np.integer)):
             if key == 0:
@@ -36,8 +41,8 @@ class Molecule(Molecule):
         :return: A nested list of atomic indices, each sublist representing a set of unconnected
             moleculair fragments.
         :rtype: |list|_ [|list|_ [|int|_]].
-        _Molecule.separate: https://www.scm.com/doc/plams/components/molecule.html\
-    #scm.plams.core.basemol.Molecule.separate
+        .. _Molecule.separate: https://www.scm.com/doc/plams/components/mol_api.html\
+    #scm.plams.mol.molecule.Molecule.separate
         """
         if len(self.bonds) == 0:
             raise MoleculeError('separate_mod: No bonds were found in plams_mol')
@@ -89,12 +94,11 @@ class Molecule(Molecule):
                     at2.properties.charge += at2_saturation
 
     def set_atoms_id(self, start=1):
-        """ A modified version of the PLAMS Molecule.set_atoms_id_ method.
-        Equip each atom in **self** of the molecule with the *id* attribute based on enumeration of
-        **self.atoms**.
+        """ A modified version of the plams.Molecule.set_atoms_id_ method, allowing one to set the
+        starting value, **start**, of the enumeration procedure.
 
-        :parameter bool start: The starting value for the enumeration procedure.
-        _Molecule.set_atoms_id: https://www.scm.com/doc/plams/components/molecule.html#\
+
+        .. _plams.Molecule.set_atoms_id: https://www.scm.com/doc/plams/components/molecule.html#\
     scm.plams.core.basemol.Molecule.set_atoms_id
         """
         for i, at in enumerate(self, start):
@@ -103,60 +107,69 @@ class Molecule(Molecule):
     def get_angles(self):
         """ Return an array with the atomic indices defining all angles in **self**.
 
-        :return: An array with atomic indices defining *n* angles.
-        :rtype: *n*3* |np.ndarray|_ [|np.int64|_].
+        :return: A 2D array with atomic indices defining :math:`n` angles.
+        :rtype: :math:`n*3` |np.ndarray|_ [|np.int64|_].
         """
         self.set_atoms_id(start=0)
         angle = []
         for at2 in self.atoms:
-            if len(at2.bonds) >= 2:
-                at_other = [bond.other_end(at2) for bond in at2.bonds]
-                for i, at1 in enumerate(at_other, 1):
-                    for at3 in at_other[i:]:
-                        angle.append((at1.id, at2.id, at3.id))
+            if len(at2.bonds) < 2:
+                continue
+            at_other = [bond.other_end(at2) for bond in at2.bonds]
+            for i, at1 in enumerate(at_other, 1):
+                for at3 in at_other[i:]:
+                    angle.append((at1.id, at2.id, at3.id))
 
         return np.array(angle, dtype=int) + 1
 
     def get_dihedrals(self):
         """ Return an array with the atomic indices defining all proper dihedrals in **self**.
 
-        :return: An array with atomic indices defining *n* proper dihedrals.
-        :rtype: *n*4* |np.ndarray|_ [|np.int64|_].
+        :return: A 2D array with atomic indices defining :math:`n` proper dihedrals.
+        :rtype: :math:`n*4` |np.ndarray|_ [|np.int64|_].
         """
         self.set_atoms_id(start=0)
         dihed = []
         for b1 in self.bonds:
-            if len(b1.atom1.bonds) > 1 and len(b1.atom2.bonds) > 1:
-                at2, at3 = b1
-                for b2 in at2.bonds:
-                    at1 = b2.other_end(at2)
-                    if at1 != at3:
-                        for b3 in at3.bonds:
-                            at4 = b3.other_end(at3)
-                            if at4 != at2:
-                                dihed.append((at1.id, at2.id, at3.id, at4.id))
+            if not (len(b1.atom1.bonds) > 1 and len(b1.atom2.bonds) > 1):
+                continue
+            at2, at3 = b1
+            for b2 in at2.bonds:
+                at1 = b2.other_end(at2)
+                if at1 == at3:
+                    continue
+                for b3 in at3.bonds:
+                    at4 = b3.other_end(at3)
+                    if at4 != at2:
+                        dihed.append((at1.id, at2.id, at3.id, at4.id))
 
         return np.array(dihed, dtype=int) + 1
 
     def get_impropers(self):
         """ Return an array with the atomic indices defining all improper dihedrals in **self**.
 
-        :return: An array with atomic indices defining *n* improper dihedrals.
-        :rtype: *n*4* |np.ndarray|_ [|np.int64|_].
+        :return: A 2D array with atomic indices defining :math:`n` improper dihedrals.
+        :rtype: :math:`n*4` |np.ndarray|_ [|np.int64|_].
         """
         self.set_atoms_id(start=0)
         impropers = []
         for at1 in self.atoms:
             order = [bond.order for bond in at1.bonds]
-            if len(order) == 3:
-                if 2.0 in order or 1.5 in order:
-                    at2, at3, at4 = [bond.other_end(at1) for bond in at1.bonds]
-                    impropers.append((at1.id, at2.id, at3.id, at4.id))
+            if len(order) != 3:
+                continue
+            if 2.0 in order or 1.5 in order:
+                at2, at3, at4 = [bond.other_end(at1) for bond in at1.bonds]
+                impropers.append((at1.id, at2.id, at3.id, at4.id))
 
-        # Sort along the rows of columns 2, 3 & 4 based on atomic mass
+        # Sort along the rows of columns 2, 3 & 4 based on atomic mass in descending order
         ret = np.array(impropers, dtype=int) + 1
         mass = np.array([[self[int(j)].mass for j in i] for i in ret[:, 1:]])
         idx = np.argsort(mass, axis=1)[:, ::-1]
         for i, j in enumerate(idx):
             ret[i, 1:] = ret[i, 1:][j]
         return ret
+
+
+# Append docstrings
+Molecule.__doc__ += _Molecule.__doc__
+Molecule.__getitem__.__doc__ += _Molecule.__getitem__.__doc__
