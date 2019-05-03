@@ -75,7 +75,7 @@ def get_template(name, path=None, as_settings=True):
 
     :parameeter str name: The name of the template file.
     :parameter str path: The path where **name** is located.
-        Will default to the FOX.data directory if *None*.
+        Will default to the :mod:`FOX.data` directory if *None*.
     :parameter bool as_settings: If *False*, return a dictionary rather than a settings object.
     :return: A settings object or dictionary as constructed from the template file.
     :rtype: |plams.Settings|_ or |dict|_
@@ -96,7 +96,7 @@ def template_to_df(name, path=None):
 
     :parameeter str name: The name of the template file.
     :parameter str path: The path where **name** is located.
-        Will default to the FOX.data directory if *None*.
+        Will default to the :mod:`FOX.data` directory if *None*.
     :return: A dataframe as constructed from the template file.
     :rtype: |pd.DataFrame|_
     """
@@ -264,7 +264,7 @@ def array_to_index(ar):
     Raises a ValueError if the dimensionality of **ar** is greater than 2.
 
     :parameter ar: A NumPy array.
-    :type ar: 1D or 2D |np.ndarrat|_
+    :type ar: 1D or 2D |np.ndarray|_
     :return: A Pandas Index or MultiIndex constructed from **ar**.
     :rtype: |pd.Index|_ or |pd.MultiIndex|_
     """
@@ -286,15 +286,15 @@ def write_psf(atoms=None, bonds=None, angles=None, dihedrals=None, impropers=Non
     :parameter atoms: A Pandas DataFrame holding the *atoms* block.
     :type atoms: |pd.DataFrame|_
     :parameter bonds: An array holding the indices of all atom-pairs defining bonds.
-    :type bonds: *i*2* |np.ndarray|_ [|np.int64|_]
+    :type bonds: :math:`i*2` |np.ndarray|_ [|np.int64|_]
     :parameter angles: An array holding the indices of all atoms defining angles.
-    :type angles: *j*3* |np.ndarray|_ [|np.int64|_]
+    :type angles: :math:`j*3` |np.ndarray|_ [|np.int64|_]
     :parameter dihedrals: An array holding the indices of all atoms defining proper
         dihedral angles.
-    :type dihedrals: *k*4* |np.ndarray|_ [|np.int64|_]
+    :type dihedrals: :math:`k*4` |np.ndarray|_ [|np.int64|_]
     :parameter impropers: An array holding the indices of all atoms defining improper
         dihedral angles.
-    :type impropers: *l*4* |np.ndarray|_ [|np.int64|_]
+    :type impropers: :math:`l*4` |np.ndarray|_ [|np.int64|_]
     """
     # Prepare the !NTITLE block
     top = 'PSF EXT\n'

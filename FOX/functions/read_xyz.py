@@ -8,14 +8,15 @@ import numpy as np
 def read_multi_xyz(xyz_file):
     """ Read a (multi) .xyz file and return:
 
-        * An array with the cartesian coordinates of *m* molecules consisting of *n* atoms.
+        * An array with the cartesian coordinates of :math:`m` molecules
+          consisting of :math:`n` atoms.
 
         * A dictionary with atomic symbols and lists of matching atomic indices
 
     :parameter str xyz_file: The path + filename of a (multi) .xyz file.
     :return: A 3D array with cartesian coordinates and a dictionary
         with atomic symbols as keys and lists of matching atomic indices as values.
-    :rtype: *m*n*3* |np.ndarray|_ [|np.float64|_] and |dict|_
+    :rtype: :math:`m * n * 3` |np.ndarray|_ [|np.float64|_] and |dict|_
         (keys: |str|_, values: |list|_ [|int|_]).
     """
     # Define constants and construct a dictionary: {atomic symbols: [atomic indices]}
@@ -101,20 +102,25 @@ def _get_idx_dict(f, mol_size, subtract=0):
     :parameter f: An opened .xyz file.
     :type f: |io.TextIOWrapper|_
     :parameter int mol_size: The number of atoms per molecule in **f**.
-    :subtract: Ignore the first n lines in **f**
+    :subtract: Ignore the first :math:`n` lines in **f**
     :return: A dictionary with atomic symbols and a list of matching atomic indices.
     :rtype: |dict|_ (keys: |str|_, values: |list|_ [|int|_])
     """
     idx_dict = {}
     abort = mol_size - subtract
     for i, at in enumerate(f, -subtract):
-        if i >= 0:
-            at = at.split()[0].capitalize()
-            try:
-                idx_dict[at].append(i)
-            except KeyError:
-                idx_dict[at] = [i]
-            if i == abort:
-                for key in idx_dict:
-                    idx_dict[key] = sorted(idx_dict[key])
-                return idx_dict
+        if i < 0:  # Skip the header
+            continue
+
+        at = at.split()[0].capitalize()
+        try:  # Update idx_dict with new atomic indices
+            idx_dict[at].append(i)
+        except KeyError:
+            idx_dict[at] = [i]
+
+        if i != abort:  # If a single molecule has not been fully parsed yet
+            continue
+
+        for key in idx_dict:  # Sort the indices and return
+            idx_dict[key] = sorted(idx_dict[key])
+        return idx_dict

@@ -12,7 +12,7 @@ from scm.plams.core.settings import Settings
 
 class _MultiMolecule(np.ndarray):
     """ A class for handling the magic methods and
-    @property decorated methods of :class:`FOX.MultiMolecule`.
+    @property decorated methods of :class:`FOX.classes.multi_mol.MultiMolecule`.
     """
     def __new__(cls, coords, atoms=None, bonds=None, properties=None):
         obj = np.asarray(coords).view(cls)
@@ -180,8 +180,8 @@ class _MultiMolecule(np.ndarray):
         :parameter str prop: The to be returned property. Accepted values:
             **symbol**, **atnum**, **mass**, **radius** or **connectors**.
             See the |PeriodicTable|_ module of PLAMS for more details.
-        :return: A dictionary with atomic indices as keys and atomic symbols as values.
-        :rtype: |np.array|_ [|np.float64|_, |str|_ or |np.int64|_].
+        :return: A 1D array with the user-specified properties of :math:`n` atoms.
+        :rtype: :math:`n` |np.array|_ [|np.float64|_, |str|_ or |np.int64|_].
         """
         # Interpret the **values** argument
         prop_dict = {
@@ -206,6 +206,8 @@ class _MultiMolecule(np.ndarray):
 
     def copy(self, order='C', copy_attr=True):
         """ Return a copy of the MultiMolecule object.
+
+        See np.ndarray.copy_ for more details
 
         :parameter str order: Controls the memory layout of the copy.
             see np.ndarray.copy_ for more details.

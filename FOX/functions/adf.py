@@ -27,18 +27,17 @@ def get_adf_df(atom_pairs):
 
 
 def get_adf(ang_mat, r_max=24.0):
-    """ Calculate and return the radial distribution function (RDF) based on the 2D distance matrix
-    **dist**. A more memory efficient implementation of :func:`FOX.functions.rdf.get_rdf`,
-    which operates on a 3D dstance matrix.
+    """ Calculate and return the angular distribution function (ADF) based on the 4D angle matrix
+    **ang_mat**.
 
-    :parameter ang: A 4D angle matrix constructed from *m* molecules and three sets of *n*, *k* and
-        *l* atoms.
-    :type ang: *m*n*k*l* |np.ndarray|_ [|np.float64|_]
+    :parameter ang: A 4D angle matrix constructed from :math:`m` molecules and three sets of
+        :math:`n`, :math:`k` and :math:`l` atoms.
+    :type ang: :math:`m*n*k*l` |np.ndarray|_ [|np.float64|_]
     :parameter float r_max: The diameter of the sphere used for converting particle counts into
         densities.
     :return: A 1D array with an angular distribution function spanning all values between 0 and 180
         degrees.
-    :rtype: 181 |np.ndarray|_ [|np.float64|_]
+    :rtype: :math:`181` |np.ndarray|_ [|np.float64|_]
     """
     ang_mat[np.isnan(ang_mat)] = 10
     ang_int = np.array(np.degrees(ang_mat), dtype=int)

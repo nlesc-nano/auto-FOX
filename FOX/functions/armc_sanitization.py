@@ -1,4 +1,4 @@
-""" A module for parsing and sanitizing :class:`FOX.ARMC` settings. """
+""" A module for parsing and sanitizing :class:`FOX.classes.monte_carlo.ARMC` settings. """
 
 __all__ = ['init_armc_sanitization']
 
@@ -35,7 +35,7 @@ TYPE_DICT = {
 
 
 def init_armc_sanitization(dict_):
-    """ """
+    """ Initialize the armc input settings sanitization. """
     s = Settings(dict_)
 
     s.job = sanitize_job(s.job)
@@ -66,6 +66,7 @@ def assert_type(item, item_type, name='argument'):
 
 
 def sanitize_armc(armc):
+    """ Sanitize the armc block. """
     assert_type(armc.iter_len, (int, np.integer), 'armc.iter_len')
     assert_type(armc.sub_iter_len, (int, np.integer), 'armc.sub_iter_len')
     if armc.sub_iter_len > armc.iter_len:
@@ -92,6 +93,7 @@ def sanitize_armc(armc):
 
 
 def sanitize_param(param, settings):
+    """ Sanitize the param block. """
     for key1, value1 in param.items():
         if not isinstance(key1, str):
             error = TYPE_ERR.format('param.{}'.format(str(key1)) + ' key', 'str', get_name(key1))
@@ -120,6 +122,7 @@ def sanitize_param(param, settings):
 
 
 def sanitize_pes(pes, ref):
+    """ Sanitize the pes block. """
     for key in pes:
         assert_type(key, str)
         if isinstance(pes[key].func, str):
@@ -134,12 +137,14 @@ def sanitize_pes(pes, ref):
 
 
 def sanitize_hdf5_file(hdf5_file):
+    """ Sanitize the hdf5_file block. """
     if not isinstance(hdf5_file, str):
         raise TypeError(TYPE_ERR.format('hdf5_file', 'str', get_name(hdf5_file)))
     return hdf5_file
 
 
 def sanitize_job(job):
+    """ Sanitize the job block. """
     if isinstance(job.molecule, MultiMolecule):
         pass
     elif isinstance(job.molecule, str):
@@ -173,6 +178,7 @@ def sanitize_job(job):
 
 
 def sanitize_move(move):
+    """ Sanitize the move block. """
     move.range = _get_move_range(**move.range)
     move.func = np.multiply
     move.kwarg = {}
