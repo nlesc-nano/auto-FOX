@@ -31,8 +31,8 @@ pes:
             atom_subset: [Cd, Se, O]
 
 job:
-    molecule: /Users/basvanbeek/Documents/GitHub/auto-FOX/FOX/data/Cd68Se55_26COO_MD_trajec.xyz
-    settings: /Users/basvanbeek/Documents/GitHub/auto-FOX/FOX/data/md_cp2k.yaml
+    molecule: Cd68Se55_26COO_MD_trajec.xyz
+    settings: md_cp2k.yaml
     type: Cp2kJob
     name: cp2kjob
     path: .
