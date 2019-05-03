@@ -28,7 +28,7 @@ Various functions implemented in **Auto-FOX**.
 
 ~~~
 io_
-~~~~
+~~~
 
 Various io-related functions implemented in **Auto-FOX**.
 
