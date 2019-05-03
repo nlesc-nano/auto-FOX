@@ -72,6 +72,9 @@ class MultiMolecule(_MultiMolecule):
         """ Construct a new *MultiMolecule* by iterating through **self**
         along a set interval.
 
+        Equivalent to :code:`MultiMolecule[start:stop:step].copy()` or
+        :code:`MultiMolecule[start:stop:step]` depending on the value of **inplace**.
+
         :parameter int start: Start of the interval.
         :parameter int stop: End of the interval.
         :parameter int step: Spacing between values.
@@ -90,7 +93,7 @@ class MultiMolecule(_MultiMolecule):
         :parameter int start: Start of the interval.
         :parameter int stop: End of the interval.
         :parameter float p: The probability of including each particular molecule in
-            **self**. Values must be between 0.0 (0%) and 1.0 (100%).
+            **self**. Values must be between :math:`0.0` (0%) and :math:`1.0` (100%).
         :parameter bool inplace: Instead of returning the new coordinates, perform an inplace
             update of **self**.
         """
@@ -589,8 +592,9 @@ class MultiMolecule(_MultiMolecule):
 
 
         For example, ``dist_dict = {'Cd': [3.0, 6.5]}`` will create and return a dictionary with
-        three keys: One for all atoms whose RMSF is smaller than ``3.0``, one where the RMSF is
-        between ``3.0`` and ``6.5``, and finally one where the RMSF is larger than ``6.5``.
+        three keys: One for all atoms whose RMSF is smaller than :math:`3.0`, one where the RMSF is
+        between :math:`3.0` and `:math:`6.5`, and finally one where the RMSF is larger
+        than :math:`6.5`.
         This example is illustrated below:
 
         .. code:: python
@@ -824,7 +828,8 @@ class MultiMolecule(_MultiMolecule):
 
     def _get_atom_subset(self, subset):
         """ Grab and return a list of indices from **self.atoms**.
-        Return *at* if it is *None*, an *int* or iterable container consisting of *int*. """
+        Return *at* if it is *None*, an *int* or iterable container consisting of *int*.
+        """
         if subset is None:
             return slice(0, None)
         elif isinstance(subset, slice):
@@ -911,7 +916,7 @@ class MultiMolecule(_MultiMolecule):
         df.loc[df['atom type'] == atom_type, 'charge'] = charge
 
     def as_psf(self, filename='mol.psf', return_blocks=False):
-        """ Convert a *MultiMolecule* object into a Protein Structure File (.psf).
+        """ Create a Protein Structure File (.psf) out of **self**.
 
         :parameter str filename: The path+filename of the to-be create .psf file.
         :parameter bool return_blocks: Return a dicionary with all psf blocks instead of
@@ -942,7 +947,7 @@ class MultiMolecule(_MultiMolecule):
             write_psf(**ret)
 
     def _mol_to_file(self, filename, outputformat=None, mol_subset=0):
-        """ Create files using the plams.Molecule.write() method.
+        """ Create files using the plams.Molecule.write_ method.
 
         :parameter str filename: The path+filename (including extension) of the to be created file.
         :parameter str outputformat: The outputformat; accepated values are *mol*, *mol2*, *pdb* or
@@ -951,6 +956,9 @@ class MultiMolecule(_MultiMolecule):
             determined by their moleculair index.
             Include all :math:`m` molecules in **self** if *None*.
         :type mol_subset: |None|_, |int|_ or |list|_ [|int|_]
+
+        .. _plams.Molecule.write: https://www.scm.com/doc/plams/components/mol_api.html\
+    #scm.plams.mol.molecule.Molecule.write
         """
         mol_subset = self._get_mol_subset(mol_subset)
         outputformat = outputformat or filename.rsplit('.', 1)[-1]
@@ -968,42 +976,51 @@ class MultiMolecule(_MultiMolecule):
 
     def as_pdb(self, mol_subset=0, filename='mol.pdb'):
         """ Convert a *MultiMolecule* object into one or more Protein DataBank files (.pdb).
-        Utilizes the :meth:`plams.Molecule.write` method.
+        Utilizes the plams.Molecule.write_ method.
 
         :parameter str filename: The path+filename (including extension) of the to be created file.
         :parameter mol_subset: Perform the operation on a subset of molecules in **self**, as
             determined by their moleculair index.
             Includes all :math:`m` molecules in **self** if *None*.
         :type mol_subset: |None|_, |int|_ or |list|_ [|int|_]
+
+        .. _plams.Molecule.write: https://www.scm.com/doc/plams/components/mol_api.html\
+    #scm.plams.mol.molecule.Molecule.write
         """
         self._mol_to_file(filename, 'pdb', mol_subset)
 
     def as_mol2(self, mol_subset=0, filename='mol.mol2'):
         """ Convert a *MultiMolecule* object into one or more .mol2 files.
-        Utilizes the :meth:`plams.Molecule.write` method.
+        Utilizes the plams.Molecule.write_ method.
 
         :parameter str filename: The path+filename (including extension) of the to be created file.
         :parameter mol_subset: Perform the operation on a subset of molecules in **self**, as
             determined by their moleculair index.
             Includes all :math:`m` molecules in **self** if *None*.
         :type mol_subset: |None|_, |int|_ or |list|_ [|int|_]
+
+        .. _plams.Molecule.write: https://www.scm.com/doc/plams/components/mol_api.html\
+    #scm.plams.mol.molecule.Molecule.write
         """
         self._mol_to_file(filename, 'mol2', mol_subset)
 
     def as_mol(self, mol_subset=0, filename='mol.mol'):
         """ Convert a *MultiMolecule* object into one or more .mol files.
-        Utilizes the :meth:`plams.Molecule.write` method.
+        Utilizes the plams.Molecule.write_ method.
 
         :parameter str filename: The path+filename (including extension) of the to be created file.
         :parameter mol_subset: Perform the operation on a subset of molecules in **self**, as
             determined by their moleculair index.
             Includes all :math:`m` molecules in **self** if *None*.
         :type mol_subset: |None|_, |int|_ or |list|_ [|int|_]
+
+        .. _plams.Molecule.write: https://www.scm.com/doc/plams/components/mol_api.html\
+    #scm.plams.mol.molecule.Molecule.write
         """
         self._mol_to_file(filename, 'mol', mol_subset)
 
     def as_xyz(self, mol_subset=None, filename='mol.xyz'):
-        """ Convert a *MultiMolecule* object into an .xyz file.
+        """ Create an .xyz file out of **self**.
 
         :parameter str filename: The path+filename (including extension) of the to be created file.
         :parameter mol_subset: Perform the operation on a subset of molecules in **self**, as
@@ -1036,10 +1053,9 @@ class MultiMolecule(_MultiMolecule):
         :type atom_subset: |None|_, |int|_ or |str|_
         :parameter bool inplace: Instead of returning the new coordinates, perform an inplace
             update of **self**.
-        :return: An array of mass-weighted Cartesian coordinates of :math:`m` molecules with
-            :math:`n` atoms and, optionally, an array of :math:`n` atomic masses.
-        :rtype: :math:`m*n*3` |np.ndarray|_ [|np.float64|_] and, optionally,
-            :math:`n` |np.ndarray|_ [|np.float64|_]
+        :return: if **inplace** = *False: a new :class:`.MultiMolecule` instance with the
+            mass-weighted Cartesian coordinates of :math:`m` molecules with :math:`n` atoms.
+        :rtype: :math:`m*n*3` |np.ndarray|_ [|np.float64|_]
         """
         # Prepare slices
         i = self._get_mol_subset(mol_subset)
@@ -1072,7 +1088,7 @@ class MultiMolecule(_MultiMolecule):
         self[i, j, :] /= self.mass[None, j, None]
 
     def as_Molecule(self, mol_subset=None, atom_subset=None):
-        """ Convert a *MultiMolecule* object into a *list* of *plams.Molecule*.
+        """ Convert **self** into a *list* of *plams.Molecule*.
 
         :parameter mol_subset: Convert a subset of molecules in **self** as based on their
             indices. If *None*, convert all molecules.
@@ -1081,7 +1097,7 @@ class MultiMolecule(_MultiMolecule):
             **self**, as based on their indices. If *None*, convert all atoms per molecule.
         :type atom_subset: |None|_, |int|_ or |tuple|_ [|int|_]
         :return: A list of :math:`m` PLAMS molecules.
-        :rtype: |list|_ [|plams.Molecule|_].
+        :rtype: :math:`m` |list|_ [|plams.Molecule|_].
         """
         mol_subset = self._get_mol_subset(mol_subset)
         if atom_subset is None:
@@ -1127,7 +1143,7 @@ class MultiMolecule(_MultiMolecule):
         :parameter subset: Transfer a subset of *plams.Molecule* attributes to **self**. If *None*,
             transfer all attributes. Accepts one or more of the following values as strings:
             *properties*, *atoms* and/or *bonds*.
-        :return: A FOX.MultiMolecule constructed from **mol_list**.
+        :return: A :class:`.MultiMolecule` instance constructed from **mol_list**.
         :rtype: |FOX.MultiMolecule|_
         """
         if isinstance(mol_list, Molecule):
@@ -1165,7 +1181,7 @@ class MultiMolecule(_MultiMolecule):
 
     @classmethod
     def from_xyz(cls, xyz_file):
-        """ Convert a (multi) .xyz file into a FOX.MultiMolecule.
+        """ Convert a (multi) .xyz file into a instance of :class:`.MultiMolecule`.
 
         :parameter str xyz_file: The path + filename of an .xyz file
         :return: A FOX.MultiMolecule constructed from **xyz_file**.
