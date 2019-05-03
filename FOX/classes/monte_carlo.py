@@ -4,7 +4,7 @@ __all__ = ['MonteCarlo', 'ARMC']
 
 import os
 import shutil
-from os.path import (join, basename)
+from os.path import join
 
 import numpy as np
 
@@ -43,11 +43,13 @@ class MonteCarlo():
 
     :Atributes:     * **param** (|pd.DataFrame|_ – See the **param** parameter.
 
-                    * **pes** (|plams.Settings|_) – See :meth:`MonteCarlo.reconfigure_pes_atr`
+                    * **pes** (|plams.Settings|_) – See :meth:`MonteCarlo.reconfigure_pes_atr`.
 
-                    * **move** (|plams.Settings|_) – See :meth:`MonteCarlo.reconfigure_move_atr`
+                    * **job** (|plams.Settings|_) – See :meth:`MonteCarlo.reconfigure_job_atr`.
 
-                    * **job** (|plams.Settings|_) – See :meth:`MonteCarlo.reconfigure_job_atr`
+                    * **hdf5_file** (|str|_) – The hdf5 path+filename.
+
+                    * **move** (|plams.Settings|_) – See :meth:`MonteCarlo.reconfigure_move_atr`.
     """
     def __init__(self, molecule, param, **kwarg):
         # Set the inital forcefield parameters
@@ -106,7 +108,8 @@ class MonteCarlo():
         if 'charge' in i:
             for (_, at), charge in i.iteritems():
                 pass
-            update_charge(at, charge, psf, self.move.charge_constraints)
+            exclude = [i for i in psf if i in param.loc['charge'].index]
+            update_charge(at, charge, psf, self.move.charge_constraints, exclude)
             idx_set = set(psf['atom type'].values)
             for at in idx_set:
                 if ('charge', at) in param.index:
@@ -192,7 +195,7 @@ class MonteCarlo():
         return _get_move_range(start, stop, step)
 
     def reconfigure_move_atr(self, move_range=None, func=np.multiply, kwarg={}):
-        """ Reconfigure the attributes in **self.move**., the latter containg all settings related
+        """ Reconfigure the attributes in **self.move**, the latter containg all settings related
         to generating Monte Carlo moves.
         See :meth:`MonteCarlo.get_move_range` for more extensive **move_range** options.
 
@@ -235,7 +238,7 @@ class MonteCarlo():
 
 
 class ARMC(MonteCarlo):
-    """ The Addaptive Rate Monte Carlo class (:class:`.ARMC`), a subclass of the
+    """ The Addaptive Rate Monte Carlo class (:class:`.ARMC`), a subclass of the base
     :class:`.MonteCarlo` class.
 
     :Atributes:     * **armc** (|plams.Settings|_) – See :meth:`ARMC.reconfigure_armc_atr`
@@ -260,17 +263,19 @@ class ARMC(MonteCarlo):
 
         # Set user-specified keywords
         for key, value in kwarg.items():
-            if hasattr(self, key):
-                try:
-                    getattr(self, key).update(value)
-                except AttributeError:
-                    setattr(self, key, value)
+            if not hasattr(self, key):
+                continue
+
+            try:
+                getattr(self, key).update(value)
+            except AttributeError:
+                setattr(self, key, value)
 
     @staticmethod
     def from_yaml(yml_file):
         """ Create a :class:`.ARMC` instance from a .yaml file.
 
-        :parameter str yml_file: The path+filename of a .yaml file containing all *FOX.ARMC*
+        :parameter str yml_file: The path+filename of a .yaml file containing all :class:`ARMC`
             settings.
         :return: A :class:`ARMC` instance.
         :rtype: |FOX.ARMC|_
@@ -281,7 +286,7 @@ class ARMC(MonteCarlo):
     def from_dict(cls, dict_):
         """ Create a :class:`.ARMC` instance from a dictionary.
 
-        :parameter dict dict_: A dictionary containing all *FOX.ARMC* settings.
+        :parameter dict dict_: A dictionary containing all :class:`ARMC` settings.
         :return: A :class:`ARMC` instance.
         :rtype: |FOX.ARMC|_
         """
@@ -300,7 +305,7 @@ class ARMC(MonteCarlo):
         super_iter = self.armc.iter_len // self.armc.sub_iter_len
 
         # Construct the HDF5 file
-        create_hdf5(self, self.hdf5_file)
+        create_hdf5(self.hdf5_file, self)
 
         # Initialize
         init(path=self.job.path, folder=self.job.folder)
@@ -315,15 +320,15 @@ class ARMC(MonteCarlo):
         self.param['param_old'] = self.param['param']
 
         # Start the main loop
-        for i in range(super_iter):
-            key_new = self.do_inner(i, history_dict, key_new)
+        for kappa in range(super_iter):
+            key_new = self.do_inner(kappa, history_dict, key_new)
         finish()
         return self.param
 
-    def do_inner(self, i, history_dict, key_new):
+    def do_inner(self, kappa, history_dict, key_new):
         r""" A method that handles the inner loop of the :meth:`ARMC.init_armc` method.
 
-        :parameter int i: The super-iteration, :math:`\kappa`, in :meth:`ARMC.init_armc`.
+        :parameter int kappa: The super-iteration, :math:`\kappa`, in :meth:`ARMC.init_armc`.
         :parameter history_dict: A dictionary with parameters as keys and a list of PES descriptors
             as values.
         :type history_dict: |dict|_ (keys: |tuple|_, values: |dict|_ [|pd.DataFrame|_])
@@ -336,7 +341,7 @@ class ARMC(MonteCarlo):
         acceptance = np.zeros(self.armc.sub_iter_len, dtype=bool)
         hdf5_kwarg = {'param': self.param, 'acceptance': False}
 
-        for j in range(self.armc.sub_iter_len):
+        for omega in range(self.armc.sub_iter_len):
             # Step 1: Perform a random move
             key_old = key_new
             key_new = self.move_param()
@@ -355,7 +360,7 @@ class ARMC(MonteCarlo):
             accept = bool(sum(aux_new - aux_old))
 
             # Step 4: Update the auxiliary error history, apply phi & update job settings
-            acceptance[j] = accept
+            acceptance[omega] = accept
             history_dict[key_new] = aux_new
             if accept:
                 history_dict[key_new] = self.apply_phi(aux_new)
@@ -372,7 +377,7 @@ class ARMC(MonteCarlo):
             hdf5_kwarg['param'] = self.param['param']
             hdf5_kwarg['acceptance'] = accept
             hdf5_kwarg['aux_error'] = aux_new
-            to_hdf5(hdf5_kwarg, i, j, self.phi.phi, self.hdf5_file)
+            to_hdf5(self.hdf5_file, hdf5_kwarg, kappa, omega, self.phi.phi)
 
         self.update_phi(acceptance)
         return key_new
@@ -444,7 +449,8 @@ class ARMC(MonteCarlo):
 
     def reconfigure_armc_atr(self, iter_len=50000, sub_iter_len=100, gamma=2.0, a_target=0.25):
         r""" Reconfigure the attributes in **self.armc**, the latter containing all settings
-        specific to addaptive rate Monte Carlo (except phi).
+        specific to addaptive rate Monte Carlo (except :math:`phi`,
+        see :meth:`.reconfigure_phi_atr`).
 
         :parameter int iter_len: The total number of iterations :math:`\kappa \omega`.
         :parameter int sub_iter_len: The length of each sub-iteration :math:`\omega`.
