@@ -9,10 +9,13 @@ from .functions import (
     get_rdf_lowmem, get_rdf,
     get_adf,
     get_template, assert_error, get_example_xyz,
+    update_charge, get_charge_constraints
+)
+
+from .io import (
     read_multi_xyz,
     read_prm, write_prm, rename_atom_types,
     create_hdf5, to_hdf5, from_hdf5,
-    update_charge, get_charge_constraints
 )
 
 from .classes import (

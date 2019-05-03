@@ -12,7 +12,7 @@ from scm.plams import (Atom, Bond)
 
 from .molecule_utils import Molecule
 from .multi_mol_magic import _MultiMolecule
-from ..functions.read_xyz import read_multi_xyz
+from ..io.read_xyz import read_multi_xyz
 from ..functions.rdf import (get_rdf, get_rdf_lowmem, get_rdf_df)
 from ..functions.adf import (get_adf, get_adf_df)
 from ..functions.utils import (read_str_file, write_psf)
