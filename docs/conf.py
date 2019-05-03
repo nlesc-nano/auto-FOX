@@ -223,7 +223,7 @@ rst_epilog = """
 .. _plams.PeriodicTable: https://www.scm.com/doc/plams/components/utils.html#periodic-table
 .. _plams.Job: https://www.scm.com/doc/plams/components/jobs.html#job-api
 .. _plams.Settings: https://www.scm.com/doc/plams/components/settings.html
-.. _plams.Molecule: https://www.scm.com/doc/plams/components/molecule.html#id1
+.. _plams.Molecule: https://www.scm.com/doc/plams/components/mol_api.html
 .. _np.ndarray: https://docs.scipy.org/doc/numpy/reference/generated/numpy.ndarray.html
 .. _np.float64: https://docs.scipy.org/doc/numpy/user/basics.types.html#array-types-and-conversions-between-types
 .. _np.int64: https://docs.scipy.org/doc/numpy/user/basics.types.html#array-types-and-conversions-between-types
