@@ -16,10 +16,10 @@ read rtf card append
 
 RESI formate       -1.000 ! param penalty=   0.000 ; charge penalty=   0.000
 GROUP            ! CHARGE   CH_PENALTY
-ATOM C1     CG2O3   0.520 !    0.000
-ATOM H2     HGR52   0.000 !    0.000
-ATOM O3     OG2D2  -0.760 !    0.000
-ATOM O4     OG2D2  -0.760 !    0.000
+ATOM C1     C_1     0.520 !    0.000
+ATOM H2     H_1     0.000 !    0.000
+ATOM O3     O_1    -0.760 !    0.000
+ATOM O4     O_1    -0.760 !    0.000
 
 BOND C1   O4
 BOND C1   O3
