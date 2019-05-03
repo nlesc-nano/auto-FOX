@@ -8,9 +8,7 @@ from os.path import join
 import pandas as pd
 import numpy as np
 
-from FOX.functions.read_prm import (
-    read_prm, write_prm, rename_atom_types, update_dtype, _reorder_column_dict
-)
+from FOX.functions.read_prm import (read_prm, write_prm, rename_atom_types, update_dtype)
 
 
 REF_DIR = 'test/test_files'
@@ -19,8 +17,8 @@ REF_DIR = 'test/test_files'
 def test_read_prm():
     """ Test :func:`FOX.functions.read_prm.read_prm`. """
     prm_dict = read_prm(join(REF_DIR, 'test_param1.prm'))
-    nonbonded = 'NONBONDED nbxmod  5 atom cdiel fshift vatom vdistance vfswitch -\n\
-    cutnb 14.0 ctofnb 12.0 ctonnb 10.0 eps 1.0 e14fac 1.0 wmin 1.5'
+    nonbonded = 'NONBONDED nbxmod  5 atom cdiel fshift vatom vdistance vfswitch -\n'
+    nonbonded += 'cutnb 14.0 ctofnb 12.0 ctonnb 10.0 eps 1.0 e14fac 1.0 wmin 1.5\n'
     shape_dict = {
         'ATOMS': (159, 3),
         'BONDS': (526, 2),
@@ -62,8 +60,9 @@ def test_rename_atom_types():
         if prm in ignore:
             continue
         for key, value in rename_dict.items():
-            assert key not in df.index
-            assert value in df.index
+            idx = np.array(df.index.tolist())
+            assert key not in idx
+            assert value in idx
 
 
 def test_update_dtype():
@@ -82,5 +81,5 @@ def test_update_dtype():
 def test_reorder_column_dict():
     """ Test :func:`FOX.functions.read_prm.reorder_column_dict`. """
     df = read_prm(join(REF_DIR, 'test_param1.prm'))['ATOMS']
-    ret = _reorder_column_dict(df)
-    assert ret == ['MASS', '-1', 1, 'mass']
+    assert (df.columns == pd.Index(['MASS', '-1', 'mass'], name='parameters')).all()
+    assert df.index.name == 'Atom 1'
