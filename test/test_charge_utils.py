@@ -29,14 +29,14 @@ def test_update_charge():
     df = DF.copy()
 
     net_charge = df['charge'].sum()
-    constrain_dict = get_charge_constraints('Cd = -0.5 * OG2D2 = -1 * Se')
-    exclude = ['HGR52']
+    constrain_dict = get_charge_constraints('Cd = -0.5 * O_1 = -1 * Se')
+    exclude = ['H_1']
     update_charge('Cd', 1.9, df, constrain_dict, exclude)
 
     Cd_charge = df.loc[df['atom type'] == 'Cd', 'charge'].iloc[0]
-    O_charge = df.loc[df['atom type'] == 'OG2D2', 'charge'].iloc[0]
+    O_charge = df.loc[df['atom type'] == 'O_1', 'charge'].iloc[0]
     Se_charge = df.loc[df['atom type'] == 'Se', 'charge'].iloc[0]
-    H_charge = df.loc[df['atom type'] == 'HGR52', 'charge'].iloc[0]
+    H_charge = df.loc[df['atom type'] == 'H_1', 'charge'].iloc[0]
 
     assert Cd_charge == 1.9
     assert Se_charge == -1 * Cd_charge
@@ -45,13 +45,13 @@ def test_update_charge():
     assert np.abs(df['charge'].sum() - net_charge) <= 10**-8
 
     net_charge = df['charge'].sum()
-    update_charge('CG2O3', -1.0, df, constrain_dict, exclude)
+    update_charge('C_1', -1.0, df, constrain_dict, exclude)
 
     Cd_charge = df.loc[df['atom type'] == 'Cd', 'charge'].iloc[0]
-    O_charge = df.loc[df['atom type'] == 'OG2D2', 'charge'].iloc[0]
+    O_charge = df.loc[df['atom type'] == 'O_1', 'charge'].iloc[0]
     Se_charge = df.loc[df['atom type'] == 'Se', 'charge'].iloc[0]
-    H_charge = df.loc[df['atom type'] == 'HGR52', 'charge'].iloc[0]
-    C_charge = df.loc[df['atom type'] == 'CG2O3', 'charge'].iloc[0]
+    H_charge = df.loc[df['atom type'] == 'H_1', 'charge'].iloc[0]
+    C_charge = df.loc[df['atom type'] == 'C_1', 'charge'].iloc[0]
 
     assert C_charge == -1.0
     assert Se_charge == -1 * Cd_charge
@@ -64,25 +64,25 @@ def test_update_constrained_charge():
     """ Test :func:`FOX.functions.charge_utils.update_constrained_charge`. """
     df = DF.copy()
 
-    constrain_dict = get_charge_constraints('Cd = -0.5 * OG2D2 = -1 * Se')
+    constrain_dict = get_charge_constraints('Cd = -0.5 * O_1 = -1 * Se')
     df.loc[df['atom type'] == 'Cd', 'charge'] = 2.5
     update_constrained_charge('Cd', df, constrain_dict)
 
     Cd_charge = df.loc[df['atom type'] == 'Cd', 'charge'].iloc[0]
-    O_charge = df.loc[df['atom type'] == 'OG2D2', 'charge'].iloc[0]
+    O_charge = df.loc[df['atom type'] == 'O_1', 'charge'].iloc[0]
     Se_charge = df.loc[df['atom type'] == 'Se', 'charge'].iloc[0]
     assert Cd_charge == 2.5
     assert Se_charge == -1 * Cd_charge
     assert O_charge == -0.5 * Cd_charge
 
-    constrain_dict = get_charge_constraints('Cd = 0.5 + OG2D2 = -1 + Se = HGR52 * 0.9')
+    constrain_dict = get_charge_constraints('Cd = 0.5 + O_1 = -1 + Se = H_1 * 0.9')
     df.loc[df['atom type'] == 'Cd', 'charge'] = 1.5
     update_constrained_charge('Cd', df, constrain_dict)
 
     Cd_charge = df.loc[df['atom type'] == 'Cd', 'charge'].iloc[0]
-    O_charge = df.loc[df['atom type'] == 'OG2D2', 'charge'].iloc[0]
+    O_charge = df.loc[df['atom type'] == 'O_1', 'charge'].iloc[0]
     Se_charge = df.loc[df['atom type'] == 'Se', 'charge'].iloc[0]
-    H_charge = df.loc[df['atom type'] == 'HGR52', 'charge'].iloc[0]
+    H_charge = df.loc[df['atom type'] == 'H_1', 'charge'].iloc[0]
     assert Cd_charge == 1.5
     assert Se_charge == -1 + Cd_charge
     assert O_charge == 0.5 + Cd_charge

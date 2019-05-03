@@ -16,7 +16,8 @@ mol.update_atom_charge('Se', -2.0)
 psf = mol.as_psf(return_blocks=True)
 
 # Prepare the ARMC settings
-s = get_template('armc.yaml')
+path = join(FOX.__path__[0], 'examples')
+s = get_template('armc.yaml', path)
 s.job.psf = psf
 s.job.molecule = mol
 

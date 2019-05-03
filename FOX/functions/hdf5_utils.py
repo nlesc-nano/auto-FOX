@@ -217,7 +217,6 @@ def dset_to_series(f, key):
     :return: A Pandas Series retrieved from **key** in **f**.
     :rtype: |pd.Series|_ or |list|_ [|pd.Series|_]
     """
-    import pdb; pdb.set_trace()
     name = f[key].attrs['name'][0].decode()
     index = array_to_index(f[key].attrs['index'][:])
     data = f[key][:]

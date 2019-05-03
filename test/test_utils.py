@@ -35,7 +35,7 @@ def test_assert_error():
 
 def test_get_template():
     """ Test :func:`FOX.functions.utils.get_template`. """
-    s = get_template(name='armc.yaml')
+    s = get_template(name='md_cp2k.yaml')
     assert isinstance(s, Settings)
 
     dict_ = get_template(name='md_cp2k.yaml', as_settings=False)

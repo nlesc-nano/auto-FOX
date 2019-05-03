@@ -2,7 +2,6 @@
 
 __all__ = []
 
-from os import remove
 from os.path import join
 
 import numpy as np
