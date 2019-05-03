@@ -119,7 +119,3 @@ def _get_atoms_df(atoms):
     ret['charge'] = charge.astype(float, copy=False)
 
     return ret
-
-
-pdb_file = r'/Users/basvanbeek/Documents/CdSe/Week_5/QD/Cd68Cl26Se55__26_CCCCCCCCCCCCC[CCC][CCC]C[=O][O-]@O22.pdb'
-atoms, bonds = read_pdb(pdb_file)
