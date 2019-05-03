@@ -14,6 +14,7 @@ Added
   (see https://github.com/nlesc-nano/auto-FOX/issues/33)
 * Added 2 new methods to the FOX.MultiMolecule class for calculating
   average and time-averaged atomic velocities.
+* Added 2 modules for handling atomic charges and .prm files.
 
 
 0.3.1
