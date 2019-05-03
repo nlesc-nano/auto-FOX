@@ -39,7 +39,6 @@ def test_cp2k_md():
     path = join(FOX.__path__[0], 'examples/cp2k_md.py')
     with open(path, 'r') as f:
         exec(f.read(), global_dict, local_dict)
-    remove('mol.psf')
 
     mol = MOL.copy()
     psf = {
