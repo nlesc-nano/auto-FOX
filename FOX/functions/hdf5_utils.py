@@ -20,7 +20,7 @@ from ..functions.utils import (get_shape, assert_error, array_to_index)
 
 
 @assert_error(H5PY_ERROR)
-def create_hdf5(mc_kwarg, filename='MC.hdf5'):
+def create_hdf5(filename, mc_kwarg):
     """ Create a hdf5 file to hold all addaptive rate Mone Carlo results (:class:`FOX.ARMC`).
     Datasets are created to hold a number of results following results over the course of the
     MC optimization:
@@ -30,14 +30,14 @@ def create_hdf5(mc_kwarg, filename='MC.hdf5'):
     * User-specified PES descriptors (dataset(s): user-specified name(s))
     * The *index*, *columns* and/or *name* attributes above-mentioned results
 
+    :parameter str filename: The path+name of the hdf5 file.
     :parameter mc_kwarg: An ARMC object.
     :type mc_kwarg: |FOX.ARMC|_
-    :parameter str filename: The path+name of the hdf5 file.
     """
     shape = mc_kwarg.armc.iter_len // mc_kwarg.armc.sub_iter_len, mc_kwarg.armc.sub_iter_len
 
     # Create a Settings object with the shape and dtype of all datasets
-    shape_dict = Settings()
+    shape_dict = Settings({})
     shape_dict.phi.shape = (shape[0], )
     shape_dict.phi.dtype = float
     shape_dict.param.shape = shape + (len(mc_kwarg.param), )
@@ -54,24 +54,24 @@ def create_hdf5(mc_kwarg, filename='MC.hdf5'):
 
     # Create a hdf5 file with *n* datasets
     with h5py.File(filename, 'w-') as f:
-        f.attrs['iteration'] = -1
-        f.attrs['subiteration'] = -1
+        f.attrs['super-iteration'] = -1
+        f.attrs['sub-iteration'] = -1
         for key, value in shape_dict.items():
             f.create_dataset(name=key, compression='gzip', **value)
 
     # Store the *index*, *column* and *name* attributes of dataframes/series in the hdf5 file
     idx = mc_kwarg.param['param'].index.append(pd.MultiIndex.from_tuples([('phi', '')]))
     pd_dict = {'param': mc_kwarg.param['param'],
-               'phi': pd.Series(np.nan, name='phi'),
+               'phi': pd.Series(np.nan, index=np.arange(shape[0]), name='phi'),
                'aux_error': pd.Series(np.nan, index=list(mc_kwarg.pes), name='aux_error'),
                'aux_error_mod': pd.Series(np.nan, index=idx, name='aux_error_mod')}
     for key, value in mc_kwarg.pes.items():
         pd_dict[key] = value.ref
-    index_to_hdf5(pd_dict, filename)
+    index_to_hdf5(filename, pd_dict)
 
 
 @assert_error(H5PY_ERROR)
-def index_to_hdf5(pd_dict, filename='MC.hdf5'):
+def index_to_hdf5(filename, pd_dict):
     """ Export the *index* and *columns* / *name* attributes of a Pandas dataframe/series to a
     pre-existing hdf5 file.
     Attributes are exported for all dataframes/series in **pd_dict** and skipped otherwise.
@@ -132,37 +132,38 @@ def _attr_to_array(item):
 
 
 @assert_error(H5PY_ERROR)
-def to_hdf5(dict_, i, j, phi, filename='MC.hdf5'):
+def to_hdf5(filename, dict_, kappa, omega, phi):
     r""" Export results from **dict_** to the hdf5 file **name**.
 
+    :parameter str filename: The path+name of the hdf5 file.
     :parameter dict dict_: A dictionary with dataset names as keys and matching array-like objects
         as values.
-    :parameter int i: The super-iteration, :math:`\kappa`, in the outer loop of
+    :parameter int kappa: The super-iteration, :math:`\kappa`, in the outer loop of
         :meth:`.ARMC.init_armc`.
-    :parameter int j: The sub-iteration, :math:`\omega`, in the inner loop of
+    :parameter int omega: The sub-iteration, :math:`\omega`, in the inner loop of
         :meth:`.ARMC.init_armc`.
     :parameter float phi: The value of the :class:`.ARMC` variable :math:`\phi`.
-    :parameter str filename: The path+name of the hdf5 file.
     """
     with h5py.File(filename, 'r+') as f:
-        f.attrs['iteration'] = i
-        f.attrs['subiteration'] = j
-        f['phi'][i] = phi
+        f.attrs['super-iteration'] = kappa
+        f.attrs['sub-iteration'] = omega
+        f['phi'][kappa] = phi
         for key, value in dict_.items():
-            f[key][i, j] = value
+            f[key][kappa, omega] = value
 
 
 @assert_error(H5PY_ERROR)
-def from_hdf5(datasets=None, filename='MC.hdf5'):
+def from_hdf5(filename, datasets=None):
     """ Retrieve all user-specified datasets from **name**, returning a dicionary of
     DataFrames and/or Series.
 
+    :parameter str filename: The path+name of the hdf5 file.
     :parameter list datasets: A list of to be retrieved dataset names.
         All datasets will be retrieved if *None*.
-    :parameter str filename: The path+name of the hdf5 file.
     :return: A dicionary with dataset names as keys and the matching data as values.
     :rtype: |dict|_ (values:|pd.DataFrame|_ and/or |pd.Series|_)
     """
+    # TODO: Add the ability to return dataset slices
     ret = {}
     with h5py.File(filename, 'r') as f:
         datasets = datasets or f.keys()
@@ -190,15 +191,19 @@ def _get_dset(f, key):
     """
     if 'columns' in f[key].attrs.keys():
         return dset_to_df(f, key)
+
     elif 'name' in f[key].attrs.keys():
         return dset_to_series(f, key)
+
     elif f[key].ndim == 2:
         return pd.Series(f[key][:].flatten(), name=key)
+
     elif f[key].ndim == 3:
         data = f[key][:]
         data.shape = np.product(data.shape[:-1]), -1
         columns = pd.MultiIndex.from_product([[key], np.arange(data.shape[-1])])
         return pd.DataFrame(data, columns=columns)
+
     raise TypeError(key, f[key].ndim)
 
 
@@ -212,6 +217,7 @@ def dset_to_series(f, key):
     :return: A Pandas Series retrieved from **key** in **f**.
     :rtype: |pd.Series|_ or |list|_ [|pd.Series|_]
     """
+    import pdb; pdb.set_trace()
     name = f[key].attrs['name'][0].decode()
     index = array_to_index(f[key].attrs['index'][:])
     data = f[key][:]
