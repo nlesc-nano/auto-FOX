@@ -939,7 +939,6 @@ class MultiMolecule(_MultiMolecule):
         else:
             write_psf(**ret)
 
-
     def _mol_to_file(self, filename, outputformat=None, mol_subset=0):
         """ Create files using the plams.Molecule.write() method.
 

@@ -16,8 +16,7 @@ def rename_atom_types(prm_dict, rename_dict):
         >>> 'H_old' in atom_dict['ATOMS'].index
         True
 
-        >>> rename_dict = {}
-        >>> rename_dict['H_old'] = 'H_new'
+        >>> rename_dict = {'H_old': 'H_new'}
         >>> rename_atom_types(prm_dict, rename_dict)
 
         >>> 'H_old' in atom_dict['ATOMS'].index
@@ -159,24 +158,24 @@ def read_blocks(f, key):
     ret = []
     for j in f:
         item = j.rstrip('\n')
-        if 'NONBONDED' in item:
+        if 'NONBONDED' in item:  # Prepare for the NONBONDED block
             item = _get_nonbonded(f, item)
             kwarg = {'data': ret, 'index': np.arange(len(ret))}
             return {key: pd.DataFrame(**kwarg)}, item
 
-        elif 'HBOND' in item:
+        elif 'HBOND' in item:  # Prepare for the HBOND block
             kwarg = {'data': ret, 'index': np.arange(len(ret))}
             return {key: pd.DataFrame(**kwarg)}, item.split('!')[0].rstrip()
 
-        elif item in stop:
+        elif item in stop:  # Prepare for the next (regular) block
             kwarg = {'data': ret, 'index': np.arange(len(ret))}
             return {key: pd.DataFrame(**kwarg)}, item
 
-        elif item == 'END':
+        elif item == 'END':  # The end of the .prm file has been reached
             kwarg = {'data': ret, 'index': np.arange(len(ret))}
             return {key: pd.DataFrame(**kwarg)}, False
 
-        elif item and item[0] != '!':
+        elif item and item[0] != '!':  # Iterate within a block
             item2 = item.split('!')[0].split()
             ret.append(item2)
 
@@ -207,6 +206,8 @@ def _proccess_prm_df(prm_dict):
     :return: **prm_dict** with new columns, indices and datatypes.
     :rtype: |dict|_ (key: |str|_, value: |pd.DataFrame|_)
     """
+    float_blacklist = {'ATOMS': ('-1'), 'DIHEDRALS': ('param 2'), 'IMPROPERS': ('param 2')}
+
     # A dictionary with column keys
     column_dict = {
         'ATOMS': ['MASS', '-1', 1, 'mass'],
@@ -221,6 +222,8 @@ def _proccess_prm_df(prm_dict):
     for key, df in prm_dict.items():
         if 'NONBONDED' in key:
             key = 'NONBONDED'
+        elif key == 'ATOMS':
+            column_dict[key] = _reorder_column_dict(df)
         elif 'HBOND' in key:  # Ignore, this is an empty dataframe
             continue
 
@@ -228,21 +231,54 @@ def _proccess_prm_df(prm_dict):
         columns = column_dict[key]
         i = df.shape[1] - len(columns)
         columns += ['param {:d}'.format(j) for j in range(1, i+1)]
-        df.columns = columns
-        df.columns.name = 'parameters'
+        df.columns = pd.Index(columns, name='parameters')
 
         # Prepare a new index
         df.set_index([i for i in df.columns if isinstance(i, int)], inplace=True)
         df.index.set_names(['Atom {:d}'.format(i) for i in df.index.names], inplace=True)
-        for column in df:
-            try:
-                df[column] = df[column].astype(float, copy=False)
-            except ValueError:
-                pass
         df.sort_index(inplace=True)
-
-    # Transform the dtype of a select few columns from float to int
-    prm_dict['ATOMS']['-1'] = prm_dict['ATOMS']['-1'].astype(int, copy=False)
-    prm_dict['DIHEDRALS']['param 2'] = prm_dict['DIHEDRALS']['param 2'].astype(int, copy=False)
-    prm_dict['IMPROPERS']['param 2'] = prm_dict['IMPROPERS']['param 2'].astype(int, copy=False)
+        update_dtype(df, float_blacklist.setdefault(key, []))
     return prm_dict
+
+
+def _reorder_column_dict(df):
+    ret = []
+    for i, (key, column) in enumerate(df.items()):
+        if (column == '-1').all():
+            ret.append('-1')
+            continue
+
+        elif (column == 'MASS').all():
+            ret.append('MASS')
+            continue
+
+        try:
+            float(column.iloc[0])
+            ret.append('mass')
+        except ValueError:
+            ret.append(1)
+    return ret
+
+
+def update_dtype(df, float_blacklist=[]):
+    """ Update the dtype of all columns in **df**.
+
+    All columns will be turned into dtype('float64') unless a value error is raised, in which case
+    the current dtype will remain unchanged.
+    An exception is made for columns whose name is present in **float_blacklist**, in wich case the
+    dtype of the respective column(s) is converted into dtype('int64').
+    Performs an inplace update of all columns in **df**.
+
+    :parameter df: A Pandas dataframe.
+    :type df: |pd.DataFrame|_
+    :parameter list float_blacklist: A list of column names of columns whose desired dtype is
+        dtype('int64') rather than dtype('float64').
+    """
+    for column in df:
+        if column in float_blacklist:
+            df[column] = df[column].astype(int, copy=False)
+            continue
+        try:
+            df[column] = df[column].astype(float, copy=False)
+        except ValueError:
+            pass

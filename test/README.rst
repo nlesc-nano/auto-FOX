@@ -26,6 +26,12 @@ test_multi_mol.py_
 
 A module for testing the MultiMolecule class.
 
+~~~~~~~~~~~~~~~~~
+test_read_prm.py_
+~~~~~~~~~~~~~~~~~
+
+A module for testing files in the FOX.functions.read_prm module.
+
 ~~~~~~~~~~~~~~
 test_utils.py_
 ~~~~~~~~~~~~~~
@@ -38,3 +44,4 @@ A module for testing files in the FOX.functions.utils module.
 .. _test_multi_mol.py: https://github.com/nlesc-nano/auto-FOX/blob/master/test/test_multi_mol.py
 .. _test_utils.py: https://github.com/nlesc-nano/auto-FOX/blob/master/test/test_utils.py
 .. _test_molecule_utils.py: https://github.com/nlesc-nano/auto-FOX/blob/master/test/_test_molecule_utils.py
+.. _test_utils.py: https://github.com/nlesc-nano/auto-FOX/blob/master/test/test_read_prm.py
