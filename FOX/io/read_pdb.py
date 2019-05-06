@@ -62,13 +62,13 @@ def _get_bonds_array(bonds):
     j_old = None
     for i in bonds:
         for j in i[1:]:
-            if j is None:
+            if j is None:  # No bond
                 j_old = j
                 continue
-            if j == j_old:
+            elif j == j_old:  # Double bond
                 del ret[-1]
                 ret.append((i[0], j, 20))
-            else:
+            else:  # Single bond
                 ret.append((i[0], j, 10))
             j_old = j
 
