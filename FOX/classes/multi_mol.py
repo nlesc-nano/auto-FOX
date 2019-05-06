@@ -961,17 +961,20 @@ class MultiMolecule(_MultiMolecule):
     #scm.plams.mol.molecule.Molecule.write
         """
         mol_subset = self._get_mol_subset(mol_subset)
+        if isinstance(mol_subset, slice):
+            mol_subset = range(mol_subset.start, mol_subset.stop, mol_subset.step)
         outputformat = outputformat or filename.rsplit('.', 1)[-1]
-        mol_list = self.as_Molecule(mol_subset)
+        plams_mol = self.as_Molecule(mol_subset=0)[0]
 
-        if len(mol_list) != 1:
+        if len(mol_subset) != 1 or (mol_subset.stop - mol_subset.start) // mol_subset.step != 1:
             name_list = filename.rsplit('.', 1)
             name_list.insert(-1, '.{:d}.')
             name = ''.join(name_list)
         else:
             name = filename
 
-        for i, plams_mol in enumerate(mol_list, 1):
+        for i, j in enumerate(mol_subset, 1):
+            plams_mol.from_array(self[j])
             plams_mol.write(name.format(i), outputformat=outputformat)
 
     def as_pdb(self, mol_subset=0, filename='mol.pdb'):
