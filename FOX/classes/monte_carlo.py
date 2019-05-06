@@ -362,7 +362,6 @@ class ARMC(MonteCarlo):
         :rtype: |pd.DataFrame|_ (index: |pd.MultiIndex|_, values: |np.float64|_)
         """
         # Unpack attributes
-        self.print()
         super_iter = self.armc.iter_len // self.armc.sub_iter_len
 
         # Construct the HDF5 file
