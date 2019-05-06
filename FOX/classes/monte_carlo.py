@@ -5,14 +5,12 @@ __all__ = ['MonteCarlo', 'ARMC']
 import os
 import shutil
 from os.path import join
-from time import strftime
 
 import numpy as np
 
-from scm.plams.core.results import Results
 from scm.plams.core.settings import Settings
 from scm.plams.core.functions import (init, finish, add_to_class, config)
-from scm.plams.interfaces.thirdparty.cp2k import Cp2kJob
+from scm.plams.interfaces.thirdparty.cp2k import (Cp2kJob, Cp2kResults)
 
 from .multi_mol import MultiMolecule
 from ..io.hdf5_utils import (create_hdf5, to_hdf5)
@@ -22,7 +20,7 @@ from ..functions.charge_utils import update_charge
 from ..functions.armc_sanitization import init_armc_sanitization
 
 
-@add_to_class(Results)
+@add_to_class(Cp2kResults)
 def get_xyz_path(self):
     """ Return the path + filename to an .xyz file. """
     for file in self.files:
@@ -140,7 +138,8 @@ class MonteCarlo():
 
         # Construct and return a MultiMolecule object
         mol = MultiMolecule.from_xyz(results.get_xyz_path())
-        self.job.molecule = mol.as_Molecule(-1)[0]
+        if mol[0] == self.job.settings.input.motion.md.steps:
+            self.job.molecule = mol.as_Molecule(-1)[0]
         return mol, job.path
 
     def get_pes_descriptors(self, history_dict, key):
