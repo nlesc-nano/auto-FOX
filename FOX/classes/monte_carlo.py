@@ -370,6 +370,8 @@ class ARMC(MonteCarlo):
         # Initialize
         init(path=self.job.path, folder=self.job.folder)
         config.default_jobmanager.settings.hashing = None
+        if self.job.logfile:
+            config.default_jobmanager.logfile = self.job.logfile
         write_psf(**self.job.psf)
 
         # Initialize the first MD calculation

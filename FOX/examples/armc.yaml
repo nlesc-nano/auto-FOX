@@ -33,6 +33,7 @@ pes:
 job:
     molecule: Cd68Se55_26COO_MD_trajec.xyz
     settings: md_cp2k.yaml
+    logfile: False
     func: Cp2kJob
     name: cp2kjob
     path: .
