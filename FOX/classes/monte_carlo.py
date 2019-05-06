@@ -140,7 +140,7 @@ class MonteCarlo():
 
         # Construct and return a MultiMolecule object
         mol = MultiMolecule.from_xyz(results.get_xyz_path())
-        self.job.mol = mol.as_Molecule(-1)[0]
+        self.job.molecule = mol.as_Molecule(-1)[0]
         return mol, job.path
 
     def get_pes_descriptors(self, history_dict, key):
