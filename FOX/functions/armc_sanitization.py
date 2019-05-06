@@ -153,10 +153,10 @@ def sanitize_job(job):
         raise TypeError(TYPE_ERR2.format('job.molecule', 'FOX.MultiMolecule',
                                          'str', get_name(job.molecule)))
 
-    if job.type.lower() == 'cp2kjob':
-        job.type = Cp2kJob
-    elif not isinstance(job.type, Job):
-        raise TypeError(TYPE_ERR.format('job.type', 'Job', get_name(job.type)))
+    if job.func.lower() == 'cp2kjob':
+        job.func = Cp2kJob
+    elif not isinstance(job.func, Job):
+        raise TypeError(TYPE_ERR.format('job.func', 'Job', get_name(job.func)))
 
     if isinstance(job.settings, dict):
         job.settings = Settings(job.Settings)

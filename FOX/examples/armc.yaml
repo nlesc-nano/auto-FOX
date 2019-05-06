@@ -33,7 +33,7 @@ pes:
 job:
     molecule: Cd68Se55_26COO_MD_trajec.xyz
     settings: md_cp2k.yaml
-    type: Cp2kJob
+    func: Cp2kJob
     name: cp2kjob
     path: .
     folder: MM_MD_workdir

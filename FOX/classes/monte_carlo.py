@@ -5,6 +5,7 @@ __all__ = ['MonteCarlo', 'ARMC']
 import os
 import shutil
 from os.path import join
+from time import strftime
 
 import numpy as np
 
@@ -82,7 +83,7 @@ class MonteCarlo():
         self.move.charge_constraints = {}
         self.move.range = self.get_move_range()
 
-    def __str__(self):
+    def __repr__(self):
         return str(Settings(vars(self)))
 
     def move_param(self):
@@ -271,6 +272,65 @@ class ARMC(MonteCarlo):
             except AttributeError:
                 setattr(self, key, value)
 
+    def __str__(self):
+        ret = Settings(vars(self))
+
+        # The self.pes block
+        for key, value in ret.pes.items():
+            value.ref = str(value.ref.__class__)
+            value.kwarg = str(value.kwarg.as_dict())
+            value.func = self.get_func_name(value.func)
+
+        # The self.job block
+        ret.job.molecule = str(self.job.molecule.__class__)
+        ret.job.settings = str(self.job.settings.__class__)
+        ret.job.psf = str(self.job.psf.__class__)
+        ret.job.func = self.get_class_name(ret.job.func)
+
+        # The self.move block
+        ret.move.kwarg = str(ret.move.kwarg.as_dict())
+        ret.move.func = self.get_func_name(ret.move.func)
+        ret.move.range = np.array2string(ret.move.range, precision=3,
+                                         floatmode='fixed', threshold=20)
+
+        # The self.phi block
+        ret.phi.kwarg = str(ret.phi.kwarg.as_dict())
+        ret.phi.func = self.get_func_name(ret.phi.func)
+
+        # The self.move block
+        for value in ret.move.charge_constraints.values():
+            value.func = self.get_func_name(value.func)
+
+        # The self.param block
+        param = ret.param['param'].to_dict()
+        ret.param = {}
+        for (key1, key2), value in param.items():
+            try:
+                ret.param[key1].update({key2: value})
+            except KeyError:
+                ret.param[key1] = {key2: value}
+
+        return str(ret)
+
+    @staticmethod
+    def get_func_name(item):
+        try:
+            item_class, item_name = item.__qualname__.split('.')
+            item_module = item.__module__.split('.')[0]
+        except AttributeError:
+            item_name = item.__name__
+            item_class = item.__class__.__name__
+            item_module = item.__class__.__module__.split('.')[0]
+        return '{}.{}.{}'.format(item_module, item_class, item_name)
+
+    @staticmethod
+    def get_class_name(item):
+        item_class = item.__qualname__
+        item_module = item.__module__.split('.')[0]
+        if item_module == 'scm':
+            item_module == item.__module__.split('.')[1]
+        return '{}.{}'.format(item_module, item_class)
+
     @staticmethod
     def from_yaml(yml_file):
         """ Create a :class:`.ARMC` instance from a .yaml file.
@@ -302,6 +362,7 @@ class ARMC(MonteCarlo):
         :rtype: |pd.DataFrame|_ (index: |pd.MultiIndex|_, values: |np.float64|_)
         """
         # Unpack attributes
+        self.print()
         super_iter = self.armc.iter_len // self.armc.sub_iter_len
 
         # Construct the HDF5 file
@@ -449,7 +510,7 @@ class ARMC(MonteCarlo):
 
     def reconfigure_armc_atr(self, iter_len=50000, sub_iter_len=100, gamma=2.0, a_target=0.25):
         r""" Reconfigure the attributes in **self.armc**, the latter containing all settings
-        specific to addaptive rate Monte Carlo (except :math:`phi`,
+        specific to addaptive rate Monte Carlo (except :math:`\phi`,
         see :meth:`.reconfigure_phi_atr`).
 
         :parameter int iter_len: The total number of iterations :math:`\kappa \omega`.
