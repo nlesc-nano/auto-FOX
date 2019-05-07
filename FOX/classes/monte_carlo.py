@@ -107,7 +107,7 @@ class MonteCarlo():
         if 'charge' in i:
             for (_, at), charge in i.iteritems():
                 pass
-            exclude = [i for i in psf if i in param.loc['charge'].index]
+            exclude = list({i for i in psf['atom type'] if i not in param.loc['charge'].index})
             update_charge(at, charge, psf, self.move.charge_constraints, exclude)
             idx_set = set(psf['atom type'].values)
             for at in idx_set:

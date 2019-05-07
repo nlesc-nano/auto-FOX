@@ -33,13 +33,6 @@ def update_charge(at, charge, df, constrain_dict={}, exclude=[]):
         update_unconstrained_charge(net_charge, df, exclude)
     else:
         update_unconstrained_charge(net_charge, df, exclude + [at])
-        charge = net_charge - df.loc[df['atom type'] == at, 'charge'].sum()
-        atomic_charge = find_q(df, charge, constrain_dict)
-        for key, value in constrain_dict.items():
-            func = invert_ufunc(value['func'])
-            df.loc[df['atom type'] == key, 'charge'] = func(atomic_charge, value['arg'])
-            update_constrained_charge(key, df, constrain_dict)
-            break
 
 
 def update_constrained_charge(at, df, constrain_dict={}):
