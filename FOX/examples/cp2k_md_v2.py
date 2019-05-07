@@ -31,15 +31,18 @@ psf = mol.as_psf(join(path, 'mol.psf'), return_blocks=True)
 s = get_template('armc.yaml', join(FOX.__path__[0], 'examples'))
 s.job.psf = psf
 s.job.molecule = mol
+s.job.path = path
+s.hdf5_file = join(path, 'armc.hdf5')
 armc = ARMC.from_dict(s)
 armc.job.keep_files = True
 armc.job.settings.input.motion.md.steps //= 100
 armc.job.settings.input.motion.md.time_start_val //= 100
-print(armc)
+armc.job.settings.input.force_eval.mm.forcefield.parm_file_name = join(FOX.__path__[0], 'data/formate.prm')
+armc.job.settings.input.force_eval.subsys.topology.conn_file_name = psf['filename']
 
 # Start ARMC
 try:
     os.remove(join(path, 'ARMC.hdf5'))
 except FileNotFoundError:
     pass
-# armc.init_armc()
+armc.init_armc()
