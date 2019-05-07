@@ -94,7 +94,7 @@ def sanitize_armc(armc):
 
 def sanitize_param(param, settings):
     """ Sanitize the param block. """
-    for key1, value1 in param.items():
+    def check_key1_type(key1):
         if not isinstance(key1, str):
             error = TYPE_ERR.format('param.{}'.format(str(key1)) + ' key', 'str', get_name(key1))
             raise TypeError(error)
@@ -103,17 +103,22 @@ def sanitize_param(param, settings):
                                     'dict', get_name(value1))
             raise TypeError(error)
 
+    def check_key2_type(key2):
+        if not isinstance(key2, str):
+            error = TYPE_ERR.format('param.{}.{}'.format(str(key1), str(key2)) +
+                                    ' key', 'str', get_name(key2))
+            raise TypeError(error)
+        elif isinstance(value2, (int, np.int)):
+            param[key1][key2] = float(value2)
+        elif not isinstance(value2, (float, np.float, str)):
+            error = TYPE_ERR.format('param.{}.{}'.format(str(key1), str(key2)),
+                                    'float', get_name(value2))
+            raise TypeError(error)
+
+    for key1, value1 in param.items():
+        check_key1_type(key1)
         for key2, value2 in value1.items():
-            if not isinstance(key2, str):
-                error = TYPE_ERR.format('param.{}.{}'.format(str(key1), str(key2)) +
-                                        ' key', 'str', get_name(key2))
-                raise TypeError(error)
-            elif isinstance(value2, (int, np.int)):
-                param[key1][key2] = float(value2)
-            elif not isinstance(value2, (float, np.float)):
-                error = TYPE_ERR.format('param.{}.{}'.format(str(key1), str(key2)),
-                                        'float', get_name(value2))
-                raise TypeError(error)
+            check_key2_type(key2)
 
     param = dict_to_pandas(param.as_dict(), 'param')
     param['key'] = set_keys(settings, param)
@@ -123,7 +128,7 @@ def sanitize_param(param, settings):
 
 def sanitize_pes(pes, ref):
     """ Sanitize the pes block. """
-    for key in pes:
+    def check_key_type(key):
         assert_type(key, str)
         if isinstance(pes[key].func, str):
             try:
@@ -132,6 +137,9 @@ def sanitize_pes(pes, ref):
                 raise KeyError("No type conversion available for '{}', consider directly passing"
                                " function as type object".format(pes[key].func.__name__))
         assert_type(pes[key].kwarg, dict, 'pes'+str(key)+'kwarg')
+
+    for key in pes:
+        check_key_type(key)
         pes[key].ref = pes[key].func(ref, **pes[key].kwarg)
     return pes
 
