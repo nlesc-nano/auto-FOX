@@ -27,7 +27,8 @@ setup(
         'FOX.data',
         'FOX.examples',
         'FOX.functions',
-        'FOX.classes'
+        'FOX.classes',
+        'FOX.io'
     ],
     package_dir={'FOX': 'FOX'},
     package_data={'FOX': [
