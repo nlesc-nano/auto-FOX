@@ -47,6 +47,7 @@ def init_armc_sanitization(dict_):
 
     mol = s.job.pop('molecule')
     param = s.pop('param')
+    param['param'] = param['param'].astype(float, copy=False)
     return mol, param, s
 
 

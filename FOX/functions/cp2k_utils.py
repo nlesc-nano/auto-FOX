@@ -79,13 +79,15 @@ def update_cp2k_settings(settings, param):
     :parameter param: A dataframe with (variable) forcefield parameters.
     :type param: |pd.DataFrame|_
     """
+    lj = settings.input.force_eval.mm.forcefield.nonbonded['lennard-jones']
+
     # Update the Lennard-Jones epsilon parameters
-    for _, (i, j, *_) in param.loc['epsilon', :].iterrows():
-        settings.input.force_eval.mm.forcefield.nonbonded['lennard-jones'][int(j)].epsilon = i
+    for _, (param_, unit, i, *_) in param.loc['epsilon', :].iterrows():
+        lj[int(i)].epsilon = unit.format(param_)
 
     # Update the Lennard-Jones sigma parameters
-    for _, (i, j, *_) in param.loc['sigma', :].iterrows():
-        settings.input.force_eval.mm.forcefield.nonbonded['lennard-jones'][int(j)].sigma = i
+    for _, (param_, unit, i, *_) in param.loc['sigma', :].iterrows():
+        lj[int(i)].sigma = unit.format(param_)
 
 
 def set_keys(settings, param, rcut=12.0,):
@@ -93,37 +95,40 @@ def set_keys(settings, param, rcut=12.0,):
 
     Units can be specified under the *unit* key (see the CP2K_ documentation for more details).
 
-    :parameter settings: Job settings.
+    :parameter settings: CP2K Job settings.
     :type settings: |plams.Settings|_
-    :parameter param: A dataframe with a 2-level multiindex.
+    :parameter param: A dataframe with MM parameters and parameter names as 2-level multiindex.
     :type param: |pd.DataFrame|_ (index: |pd.MultiIndex|_)
     :return: A list of all matched keys.
     :rtype: |list|_ [|str|_]
 
     .. _CP2K: https://manual.cp2k.org/trunk/units.html
     """
-    # Read units
-    key_list = [('epsilon', 'unit'), ('sigma', 'unit')]
-    kwarg = {}
-    for key1 in key_list:
-        key2 = key1[0] + '_unit'
-        try:
-            kwarg[key2].append(param.loc[key1, 'param'])
-            param.drop(index=[key1])
-        except KeyError:
-            pass
-
-    def _get_settings(param, at, epsilon_unit='K_e', sigma_unit='angstrom'):
-        return Settings({'epsilon [{}]'.format(epsilon_unit): param.loc[('epsilon', at), 'param'],
-                         'sigma [{}]'.format(sigma_unit): param.loc[('sigma', at), 'param'],
+    def _get_settings(param, at):
+        eps_unit = param.loc[('epsilon', at), 'unit']
+        eps_value = param.loc[('epsilon', at), 'param']
+        sigma_unit = param.loc[('sigma', at), 'unit']
+        sigma_value = param.loc[('sigma', at), 'param']
+        return Settings({'epsilon': eps_unit.format(eps_value),
+                         'sigma': sigma_unit.format(sigma_value),
                          'rcut': rcut,
                          'atoms': at})
+
+    # Create a new column in **param** with the quantity units
+    param['unit'] = None
+    units = {'epsilon': '[K_e] {:f}', 'sigma': '[angstrom] {:f}'}
+    for key, value in units.items():
+        try:
+            param.loc[[key], 'unit'] = '[{}] {}'.format(param.loc[(key, 'unit'), 'param'], '{:f}')
+            param.drop(index=[(key, 'unit')], inplace=True)
+        except KeyError:
+            param.loc[key, 'unit'] = value
 
     # Generate the keys for atomic charges (note: there are no charge keys)
     key_list = [-1 for _ in param.loc['charge'].index]
 
     # Create a list for all CP2K &LENNARD-JONES blocks
-    lj_list = [_get_settings(param, at, **kwarg) for at in param.loc['epsilon'].index]
+    lj_list = [_get_settings(param, at) for at in param.loc['epsilon'].index]
     settings.input.force_eval.mm.forcefield.nonbonded.update({'lennard-jones': lj_list})
     key_list += 2 * [i for i, _ in enumerate(param.loc['epsilon'].index)]
     return key_list
