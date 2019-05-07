@@ -11,8 +11,8 @@ str_file = join(FOX.__path__[0], 'data/formate.str')
 mol = MultiMolecule.from_xyz(get_example_xyz())
 mol.guess_bonds(atom_subset=['C', 'O', 'H'])
 mol.update_atom_type(str_file)
-mol.update_atom_charge('Cd', 2.0)
-mol.update_atom_charge('Se', -2.0)
+mol.update_atom_charge('Cd', 0.9768)
+mol.update_atom_charge('Se', -0.9768)
 psf = mol.as_psf(return_blocks=True)
 
 # Prepare the ARMC settings

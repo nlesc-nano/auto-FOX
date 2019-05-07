@@ -1,21 +1,23 @@
 param:
     charge:
-        Se: -2.0
-        Cd: 2.0
-        O_1: -0.76
-        C_1: 0.52
+        Cd: 0.9768
+        Se: -0.9768
+        O_1: -0.4704
+        C_1: 0.4524
     epsilon:
-        Se Se: 51.30851
-        Cd Cd: 37.29669
-        Cd Se: 183.1158
-        Se O_1: 194.0607
-        Cd O_1: 220.5809
+        unit: kjmol
+        Cd Cd: 0.3101
+        Se Se: 0.4266
+        Cd Se: 1.5225
+        Cd O_1: 1.8340
+        Se O_1: 1.6135
     sigma:
-        Se Se: 4.852
-        Cd Cd: 1.234
-        Cd Se: 2.940
-        Se O_1: 3.526
-        Cd O_1: 2.471
+        unit: nm
+        Cd Cd: 0.1234
+        Se Se: 0.4852
+        Cd Se: 0.2940
+        Cd O_1: 0.2471
+        Se O_1: 0.3526
 
 armc:
     iter_len: 50000
@@ -43,7 +45,7 @@ job:
 hdf5_file: ARMC.hdf5
 
 move:
-    charge_constraints: 'Cd = -1 * Se = -0.5 * O_1'
+    charge_constraints: 'Cd = -1 * Se'
     range:
         start: 0.005
         stop: 0.1
