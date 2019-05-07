@@ -88,19 +88,34 @@ def update_cp2k_settings(settings, param):
         settings.input.force_eval.mm.forcefield.nonbonded['lennard-jones'][int(j)].sigma = i
 
 
-def set_keys(settings, param, rcut=12.0):
-    """ Find and return the keys in **settings** matching all parameters in **param**.
+def set_keys(settings, param, rcut=12.0,):
+    r""" Find and return the keys in **settings** matching all parameters in **param**.
 
-    :parameter param: A dataframe with a 2-level multiindex.
-    :parameter param: |pd.DataFrame|_ (index: |pd.MultiIndex|_)
+    Units can be specified under the *unit* key (see the CP2K_ documentation for more details).
+
     :parameter settings: Job settings.
     :type settings: |plams.Settings|_
+    :parameter param: A dataframe with a 2-level multiindex.
+    :type param: |pd.DataFrame|_ (index: |pd.MultiIndex|_)
     :return: A list of all matched keys.
     :rtype: |list|_ [|str|_]
+
+    .. _CP2K: https://manual.cp2k.org/trunk/units.html
     """
-    def _get_settings(param, at):
-        return Settings({'epsilon': param.loc[('epsilon', at), 'param'],
-                         'sigma': param.loc[('sigma', at), 'param'],
+    # Read units
+    key_list = [('epsilon', 'unit'), ('sigma', 'unit')]
+    kwarg = {}
+    for key1 in key_list:
+        key2 = key1[0] + '_unit'
+        try:
+            kwarg[key2].append(param.loc[key1, 'param'])
+            param.drop(index=[key1])
+        except KeyError:
+            pass
+
+    def _get_settings(param, at, epsilon_unit='K_e', sigma_unit='angstrom'):
+        return Settings({'epsilon [{}]'.format(epsilon_unit): param.loc[('epsilon', at), 'param'],
+                         'sigma [{}]'.format(sigma_unit): param.loc[('sigma', at), 'param'],
                          'rcut': rcut,
                          'atoms': at})
 
@@ -108,7 +123,7 @@ def set_keys(settings, param, rcut=12.0):
     key_list = [-1 for _ in param.loc['charge'].index]
 
     # Create a list for all CP2K &LENNARD-JONES blocks
-    lj_list = [_get_settings(param, at) for at in param.loc['epsilon'].index]
+    lj_list = [_get_settings(param, at, **kwarg) for at in param.loc['epsilon'].index]
     settings.input.force_eval.mm.forcefield.nonbonded.update({'lennard-jones': lj_list})
     key_list += 2 * [i for i, _ in enumerate(param.loc['epsilon'].index)]
     return key_list
