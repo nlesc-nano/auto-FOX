@@ -138,7 +138,7 @@ class MonteCarlo():
 
         # Construct and return a MultiMolecule object
         mol = MultiMolecule.from_xyz(results.get_xyz_path())
-        if mol[0] == self.job.settings.input.motion.md.steps:
+        if mol.shape[0] == self.job.settings.input.motion.md.steps:
             self.job.molecule = mol.as_Molecule(-1)[0]
         return mol, job.path
 
