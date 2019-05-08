@@ -4,7 +4,7 @@ __all__ = ['MonteCarlo', 'ARMC']
 
 import os
 import shutil
-from os.path import join
+from os.path import (join, isfile, split)
 
 import numpy as np
 
@@ -275,27 +275,27 @@ class ARMC(MonteCarlo):
         for key, value in ret.pes.items():
             value.ref = str(value.ref.__class__)
             value.kwarg = str(value.kwarg.as_dict())
-            value.func = self.get_func_name(value.func)
+            value.func = self.get_func_name(value.func) + '()'
 
         # The self.job block
         ret.job.molecule = str(self.job.molecule.__class__)
         ret.job.settings = str(self.job.settings.__class__)
         ret.job.psf = str(self.job.psf.__class__)
-        ret.job.func = self.get_class_name(ret.job.func)
+        ret.job.func = self.get_class_name(ret.job.func) + '()'
 
         # The self.move block
         ret.move.kwarg = str(ret.move.kwarg.as_dict())
-        ret.move.func = self.get_func_name(ret.move.func)
+        ret.move.func = self.get_func_name(ret.move.func) + '()'
         ret.move.range = np.array2string(ret.move.range, precision=3,
                                          floatmode='fixed', threshold=20)
 
         # The self.phi block
         ret.phi.kwarg = str(ret.phi.kwarg.as_dict())
-        ret.phi.func = self.get_func_name(ret.phi.func)
+        ret.phi.func = self.get_func_name(ret.phi.func) + '()'
 
         # The self.move block
         for value in ret.move.charge_constraints.values():
-            value.func = self.get_func_name(value.func)
+            value.func = self.get_func_name(value.func) + '()'
 
         # The self.param block
         param = ret.param['param'].to_dict()
@@ -336,7 +336,11 @@ class ARMC(MonteCarlo):
         :return: A :class:`ARMC` instance.
         :rtype: |FOX.ARMC|_
         """
-        return ARMC.from_dict(get_template(yml_file))
+        if isfile(yml_file):
+            head, tail = split(yml_file)
+            return ARMC.from_dict(get_template(tail, path=head))
+        else:
+            return ARMC.from_dict(get_template(yml_file))
 
     @classmethod
     def from_dict(cls, dict_):
