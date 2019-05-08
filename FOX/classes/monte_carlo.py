@@ -299,8 +299,11 @@ class ARMC(MonteCarlo):
 
         # The self.param block
         param = ret.param['param'].to_dict()
+        unit = ret.param['unit'].to_dict()
         ret.param = {}
         for (key1, key2), value in param.items():
+            if unit[(key1, key2)] is not None:
+                value = str(value) + ' \t' + unit[(key1, key2)].lstrip('[').rstrip('] {:f}')
             try:
                 ret.param[key1].update({key2: value})
             except KeyError:
@@ -337,8 +340,8 @@ class ARMC(MonteCarlo):
         :rtype: |FOX.ARMC|_
         """
         if isfile(yml_file):
-            head, tail = split(yml_file)
-            return ARMC.from_dict(get_template(tail, path=head))
+            path, filename = split(yml_file)
+            return ARMC.from_dict(get_template(filename, path=path))
         else:
             return ARMC.from_dict(get_template(yml_file))
 
