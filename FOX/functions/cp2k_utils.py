@@ -116,10 +116,11 @@ def set_keys(settings, param, rcut=12.0,):
 
     # Create a new column in **param** with the quantity units
     param['unit'] = None
-    units = {'epsilon': '[K_e] {:f}', 'sigma': '[angstrom] {:f}'}
-    for key, value in units.items():
+    unit_dict = {'epsilon': '[K_e] {:f}', 'sigma': '[angstrom] {:f}'}
+    for key, value in unit_dict.items():
         try:
-            param.loc[[key], 'unit'] = '[{}] {}'.format(param.loc[(key, 'unit'), 'param'], '{:f}')
+            unit = param.loc[(key, 'unit'), 'param']
+            param.loc[[key], 'unit'] = '[{}]'.format(unit) + ' {:f}'
             param.drop(index=[(key, 'unit')], inplace=True)
         except KeyError:
             param.loc[key, 'unit'] = value
