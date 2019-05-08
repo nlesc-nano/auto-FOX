@@ -1,4 +1,5 @@
 param:
+    prm_file: ligand.prm
     charge:
         Cd: 0.9768
         Se: -0.9768
@@ -19,12 +20,9 @@ param:
         Cd O_1: 0.2471
         Se O_1: 0.3526
 
-armc:
-    iter_len: 50000
-    sub_iter_len: 100
-    gamma: 2.0
-    a_target: 0.25
-    phi: 1.0
+psf:
+    str_file: ligand.str
+    ligand_atoms: [C, O, H]
 
 pes:
     rdf:
@@ -32,17 +30,62 @@ pes:
         kwarg:
             atom_subset: [Cd, Se, O]
 
+molecule: Cd68Se55_26COO_MD_trajec.xyz
+
 job:
-    molecule: Cd68Se55_26COO_MD_trajec.xyz
-    settings: md_cp2k.yaml
-    logfile: False
+    logfile: armc.log
     func: Cp2kJob
-    name: cp2kjob
+    name: armc
     path: .
     folder: MM_MD_workdir
     keep_files: False
 
-hdf5_file: ARMC.hdf5
+    settings:
+        input:
+            global:
+                run_type: MD
+            force_eval:
+                method: FIST
+                mm:
+                    forcefield:
+                        ignore_missing_critical_params: ''
+                        parmtype: CHM
+                        do_nonbonded: ''
+                        shift_cutoff: .TRUE.
+                    poisson:
+                        ewald:
+                            ewald_type: spme
+                            alpha: .44
+                            gmax: 24
+                subsys:
+                    cell:
+                        abc: '[angstrom] 50.0 50.0 50.0'
+                        periodic: NONE
+                    topology:
+                        coord_file_format: 'OFF'
+                        conn_file_format: PSF
+                        center_coordinates:
+                            center_point: 0.0 0.0 0.0
+            motion:
+                md:
+                    ensemble: NVT
+                    temperature: 300.0
+                    timestep: 1.0
+                    time_start_val: 5000
+                    steps: 10000
+                    thermostat:
+                        type: CSVR
+                        csvr:
+                            timecon: 1250
+
+hdf5_file: armc.hdf5
+
+armc:
+    iter_len: 50000
+    sub_iter_len: 100
+    gamma: 2.0
+    a_target: 0.25
+    phi: 1.0
 
 move:
     charge_constraints: 'Cd = -1 * Se'

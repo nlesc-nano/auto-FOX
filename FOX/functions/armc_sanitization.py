@@ -2,7 +2,7 @@
 
 __all__ = ['init_armc_sanitization']
 
-from os.path import isfile, isdir, split
+from os.path import isfile, isdir, split, join
 
 import numpy as np
 
@@ -38,17 +38,35 @@ def init_armc_sanitization(dict_):
     """ Initialize the armc input settings sanitization. """
     s = Settings(dict_)
 
-    s.job = sanitize_job(s.job)
-    s.pes = sanitize_pes(s.pes, s.job.molecule)
-    s.hdf5_file = sanitize_hdf5_file(s.hdf5_file)
+    s.job, mol = sanitize_job(s.job, s.molecule, s.param.prm_file)
+    s.job.psf = generate_psf(mol, s.psf, s.param, s.job)
+    del s.param.prm_file
+    del s.molecule
+    del s.psf
+
     s.param = sanitize_param(s.param, s.job.settings)
+    s.pes = sanitize_pes(s.pes, mol)
+    s.hdf5_file = sanitize_hdf5_file(s.hdf5_file)
     s.move = sanitize_move(s.move)
     s.armc, s.phi = sanitize_armc(s.armc)
 
-    mol = s.job.pop('molecule')
     param = s.pop('param')
     param['param'] = param['param'].astype(float, copy=False)
     return mol, param, s
+
+
+def generate_psf(mol, psf, param, job):
+    """ Generate the job.psf block. """
+    path = join(job.path, job.folder)
+    psf_file = join(path, 'mol.psf')
+
+    mol.guess_bonds(atom_subset=psf.ligand_atoms)
+    mol.update_atom_type(psf.str_file)
+    for at, charge in param.charge.items():
+        assert_type(at, str, 'job.charge.')
+        assert_type(charge, (float, np.float), 'param.charge.' + at)
+        mol.update_atom_charge(at, charge)
+    return mol.as_psf(psf_file, return_blocks=True)
 
 
 def get_name(item):
@@ -127,7 +145,7 @@ def sanitize_param(param, settings):
     return param
 
 
-def sanitize_pes(pes, ref):
+def sanitize_pes(pes, mol):
     """ Sanitize the pes block. """
     def check_key_type(key):
         assert_type(key, str)
@@ -136,12 +154,12 @@ def sanitize_pes(pes, ref):
                 pes[key].func = TYPE_DICT[pes[key].func.lower()]
             except KeyError:
                 raise KeyError("No type conversion available for '{}', consider directly passing"
-                               " function as type object".format(pes[key].func.__name__))
+                               " '{}' as type object".format(*[pes[key].func.__name__]*2))
         assert_type(pes[key].kwarg, dict, 'pes'+str(key)+'kwarg')
 
     for key in pes:
         check_key_type(key)
-        pes[key].ref = pes[key].func(ref, **pes[key].kwarg)
+        pes[key].ref = pes[key].func(mol, **pes[key].kwarg)
     return pes
 
 
@@ -152,12 +170,12 @@ def sanitize_hdf5_file(hdf5_file):
     return hdf5_file
 
 
-def sanitize_job(job):
+def sanitize_job(job, mol, prm_file):
     """ Sanitize the job block. """
-    if isinstance(job.molecule, MultiMolecule):
+    if isinstance(mol, MultiMolecule):
         pass
-    elif isinstance(job.molecule, str):
-        job.molecule = MultiMolecule.from_xyz(job.molecule)
+    elif isinstance(mol, str):
+        mol = MultiMolecule.from_xyz(mol)
     else:
         raise TypeError(TYPE_ERR2.format('job.molecule', 'FOX.MultiMolecule',
                                          'str', get_name(job.molecule)))
@@ -183,7 +201,11 @@ def sanitize_job(job):
     assert_type(job.name, str, 'job.name')
     assert_type(job.folder, str, 'job.workdir')
     assert_type(job.keep_files, bool, 'job.keep_files')
-    return job
+    assert_type(prm_file, str, 'param.prm_file')
+    job.settings.input.force_eval.mm.forcefield.parm_file_name = prm_file
+    job.settings.input['global'].project = job.name
+
+    return job, mol
 
 
 def sanitize_move(move):
