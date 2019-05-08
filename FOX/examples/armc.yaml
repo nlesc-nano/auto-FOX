@@ -30,7 +30,7 @@ pes:
         kwarg:
             atom_subset: [Cd, Se, O]
 
-molecule: Cd68Se55_26COO_MD_trajec.xyz
+molecule: D:\hardd\Documents\GitHub\auto-FOX\FOX\data\Cd68Se55_26COO_MD_trajec.xyz
 
 job:
     logfile: armc.log
@@ -42,30 +42,6 @@ job:
 
     settings:
         input:
-            global:
-                run_type: MD
-            force_eval:
-                method: FIST
-                mm:
-                    forcefield:
-                        ignore_missing_critical_params: ''
-                        parmtype: CHM
-                        do_nonbonded: ''
-                        shift_cutoff: .TRUE.
-                    poisson:
-                        ewald:
-                            ewald_type: spme
-                            alpha: .44
-                            gmax: 24
-                subsys:
-                    cell:
-                        abc: '[angstrom] 50.0 50.0 50.0'
-                        periodic: NONE
-                    topology:
-                        coord_file_format: 'OFF'
-                        conn_file_format: PSF
-                        center_coordinates:
-                            center_point: 0.0 0.0 0.0
             motion:
                 md:
                     ensemble: NVT

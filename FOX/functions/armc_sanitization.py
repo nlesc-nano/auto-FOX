@@ -195,6 +195,7 @@ def sanitize_job(job, mol, prm_file):
             job.settings = get_template(job.settings)
     else:
         raise TypeError(TYPE_ERR2.format('job.settings', 'dict', 'str', get_name(job.settings)))
+    job.settings.soft_update(get_template('md_cp2k.yaml'))
 
     assert isdir(job.path)
 
