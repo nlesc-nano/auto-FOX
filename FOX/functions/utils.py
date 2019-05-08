@@ -224,7 +224,7 @@ def flatten_dict(input_dict):
             if isinstance(value, dict):
                 concatenate(key, value)
             else:
-                ret[key_ret] = value
+                ret[key] = value
 
     # Changes keys into tuples
     ret = input_dict.__class__()
