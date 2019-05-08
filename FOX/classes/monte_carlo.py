@@ -137,10 +137,7 @@ class MonteCarlo():
         results.wait()
 
         # Construct and return a MultiMolecule object
-        mol = MultiMolecule.from_xyz(results.get_xyz_path())
-        if mol.shape[0] == self.job.settings.input.motion.md.steps:
-            self.job.molecule = mol.as_Molecule(-1)[0]
-        return mol, job.path
+        return MultiMolecule.from_xyz(results.get_xyz_path()), job.path
 
     def get_pes_descriptors(self, history_dict, key):
         """ Check if a **key** is already present in **history_dict**.
@@ -411,14 +408,14 @@ class ARMC(MonteCarlo):
             pes_new = self.get_pes_descriptors(history_dict, key_new)
             hdf5_kwarg.update(pes_new)
 
-            # Step 3: Evaluate the auxiliary error
+            # Step 3: Evaluate the auxiliary error; accept if the new parameter set lowers the error
             if not pes_new:
                 aux_new = history_dict[key_new]
                 pes_new = {key: np.nan for key in self.pes}
             else:
                 aux_new = self.get_aux_error(pes_new)
             aux_old = history_dict[key_old]
-            accept = bool(sum(aux_new - aux_old))
+            accept = True if (aux_new - aux_old) < 0 else False
 
             # Step 4: Update the auxiliary error history, apply phi & update job settings
             acceptance[omega] = accept
