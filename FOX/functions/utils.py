@@ -173,14 +173,15 @@ def read_param(filename):
     headers = ['BONDS', 'ANGLES', 'DIHEDRALS', 'IMPROPER', 'NONBONDED']
     df_dict = {}
     for i in str_gen:
-        if i in headers:
-            tmp = []
-            for j in str_gen:
-                if j:
-                    tmp.append(j.split())
-                else:
-                    df_dict[i.lower()] = pd.DataFrame(tmp)
-                    break
+        if i not in headers:
+            continue
+        tmp = []
+        for j in str_gen:
+            if j:
+                tmp.append(j.split())
+            else:
+                df_dict[i.lower()] = pd.DataFrame(tmp)
+                break
 
     return Settings(df_dict)
 
@@ -217,27 +218,18 @@ def flatten_dict(input_dict):
     :return: A non-nested dicionary derived from **input_dict**.
     :rtype: |dict|_ (keys: |tuple|_)
     """
-    def flatten(item):
-        ret = {}
-        for i in item:
-            if isinstance(item[i], dict):
-                for j in item[i]:
-                    ret[i + (j, )] = item[i][j]
+    def concatenate(key_ret, dict_):
+        for key, value in dict_.items():
+            key = key_ret + (key, )
+            if isinstance(value, dict):
+                concatenate(key, value)
             else:
-                ret[i] = item[i]
-
-        if item == ret:
-            return ret, True
-        return ret, False
+                ret[key_ret] = value
 
     # Changes keys into tuples
-    flat_dict = {(key, ): input_dict[key] for key in input_dict}
-
-    # Un-nest and return the input dictionary
-    flat = False
-    while not flat:
-        flat_dict, flat = flatten(flat_dict)
-    return flat_dict
+    ret = input_dict.__class__()
+    concatenate((), input_dict)
+    return ret
 
 
 def dict_to_pandas(input_dict, name=0, object_type='DataFrame'):
