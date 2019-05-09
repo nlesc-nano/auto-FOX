@@ -27,10 +27,6 @@ TYPE_DICT = {
     'init_adf': MultiMolecule.init_adf,
     'init_rmsd': MultiMolecule.init_rmsd,
     'init_rmsf': MultiMolecule.init_rmsf,
-    'multimolecule.init_rdf': MultiMolecule.init_rdf,
-    'multimolecule.init_adf': MultiMolecule.init_adf,
-    'multimolecule.init_rmsd': MultiMolecule.init_rmsd,
-    'multimolecule.init_rmsf': MultiMolecule.init_rmsf
 }
 
 
@@ -147,19 +143,19 @@ def sanitize_param(param, settings):
 
 def sanitize_pes(pes, mol):
     """ Sanitize the pes block. """
-    def check_key_type(key):
+    def check_key_type(key, value):
         assert_type(key, str)
-        if isinstance(pes[key].func, str):
+        if isinstance(value.func, str):
             try:
-                pes[key].func = TYPE_DICT[pes[key].func.lower()]
+                value.func = TYPE_DICT[value.func.lower().split('.')[-1]]
             except KeyError:
                 raise KeyError("No type conversion available for '{}', consider directly passing"
-                               " '{}' as type object".format(*[pes[key].func.__name__]*2))
-        assert_type(pes[key].kwarg, dict, 'pes'+str(key)+'kwarg')
+                               " '{}' as type object".format(*[value.func.__name__]*2))
+        assert_type(value.kwarg, dict, 'pes'+str(key)+'kwarg')
 
-    for key in pes:
-        check_key_type(key)
-        pes[key].ref = pes[key].func(mol, **pes[key].kwarg)
+    for key, value in pes.items():
+        check_key_type(key, value)
+        value.ref = value.func(mol, **value.kwarg)
     return pes
 
 
