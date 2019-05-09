@@ -2,6 +2,7 @@
 
 __all__ = []
 
+import time
 from os.path import join
 
 import numpy as np
@@ -10,38 +11,55 @@ import pandas as pd
 import FOX
 
 
-MOL = FOX.MultiMolecule.from_xyz(FOX.get_example_xyz())
 REF_DIR = 'test/test_files'
 
 
 def test_input():
     """ Test :mod:`FOX.examples.input`. """
-    global_dict = {}
-    local_dict = {}
-    path = join(FOX.__path__[0], 'examples/input.py')
-    with open(path, 'r') as f:
-        exec(f.read(), global_dict, local_dict)
+    # Define the atoms of interest and the .xyz path + filename
+    atoms = ('Cd', 'Se', 'O')
+    example_xyz_filename = FOX.get_example_xyz()
+
+    # Optional: start the timer
+    print('')
+    start = time.time()
+
+    # Read the .xyz file
+    mol = FOX.MultiMolecule.from_xyz(example_xyz_filename)
+
+    # Calculate the RDF, RSMF & RMSD
+    rdf = mol.init_rdf(atom_subset=atoms)
+    rmsf = mol.init_rmsf(atom_subset=atoms)
+    rmsd = mol.init_rmsd(atom_subset=atoms)
+
+    # Optional: print the results and try to plot them in a graph (if Matplotlib is installed)
+    print('run time:', '%.2f' % (time.time() - start), 'sec')
+    try:
+        rdf.plot()
+        rmsf.plot()
+        rmsd.plot()
+    except Exception as ex:
+        print(ex)
 
     ref_rdf = np.load(join(REF_DIR, 'rdf.npy'))
     ref_rmsf = np.load(join(REF_DIR, 'rmsf.npy'))
     ref_rmsd = np.load(join(REF_DIR, 'rmsd.npy'))
 
-    np.testing.assert_allclose(local_dict['rdf'].values, ref_rdf)
-    np.testing.assert_allclose(local_dict['rmsf'].values, ref_rmsf)
-    np.testing.assert_allclose(local_dict['rmsd'].values, ref_rmsd)
+    np.testing.assert_allclose(rdf.values, ref_rdf)
+    np.testing.assert_allclose(rmsf.values, ref_rmsf)
+    np.testing.assert_allclose(rmsd.values, ref_rmsd)
 
 
 def test_cp2k_md():
     """ Test :mod:`FOX.examples.cp2k_md`. """
-    global_dict = {}
-    local_dict = {}
-    path = join(FOX.__path__[0], 'examples/cp2k_md.py')
-    with open(path, 'r') as f:
-        exec(f.read(), global_dict, local_dict)
+    examples = join(FOX.__path__[0], 'examples')
+    s = FOX.get_template('armc.yaml', path=examples)
+    s.psf.str_file = join(examples, s.psf.str_file)
+    s.molecule = FOX.MultiMolecule.from_xyz(FOX.get_example_xyz())
+    armc = FOX.ARMC.from_dict(s)
 
-    mol = MOL.copy()
     psf = {
-        'filename': 'mol.psf',
+        'filename': './MM_MD_workdir/mol.psf',
         'atoms': pd.read_csv(join(REF_DIR, 'psf_atoms.csv'), float_precision='high', index_col=0),
         'bonds': np.load(join(REF_DIR, 'bonds.npy')),
         'angles': np.load(join(REF_DIR, 'angles.npy')),
@@ -49,19 +67,17 @@ def test_cp2k_md():
         'impropers': np.load(join(REF_DIR, 'impropers.npy')),
         }
 
-    np.testing.assert_allclose(local_dict['mol'], mol)
-    assert local_dict['psf']['filename'] == psf['filename']
-    np.testing.assert_allclose(local_dict['psf']['bonds'], psf['bonds'])
-    np.testing.assert_allclose(local_dict['psf']['angles'], psf['angles'])
-    np.testing.assert_allclose(local_dict['psf']['dihedrals'], psf['dihedrals'])
-    np.testing.assert_allclose(local_dict['psf']['impropers'], psf['impropers'])
-    for key in local_dict['psf']['atoms']:
-        if not local_dict['psf']['atoms'][key].dtype.name == 'object':
-            np.testing.assert_allclose(local_dict['psf']['atoms'][key], psf['atoms'][key])
+    assert armc.job.psf.filename == psf['filename']
+    np.testing.assert_allclose(armc.job.psf.bonds, psf['bonds'])
+    np.testing.assert_allclose(armc.job.psf.angles, psf['angles'])
+    np.testing.assert_allclose(armc.job.psf.dihedrals, psf['dihedrals'])
+    np.testing.assert_allclose(armc.job.psf.impropers, psf['impropers'])
+    for key, value in armc.job.psf.atoms.items():
+        if not value.dtype.name == 'object':
+            np.testing.assert_allclose(value, psf['atoms'][key])
         else:
-            np.testing.assert_array_equal(local_dict['psf']['atoms'][key], psf['atoms'][key])
+            np.testing.assert_array_equal(value, psf['atoms'][key])
 
-    armc = local_dict['armc']
     assert armc.phi.phi == 1.0
     assert armc.phi.kwarg == {}
     assert armc.phi.func == np.add

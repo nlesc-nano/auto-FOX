@@ -1,6 +1,6 @@
 """ A work in progress recipe for MM-MD parameter optimizations with CP2K. """
 
-import os
+from os import remove
 from os.path import join
 
 from scm.plams import add_to_class
@@ -14,15 +14,14 @@ def get_runscript(self):
     return 'cp2k.ssmp -i {} -o {}'.format(self._filename('inp'), self._filename('out'))
 
 
-path = r'D:\hardd\Downloads'
-
 # Prepare the ARMC settings
 armc = ARMC.from_yaml('armc.yaml')
+armc.hdf5_file = join('/Users/basvanbeek/Downloads', 'armc.hdf5')
 
 
 # Start ARMC
 try:
-    os.remove(join(path, 'armc.hdf5'))
+    remove(armc.hdf5_file)
 except FileNotFoundError:
     pass
 # armc.init_armc()
