@@ -6,48 +6,7 @@ import pandas as pd
 import numpy as np
 
 
-def rename_atom_types(prm_dict, rename_dict):
-    """ Rename atom types in a CHARM parameter file (prm_).
-
-    An example is provided below, one where the atom type *H_old* is renamed to *H_new*:
-
-    .. code:: python
-
-        >>> 'H_old' in atom_dict['ATOMS'].index
-        True
-
-        >>> rename_dict = {'H_old': 'H_new'}
-        >>> rename_atom_types(prm_dict, rename_dict)
-
-        >>> 'H_old' in atom_dict['ATOMS'].index
-        False
-
-        >>> 'H_new' in atom_dict['ATOMS'].index
-        True
-
-    :parameter prm_dict: A dictionary with **key** as key and a dataframe of accumulated data as
-        value.
-    :parameter rename_dict: A dictionary or series with old atom types as keys and new atom types
-        as values
-    :type atom_dict: |dict|_ or |pd.Series|_ (keys: |str|_, values: |str|_)
-
-    .. _prm: https://mackerell.umaryland.edu/charmm_ff.shtml
-    """
-    for key, df in prm_dict.items():
-        idx = np.array(df.index.tolist())
-        for at_old, at_new in rename_dict.items():
-            try:
-                idx[idx == at_old] = np.array(at_new, dtype=idx.dtype)
-            except ValueError:
-                pass
-
-        if idx.ndim == 1:
-            df.index = pd.Index(idx, names=df.index.name)
-        else:
-            df.index = pd.MultiIndex.from_arrays(idx.T, names=df.index.names)
-
-
-def write_prm(prm_dict, filename='charmm_out.prm'):
+def write_prm(prm_dict, filename):
     """ Create a new CHARM parameter file (prm_) out of **prm_dict**.
 
     :parameter prm_dict: A dictionary with block names as keys and a dataframe of matching
@@ -77,28 +36,7 @@ def write_prm(prm_dict, filename='charmm_out.prm'):
         f.write('END\n')
 
 
-def _get_empty_line(df):
-    """ Create a string with a sufficient amount of curly brackets to hold all items from a single
-    row in **df**.
-
-    :parameter df: A Pandas dataframe.
-    :type df: |pd.DataFrame|_
-    :return: Given a dataframe, **df**, with :math:`n` columns, return a string with :math:`n`
-        sets of curly brackets.
-    :rtype: |str|_
-    """
-    ret = ''
-    for column in df:
-        if df[column].dtype == np.dtype('O'):
-            ret += ' {:10.10}'
-        elif df[column].dtype == np.dtype('float64'):
-            ret += ' {:>10.5f}'
-        else:
-            ret += ' {:>10.0f}'
-    return ret[1:] + '\n'
-
-
-def read_prm(filename='charmm.prm'):
+def read_prm(filename):
     """ Read a CHARM parameter file (prm_), returning a dictionary of dataframes.
 
     The .prm file is expected to possess one or more of the following blocks:
@@ -178,6 +116,68 @@ def read_blocks(f, key):
         elif item and item[0] != '!':  # Iterate within a block
             item2 = item.split('!')[0].split()
             ret.append(item2)
+
+
+def rename_atom_types(prm_dict, rename_dict):
+    """ Rename atom types in a CHARM parameter file (prm_).
+
+    An example is provided below, one where the atom type *H_old* is renamed to *H_new*:
+
+    .. code:: python
+
+        >>> 'H_old' in atom_dict['ATOMS'].index
+        True
+
+        >>> rename_dict = {'H_old': 'H_new'}
+        >>> rename_atom_types(prm_dict, rename_dict)
+
+        >>> 'H_old' in atom_dict['ATOMS'].index
+        False
+
+        >>> 'H_new' in atom_dict['ATOMS'].index
+        True
+
+    :parameter prm_dict: A dictionary with **key** as key and a dataframe of accumulated data as
+        value.
+    :parameter rename_dict: A dictionary or series with old atom types as keys and new atom types
+        as values
+    :type atom_dict: |dict|_ or |pd.Series|_ (keys: |str|_, values: |str|_)
+
+    .. _prm: https://mackerell.umaryland.edu/charmm_ff.shtml
+    """
+    for key, df in prm_dict.items():
+        idx = np.array(df.index.tolist())
+        for at_old, at_new in rename_dict.items():
+            try:
+                idx[idx == at_old] = np.array(at_new, dtype=idx.dtype)
+            except ValueError:
+                pass
+
+        if idx.ndim == 1:
+            df.index = pd.Index(idx, names=df.index.name)
+        else:
+            df.index = pd.MultiIndex.from_arrays(idx.T, names=df.index.names)
+
+
+def _get_empty_line(df):
+    """ Create a string with a sufficient amount of curly brackets to hold all items from a single
+    row in **df**.
+
+    :parameter df: A Pandas dataframe.
+    :type df: |pd.DataFrame|_
+    :return: Given a dataframe, **df**, with :math:`n` columns, return a string with :math:`n`
+        sets of curly brackets.
+    :rtype: |str|_
+    """
+    ret = ''
+    for column in df:
+        if df[column].dtype == np.dtype('O'):
+            ret += ' {:10.10}'
+        elif df[column].dtype == np.dtype('float64'):
+            ret += ' {:>10.5f}'
+        else:
+            ret += ' {:>10.0f}'
+    return ret[1:] + '\n'
 
 
 def _get_nonbonded(f, item):

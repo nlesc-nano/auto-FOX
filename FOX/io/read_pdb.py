@@ -1,29 +1,17 @@
-""" A module for reading protein DataBank (.pdb) files.
- """
+""" A module for reading protein DataBank (.pdb) files. """
 
-__all__ = []
+__all__ = ['read_pdb']
 
 import pandas as pd
 import numpy as np
 
-
-def slice_str(str_, intervals):
-    """ Slice a string, **str_**, at intervals specified in **intervals**.
-
-    :parameter str str_: A string.
-    :parameter list intverals: A list with :math:`n` objects suitable for slicing.
-    :return: A list of strings as sliced from **str_**.
-    :rtype: :math:`n-1` |list|_ [|str|_]
-    """
-    iter1 = intervals[:-1]
-    iter2 = intervals[1:]
-    return [str_[i:j].strip() for i, j in zip(iter1, iter2)]
+from ..functions.utils import slice_str
 
 
-def read_pdb(pdb_file):
+def read_pdb(filename):
     """ Read the content of protein DataBank file (pdb_).
 
-    :parameter str pdb_file: The path+name of a .pdb file.
+    :parameter str filename: The path+name of a .pdb file.
     :return: A dataframe holding the ATOM/HETATM block and an array holding the CONECT block.
     :rtype: |pd.DataFrame|_ and |np.ndarray|_ [|np.int64|_]
 
@@ -32,13 +20,13 @@ def read_pdb(pdb_file):
     atoms = []
     bonds = []
 
-    with open(pdb_file, 'r') as f:
-        # Intervals for slicing the ATOM/HETATOM block of a .pdb file
+    with open(filename, 'r') as f:
+        # Intervals for slicing the ATOM/HETATOM block of a .pdb file (see _pdb)
         interval = [None, 6, 11, 16, 17, 20, 22, 26, 27, 38, 46, 54, 60, 66, 73, 78, None]
 
         # Parse and return
         for i in f:
-            if i[0:6] == 'HETATM' or i[0:4] == 'ATOM':
+            if i[0:6] in ('HETATM', 'ATOM  '):
                 atoms.append(slice_str(i, interval))
             elif i[0:6] == 'CONECT':
                 bonds.append(i.split()[1:])
@@ -48,7 +36,9 @@ def read_pdb(pdb_file):
 
 
 def _get_bonds_array(bonds):
-    """ Convert the connectivity list produced by :func:`read_pdb` into an array of integers.
+    """ Convert the connectivity list produced by :func:`.read_pdb` into an array of integers.
+    Bond orders are multiplied by :math:`10` and stored as integers,
+    thus effectively being stored as floats with single-decimal precision.
 
     :parameter list bonds: A nested list of atomic indices as retrieved from a pdb_ file.
     :return: An array with :math:`n` bonds.
@@ -76,7 +66,7 @@ def _get_bonds_array(bonds):
 
 
 def _get_atoms_df(atoms):
-    """ Convert the atom list produced by :func:`read_pdb` into a dataframe.
+    """ Convert the atom list produced by :func:`.read_pdb` into a dataframe.
 
     :parameter list atoms: A nested list of atom data as retrieved from a pdb_ file.
     :return: A dataframe with 16 columns containing the .pdb data of :math:`n` atoms.

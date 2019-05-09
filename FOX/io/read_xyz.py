@@ -5,7 +5,7 @@ __all__ = ['read_multi_xyz']
 import numpy as np
 
 
-def read_multi_xyz(xyz_file):
+def read_multi_xyz(filename):
     """ Read a (multi) .xyz file and return:
 
         * An array with the cartesian coordinates of :math:`m` molecules
@@ -13,28 +13,28 @@ def read_multi_xyz(xyz_file):
 
         * A dictionary with atomic symbols and lists of matching atomic indices
 
-    :parameter str xyz_file: The path + filename of a (multi) .xyz file.
+    :parameter str filename: The path + filename of a (multi) .xyz file.
     :return: A 3D array with cartesian coordinates and a dictionary
         with atomic symbols as keys and lists of matching atomic indices as values.
     :rtype: :math:`m * n * 3` |np.ndarray|_ [|np.float64|_] and |dict|_
         (keys: |str|_, values: |list|_ [|int|_]).
     """
     # Define constants and construct a dictionary: {atomic symbols: [atomic indices]}
-    with open(xyz_file, 'r') as f:
+    with open(filename, 'r') as f:
         atom_count = _get_atom_count(f)
         idx_dict = _get_idx_dict(f, mol_size=atom_count, subtract=1)
         line_count = _get_line_count(f, add=[2, atom_count])
 
     # Check if mol_count is fractional, smaller than 1 or if atom_count is smaller than 1
     mol_count = line_count / (2 + atom_count)
-    validate_xyz(mol_count, atom_count, xyz_file)
+    validate_xyz(mol_count, atom_count, filename)
 
     # Create an empty (m*n)*3 xyz array
     shape = int(mol_count), atom_count, 3
     xyz = np.empty(shape)
 
     # Fill the xyz array with cartesian coordinates
-    with open(xyz_file, 'r') as f:
+    with open(filename, 'r') as f:
         for i, _ in enumerate(f):
             next(f)
             xyz[i] = [at.split()[1:] for _, at in zip(range(atom_count), f)]
@@ -46,7 +46,7 @@ class XYZError(Exception):
     pass
 
 
-def validate_xyz(mol_count, atom_count, xyz_file):
+def validate_xyz(mol_count, atom_count, filename):
     """ Validate **mol_count** and **atom_count** in **xyz_file**.
 
     :parameter float mol_count: The number of molecules in the xyz file.
@@ -56,13 +56,13 @@ def validate_xyz(mol_count, atom_count, xyz_file):
     """
     if not mol_count.is_integer():
         error = "A non-integer number of molecules ({:d}) was found in '{}'"
-        raise XYZError(error.format(mol_count, xyz_file))
+        raise XYZError(error.format(mol_count, filename))
     elif mol_count < 1.0:
         error = "No molecules were found in '{}'; mol count: {:f}"
-        raise XYZError(error.format(xyz_file, mol_count))
+        raise XYZError(error.format(filename, mol_count))
     if atom_count < 1:
         error = "No atoms were found in '{}'; atom count per molecule: {:d}"
-        raise XYZError(error.format(xyz_file, atom_count))
+        raise XYZError(error.format(filename, atom_count))
 
 
 def _get_atom_count(f):

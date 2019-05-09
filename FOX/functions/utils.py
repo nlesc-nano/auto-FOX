@@ -2,7 +2,7 @@
 
 __all__ = ['get_template', 'template_to_df', 'update_charge', 'get_example_xyz']
 
-from os.path import join
+from os.path import join, isfile
 from functools import wraps
 from pkg_resources import resource_filename
 
@@ -81,7 +81,8 @@ def get_template(name, path=None, as_settings=True):
     :rtype: |plams.Settings|_ or |dict|_
     """
     if path is None:
-        path = resource_filename('FOX', join('data', name))
+        if not isfile(name):
+            path = resource_filename('FOX', join('data', name))
     else:
         path = join(path, name)
 
@@ -344,3 +345,89 @@ def _get_move_range(start=0.005, stop=0.1, step=0.005):
     ret = np.concatenate((rng_range1, rng_range2))
     ret.sort()
     return ret
+
+
+def get_func_name(item):
+    """ Return the module + class + name of a function.
+
+    Example:
+
+    .. code:: python
+
+        >>> import numpy as np
+        >>> import FOX
+
+        >>> func1 = FOX.MultiMolecule.init_rdf
+        >>> get_func_name(func1)
+        'FOX.MultiMolecule.init_rdf'
+
+        >>> func2 = np.add
+        >>> get_func_name(func2)
+        'numpy.ufunc.add'
+
+    :parameter item: A function.
+    :type item: |type|_
+    :return: The module + class + name of a function.
+    :rtype: |str|_
+    """
+    try:
+        item_class, item_name = item.__qualname__.split('.')
+        item_module = item.__module__.split('.')[0]
+    except AttributeError:
+        item_name = item.__name__
+        item_class = item.__class__.__name__
+        item_module = item.__class__.__module__.split('.')[0]
+    return '{}.{}.{}'.format(item_module, item_class, item_name)
+
+
+def get_class_name(item):
+    """ Return the module + name of a class.
+
+    Example:
+
+    .. code:: python
+
+        >>> import FOX
+
+        >>> class1 = FOX.MultiMolecule
+        >>> get_func_name(class1)
+        'FOX.MultiMolecule'
+
+        >>> class2 = float
+        >>> get_func_name(class2)
+        'builtins.float'
+
+    :parameter item: A class.
+    :type item: |type|_
+    :return: The module + name of a class.
+    :rtype: |str|_
+    """
+    item_class = item.__qualname__
+    item_module = item.__module__.split('.')[0]
+    if item_module == 'scm':
+        item_module == item.__module__.split('.')[1]
+    return '{}.{}'.format(item_module, item_class)
+
+
+def slice_str(str_, intervals, strip_spaces=True):
+    """ Slice a string, **str_**, at intervals specified in **intervals**.
+
+    Example:
+
+    .. code:: python
+        >>> my_str = '123456789'
+        >>> intervals = [None, 3, 6, None]
+        >>> slice_str(my_str, intervals)
+        ['123', '456', '789']
+
+    :parameter str str_: A string.
+    :parameter list intverals: A list with :math:`n` objects suitable for slicing.
+    :parameter bool strip_spaces: If empty spaces should be stripped or not.
+    :return: A list of strings as sliced from **str_**.
+    :rtype: :math:`n-1` |list|_ [|str|_]
+    """
+    iter1 = intervals[:-1]
+    iter2 = intervals[1:]
+    if strip_spaces:
+        return [str_[i:j].strip() for i, j in zip(iter1, iter2)]
+    return [str_[i:j] for i, j in zip(iter1, iter2)]

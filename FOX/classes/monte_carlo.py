@@ -14,7 +14,9 @@ from scm.plams.interfaces.thirdparty.cp2k import (Cp2kJob, Cp2kResults)
 
 from .multi_mol import MultiMolecule
 from ..io.hdf5_utils import (create_hdf5, to_hdf5)
-from ..functions.utils import (get_template, write_psf, _get_move_range)
+from ..functions.utils import (
+    get_template, write_psf, _get_move_range, get_class_name, get_func_name
+)
 from ..functions.cp2k_utils import (update_cp2k_settings, set_subsys_kind)
 from ..functions.charge_utils import update_charge
 from ..functions.armc_sanitization import init_armc_sanitization
@@ -275,27 +277,27 @@ class ARMC(MonteCarlo):
         for key, value in ret.pes.items():
             value.ref = str(value.ref.__class__)
             value.kwarg = str(value.kwarg.as_dict())
-            value.func = self.get_func_name(value.func) + '()'
+            value.func = get_func_name(value.func) + '()'
 
         # The self.job block
         ret.job.molecule = str(self.job.molecule.__class__)
         ret.job.settings = str(self.job.settings.__class__)
         ret.job.psf = str(self.job.psf.__class__)
-        ret.job.func = self.get_class_name(ret.job.func) + '()'
+        ret.job.func = get_class_name(ret.job.func) + '()'
 
         # The self.move block
         ret.move.kwarg = str(ret.move.kwarg.as_dict())
-        ret.move.func = self.get_func_name(ret.move.func) + '()'
+        ret.move.func = get_func_name(ret.move.func) + '()'
         ret.move.range = np.array2string(ret.move.range, precision=3,
                                          floatmode='fixed', threshold=20)
 
         # The self.phi block
         ret.phi.kwarg = str(ret.phi.kwarg.as_dict())
-        ret.phi.func = self.get_func_name(ret.phi.func) + '()'
+        ret.phi.func = get_func_name(ret.phi.func) + '()'
 
         # The self.move block
         for value in ret.move.charge_constraints.values():
-            value.func = self.get_func_name(value.func) + '()'
+            value.func = get_func_name(value.func) + '()'
 
         # The self.param block
         param = ret.param['param'].to_dict()
@@ -310,25 +312,6 @@ class ARMC(MonteCarlo):
                 ret.param[key1] = {key2: value}
 
         return str(ret)
-
-    @staticmethod
-    def get_func_name(item):
-        try:
-            item_class, item_name = item.__qualname__.split('.')
-            item_module = item.__module__.split('.')[0]
-        except AttributeError:
-            item_name = item.__name__
-            item_class = item.__class__.__name__
-            item_module = item.__class__.__module__.split('.')[0]
-        return '{}.{}.{}'.format(item_module, item_class, item_name)
-
-    @staticmethod
-    def get_class_name(item):
-        item_class = item.__qualname__
-        item_module = item.__module__.split('.')[0]
-        if item_module == 'scm':
-            item_module == item.__module__.split('.')[1]
-        return '{}.{}'.format(item_module, item_class)
 
     @staticmethod
     def from_yaml(yml_file):
@@ -388,7 +371,6 @@ class ARMC(MonteCarlo):
         for kappa in range(super_iter):
             key_new = self.do_inner(kappa, history_dict, key_new)
         finish()
-        return self.param
 
     def do_inner(self, kappa, history_dict, key_new):
         r""" A method that handles the inner loop of the :meth:`ARMC.init_armc` method.
