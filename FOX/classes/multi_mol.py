@@ -12,10 +12,12 @@ from scm.plams import (Atom, Bond)
 
 from .molecule_utils import Molecule
 from .multi_mol_magic import _MultiMolecule
+from ..io.read_kf import read_kf
 from ..io.read_xyz import read_multi_xyz
 from ..functions.rdf import (get_rdf, get_rdf_lowmem, get_rdf_df)
 from ..functions.adf import (get_adf, get_adf_df)
-from ..functions.utils import (read_str_file, write_psf)
+from ..functions.utils import read_str_file
+from ..io.read_psf import write_psf
 
 
 class MultiMolecule(_MultiMolecule):
@@ -845,9 +847,7 @@ class MultiMolecule(_MultiMolecule):
             return list(chain.from_iterable(self.atoms[i] for i in subset))
         elif isinstance(subset[0][0], (int, np.integer)):
             return list(chain.from_iterable(subset))
-
-        raise TypeError(str(type(subset)) + ': ' + str(subset) + ' is not a valid object type for /'
-                        'the atom_subset argument')
+        raise TypeError("'{}' is not a supported object type".format(subset.__class__.__name__))
 
     @staticmethod
     def _get_mol_subset(subset):
@@ -856,8 +856,9 @@ class MultiMolecule(_MultiMolecule):
             return slice(0, None)
         elif isinstance(subset, (int, np.integer)):
             return [subset]
-        else:
+        elif isinstance(subset, (range, slice)):
             return subset
+        raise TypeError("'{}' is not a supported object type".format(subset.__class__.__name__))
 
     """ #################################  Type conversion  ################################### """
 
@@ -867,6 +868,7 @@ class MultiMolecule(_MultiMolecule):
         plams_mol = self.as_Molecule(0)[0]
         plams_mol.fix_bond_orders()
 
+        # Construct the .psf dataframe
         df = pd.DataFrame(index=np.arange(1, self.shape[1]+1))
         df.index.name = 'ID'
         df['segment name'] = 'MOL'
@@ -878,11 +880,13 @@ class MultiMolecule(_MultiMolecule):
         df['mass'] = self.mass
         df['0'] = 0
 
+        # Prepare arguments for constructing the 'segment name' column
         key = sorted(set(df.loc[df['residue ID'] == 1, 'atom type']))
         value = range(1, len(key) + 1)
         segment_dict = dict(zip(key, value))
         value_max = 'MOL' + str(value.stop)
 
+        # Construct the 'segment name' column
         segment_name = []
         for item in df['atom name']:
             try:
@@ -919,8 +923,8 @@ class MultiMolecule(_MultiMolecule):
         """ Create a Protein Structure File (.psf) out of **self**.
 
         :parameter str filename: The path+filename of the to-be create .psf file.
-        :parameter bool return_blocks: Return a dicionary with all psf blocks instead of
-            writing the psf file itself.
+        :parameter bool return_blocks: Instead of creating a .psf file, return a dictionary with all
+            arguments for creating a .psf file with :func:`.write_psf`.
         """
         ret = {'filename': filename}
 
@@ -1034,9 +1038,10 @@ class MultiMolecule(_MultiMolecule):
         # Define constants
         mol_subset = self._get_mol_subset(mol_subset)
         at = self.symbol[:, None]
-        header = str(len(at)) + '\n' + 'frame '
+        header = '{:d}\nframe '.format(len(at))
         kwarg = {'fmt': ['%-10.10s', '%-15s', '%-15s', '%-15s'],
-                 'delimiter': '     ', 'comments': ''}
+                 'delimiter': '     ',
+                 'comments': ''}
 
         # Create the .xyz file
         with open(filename, 'wb') as file:
@@ -1139,7 +1144,8 @@ class MultiMolecule(_MultiMolecule):
 
     @classmethod
     def from_Molecule(cls, mol_list, subset='atoms'):
-        """ Convert a PLAMS molecule or a list of PLAMS molecules into a new *MultiMolecule* object.
+        """ Construct a :class:`.MultiMolecule` instance from a PLAMS molecule or
+        a list of PLAMS molecules.
 
         :parameter mol_list: A PLAMS molecule or list of PLAMS molecules.
         :type mol_list: |plams.Molecule|_ or |list|_ [|plams.Molecule|_]
@@ -1183,11 +1189,37 @@ class MultiMolecule(_MultiMolecule):
         return cls(coords, **kwarg)
 
     @classmethod
-    def from_xyz(cls, xyz_file):
-        """ Convert a (multi) .xyz file into a instance of :class:`.MultiMolecule`.
+    def from_xyz(cls, filename, bonds=None, properties=None):
+        """ Construct a :class:`.MultiMolecule` instance from a (multi) .xyz file.
 
-        :parameter str xyz_file: The path + filename of an .xyz file
-        :return: A FOX.MultiMolecule constructed from **xyz_file**.
+        :parameter str filename: The path + filename of an .xyz file
+        :parameter bonds: A 2D array with indices of the atoms defining all :math:`k` bonds
+            (columns 1 & 2) and their respective bond orders multiplied by 10 (column 3).
+            Stored in the **bonds** attribute.
+        :type bonds: |None|_ or :math:`k*3` |np.ndarray|_ [|np.int64|_]
+        :parameter properties: A Settings object (subclass of dictionary) intended for storing
+            miscellaneous user-defined (meta-)data. Is devoid of keys by default. Stored in the
+            **properties** attribute.
+        :type properties: |plams.Settings|_
+        :return: A :class:`.MultiMolecule` instance constructed from **filename**.
         :rtype: |FOX.MultiMolecule|_
         """
-        return cls(*read_multi_xyz(xyz_file))
+        return cls(*read_multi_xyz(filename), bonds=None, properties=None)
+
+    @classmethod
+    def from_kf(cls, filename, bonds, properties):
+        """ Construct a :class:`.MultiMolecule` instance from a KF binary file.
+
+        :parameter str filename: The path + filename of an .xyz file
+        :parameter bonds: A 2D array with indices of the atoms defining all :math:`k` bonds
+            (columns 1 & 2) and their respective bond orders multiplied by 10 (column 3).
+            Stored in the **bonds** attribute.
+        :type bonds: |None|_ or :math:`k*3` |np.ndarray|_ [|np.int64|_]
+        :parameter properties: A Settings object (subclass of dictionary) intended for storing
+            miscellaneous user-defined (meta-)data. Is devoid of keys by default. Stored in the
+            **properties** attribute.
+        :type properties: |plams.Settings|_
+        :return: A :class:`.MultiMolecule` instance constructed from **filename**.
+        :rtype: |FOX.MultiMolecule|_
+        """
+        return cls(*read_kf(filename), bonds, properties)

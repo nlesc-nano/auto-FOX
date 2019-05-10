@@ -272,59 +272,6 @@ def array_to_index(ar):
                      {:d}-dimensional array'.format(ar.dim))
 
 
-def write_psf(atoms=None, bonds=None, angles=None, dihedrals=None, impropers=None,
-              filename='mol.psf'):
-    """ Create a protein structure file (.psf).
-
-    :parameter atoms: A Pandas DataFrame holding the *atoms* block.
-    :type atoms: |pd.DataFrame|_
-    :parameter bonds: An array holding the indices of all atom-pairs defining bonds.
-    :type bonds: :math:`i*2` |np.ndarray|_ [|np.int64|_]
-    :parameter angles: An array holding the indices of all atoms defining angles.
-    :type angles: :math:`j*3` |np.ndarray|_ [|np.int64|_]
-    :parameter dihedrals: An array holding the indices of all atoms defining proper
-        dihedral angles.
-    :type dihedrals: :math:`k*4` |np.ndarray|_ [|np.int64|_]
-    :parameter impropers: An array holding the indices of all atoms defining improper
-        dihedral angles.
-    :type impropers: :math:`l*4` |np.ndarray|_ [|np.int64|_]
-    """
-    # Prepare the !NTITLE block
-    top = 'PSF EXT\n'
-    top += '\n{:>10d} !NTITLE'.format(2)
-    top += '\n{:>10.10} PSF file generated with Auto-FOX:'.format('REMARKS')
-    top += '\n{:>10.10} https://github.com/nlesc-nano/auto-FOX'.format('REMARKS')
-
-    # Prepare the !NATOM block
-    top += '\n\n{:>10d} !NATOM\n'.format(atoms.shape[0])
-    string = '{:>10d} {:8.8} {:<8d} {:8.8} {:8.8} {:6.6} {:>9f} {:>15f} {:>8d}'
-    for i, j in atoms.iterrows():
-        top += string.format(*[i]+j.values.tolist()) + '\n'
-
-    # Prepare arguments
-    items_per_row = [4, 3, 2, 2]
-    bottom_headers = {
-        '{:>10d} !NBOND: bonds': bonds,
-        '{:>10d} !NTHETA: angles': angles,
-        '{:>10d} !NPHI: dihedrals': dihedrals,
-        '{:>10d} !NIMPHI: impropers': impropers
-    }
-
-    # Prepare the !NBOND, !NTHETA, !NPHI and !NIMPHI blocks
-    bottom = ''
-    for i, (key, value) in zip(items_per_row, bottom_headers.items()):
-        if value is None:
-            bottom += '\n\n' + key.format(0)
-        else:
-            bottom += '\n\n' + key.format(value.shape[0])
-            bottom += '\n' + serialize_array(value, i)
-
-    # Write the .psf file
-    with open(filename, 'w') as f:
-        f.write(top)
-        f.write(bottom[1:])
-
-
 def get_example_xyz(name='Cd68Se55_26COO_MD_trajec.xyz'):
     """ Return the path + name of the example multi-xyz file. """
     return resource_filename('FOX', join('data', name))

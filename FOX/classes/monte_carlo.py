@@ -13,10 +13,9 @@ from scm.plams.core.functions import (init, finish, add_to_class, config)
 from scm.plams.interfaces.thirdparty.cp2k import (Cp2kJob, Cp2kResults)
 
 from .multi_mol import MultiMolecule
+from ..io.read_psf import write_psf
 from ..io.hdf5_utils import (create_hdf5, to_hdf5)
-from ..functions.utils import (
-    get_template, write_psf, _get_move_range, get_class_name, get_func_name
-)
+from ..functions.utils import (get_template, _get_move_range, get_class_name, get_func_name)
 from ..functions.cp2k_utils import (update_cp2k_settings, set_subsys_kind)
 from ..functions.charge_utils import update_charge
 from ..functions.armc_sanitization import init_armc_sanitization
