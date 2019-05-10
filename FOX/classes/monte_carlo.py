@@ -66,7 +66,7 @@ class MonteCarlo():
         self.job.molecule = molecule
         self.job.psf = {}
         self.job.func = Cp2kJob
-        self.job.settings = get_template('md_cp2k.yaml')
+        self.job.settings = get_template('md_cp2k_template.yaml')
         self.job.name = self.job.func.__name__.lower()
         self.job.path = os.getcwd()
         self.job.folder = 'MM_MD_workdir'
@@ -229,7 +229,7 @@ class MonteCarlo():
         if molecule is not None:
             self.job.molecule = molecule
         self.job.func = func
-        self.job.settings = settings or get_template('md_cp2k.yaml')
+        self.job.settings = settings or get_template('md_cp2k_template.yaml')
         self.job.name = name or self.job.func.__name__
         self.job.path = path or os.getcwd()
         self.job.keep_files = keep_files
@@ -273,7 +273,7 @@ class ARMC(MonteCarlo):
         ret = Settings(vars(self))
 
         # The self.pes block
-        for key, value in ret.pes.items():
+        for value in ret.pes.values():
             value.ref = str(value.ref.__class__)
             value.kwarg = str(value.kwarg.as_dict())
             value.func = get_func_name(value.func) + '()'
@@ -403,7 +403,7 @@ class ARMC(MonteCarlo):
             else:
                 aux_new = self.get_aux_error(pes_new)
             aux_old = history_dict[key_old]
-            accept = True if (aux_new - aux_old) < 0 else False
+            accept = True if (aux_new - aux_old).sum() < 0 else False
 
             # Step 4: Update the auxiliary error history, apply phi & update job settings
             acceptance[omega] = accept
@@ -438,8 +438,13 @@ class ARMC(MonteCarlo):
         .. math::
 
             \Delta \varepsilon_{QM-MM} =
-            \sum_{n} \sqrt{
-                \sum_{r_{ij}=0}^{r_{max}} (\Delta g_{n} (r_{ij}))^2
+            \sqrt {
+                \frac{1}{N}
+                \sum_{i}^{N}
+                \left(
+                    \frac{ r_{i}^{QM} - r_{i}^{MM} }
+                    {r_{i}^{QM}}
+                \right )^2
             }
 
         :parameter pes_dict: A dictionary of *n* PES descriptors.
@@ -447,9 +452,13 @@ class ARMC(MonteCarlo):
         :return: An array with *n* auxilary errors
         :rtype: *n* |np.ndarray|_ [|np.float64|_]
         """
-        def norm_sum(a, b):
-            return np.linalg.norm(a - b, axis=0).sum()
-        return np.array([norm_sum(pes_dict[i], self.pes[i].ref) for i in pes_dict])
+        def norm_mean(mm_pes, key):
+            qm_pes = self.pes[key].ref
+            ret = (qm_pes - mm_pes) / qm_pes
+            ret **=2
+            return np.mean(ret)**0.5
+
+        return np.array([norm_mean(pes_dict, key) for key, mm_pes in pes_dict.items()])
 
     def apply_phi(self, aux_error):
         r""" Apply :math:`\phi` to all auxiliary errors, :math:`\Delta \varepsilon_{QM-MM}`,

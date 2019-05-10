@@ -7,7 +7,10 @@ import numpy as np
 from scm.plams import Molecule as _Molecule
 from scm.plams.core.errors import MoleculeError
 
+from ..functions.utils import append_docstring
 
+
+@append_docstring(_Molecule)
 class Molecule(_Molecule):
     """ A modified version of the plams.Molecule_ class, suplemented with a number of
     additional methods.
@@ -15,6 +18,7 @@ class Molecule(_Molecule):
 
     .. _plams.Molecule: https://www.scm.com/doc/plams/components/mol_api.html
     """
+    @append_docstring(_Molecule.__getitem__)
     def __getitem__(self, key):
         """ Modified `Molecule.__getitem__ <https://www.scm.com/doc/plams/components/mol_api.html\
     #scm.plams.mol.molecule.Molecule.__getitem__>`_ method; atoms can now be sliced with instances
@@ -168,8 +172,3 @@ class Molecule(_Molecule):
         for i, j in enumerate(idx):
             ret[i, 1:] = ret[i, 1:][j]
         return ret
-
-
-# Append docstrings
-Molecule.__doc__ += _Molecule.__doc__
-Molecule.__getitem__.__doc__ += _Molecule.__getitem__.__doc__

@@ -20,7 +20,7 @@ mol = MultiMolecule.from_xyz(example_xyz_filename)
 
 # Calculate the RDF, RSMF & RMSD
 rdf = mol.init_rdf(atom_subset=atoms)
-# adf = mol.init_adf(atom_subset=atoms)  # Note: This is rather slow and can take a few of minutes
+adf = mol.init_adf(atom_subset=atoms)  # Note: This is rather slow and can take a few of minutes
 rmsf = mol.init_rmsf(atom_subset=atoms)
 rmsd = mol.init_rmsd(atom_subset=atoms)
 
@@ -28,7 +28,7 @@ rmsd = mol.init_rmsd(atom_subset=atoms)
 print('run time:', '%.2f' % (time.time() - start), 'sec')
 try:
     rdf.plot()
-    # adf.plot()
+    adf.plot()
     rmsf.plot()
     rmsd.plot()
 except Exception as ex:

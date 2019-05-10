@@ -35,10 +35,10 @@ def test_assert_error():
 
 def test_get_template():
     """ Test :func:`FOX.functions.utils.get_template`. """
-    s = get_template(name='md_cp2k.yaml')
+    s = get_template(name='md_cp2k_template.yaml')
     assert isinstance(s, Settings)
 
-    dict_ = get_template(name='md_cp2k.yaml', as_settings=False)
+    dict_ = get_template(name='md_cp2k_template.yaml', as_settings=False)
     assert not isinstance(dict_, Settings)
     assert isinstance(dict_, dict)
 

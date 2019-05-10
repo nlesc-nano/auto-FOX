@@ -18,7 +18,7 @@ from FOX.functions.charge_utils import (
 
 MOL = MultiMolecule.from_xyz(get_example_xyz())
 MOL.guess_bonds(atom_subset=['C', 'O', 'H'])
-MOL.update_atom_type(join(FOX.__path__[0], 'data/ligand.str'))
+MOL.update_atom_type(join(FOX.__path__[0], 'examples/ligand.str'))
 MOL.update_atom_charge('Cd', 2.0)
 MOL.update_atom_charge('Se', -2.0)
 DF = MOL.properties.psf

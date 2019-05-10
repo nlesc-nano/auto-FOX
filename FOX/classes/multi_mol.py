@@ -594,9 +594,9 @@ class MultiMolecule(_MultiMolecule):
 
 
         For example, ``dist_dict = {'Cd': [3.0, 6.5]}`` will create and return a dictionary with
-        three keys: One for all atoms whose RMSF is smaller than :math:`3.0`, one where the RMSF is
-        between :math:`3.0` and `:math:`6.5`, and finally one where the RMSF is larger
-        than :math:`6.5`.
+        three keys: One for all atoms whose RMSF is smaller than 3.0, one where the RMSF is
+        between 3.0 and 6.5, and finally one where the RMSF is larger than 6.5.
+
         This example is illustrated below:
 
         .. code:: python
@@ -1063,7 +1063,7 @@ class MultiMolecule(_MultiMolecule):
         :type atom_subset: |None|_, |int|_ or |str|_
         :parameter bool inplace: Instead of returning the new coordinates, perform an inplace
             update of **self**.
-        :return: if **inplace** = *False: a new :class:`.MultiMolecule` instance with the
+        :return: if **inplace** = *False*: a new :class:`.MultiMolecule` instance with the
             mass-weighted Cartesian coordinates of :math:`m` molecules with :math:`n` atoms.
         :rtype: :math:`m*n*3` |np.ndarray|_ [|np.float64|_]
         """

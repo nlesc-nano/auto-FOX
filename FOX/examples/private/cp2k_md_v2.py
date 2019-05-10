@@ -24,4 +24,4 @@ try:
     remove(armc.hdf5_file)
 except FileNotFoundError:
     pass
-# armc.init_armc()
+armc.init_armc()

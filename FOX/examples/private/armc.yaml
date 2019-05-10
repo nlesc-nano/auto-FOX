@@ -30,7 +30,7 @@ pes:
         kwarg:
             atom_subset: [Cd, Se, O]
 
-molecule: mol.xyz
+molecule: /Users/basvanbeek/Documents/GitHub/auto-FOX/FOX/data/Cd68Se55_26COO_MD_trajec.xyz
 
 job:
     logfile: armc.log

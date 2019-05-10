@@ -2,6 +2,7 @@
 
 __all__ = ['init_armc_sanitization']
 
+from os import getcwd
 from os.path import isfile, isdir, split, join
 
 import numpy as np
@@ -53,13 +54,13 @@ def init_armc_sanitization(dict_):
 
 def generate_psf(mol, psf, param, job):
     """ Generate the job.psf block. """
-    path = join(job.path, job.folder)
-    psf_file = join(path, 'mol.psf')
+    psf_file = join(job.path, 'mol.psf')
+    job.settings.input.force_eval.subsys.topology.conn_file_name = psf_file
 
     mol.guess_bonds(atom_subset=psf.ligand_atoms)
     mol.update_atom_type(psf.str_file)
     for at, charge in param.charge.items():
-        assert_type(at, str, 'job.charge.')
+        assert_type(at, str, 'param.')
         assert_type(charge, (float, np.float), 'param.charge.' + at)
         mol.update_atom_charge(at, charge)
     return mol.as_psf(psf_file, return_blocks=True)
@@ -191,15 +192,18 @@ def sanitize_job(job, mol, prm_file):
             job.settings = get_template(job.settings)
     else:
         raise TypeError(TYPE_ERR2.format('job.settings', 'dict', 'str', get_name(job.settings)))
-    job.settings.soft_update(get_template('md_cp2k.yaml'))
+    job.settings.soft_update(get_template('md_cp2k_template.yaml'))
 
+    assert_type(job.path, str, 'job.path')
+    if job.path.lower() in ('.', 'pwd', 'cwd', '$pwd'):
+        job.path = getcwd()
     assert isdir(job.path)
 
     assert_type(job.name, str, 'job.name')
     assert_type(job.folder, str, 'job.workdir')
     assert_type(job.keep_files, bool, 'job.keep_files')
     assert_type(prm_file, str, 'param.prm_file')
-    job.settings.input.force_eval.mm.forcefield.parm_file_name = prm_file
+    job.settings.input.force_eval.mm.forcefield.parm_file_name = join(job.path, prm_file)
     job.settings.input['global'].project = job.name
 
     return job, mol

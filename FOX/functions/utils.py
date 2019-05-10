@@ -1,25 +1,51 @@
 """ A module with miscellaneous functions. """
 
-__all__ = ['get_template', 'template_to_df', 'update_charge', 'get_example_xyz']
+__all__ = ['get_template', 'template_to_df', 'get_example_xyz']
 
 from os.path import join, isfile
 from functools import wraps
 from pkg_resources import resource_filename
 
+import yaml
 import numpy as np
 import pandas as pd
 
 from scm.plams import (Settings, add_to_class)
 
-try:
-    import yaml
-    YAML_ERROR = False
-except ImportError:
-    __all__ = []
-    YAML_ERROR = "Use of the FOX.{} function requires the 'pyyaml' package (version >=5.1).\
-                  \n\t'pyyaml' can be installed via anaconda or pip with the following commands:\
-                  \n\tconda install --name FOX -y -c conda-forge pyyaml\
-                  \n\tpip install pyyaml"
+
+def append_docstring(item):
+    r""" A decorator for appending the docstring of class, method or function with one provided
+    by another python object, **item**.
+
+    example:
+
+    .. code:: python
+
+
+        >>> def func1():
+        >>>     """ 'func1 docstring' """
+        >>>     pass
+
+        >>> @append_docstring(func1)
+        >>> def func2():
+        >>>     """ 'func2 docstring' """
+        >>>     pass
+
+        >>> help(func2)
+        'func2 docstring'
+
+        'func1 docstring'
+
+
+    :parameter item: A python object with a docstring.
+    """
+    def decorator(func):
+        try:
+            func.__doc__ += '\n\n' + item.__doc__
+        except TypeError:
+            pass
+        return func
+    return decorator
 
 
 def assert_error(error_msg=''):
@@ -35,7 +61,7 @@ def assert_error(error_msg=''):
         >>> def my_custom_func():
         >>>     print(True)
 
-        >>> my_func()
+        >>> my_custom_func()
         ModuleNotFoundError: An error was raised by my_custom_func
 
     :parameter str error_msg: A to-be printed error message.
@@ -69,7 +95,6 @@ def _class_error(f_type, error_msg):
     return f_type
 
 
-@assert_error(YAML_ERROR)
 def get_template(name, path=None, as_settings=True):
     """ Grab a .yaml template and turn it into a Settings object.
 

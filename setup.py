@@ -38,6 +38,9 @@ setup(
         'data/*.prm'
     ]},
     include_package_data=True,
+    entry_points={'console_scripts': [
+        'init_armc=FOX.entry_points:main_armc'
+    ]},
     license="GNU General Public License v3 or later",
     zip_safe=False,
     keywords=[
@@ -58,6 +61,7 @@ setup(
     ],
     test_suite='tests',
     install_requires=[
+        'pyyaml',
         'numpy',
         'scipy',
         'pandas',
@@ -75,9 +79,8 @@ setup(
         'pycodestyle',
     ],
     extras_require={
-        'MC': ['pyyaml'],
         'doc': ['sphinx', 'sphinx_rtd_theme', 'nbsphinx', 'matplotlib'],
         'test': ['pytest', 'pytest-cov', 'pytest-mock', 'nbsphinx',
-                 'pycodestyle', 'pyyaml', 'matplotlib'],
+                 'pycodestyle', 'matplotlib'],
     }
 )

@@ -8,4 +8,4 @@ from FOX import (ARMC, MultiMolecule, get_template, get_example_xyz)
 
 # Start the MC parameterization
 armc = ARMC.from_yaml('armc.yaml')
-# armc.init_armc()
+armc.init_armc()
