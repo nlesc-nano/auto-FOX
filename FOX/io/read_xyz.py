@@ -29,7 +29,7 @@ def read_multi_xyz(filename):
     mol_count = line_count / (2 + atom_count)
     validate_xyz(mol_count, atom_count, filename)
 
-    # Create an empty (m*n)*3 xyz array
+    # Create an empty m*n*3 xyz array
     shape = int(mol_count), atom_count, 3
     xyz = np.empty(shape)
 
