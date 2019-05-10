@@ -49,6 +49,8 @@ def test_random_slice():
         mol.random_slice(start=0, stop=None, p=1.0, inplace=True)
     except ValueError:
         pass
+    else:
+        raise AssertionError
 
     mol_new = mol.random_slice(start=0, stop=None, p=0.5)
     assert mol_new.shape[1:2] == mol.shape[1:2]
