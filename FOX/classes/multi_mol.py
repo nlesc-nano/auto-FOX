@@ -858,6 +858,8 @@ class MultiMolecule(_MultiMolecule):
             return [subset]
         elif isinstance(subset, (range, slice)):
             return subset
+        elif len(subset) == 1 and isinstance(subset[0], (int, np.integer)):
+            return subset
         raise TypeError("'{}' is not a supported object type".format(subset.__class__.__name__))
 
     """ #################################  Type conversion  ################################### """
