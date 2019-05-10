@@ -15,11 +15,15 @@ def read_kf(filename):
 
         * A dictionary with atomic symbols and lists of matching atomic indices.
 
+    Current KF file support is limited to those produced with the AMS_ engine.
+
     :parameter str filename: The path + filename of the kf file.
     :return: A 3D array with cartesian coordinates and a dictionary
         with atomic symbols as keys and lists of matching atomic indices as values.
     :rtype: :math:`m*n*3` |np.ndarray|_ [|np.float64|_] and |dict|_
         (keys: |str|_, values: |list|_ [|int|_]).
+
+    .. _ams: https://www.scm.com/product/ams/
     """
     kf = KFReader(filename)
     atom_count = kf.read('Molecule', 'nAtoms')

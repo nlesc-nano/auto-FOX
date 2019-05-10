@@ -11,7 +11,34 @@ from ..functions.utils import serialize_array
 
 
 def read_psf(filename):
-    """    """
+    """ Read a protein structure file (.psf) and return the various .psf blocks as a dictionary.
+
+    Depending on the content of the .psf file, the dictionary can contain
+    the following keys and values:
+
+        * *title*: list of remarks (str)
+        * *atoms*: A dataframe of atoms
+        * *bonds*: A :math:`i*2` array of atomic indices defining bonds
+        * *angles*: A :math:`j*3` array of atomic indices defining angles
+        * *dihedrals*: A :math:`k*4` array of atomic indices defining proper dihedral angles
+        * *impropers*: A :math:`l*4` array of atomic indices defining improper dihedral angles
+        * *donors*: A :math:`m*1` array of atomic indices defining hydrogen-bond donors
+        * *acceptors*: A :math:`n*1` array of atomic indices defining hydrogen-bond acceptors
+        * *no_nonbonded*: A :math:`o*2` array of atomic indices defining to-be ignore nonbonded
+          interactions
+
+    The dictionary produced by this function be fed into :func:`.write_psf` to create a new .psf
+    file:
+
+    .. code:: python
+
+        >>> psf_dict = read_psf('old_file.psf')
+        >>> write_psf('new_file.psf', **psf_dict)
+
+    :parameter str filename: The path + filename of a .psf file.
+    :return: A dictionary holding the content of a .psf file.
+    :rtype: |dict|_ (keys: |str|_)
+    """
     header_dict = {'!NTITLE': 'title',
                    '!NATOM': 'atoms',
                    '!NBOND': 'bonds',
@@ -70,9 +97,9 @@ def _post_process_psf(psf_dict):
     for key, value in psf_dict.items():  # Post-process the output
         # Cast into a flattened array of indices
         if key not in ('title', 'atoms'):
-            psf_dict[key] = np.fromiter(chain.from_iterable(value), dtype=int)
-            shape = (len(psf_dict[key]) // shape_dict[key], shape_dict[key])
-            psf_dict[key].shape = shape
+            ar = np.fromiter(chain.from_iterable(value), dtype=int)
+            ar.shape = len(ar) // shape_dict[key], shape_dict[key]
+            psf_dict[key] = ar
 
         # Cast the atoms block into a dataframe
         elif key == 'atoms':
