@@ -13,11 +13,6 @@ from scm.plams.interfaces.thirdparty.cp2k import Cp2kJob
 from FOX import ARMC
 
 
-@add_to_class(Cp2kJob)
-def get_runscript(self):
-    return 'cp2k.ssmp -i {} -o {}'.format(self._filename('inp'), self._filename('out'))
-
-
 def main_armc(args=None):
     parser = argparse.ArgumentParser(
          prog='FOX',
@@ -28,10 +23,7 @@ def main_armc(args=None):
     )
 
     parser.add_argument(
-        'filename',
-        nargs='+',
-        type=str,
-        help='A .yaml file with ARMC settings'
+        'filename', nargs='+', type=str, help='A .yaml file with ARMC settings'
     )
 
     filename = parser.parse_args(args).filename[0]
