@@ -2,12 +2,19 @@
 
 __all__ = ['update_charge', 'get_charge_constraints']
 
+from typing import (List, Callable)
+
 import numpy as np
+import pandas as pd
 
 from scm.plams import Settings
 
 
-def update_charge(at, charge, df, constrain_dict={}, exclude=[]):
+def update_charge(at: str,
+                  charge: float,
+                  df: pd.DataFrame,
+                  constrain_dict: dict = {},
+                  exclude: List[str] = []) -> None:
     """ Set the atomic charge of **at** to **charge**.
     The atomic charges in **df** are furthermore exposed to the following constraints:
 
@@ -44,7 +51,9 @@ def update_charge(at, charge, df, constrain_dict={}, exclude=[]):
             break
 
 
-def update_constrained_charge(at, df, constrain_dict={}):
+def update_constrained_charge(at: str,
+                              df: pd.DataFrame,
+                              constrain_dict: dict = {}) -> List[str]:
     """ Perform a constrained update of atomic charges.
     Performs an inplace update of the *charge* column in **df**.
 
@@ -76,7 +85,9 @@ def update_constrained_charge(at, df, constrain_dict={}):
     return exclude
 
 
-def update_unconstrained_charge(net_charge, df, exclude=[]):
+def update_unconstrained_charge(net_charge: float,
+                                df: pd.DataFrame,
+                                exclude: List[str] = []) -> None:
     """ Perform an unconstrained update of atomic charges.
     Performs an inplace update of the *charge* column in **df**.
 
@@ -93,7 +104,9 @@ def update_unconstrained_charge(net_charge, df, exclude=[]):
     df.loc[include, 'charge'] *= i
 
 
-def find_q(df, Q=0.0, constrain_dict={}):
+def find_q(df: pd.DataFrame,
+           Q: float = 0.0,
+           constrain_dict: dict = {}) -> float:
     r""" Calculates the atomic charge :math:`q` given the total charge :math:`Q`. Atom subsets are
     denoted by :math:`m` & :math:`n`, with :math:`a` & :math:`b` being subset-dependent constants.
 
@@ -124,7 +137,7 @@ def find_q(df, Q=0.0, constrain_dict={}):
     return A / B
 
 
-def get_charge_constraints(constrain):
+def get_charge_constraints(constrain: str) -> Settings:
     """ Take a string containing a set of interdependent charge constraints and translate
     it into a dictionary containing all arguments and operators.
 
@@ -208,7 +221,7 @@ def get_charge_constraints(constrain):
     return ret
 
 
-def invert_ufunc(ufunc):
+def invert_ufunc(ufunc: Callable) -> Callable:
     """ Invert a universal function, turning addition into substraction,
     multiplication into division and exponentiation into recipropal exponentiation.
 

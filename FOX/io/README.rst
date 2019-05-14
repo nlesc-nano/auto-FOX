@@ -28,12 +28,6 @@ read_prm.py_
 A module for reading and creating CHARMM_ parameter files (prm_).
 
 ~~~~~~~~~~~~
-read_psf.py_
-~~~~~~~~~~~~
-
-A module for reading protein structure (.psf) files.
-
-~~~~~~~~~~~~
 read_xyz.py_
 ~~~~~~~~~~~~
 

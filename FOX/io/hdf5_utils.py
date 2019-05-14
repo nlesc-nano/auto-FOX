@@ -2,8 +2,11 @@
 
 __all__ = ['create_hdf5', 'to_hdf5', 'from_hdf5']
 
+from typing import (Dict, Iterable, List)
+
 import numpy as np
 import pandas as pd
+from pandas.core.generic import NDFrame
 
 from scm.plams import Settings
 
@@ -20,7 +23,8 @@ from ..functions.utils import (get_shape, assert_error, array_to_index)
 
 
 @assert_error(H5PY_ERROR)
-def create_hdf5(filename, mc_kwarg):
+def create_hdf5(filename: str,
+                mc_kwarg: object) -> None:
     """ Create a hdf5 file to hold all addaptive rate Mone Carlo results (:class:`FOX.ARMC`).
     Datasets are created to hold a number of results following results over the course of the
     MC optimization:
@@ -71,7 +75,8 @@ def create_hdf5(filename, mc_kwarg):
 
 
 @assert_error(H5PY_ERROR)
-def index_to_hdf5(filename, pd_dict):
+def index_to_hdf5(filename: str,
+                  pd_dict: Dict[str, NDFrame]) -> None:
     """ Export the *index* and *columns* / *name* attributes of a Pandas dataframe/series to a
     pre-existing hdf5 file.
     Attributes are exported for all dataframes/series in **pd_dict** and skipped otherwise.
@@ -103,7 +108,7 @@ def index_to_hdf5(filename, pd_dict):
                     f[key].attrs.create(attr_name, i)
 
 
-def _attr_to_array(item):
+def _attr_to_array(item: NDFrame) -> np.ndarray:
     """ Convert an attribute value, retrieved from :func:`FOX.index_to_hdf5`, into a NumPy array.
 
     .. code-block:: python
@@ -132,12 +137,16 @@ def _attr_to_array(item):
 
 
 @assert_error(H5PY_ERROR)
-def to_hdf5(filename, dict_, kappa, omega, phi):
+def to_hdf5(filename: str,
+            dset_dict: Dict[str, np.array],
+            kappa: int,
+            omega: int,
+            phi: float) -> None:
     r""" Export results from **dict_** to the hdf5 file **name**.
 
     :parameter str filename: The path+name of the hdf5 file.
-    :parameter dict dict_: A dictionary with dataset names as keys and matching array-like objects
-        as values.
+    :parameter dict dset_dict: A dictionary with dataset names as keys and matching array-like
+        objects as values.
     :parameter int kappa: The super-iteration, :math:`\kappa`, in the outer loop of
         :meth:`.ARMC.init_armc`.
     :parameter int omega: The sub-iteration, :math:`\omega`, in the inner loop of
@@ -148,12 +157,13 @@ def to_hdf5(filename, dict_, kappa, omega, phi):
         f.attrs['super-iteration'] = kappa
         f.attrs['sub-iteration'] = omega
         f['phi'][kappa] = phi
-        for key, value in dict_.items():
+        for key, value in dset_dict.items():
             f[key][kappa, omega] = value
 
 
 @assert_error(H5PY_ERROR)
-def from_hdf5(filename, datasets=None):
+def from_hdf5(filename: str,
+              datasets: Iterable[str] = None) -> Choice[NDFrame, Dict[str, NDFrame]]:
     """ Retrieve all user-specified datasets from **name**, returning a dicionary of
     DataFrames and/or Series.
 
@@ -179,7 +189,8 @@ def from_hdf5(filename, datasets=None):
 
 
 @assert_error(H5PY_ERROR)
-def _get_dset(f, key):
+def _get_dset(f: h5py.File,
+              key: str) -> Choice[pd.Series, pd.DataFrame]:
     """ Take a h5py dataset and convert it into either a NumPy array or
     a Pandas DataFrame (:func:`FOX.dset_to_df`) or Series (:func:`FOX.dset_to_series`).
 
@@ -208,7 +219,8 @@ def _get_dset(f, key):
 
 
 @assert_error(H5PY_ERROR)
-def dset_to_series(f, key):
+def dset_to_series(f: h5py.File,
+                   key: str) -> Choice[pd.Series, pd.DataFrame]:
     """ Take a h5py dataset and convert it into a Pandas Series (if 1D) or Pandas Series (if 2D).
 
     :parameter f: An opened hdf5 file.
@@ -235,7 +247,8 @@ def dset_to_series(f, key):
 
 
 @assert_error(H5PY_ERROR)
-def dset_to_df(f, key):
+def dset_to_df(f: h5py.File,
+               key: str) -> Choice[pd.DataFrame, List[pd.DataFrame]]:
     """ Take a h5py dataset and convert it into a Pandas DataFrame (if 2D) or list of Pandas
     DataFrames (if 3D).
 

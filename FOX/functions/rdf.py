@@ -6,7 +6,9 @@ import numpy as np
 import pandas as pd
 
 
-def get_rdf_df(atom_pairs, dr=0.05, r_max=12.0):
+def get_rdf_df(atom_pairs,
+               dr: float = 0.05,
+               r_max: float = 12.0) -> pd.DataFrame:
     """ Construct and return a pandas dataframe filled with zeros.
 
     :parameter float dr: The integration step-size in Angstrom, *i.e.* the distance between
@@ -26,7 +28,9 @@ def get_rdf_df(atom_pairs, dr=0.05, r_max=12.0):
     return df
 
 
-def get_rdf(dist, dr=0.05, r_max=12.0):
+def get_rdf(dist: np.ndarray,
+            dr: float = 0.05,
+            r_max: float = 12.0) -> np.ndarray:
     """ Calculate and return the radial distribution function (RDF) based on the 3D distance matrix
     **dist**.
 
@@ -58,7 +62,9 @@ def get_rdf(dist, dr=0.05, r_max=12.0):
     return np.average(dens, axis=0)
 
 
-def get_rdf_lowmem(dist, dr=0.05, r_max=12.0):
+def get_rdf_lowmem(dist: np.ndarray,
+                   dr: float = 0.05,
+                   r_max: float = 12.0) -> np.ndarray:
     """ Calculate and return the radial distribution function (RDF) based on the 2D distance matrix
     **dist**. A more memory efficient implementation of :func:`FOX.functions.rdf.get_rdf`,
     which operates on a 3D distance matrix.
@@ -72,7 +78,7 @@ def get_rdf_lowmem(dist, dr=0.05, r_max=12.0):
     :rtype: 1D |np.ndarray|_ [|np.float64|_] of length 1 + **r_max** / **dr**.
     """
     idx_max = 1 + int(r_max / dr)
-    dist_int = np.array(dist / dr, dtype=int).flatten()
+    dist_int = np.array(dist / dr, dtype=int).ravel()
 
     # Calculate the average particle density N / V
     # The diameter of the spherical volume (V) is defined by the largest inter-particle distance

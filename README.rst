@@ -3,11 +3,11 @@
    :target: https://travis-ci.org/nlesc-nano/auto-FOX
 .. image:: https://readthedocs.org/projects/auto-fox/badge/?version=latest
    :target: https://auto-fox.readthedocs.io/en/latest
-.. image:: https://img.shields.io/badge/python-3-blue.svg
+.. image:: https://img.shields.io/badge/python-3.7-blue.svg
    :target: https://www.python.org
 
 #################################################
-Automated Forcefield Optimization Extension 0.3.3
+Automated Forcefield Optimization Extension 0.4.0
 #################################################
 
 **Auto-FOX** is a library for analyzing potential energy surfaces (PESs) and

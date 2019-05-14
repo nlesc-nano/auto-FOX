@@ -2,13 +2,15 @@
 
 __all__ = ['read_pdb']
 
+from typing import (Tuple, List)
+
 import pandas as pd
 import numpy as np
 
 from ..functions.utils import slice_str
 
 
-def read_pdb(filename):
+def read_pdb(filename: str) -> Tuple[pd.DataFrame, np.ndarray]:
     """ Read the content of protein DataBank file (pdb_).
 
     :parameter str filename: The path+name of a .pdb file.
@@ -35,7 +37,7 @@ def read_pdb(filename):
     return _get_atoms_df(atoms), _get_bonds_array(bonds)
 
 
-def _get_bonds_array(bonds):
+def _get_bonds_array(bonds: List[List[int]]) -> np.ndarray:
     """ Convert the connectivity list produced by :func:`.read_pdb` into an array of integers.
     Bond orders are multiplied by :math:`10` and stored as integers,
     thus effectively being stored as floats with single-decimal precision.
@@ -65,7 +67,7 @@ def _get_bonds_array(bonds):
     return np.array(ret, int)
 
 
-def _get_atoms_df(atoms):
+def _get_atoms_df(atoms: List[List[str]]) -> pd.DataFrame:
     """ Convert the atom list produced by :func:`.read_pdb` into a dataframe.
 
     :parameter list atoms: A nested list of atom data as retrieved from a pdb_ file.

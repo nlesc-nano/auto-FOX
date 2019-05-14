@@ -16,8 +16,6 @@ from ..io.read_kf import read_kf
 from ..io.read_xyz import read_multi_xyz
 from ..functions.rdf import (get_rdf, get_rdf_lowmem, get_rdf_df)
 from ..functions.adf import (get_adf, get_adf_df)
-from ..functions.utils import read_str_file
-from ..io.read_psf import write_psf
 
 
 class MultiMolecule(_MultiMolecule):
@@ -296,7 +294,7 @@ class MultiMolecule(_MultiMolecule):
         columns = pd.Index(column_range, name='Atoms')
         return pd.DataFrame(data, columns=columns)
 
-    def init_average_velocity(self, timestep=1.0, mol_subset=None, atom_subset=None):
+    def init_average_velocity(self, timestep=1.0, rms=False, mol_subset=None, atom_subset=None):
         """ Calculate the average velocty (in fs/A) for all atoms in **atom_subset** over the
         course of a trajectory. The velocity is averaged over all atoms in a particular atom subset.
 
@@ -312,12 +310,13 @@ class MultiMolecule(_MultiMolecule):
         :return: A dataframe holding :math:`m-1` velocities averaged over one or more atom subsets.
         :rtype: |pd.DataFrame|_ (values: |np.float64|_)
         """
-        kwarg = {'mol_subset': mol_subset, 'timestep': timestep}
+        kwarg = {'mol_subset': mol_subset, 'timestep': timestep, 'rms': rms}
         df = self._get_average_prop(self.get_average_velocity, atom_subset, kwarg)
         df.index.name = 'Time / fs'
         return df
 
-    def init_time_averaged_velocity(self, timestep=1.0, mol_subset=None, atom_subset=None):
+    def init_time_averaged_velocity(self, timestep=1.0, rms=False,
+                                    mol_subset=None, atom_subset=None):
         """ Calculate the time-averaged velocty (in fs/A) for all atoms in **atom_subset** over the
         course of a trajectory.
 
@@ -333,7 +332,7 @@ class MultiMolecule(_MultiMolecule):
         :return: A dataframe holding :math:`m-1` velocities averaged over one or more atom subsets.
         :rtype: |pd.DataFrame|_ (values: |np.float64|_)
         """
-        kwarg = {'mol_subset': mol_subset, 'timestep': timestep}
+        kwarg = {'mol_subset': mol_subset, 'timestep': timestep, 'rms': rms}
         return self._get_time_averaged_prop(self.get_time_averaged_velocity, atom_subset, kwarg)
 
     def init_rmsd(self, mol_subset=None, atom_subset=None, reset_origin=True):
@@ -386,13 +385,22 @@ class MultiMolecule(_MultiMolecule):
         kwarg = {'mol_subset': mol_subset}
         return self._get_time_averaged_prop(self.get_rmsf, atom_subset, kwarg)
 
-    def get_average_velocity(self, timestep=1.0, mol_subset=None, atom_subset=None):
-        """ """
-        return self.get_velocity(timestep, mol_subset, atom_subset).mean(axis=1)
+    def get_average_velocity(self, timestep=1.0, rms=False, mol_subset=None, atom_subset=None):
+        """ Return the mean or root-mean squared velocity. """
+        if not rms:
+            return self.get_velocity(timestep, mol_subset, atom_subset).mean(axis=1)
+        else:
+            v = self.get_velocity(timestep, mol_subset, atom_subset)
+            return MultiMolecule(v, self.atoms).get_rmsd(mol_subset)
 
-    def get_time_averaged_velocity(self, timestep=1.0, mol_subset=None, atom_subset=None):
-        """ """
-        return self.get_velocity(timestep, mol_subset, atom_subset).mean(axis=0)
+    def get_time_averaged_velocity(self, timestep=1.0, rms=False,
+                                   mol_subset=None, atom_subset=None):
+        """ Return the mean or root-mean squared velocity (mean = time-averaged). """
+        if not rms:
+            return self.get_velocity(timestep, mol_subset, atom_subset).mean(axis=0)
+        else:
+            v = self.get_velocity(timestep, mol_subset, atom_subset)
+            return MultiMolecule(v, self.atoms).get_rmsf(mol_subset)
 
     def get_velocity(self, timestep=1.0, mol_subset=None, atom_subset=None):
         """ Calculate the velocty (in fs/A) for all atoms in **atom_subset** over the course of a
@@ -428,7 +436,9 @@ class MultiMolecule(_MultiMolecule):
 
     def get_rmsd(self, mol_subset=None, atom_subset=None):
         """ Calculate the root mean square displacement (RMSD) with respect to the first molecule
-        **self**. Returns a dataframe with the RMSD as a function of the XYZ frame numbers.
+        **self** AKA the root mean square of the average nuclear displacement.
+
+        Returns a dataframe with the RMSD as a function of the XYZ frame numbers.
         """
         i = self._get_mol_subset(mol_subset)
         j = self._get_atom_subset(atom_subset)
@@ -438,7 +448,8 @@ class MultiMolecule(_MultiMolecule):
         return np.sqrt(np.einsum('ij,ij->i', dist, dist) / dist.shape[1])
 
     def get_rmsf(self, mol_subset=None, atom_subset=None):
-        """ Calculate the root mean square fluctuation (RMSF) of **self**.
+        """ Calculate the root mean square fluctuation (RMSF) of **self**, AKA the root mean square
+        of the time-averaged nuclear displacement.
         Returns a dataframe as a function of atomic indices. """
         # Prepare slices
         i = self._get_mol_subset(mol_subset)
@@ -863,94 +874,6 @@ class MultiMolecule(_MultiMolecule):
         raise TypeError("'{}' is not a supported object type".format(subset.__class__.__name__))
 
     """ #################################  Type conversion  ################################### """
-
-    def generate_psf_block(self, inplace=True):
-        """ """
-        res = self.residue_argsort(concatenate=False)
-        plams_mol = self.as_Molecule(0)[0]
-        plams_mol.fix_bond_orders()
-
-        # Construct the .psf dataframe
-        df = pd.DataFrame(index=np.arange(1, self.shape[1]+1))
-        df.index.name = 'ID'
-        df['segment name'] = 'MOL'
-        df['residue ID'] = [i for i, j in enumerate(res, 1) for _ in j]
-        df['residue name'] = ['COR' if i == 1 else 'LIG' for i in df['residue ID']]
-        df['atom name'] = self.symbol
-        df['atom type'] = df['atom name']
-        df['charge'] = [at.properties.charge for at in plams_mol]
-        df['mass'] = self.mass
-        df['0'] = 0
-
-        # Prepare arguments for constructing the 'segment name' column
-        key = sorted(set(df.loc[df['residue ID'] == 1, 'atom type']))
-        value = range(1, len(key) + 1)
-        segment_dict = dict(zip(key, value))
-        value_max = 'MOL' + str(value.stop)
-
-        # Construct the 'segment name' column
-        segment_name = []
-        for item in df['atom name']:
-            try:
-                segment_name.append('MOL{:d}'.format(segment_dict[item]))
-            except KeyError:
-                segment_name.append(value_max)
-        df['segment name'] = segment_name
-
-        if not inplace:
-            return df
-        self.properties.psf = df
-
-    def update_atom_type(self, filename='mol.str'):
-        """ """
-        if 'psf' not in self.properties:
-            self.generate_psf_block()
-        df = self.properties.psf
-
-        at_type, charge = read_str_file(filename)
-        id_range = range(2, max(df['residue ID'])+1)
-        for i in id_range:
-            j = df[df['residue ID'] == i].index
-            df.loc[j, 'atom type'] = at_type
-            df.loc[j, 'charge'] = charge
-
-    def update_atom_charge(self, atom_type, charge):
-        """ """
-        if 'psf' not in self.properties:
-            self.generate_psf_block()
-        df = self.properties.psf
-        df.loc[df['atom type'] == atom_type, 'charge'] = charge
-
-    def as_psf(self, filename='mol.psf', return_blocks=False):
-        """ Create a Protein Structure File (.psf) out of **self**.
-
-        :parameter str filename: The path+filename of the to-be create .psf file.
-        :parameter bool return_blocks: Instead of creating a .psf file, return a dictionary with all
-            arguments for creating a .psf file with :func:`.write_psf`.
-        """
-        ret = {'filename': filename}
-
-        # Prepare atoms
-        if 'psf' not in self.properties:
-            self.generate_psf_block()
-        ret['atoms'] = self.properties.psf
-
-        # Prepare bonds, angles, dihedrals and impropers
-        if self.bonds is not None:
-            plams_mol = self.as_Molecule(0)[0]
-            plams_mol.fix_bond_orders()
-            ret['bonds'] = self.bonds[:, 0:2] + 1
-            ret['angles'] = plams_mol.get_angles()
-            ret['dihedrals'] = plams_mol.get_dihedrals()
-            ret['impropers'] = plams_mol.get_impropers()
-        else:
-            ret.update({'bonds': None, 'angles': None, 'dihedrals': None, 'impropers': None})
-
-        # Export the .psf file
-        if return_blocks:
-            return ret
-        else:
-            write_psf(**ret)
 
     def _mol_to_file(self, filename, outputformat=None, mol_subset=0):
         """ Create files using the plams.Molecule.write_ method.

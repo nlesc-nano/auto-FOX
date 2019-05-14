@@ -2,7 +2,6 @@ from .read_kf import read_kf
 from .read_xyz import read_multi_xyz
 from .read_pdb import read_pdb
 from .read_prm import (read_prm, write_prm, rename_atom_types)
-from .read_psf import (read_psf, write_psf)
 from .hdf5_utils import (create_hdf5, to_hdf5, from_hdf5)
 
 __all__ = [
@@ -10,6 +9,5 @@ __all__ = [
     'read_multi_xyz',
     'read_pdb',
     'read_prm', 'write_prm', 'rename_atom_types',
-    'read_psf', 'write_psf',
     'create_hdf5', 'to_hdf5', 'from_hdf5',
 ]

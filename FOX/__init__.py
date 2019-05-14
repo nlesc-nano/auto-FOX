@@ -17,14 +17,14 @@ from .io import (
     read_multi_xyz,
     read_pdb,
     read_prm, write_prm, rename_atom_types,
-    read_psf, write_psf,
     create_hdf5, to_hdf5, from_hdf5
 )
 
 from .classes import (
     MultiMolecule,
     MonteCarlo, ARMC,
-    Molecule
+    Molecule,
+    PSFDict
 )
 
 __all__ = [
@@ -36,10 +36,10 @@ __all__ = [
     'read_multi_xyz',
     'read_pdb',
     'read_prm', 'write_prm', 'rename_atom_types',
-    'read_psf', 'write_psf',
     'create_hdf5', 'to_hdf5', 'from_hdf5',
 
     'MultiMolecule',
     'MonteCarlo', 'ARMC',
-    'Molecule'
+    'Molecule',
+    'PSFDict'
 ]

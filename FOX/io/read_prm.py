@@ -2,11 +2,15 @@
 
 __all__ = ['read_prm', 'write_prm', 'rename_atom_types']
 
+import io
+from typing import (Dict, Tuple, List)
+
 import pandas as pd
 import numpy as np
 
 
-def write_prm(prm_dict, filename):
+def write_prm(prm_dict: Dict[str, pd.DataFrame],
+              filename: str) -> None:
     """ Create a new CHARM parameter file (prm_) out of **prm_dict**.
 
     :parameter prm_dict: A dictionary with block names as keys and a dataframe of matching
@@ -36,7 +40,7 @@ def write_prm(prm_dict, filename):
         f.write('END\n')
 
 
-def read_prm(filename):
+def read_prm(filename: str) -> Dict[str, pd.DataFrame]:
     """ Read a CHARM parameter file (prm_), returning a dictionary of dataframes.
 
     The .prm file is expected to possess one or more of the following blocks:
@@ -71,7 +75,8 @@ def read_prm(filename):
     return _proccess_prm_df(ret)
 
 
-def read_blocks(f, key):
+def read_blocks(f: io.TextIOWrapper,
+                key: str) -> Tuple[Dict[str, pd.DataFrame], str]:
     """ Read the content of a .prm block.
 
     The following, and only the following, blocks are currently supported:
@@ -118,7 +123,8 @@ def read_blocks(f, key):
             ret.append(item2)
 
 
-def rename_atom_types(prm_dict, rename_dict):
+def rename_atom_types(prm_dict: Dict[str, pd.DataFrame],
+                      rename_dict: Dict[str, str]) -> None:
     """ Rename atom types in a CHARM parameter file (prm_).
 
     An example is provided below, one where the atom type *H_old* is renamed to *H_new*:
@@ -159,7 +165,7 @@ def rename_atom_types(prm_dict, rename_dict):
             df.index = pd.MultiIndex.from_arrays(idx.T, names=df.index.names)
 
 
-def _get_empty_line(df):
+def _get_empty_line(df: pd.ataFrame) -> str:
     """ Create a string with a sufficient amount of curly brackets to hold all items from a single
     row in **df**.
 
@@ -180,7 +186,8 @@ def _get_empty_line(df):
     return ret[1:] + '\n'
 
 
-def _get_nonbonded(f, item):
+def _get_nonbonded(f: io.TextIOWrapper,
+                   item: str) -> str:
     """ Get the key of the NONBONDED block.
 
     :parameter f: An opened .prm file.
@@ -197,7 +204,7 @@ def _get_nonbonded(f, item):
     return item + '\n'
 
 
-def _proccess_prm_df(prm_dict):
+def _proccess_prm_df(prm_dict: Dict[str, pd.DataFrame]) -> Dict[str, pd.DataFrame]:
     """ Process the dataframes produced by :func:`.read_prm`, re-assigning columns,
     fixing data types and using atom types as (multi-)index.
 
@@ -260,7 +267,8 @@ def _reorder_column_dict(df):
     return ret
 
 
-def update_dtype(df, float_blacklist=[]):
+def update_dtype(df: pd.DataFrame,
+                 float_blacklist: List[float] = []) -> None:
     """ Update the dtype of all columns in **df**.
 
     All columns will be turned into dtype('float64') unless a value error is raised, in which case

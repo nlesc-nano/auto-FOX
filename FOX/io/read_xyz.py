@@ -2,10 +2,13 @@
 
 __all__ = ['read_multi_xyz']
 
+import io
+from typing import (Tuple, Dict, List, Choice, Iterable)
+
 import numpy as np
 
 
-def read_multi_xyz(filename):
+def read_multi_xyz(filename: str) -> Tuple[np.ndarray, Dict[str, List[int]]]:
     """ Read a (multi) .xyz file and return:
 
         * An array with the cartesian coordinates of :math:`m` molecules
@@ -46,7 +49,9 @@ class XYZError(Exception):
     pass
 
 
-def validate_xyz(mol_count, atom_count, filename):
+def validate_xyz(mol_count: float,
+                 atom_count: int,
+                 filename: str) -> None:
     """ Validate **mol_count** and **atom_count** in **xyz_file**.
 
     :parameter float mol_count: The number of molecules in the xyz file.
@@ -65,7 +70,7 @@ def validate_xyz(mol_count, atom_count, filename):
         raise XYZError(error.format(filename, atom_count))
 
 
-def _get_atom_count(f):
+def _get_atom_count(f: io.TextIOWrapper) -> int:
     """ Extract the number of atoms per molecule from the first line in an .xyz file.
 
     :parameter f: An opened .xyz file.
@@ -81,7 +86,8 @@ def _get_atom_count(f):
                        "contain the number of atoms per molecule".format(ret, f.name))
 
 
-def _get_line_count(f, add=0):
+def _get_line_count(f: io.TextIOWrapper,
+                    add: Choice[int, Iterable[int]] = 0) -> int:
     """ Extract the total number lines from **f**.
 
     :parameter f: An opened .xyz file.
@@ -96,7 +102,9 @@ def _get_line_count(f, add=0):
     return i + sum(add)
 
 
-def _get_idx_dict(f, mol_size, subtract=0):
+def _get_idx_dict(f: io.TextIOWrapper,
+                  mol_size: int,
+                  subtract: int = 0) -> Dict[str, List[int]]:
     """ Extract atomic symbols and matching atomic indices from **f**.
 
     :parameter f: An opened .xyz file.

@@ -2,12 +2,14 @@
 
 __all__ = ['read_kf']
 
+from typing import (Tuple, Dict, List)
+
 import numpy as np
 
 from scm.plams import KFReader
 
 
-def read_kf(filename):
+def read_kf(filename: str) -> Tuple[np.ndarray, Dict[str, List[int]]]:
     """ Read a KF binary file, containing a potential energy surface, and return:
 
         * An array with the cartesian coordinates of :math:`m` molecules
@@ -42,7 +44,7 @@ def read_kf(filename):
     return xyz, _get_idx_dict(kf)
 
 
-def _get_idx_dict(kf):
+def _get_idx_dict(kf: KFReader) -> Dict[str, List[int]]:
     """ Extract atomic symbols and matching atomic indices from **kf**.
 
     :parameter kf: A KFReader instance constructed from a KF binary file.
