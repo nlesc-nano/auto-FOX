@@ -191,7 +191,7 @@ def from_hdf5(filename: str,
 
 
 @assert_error(H5PY_ERROR)
-def _get_dset(f: h5py.File,
+def _get_dset(f: 'h5py.File',
               key: str) -> pd.Series:
     """Take a h5py dataset and convert it into either a NumPy array or
     a Pandas DataFrame (:func:`FOX.dset_to_df`) or Series (:func:`FOX.dset_to_series`).
@@ -221,7 +221,7 @@ def _get_dset(f: h5py.File,
 
 
 @assert_error(H5PY_ERROR)
-def dset_to_series(f: h5py.File,
+def dset_to_series(f: 'h5py.File',
                    key: str) -> pd.Series:
     """Take a h5py dataset and convert it into a Pandas Series (if 1D) or Pandas Series (if 2D).
 
@@ -249,7 +249,7 @@ def dset_to_series(f: h5py.File,
 
 
 @assert_error(H5PY_ERROR)
-def dset_to_df(f: h5py.File,
+def dset_to_df(f: 'h5py.File',
                key: str) -> pd.DataFrame:
     """Take a h5py dataset and convert it into a Pandas DataFrame (if 2D) or list of Pandas
     DataFrames (if 3D).
