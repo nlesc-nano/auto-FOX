@@ -947,10 +947,16 @@ class MultiMolecule(_MultiMolecule):
         elif isinstance(subset, slice):
             return subset
         elif isinstance(subset, (int, np.integer)):
-            return slice(subset, subset+1)
+            if subset >= 0:
+                return slice(subset, subset+1)
+            else:
+                return slice(subset-1, subset)
         elif len(subset) == 1 and isinstance(subset[0], (int, np.integer)):
             i = subset[0]
-            return slice(i, i+1)
+            if i >= 0:
+                return slice(i, i+1)
+            else:
+                return slice(i-1, i)
         raise TypeError("'{}' is not a supported object type".format(subset.__class__.__name__))
 
     """#################################  Type conversion  ################################### """
@@ -988,7 +994,7 @@ class MultiMolecule(_MultiMolecule):
             plams_mol.write(name.format(i), outputformat=outputformat)
 
     def as_pdb(self, mol_subset: MolSubset = 0,
-               filename: str ='mol.pdb') -> None:
+               filename: str = 'mol.pdb') -> None:
         """Convert a *MultiMolecule* object into one or more Protein DataBank files (.pdb).
 
         Utilizes the plams.Molecule.write_ method.
