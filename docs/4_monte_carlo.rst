@@ -213,11 +213,9 @@ Which is equivalent to:
 
     >>> func = np.sum
     >>> kwarg = {}
-
     >>> pes = MultiMolecule(np.random.rand(5000, 200, 3))
-    >>> descriptor = func(pes, **kwarg)
-    >>> descriptor == np.sum(pes)
-    True
+
+    >>> numpy_sum = func(pes, **kwarg)
 
 
 Charge constraints
@@ -236,7 +234,7 @@ FOX.MonteCarlo API
 FOX.ARMC API
 ------------
 
-.. autoclass:: FOX.classes.monte_carlo.ARMC
+.. autoclass:: FOX.classes.armc.ARMC
     :members:
 
 

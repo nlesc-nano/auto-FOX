@@ -80,6 +80,6 @@ setup(
     extras_require={
         'doc': ['sphinx', 'sphinx_rtd_theme', 'nbsphinx', 'matplotlib'],
         'test': ['pytest', 'pytest-cov', 'pytest-mock', 'nbsphinx',
-                 'pycodestyle', 'matplotlib']
+                 'pycodestyle', 'matplotlib', 'sphinx-autodoc-typehints']
     }
 )

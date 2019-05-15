@@ -5,6 +5,22 @@ Change Log
 All notable changes to this project will be documented in this file.
 This project adheres to `Semantic Versioning <http://semver.org/>`_.
 
+0.4.0
+
+Added
+-----
+* Added an entry point for accessing :meth:`.ARMC.init_armc`.
+* Expanded io-related capabilities, including the option to
+  read KF PDB, PSF, PDB and PRM files.
+
+Changed
+-------
+* Formatting of docstrings in accordance to PEP257_.
+* Implementation of type hints.
+  * Support for python versions prior to 3.7 has been dropped.
+* :class:`.ARMC` was moved to its own seperate modules.
+
+
 0.3.2
 *****
 
@@ -113,3 +129,6 @@ Added
 -----
 
 * Empty Python project directory structure.
+
+
+.. _PEP257: https://www.python.org/dev/peps/pep-0257/

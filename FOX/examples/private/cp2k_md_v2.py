@@ -15,8 +15,8 @@ def get_runscript(self):
 
 
 # Prepare the ARMC settings
-armc = ARMC.from_yaml('armc.yaml')
-armc.hdf5_file = join('/Users/basvanbeek/Downloads', 'armc.hdf5')
+armc = ARMC.from_yaml('armc_ivan.yaml')
+armc.hdf5_file = join('/Users/bvanbeek/Downloads', 'armc.hdf5')
 
 
 # Start ARMC

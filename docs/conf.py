@@ -25,7 +25,6 @@ sys.path.insert(0, os.path.abspath('..'))
 # -- General configuration ------------------------------------------------
 
 # If your documentation needs a minimal Sphinx version, state it here.
-#
 # needs_sphinx = '1.0'
 
 # Add any Sphinx extension module names here, as strings. They can be
@@ -39,6 +38,8 @@ extensions = [
     'sphinx.ext.mathjax',
     'sphinx.ext.viewcode',
     'sphinx.ext.githubpages',
+    'sphinx.ext.napoleon',
+    'sphinx_autodoc_typehints',
     'matplotlib.sphinxext.plot_directive'
     ]
 
@@ -209,14 +210,15 @@ autodoc_warningiserror = True
 # This value contains a list of modules to be mocked up.
 # This is useful when some external dependencies are not met at build time and break the building process.
 # You may only specify the root package of the dependencies themselves and omit the sub-modules:
-autodoc_mock_imports = [
-    'scm',
-    'scm.plams',
-    'numpy',
-    'pandas',
-    'scipy',
-    'pyyaml'
-]
+autodoc_mock_imports = []
+
+
+# True to parse Google style docstrings. False to disable support for Google style docstrings. Defaults to True.
+napoleon_google_docstring = True
+
+
+# True to use the .. admonition:: directive for the Example and Examples sections. False to use the .. rubric:: directive instead. One may look better than the other depending on what HTML theme is used. Defaults to False.
+napoleon_use_admonition_for_examples = True
 
 
 # A string of reStructuredText that will be included at the end of every source file that is read.

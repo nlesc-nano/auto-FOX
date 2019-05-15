@@ -1,15 +1,17 @@
-""" A module for reading multi-xyz files. """
+"""A module for reading multi-xyz files."""
 
-__all__ = ['read_multi_xyz']
-
-import io
-from typing import (Tuple, Dict, List, Choice, Iterable)
+from io import TextIOWrapper
+from typing import (Tuple, Dict, Iterable, List)
 
 import numpy as np
 
+__all__ = ['read_multi_xyz']
+
 
 def read_multi_xyz(filename: str) -> Tuple[np.ndarray, Dict[str, List[int]]]:
-    """ Read a (multi) .xyz file and return:
+    """Read a (multi) .xyz file.
+
+    Returns the following items:
 
         * An array with the cartesian coordinates of :math:`m` molecules
           consisting of :math:`n` atoms.
@@ -45,14 +47,15 @@ def read_multi_xyz(filename: str) -> Tuple[np.ndarray, Dict[str, List[int]]]:
 
 
 class XYZError(Exception):
-    """ Raise when there are issues related to parsing .xyz files. """
+    """Raise when there are issues related to parsing .xyz files."""
+
     pass
 
 
 def validate_xyz(mol_count: float,
                  atom_count: int,
                  filename: str) -> None:
-    """ Validate **mol_count** and **atom_count** in **xyz_file**.
+    """Validate **mol_count** and **atom_count** in **xyz_file**.
 
     :parameter float mol_count: The number of molecules in the xyz file.
         Expects float that is finite with integral value (*e.g.* 5.0, 6.0 or 3.0).
@@ -70,8 +73,8 @@ def validate_xyz(mol_count: float,
         raise XYZError(error.format(filename, atom_count))
 
 
-def _get_atom_count(f: io.TextIOWrapper) -> int:
-    """ Extract the number of atoms per molecule from the first line in an .xyz file.
+def _get_atom_count(f: TextIOWrapper) -> int:
+    """Extract the number of atoms per molecule from the first line in an .xyz file.
 
     :parameter f: An opened .xyz file.
     :type f: |io.TextIOWrapper|_
@@ -86,9 +89,9 @@ def _get_atom_count(f: io.TextIOWrapper) -> int:
                        "contain the number of atoms per molecule".format(ret, f.name))
 
 
-def _get_line_count(f: io.TextIOWrapper,
-                    add: Choice[int, Iterable[int]] = 0) -> int:
-    """ Extract the total number lines from **f**.
+def _get_line_count(f: TextIOWrapper,
+                    add: Iterable[int] = 0) -> int:
+    """Extract the total number lines from **f**.
 
     :parameter f: An opened .xyz file.
     :type f: |io.TextIOWrapper|_
@@ -102,10 +105,10 @@ def _get_line_count(f: io.TextIOWrapper,
     return i + sum(add)
 
 
-def _get_idx_dict(f: io.TextIOWrapper,
+def _get_idx_dict(f: TextIOWrapper,
                   mol_size: int,
-                  subtract: int = 0) -> Dict[str, List[int]]:
-    """ Extract atomic symbols and matching atomic indices from **f**.
+                  subtract: int = 0) -> Dict[str, list]:
+    """Extract atomic symbols and matching atomic indices from **f**.
 
     :parameter f: An opened .xyz file.
     :type f: |io.TextIOWrapper|_
@@ -114,7 +117,7 @@ def _get_idx_dict(f: io.TextIOWrapper,
     :return: A dictionary with atomic symbols and a list of matching atomic indices.
     :rtype: |dict|_ (keys: |str|_, values: |list|_ [|int|_])
     """
-    idx_dict = {}
+    idx_dict: Dict[str, List[int]] = {}
     abort = mol_size - subtract
     for i, at in enumerate(f, -subtract):
         if i < 0:  # Skip the header

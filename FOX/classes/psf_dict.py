@@ -1,24 +1,23 @@
-""" A class for reading protein structure (.psf) files. """
+"""A class for reading protein structure (.psf) files."""
 
-__all__ = ['PSFDict']
+from __future__ import annotations
 
 from itertools import chain
 
 import numpy as np
 import pandas as pd
-from typing import Dict, NewType
+from typing import Dict
 
 from collections import defaultdict
 
 from FOX.classes.multi_mol import MultiMolecule
 from FOX.functions.utils import (serialize_array, read_str_file)
 
-
-psfdict = NewType('PSFDict', defaultdict)
+__all__ = ['PSFDict']
 
 
 class PSFDict(defaultdict):
-    """ A class for storing protein structure files.
+    """A class for storing protein structure files.
 
     Keys within this class are frozen (they cannot be added, altered or removed).
     The available name of keys and type+shape, the matching values and their meanings are displayed
@@ -48,6 +47,7 @@ class PSFDict(defaultdict):
         interactions should be ignored.
     :type no_nonbonded: :math:`o*2` |np.ndarray|_ [|np.int64|_]
     """
+
     def __init__(self, **kwarg: Dict[str, np.ndarray]) -> None:
         _key_dict = {
             'filename': {'shape': 1},
@@ -66,33 +66,39 @@ class PSFDict(defaultdict):
             if key not in _key_dict:
                 raise KeyError(key)
         defaultdict.__init__(self, **kwarg)
-        defaultdict.__setattr__(self, '_key_dict', _key_dict)
+        defaultdict.__setitem__(self, '_key_dict', _key_dict)
+        for key in _key_dict:
+            defaultdict.setdefault(self, key)
 
     def __missing__(self, name: str) -> None:
         return None
 
     def __setitem__(self, name: str, value: np.ndarray) -> None:
-        if name not in self._key_dict():
+        if name not in self['_key_dict']:
             err = 'Invalid key: {}. Valid keys are {}'
             raise ValueError(err.format(str(name), str(self._key_dict)))
-        shape = self._key_dict[name['shape']]
+        shape = self['_key_dict'][name]['shape']
 
         if value is None:
-            self[name] == value
+            defaultdict.__setitem__(self, name, None)
+        elif name == 'filename' and isinstance(value, str):
+            defaultdict.__setitem__(self, name, np.array(value, ndmin=1))
         elif value.ndim == 1 and shape == 1:
-            self[name] = value[:, None]
+            defaultdict.__setitem__(self, name, value[:, None])
         elif value.ndim == 2 and value.shape[1] == shape:
-            self[name] == value
+            defaultdict.__setitem__(self, name, value)
         else:
             dim = '*'.join(['{:d}'.format(i) for i in value.shape])
             err = "Value has an invalid shape: {}. '{}' requires a n*{:d} array"
             raise ValueError(err.format(dim, name, shape))
 
     def __delitem__(self, name: str) -> None:
+        if name == '_type_dict':
+            raise ValueError("'_type_dict' cannot be deleted")
         self[name] = None
 
     def __getattr__(self, name: str) -> any:
-        if name == '_key_dict' or (name.startswith('__') and name.endswith('__')):
+        if (name.startswith('__') and name.endswith('__')):
             return defaultdict.__getattribute__(self, name)
         return self[name]
 
@@ -107,30 +113,36 @@ class PSFDict(defaultdict):
         del self[name]
 
     def __str__(self) -> str:
-        return _str(self)
+        ret = ''
+        item = '\tobject:\t {}\n\tshape:\t {}'
+        for key, value in self.items():
+            if key == '_type_dict':
+                continue
+            ret += item.format(str(type(value)),
+                               str(value.shape)
+                               )
+        return ret
 
     def __repr__(self) -> str:
-        ret = 'self._key_dict:\n'
-        ret += _str(self._key_dict, '\t')
-        return ret + '\n' + str(self)
+        return _str(self)
 
     def as_dict(self) -> Dict[str, np.ndarray]:
-        """ Convert a :class:`.PSFDict` instance into a dictionary. """
+        """Convert a :class:`.PSFDict` instance into a dictionary."""
         return {key: value for key, value in self.items()}
 
-    def set_filename(self, filename: str):
-        """ Set the filename of a .psf file.
+    def set_filename(self, filename: str) -> None:
+        """Set the filename of a .psf file.
 
         The value is used by the :meth:`write_psf` method, serving as the filename of a to-be
         created .psf file.
 
         :parameter str filename: The path+filename of a to-be created .psf file.
         """
-        self.filename = filename
+        self.filename = np.array(filename, ndmin=1)
 
     @classmethod
-    def read_psf(cls, filename: str) -> psfdict:
-        """ Read a protein structure file (.psf) and return the various .psf blocks as a dictionary.
+    def read_psf(cls, filename: str) -> PSFDict:
+        """Read a protein structure file (.psf) and return the various .psf blocks as a dictionary.
 
         Depending on the content of the .psf file, the dictionary can contain
         the following keys and values:
@@ -168,7 +180,7 @@ class PSFDict(defaultdict):
                        '!NACC': 'acceptors',
                        '!NNB': 'no_nonbonded'}
 
-        ret = {}
+        ret: dict = {}
         with open(filename, 'r') as f:
             next(f)  # Skip the first line
             for i in f:
@@ -193,7 +205,7 @@ class PSFDict(defaultdict):
 
     @staticmethod
     def _post_process_psf(psf_dict: Dict[str, np.ndarray]) -> Dict[str, np.ndarray]:
-        """ Post-process the output of :func:`.read_psf`, casting the values into appropiate
+        """Post-process the output of :func:`.read_psf`, casting the values into appropiate
         objects:
 
         * The title block is converted into an (un-nested) list of strings.
@@ -241,8 +253,8 @@ class PSFDict(defaultdict):
 
         return psf_dict
 
-    def write_psf(self, filename: str = None):
-        """ Create a protein structure file (.psf) out of a :class:`.PSFDict` instance.
+    def write_psf(self, filename: str = None) -> None:
+        """Create a protein structure file (.psf) out of a :class:`.PSFDict` instance.
 
         :parameter str filename: The path+filename of the .psf file.
             If *None*, try to pull the name from **self['filename']** (see :meth:`set_filename`).
@@ -254,7 +266,7 @@ class PSFDict(defaultdict):
 
         # Prepare the !NTITLE block
         top = 'PSF EXT\n'
-        if not self.title:
+        if self.title is None:
             top += '\n{:>10d} !NTITLE'.format(2)
             top += '\n{:>10.10} PSF file generated with Auto-FOX:'.format('REMARKS')
             top += '\n{:>10.10} https://github.com/nlesc-nano/auto-FOX'.format('REMARKS')
@@ -264,7 +276,7 @@ class PSFDict(defaultdict):
                 top += '\n{:>10.10} '.format('REMARKS') + i
 
         # Prepare the !NATOM block
-        if not self.atoms:
+        if self.atoms is not None:
             top += '\n\n{:>10d} !NATOM\n'.format(self.atoms.shape[0])
             string = '{:>10d} {:8.8} {:<8d} {:8.8} {:8.8} {:6.6} {:>9f} {:>15f} {:>8d}'
             for i, j in self.atoms.iterrows():
@@ -274,8 +286,11 @@ class PSFDict(defaultdict):
 
         # Prepare the !NBOND, !NTHETA, !NPHI, !NIMPHI, !NDON, !NACC and !NNB blocks
         bottom = ''
-        for key, value in self.items():
-            if key in ('title', 'atoms'):
+        sections = ('bonds', 'angles', 'dihedrals', 'impropers',
+                    'donors', 'acceptors', 'no_nonbonded')
+        for key in sections:
+            value = self[key]
+            if key in ('title', 'atoms', '_key_dict'):
                 continue
             header = self._key_dict[key]['header']
             row_len = self._key_dict[key]['row_len']
@@ -291,8 +306,8 @@ class PSFDict(defaultdict):
             f.write(bottom[1:])
 
     @classmethod
-    def from_multi_mol(cls, multi_mol: MultiMolecule, inplace: bool = True) -> psfdict:
-        """ """
+    def from_multi_mol(cls, multi_mol: MultiMolecule) -> PSFDict:
+        """Construct :class:`PSFdict` instance from a :class:`.MultiMolecule`."""
         res = multi_mol.residue_argsort(concatenate=False)
         plams_mol = multi_mol.as_Molecule(0)[0]
         plams_mol.fix_bond_orders()
@@ -334,8 +349,9 @@ class PSFDict(defaultdict):
 
         return cls(**ret)
 
-    def update_atom_type(self, filename: str):
-        """ Update all ligand atom types and atomic charges in self['atoms']. """
+    def update_atom_type(self,
+                         filename: str) -> None:
+        """Update all ligand atom types and atomic charges in self['atoms']."""
         at_type, charge = read_str_file(filename)
         id_range = range(2, max(self.atoms['residue ID'])+1)
         for i in id_range:
@@ -343,12 +359,14 @@ class PSFDict(defaultdict):
             self.atoms.loc[j, 'atom type'] = at_type
             self.atoms.loc[j, 'charge'] = charge
 
-    def update_atom_charge(self, atom_type: str, charge: float):
-        """ Change the charge of a specific atom type to **charge**. """
+    def update_atom_charge(self, atom_type: str,
+                           charge: float) -> None:
+        """Change the charge of a specific atom type to **charge**."""
         self.atoms.loc[self.atoms['atom type'] == atom_type, 'charge'] = charge
 
 
-def _str(dict_: dict, indent: str = '') -> str:
+def _str(dict_: dict,
+         indent: str = '') -> str:
     ret = ''
     for key, value in dict_.items():
         ret += indent + str(key) + ': \t'

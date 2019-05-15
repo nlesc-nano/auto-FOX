@@ -1,6 +1,4 @@
-""" A module for potential energy surfaces from KF binary files. """
-
-__all__ = ['read_kf']
+"""A module for potential energy surfaces from KF binary files."""
 
 from typing import (Tuple, Dict, List)
 
@@ -8,9 +6,13 @@ import numpy as np
 
 from scm.plams import KFReader
 
+__all__ = ['read_kf']
+
 
 def read_kf(filename: str) -> Tuple[np.ndarray, Dict[str, List[int]]]:
-    """ Read a KF binary file, containing a potential energy surface, and return:
+    """Read a KF binary file containing a potential energy surface.
+
+    Returns the following items:
 
         * An array with the cartesian coordinates of :math:`m` molecules
           consisting of :math:`n` atoms.
@@ -44,8 +46,8 @@ def read_kf(filename: str) -> Tuple[np.ndarray, Dict[str, List[int]]]:
     return xyz, _get_idx_dict(kf)
 
 
-def _get_idx_dict(kf: KFReader) -> Dict[str, List[int]]:
-    """ Extract atomic symbols and matching atomic indices from **kf**.
+def _get_idx_dict(kf: KFReader) -> Dict[str, list]:
+    """Extract atomic symbols and matching atomic indices from **kf**.
 
     :parameter kf: A KFReader instance constructed from a KF binary file.
     :type kf: |plams.KFReader|_
@@ -54,7 +56,7 @@ def _get_idx_dict(kf: KFReader) -> Dict[str, List[int]]:
     """
     at_list = kf.read('Molecule', 'AtomSymbols').split()
 
-    ret = {}
+    ret: Dict[str, List[int]] = {}
     for i, at in enumerate(at_list):
         try:
             ret[at].append(i)

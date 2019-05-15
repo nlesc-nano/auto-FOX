@@ -1,4 +1,4 @@
-""" A tool for parameterizing forcefields by reproducing radial distribution functions. """
+"""A tool for parameterizing forcefields by reproducing radial distribution functions."""
 
 __author__ = "Bas van Beek"
 __email__ = 'b.f.van.beek@vu.nl'
@@ -22,7 +22,7 @@ from .io import (
 
 from .classes import (
     MultiMolecule,
-    MonteCarlo, ARMC,
+    ARMC,
     Molecule,
     PSFDict
 )
@@ -39,7 +39,7 @@ __all__ = [
     'create_hdf5', 'to_hdf5', 'from_hdf5',
 
     'MultiMolecule',
-    'MonteCarlo', 'ARMC',
+    'ARMC',
     'Molecule',
     'PSFDict'
 ]

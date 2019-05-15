@@ -1,3 +1,5 @@
+"""Various io-related functions implemented in Auto-FOX."""
+
 from .read_kf import read_kf
 from .read_xyz import read_multi_xyz
 from .read_pdb import read_pdb

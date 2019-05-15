@@ -1,19 +1,17 @@
-# #!/usr/bin/env python
-
-""" Entry points for Auto-FOX. """
-
-__all__ = []
+#!/usr/bin/env python
+"""Entry points for Auto-FOX."""
 
 import argparse
+from typing import Optional
 from os.path import isfile
-
-from scm.plams import add_to_class
-from scm.plams.interfaces.thirdparty.cp2k import Cp2kJob
 
 from FOX import ARMC
 
+__all__: list = []
 
-def main_armc(args=None):
+
+def main_armc(args: Optional[list] = None) -> None:
+    """Entrypoint for :meth:`FOX.classes.armc.ARMC.init_armc`."""
     parser = argparse.ArgumentParser(
          prog='FOX',
          usage='init_armc filename',

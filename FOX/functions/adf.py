@@ -1,13 +1,15 @@
-""" A module for constructing angular distribution functions. """
+"""A module for constructing angular distribution functions."""
 
-__all__ = ['get_adf']
+from typing import (Sequence, Hashable)
 
 import numpy as np
 import pandas as pd
 
+__all__ = ['get_adf']
 
-def get_adf_df(atom_pairs):
-    """ Construct and return a pandas dataframe filled with zeros to hold angular distribution
+
+def get_adf_df(atom_pairs: Sequence[Sequence[Hashable]]) -> pd.DataFrame:
+    """Construct and return a pandas dataframe filled with zeros to hold angular distribution
     functions.
 
     :parameter atom_pairs: An dictionary of 3-tuples representing the keys of the dataframe.
@@ -26,8 +28,9 @@ def get_adf_df(atom_pairs):
     return df
 
 
-def get_adf(ang_mat, r_max=24.0):
-    """ Calculate and return the angular distribution function (ADF) based on the 4D angle matrix
+def get_adf(ang_mat: np.ndarray,
+            r_max: float = 24.0) -> np.ndarray:
+    """Calculate and return the angular distribution function (ADF) based on the 4D angle matrix
     **ang_mat**.
 
     :parameter ang: A 4D angle matrix constructed from :math:`m` molecules and three sets of

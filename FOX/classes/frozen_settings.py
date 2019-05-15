@@ -1,19 +1,25 @@
-""" """
+"""A module which adds the :class:`.FrozenSettings` class."""
 
-__all__ = ['FrozenSettings']
+from __future__ import annotations
+
+from typing import (Callable, Hashable, Any, Iterable)
 
 from scm.plams import Settings
 
 from FOX.functions.utils import append_docstring
 
+__all__ = ['FrozenSettings']
+
 
 @append_docstring(Settings)
 class FrozenSettings(Settings):
-    """ An inmutable subclass of plams.Settings_.
+    """An inmutable subclass of plams.Settings_.
 
     .. _plams.Settings: https://www.scm.com/doc/plams/components/settings.html
     """
-    def __init__(self, *arg, **kwarg):
+
+    def __init__(self, *arg, **kwarg) -> None:
+        """Construct a :class:`FrozenSettings` instance."""
         dict.__init__(self, *arg, **kwarg)
 
         # Fill the FrozenSettings instance by means of the dict.__setitem__ method
@@ -26,8 +32,8 @@ class FrozenSettings(Settings):
                 )
                 Settings.__setitem__(self, key, value)
 
-    def get_nested_value(self, key):
-        """ Return the value from a nested dictionary associated with all keys in **key**.
+    def get_nested_value(self, key: Iterable[Hashable]) -> Any:
+        """Return the value from a nested dictionary associated with all keys in **key**.
 
         Example:
 
@@ -55,16 +61,21 @@ class FrozenSettings(Settings):
             value = iterate(value, i)
         return value
 
-    def __missing__(self, name):
+    def __missing__(self, name: Hashable) -> FrozenSettings:
+        """Return a new (empty) :class:`FrozenSettings` instance."""
         return FrozenSettings()
 
-    def __delitem__(self, name):
+    def __delitem__(self, name: Hashable) -> None:
+        """Raise a TypeError."""
         raise TypeError("'FrozenSettings' object does not support item deletion")
 
-    def __setitem__(self, name, value):
+    def __setitem__(self, name: Hashable,
+                    value: Any) -> None:
+        """Raise a TypeError."""
         raise TypeError("'FrozenSettings' object does not support item assignment")
 
-    def __copy__(self):
+    def __copy__(self) -> FrozenSettings:
+        """Create a copy of **self**."""
         ret = FrozenSettings()
         for key, value in self.items():
             if isinstance(self[key], FrozenSettings):
@@ -73,15 +84,20 @@ class FrozenSettings(Settings):
                 Settings.__setitem__(ret, key, value)
         return ret
 
-    def __hash__(self):
+    def __hash__(self) -> int:
+        """Return the hash of self.
+
+        Hashes are constructed from tuples containing all keys associated with a specific value,
+        in addition to containing the value itself.
+        """
         ret = 0
         flat = self.flatten()
         for key, value in flat.items():
-            ret ^= hash(key)
+            ret ^= hash(key + (value,))
         return ret
 
-    def flatten(self):
-        """ Flatten a nested dictionary.
+    def flatten(self) -> FrozenSettings:
+        """Flatten a nested dictionary.
 
         The keys of the to be returned dictionary consist are tuples with the old (nested) keys
         of **input_dict**.
@@ -99,7 +115,7 @@ class FrozenSettings(Settings):
         :return: A non-nested dicionary derived from **input_dict**.
         :rtype: |dict|_ (keys: |tuple|_)
         """
-        def concatenate_dict(key_prepend, dict_):
+        def concatenate_dict(key_prepend: tuple, dict_: dict) -> None:
             for key, value in dict_.items():
                 key = key_prepend + (key, )
                 if isinstance(value, dict):
@@ -113,7 +129,8 @@ class FrozenSettings(Settings):
         return ret
 
     @append_docstring(Settings.as_dict)
-    def as_dict(self, ret_type=dict):
+    def as_dict(self, ret_type: Callable = dict) -> dict:
+        """Convert a :class:`.FrozenSettings` instance into a dictionary."""
         ret = ret_type.__class__()
         for key, value in self.items():
             if isinstance(value, Settings):

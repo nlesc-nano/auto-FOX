@@ -1,8 +1,6 @@
-""" A module with miscellaneous functions. """
+"""A module with miscellaneous functions."""
 
-__all__ = ['get_template', 'template_to_df', 'get_example_xyz']
-
-from typing import (List, Choice, Iterable, Tuple, Callable, Hashable, Sequence, MutableSequence)
+from typing import (Iterable, Tuple, Callable, Hashable, Sequence, MutableSequence, Optional)
 from os.path import join, isfile
 from functools import wraps
 from pkg_resources import resource_filename
@@ -13,23 +11,24 @@ import pandas as pd
 
 from scm.plams import (Settings, add_to_class)
 
+__all__ = ['get_template', 'template_to_df', 'get_example_xyz']
+
 
 def append_docstring(item: Callable) -> Callable:
-    r""" A decorator for appending the docstring of class, method or function with one provided
+    r"""A decorator for appending the docstring of class, method or function with one provided
     by another python object, **item**.
 
     example:
 
     .. code:: python
 
-
         >>> def func1():
-        >>>     """ 'func1 docstring' """
+        >>>     """'func1 docstring' """
         >>>     pass
 
         >>> @append_docstring(func1)
         >>> def func2():
-        >>>     """ 'func2 docstring' """
+        >>>     """'func2 docstring' """
         >>>     pass
 
         >>> help(func2)
@@ -49,7 +48,7 @@ def append_docstring(item: Callable) -> Callable:
 
 
 def assert_error(error_msg: str = '') -> Callable:
-    """ Take an error message, if not *false* then cause a function or class
+    """Take an error message, if not *false* then cause a function or class
     to raise a ModuleNotFoundError upon being called.
 
 
@@ -77,7 +76,7 @@ def assert_error(error_msg: str = '') -> Callable:
 
 def _function_error(f_type: Callable,
                     error_msg: str) -> Callable:
-    """ A function for processing functions fed into :func:`assert_error`. """
+    """A function for processing functions fed into :func:`assert_error`."""
     if not error_msg:
         return f_type
 
@@ -89,7 +88,7 @@ def _function_error(f_type: Callable,
 
 def _class_error(f_type: Callable,
                  error_msg: str) -> Callable:
-    """ A function for processing classes fed into :func:`assert_error`. """
+    """A function for processing classes fed into :func:`assert_error`."""
     if error_msg:
         @add_to_class(f_type)
         def __init__(self, *arg, **kwarg):
@@ -99,8 +98,8 @@ def _class_error(f_type: Callable,
 
 def get_template(name: str,
                  path: str = None,
-                 as_settings: bool = True) -> Choice[dict, Settings]:
-    """ Grab a .yaml template and turn it into a Settings object.
+                 as_settings: bool = True) -> dict:
+    """Grab a .yaml template and turn it into a Settings object.
 
     :parameeter str name: The name of the template file.
     :parameter str path: The path where **name** is located.
@@ -123,7 +122,7 @@ def get_template(name: str,
 
 def template_to_df(name: str,
                    path: str = None) -> pd.DataFrame:
-    """ Grab a .yaml template and turn it into a pandas dataframe.
+    """Grab a .yaml template and turn it into a pandas dataframe.
 
     :parameeter str name: The name of the template file.
     :parameter str path: The path where **name** is located.
@@ -142,7 +141,7 @@ def template_to_df(name: str,
 
 def serialize_array(array: np.ndarray,
                     items_per_row: int = 4) -> str:
-    """ Serialize an array into a single string.
+    """Serialize an array into a single string.
     Newlines are placed for every **items_per_row** rows in **array**.
 
     :parameter array: A 2D array.
@@ -167,8 +166,8 @@ def serialize_array(array: np.ndarray,
     return ret
 
 
-def read_str_file(filename: str) -> zip:
-    """ Read atomic charges from CHARMM-compatible stream files (.str), returning a settings object
+def read_str_file(filename: str) -> Optional[zip]:
+    """Read atomic charges from CHARMM-compatible stream files (.str), returning a settings object
     with atom types and (atomic) charges.
 
     :parameter str filename: the path+filename of the .str file.
@@ -191,7 +190,7 @@ def read_str_file(filename: str) -> zip:
 
 
 def get_shape(item: Iterable) -> Tuple[int]:
-    """ Try to infer the shape of an object.
+    """Try to infer the shape of an object.
 
     :parameter object item: A python object.
     :return: The shape of **item**.
@@ -205,7 +204,8 @@ def get_shape(item: Iterable) -> Tuple[int]:
 
 
 def flatten_dict(input_dict: dict) -> dict:
-    """ Flatten a dictionary.
+    """Flatten a dictionary.
+
     The keys of the to be returned dictionary consist are tuples with the old (nested) keys
     of **input_dict**.
 
@@ -238,8 +238,9 @@ def flatten_dict(input_dict: dict) -> dict:
 
 def dict_to_pandas(input_dict: dict,
                    name: Hashable = 0,
-                   object_type: str = 'DataFrame') -> Choice(pd.DataFrame, pd.Series):
-    """ Turn a (nested) dictionary into a pandas series or dataframe.
+                   object_type: str = 'DataFrame') -> pd.DataFrame:
+    """Turn a (nested) dictionary into a pandas series or dataframe.
+
     Keys are un-nested and used for generating multiindices (see meth:`flatten_dict`).
 
     :parameter dict input_dict: A (nested) dictionary.
@@ -257,8 +258,9 @@ def dict_to_pandas(input_dict: dict,
         return pd.DataFrame(list(flat_dict.values()), index=idx, columns=[name])
 
 
-def array_to_index(ar: np.ndarray) -> Choice[pd.Index, pd.MultiIndex]:
-    """ Convert a NumPy array into a Pandas Index or MultiIndex.
+def array_to_index(ar: np.ndarray) -> pd.Index:
+    """Convert a NumPy array into a Pandas Index or MultiIndex.
+
     Raises a ValueError if the dimensionality of **ar** is greater than 2.
 
     :parameter ar: A NumPy array.
@@ -278,14 +280,14 @@ def array_to_index(ar: np.ndarray) -> Choice[pd.Index, pd.MultiIndex]:
 
 
 def get_example_xyz(name: str = 'Cd68Se55_26COO_MD_trajec.xyz') -> str:
-    """ Return the path + name of the example multi-xyz file. """
+    """Return the path + name of the example multi-xyz file."""
     return resource_filename('FOX', join('data', name))
 
 
 def _get_move_range(start: float = 0.005,
                     stop: float = 0.1,
                     step: float = 0.005) -> np.ndarray:
-    """ Generate an with array of all allowed moves, the moves spanning both the positive and
+    """Generate an with array of all allowed moves, the moves spanning both the positive and
     negative range.
 
     :parameter float start: Start of the interval. The interval includes this value.
@@ -302,7 +304,7 @@ def _get_move_range(start: float = 0.005,
 
 
 def get_func_name(item: Callable) -> str:
-    """ Return the module + class + name of a function.
+    """Return the module + class + name of a function.
 
     Example:
 
@@ -335,7 +337,7 @@ def get_func_name(item: Callable) -> str:
 
 
 def get_class_name(item: Callable) -> str:
-    """ Return the module + name of a class.
+    """Return the module + name of a class.
 
     Example:
 
@@ -364,9 +366,9 @@ def get_class_name(item: Callable) -> str:
 
 
 def slice_str(str_: str,
-              intervals: List[int, None],
-              strip_spaces: bool = True) -> List[str]:
-    """ Slice a string, **str_**, at intervals specified in **intervals**.
+              intervals: list,
+              strip_spaces: bool = True) -> list:
+    """Slice a string, **str_**, at intervals specified in **intervals**.
 
     Example:
 
@@ -391,7 +393,7 @@ def slice_str(str_: str,
 
 def get_nested_value(iterable: Sequence,
                      key_tup: Iterable[Hashable]) -> any:
-    """ Retrieve a value, associated with all keys in **key_tup**, from a nested iterable.
+    """Retrieve a value, associated with all keys in **key_tup**, from a nested iterable.
 
     .. code:: python
 
@@ -420,7 +422,7 @@ def get_nested_value(iterable: Sequence,
 def set_nested_value(iterable: MutableSequence,
                      key_tup: Iterable[Hashable],
                      value: any) -> None:
-    """ Assign a value, associated with all keys and/or indices in **key_tup**,
+    """Assign a value, associated with all keys and/or indices in **key_tup**,
     to a nested iterable.
 
     .. code:: python

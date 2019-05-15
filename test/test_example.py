@@ -59,7 +59,6 @@ def test_cp2k_md():
     armc = FOX.ARMC.from_dict(s)
 
     psf = {
-        'filename': './MM_MD_workdir/mol.psf',
         'atoms': pd.read_csv(join(REF_DIR, 'psf_atoms.csv'), float_precision='high', index_col=0),
         'bonds': np.load(join(REF_DIR, 'bonds.npy')),
         'angles': np.load(join(REF_DIR, 'angles.npy')),
@@ -67,7 +66,6 @@ def test_cp2k_md():
         'impropers': np.load(join(REF_DIR, 'impropers.npy')),
         }
 
-    assert armc.job.psf.filename == psf['filename']
     np.testing.assert_allclose(armc.job.psf.bonds, psf['bonds'])
     np.testing.assert_allclose(armc.job.psf.angles, psf['angles'])
     np.testing.assert_allclose(armc.job.psf.dihedrals, psf['dihedrals'])

@@ -1,4 +1,4 @@
-""" A module for testing files in the :mod:`FOX.io.read_psf` module. """
+""" A module for testing files in the :mod:`FOX.classes.read_psf.PSFDict` class. """
 
 __all__ = []
 
@@ -8,15 +8,15 @@ from os.path import join
 import pandas as pd
 import numpy as np
 
-from FOX.io.read_psf import (read_psf, write_psf)
+from FOX.classes.psf_dict import PSFDict
 
 
 REF_DIR = 'test/test_files/psf'
 
 
 def test_read_psf():
-    """ Test :func:`FOX.io.read_psf.read_psf`. """
-    psf_dict = read_psf(join(REF_DIR, 'mol.psf'))
+    """ Test :meth:`FOX.classes.psf_dict.PSFDict.read_psf`. """
+    psf_dict = PSFDict.read_psf(join(REF_DIR, 'mol.psf'))
 
     ref_atoms = pd.read_csv(join(REF_DIR, 'atoms.csv'), float_precision='high', index_col=0)
     ref_dict = {
@@ -29,8 +29,10 @@ def test_read_psf():
         'no_nonbonded': np.load(join(REF_DIR, 'no_nonbonded.npy')),
     }
 
-    assert psf_dict['title'] == ['PSF file generated with Auto-FOX:',
-                                 'https://github.com/nlesc-nano/auto-FOX']
+    assert (
+        psf_dict['title'] ==
+        np.array(['PSF file generated with Auto-FOX:', 'https://github.com/nlesc-nano/auto-FOX'])
+    ).all()
 
     for key, value in psf_dict['atoms'].items():
         i, j = value, ref_atoms[key]
@@ -48,10 +50,10 @@ def test_read_psf():
 
 
 def test_write_psf():
-    """ Test :func:`FOX.io.read_psf.write_psf`. """
-    psf_dict = read_psf(join(REF_DIR, 'mol.psf'))
-    write_psf(join(REF_DIR, 'mol_test.psf'), **psf_dict)
-    psf_dict = read_psf(join(REF_DIR, 'mol_test.psf'))
+    """ Test :meth:`FOX.classes.psf_dict.PSFDict.write_psf`. """
+    psf_dict = PSFDict.read_psf(join(REF_DIR, 'mol.psf'))
+    psf_dict.write_psf(join(REF_DIR, 'mol_test.psf'))
+    psf_dict = PSFDict.read_psf(join(REF_DIR, 'mol_test.psf'))
     remove(join(REF_DIR, 'mol_test.psf'))
 
     ref_atoms = pd.read_csv(join(REF_DIR, 'atoms.csv'), float_precision='high', index_col=0)
@@ -65,8 +67,10 @@ def test_write_psf():
         'no_nonbonded': np.load(join(REF_DIR, 'no_nonbonded.npy')),
     }
 
-    assert psf_dict['title'] == ['PSF file generated with Auto-FOX:',
-                                 'https://github.com/nlesc-nano/auto-FOX']
+    assert (
+        psf_dict['title'] ==
+        np.array(['PSF file generated with Auto-FOX:', 'https://github.com/nlesc-nano/auto-FOX'])
+    ).all()
 
     for key, value in psf_dict['atoms'].items():
         i, j = value, ref_atoms[key]

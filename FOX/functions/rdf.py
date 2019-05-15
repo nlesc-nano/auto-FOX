@@ -1,15 +1,15 @@
-""" A module for constructing radial distribution functions. """
-
-__all__ = ['get_rdf_lowmem', 'get_rdf']
+"""A module for constructing radial distribution functions."""
 
 import numpy as np
 import pandas as pd
+
+__all__ = ['get_rdf_lowmem', 'get_rdf']
 
 
 def get_rdf_df(atom_pairs,
                dr: float = 0.05,
                r_max: float = 12.0) -> pd.DataFrame:
-    """ Construct and return a pandas dataframe filled with zeros.
+    """Construct and return a pandas dataframe filled with zeros.
 
     :parameter float dr: The integration step-size in Angstrom, *i.e.* the distance between
         concentric spheres.
@@ -31,7 +31,7 @@ def get_rdf_df(atom_pairs,
 def get_rdf(dist: np.ndarray,
             dr: float = 0.05,
             r_max: float = 12.0) -> np.ndarray:
-    """ Calculate and return the radial distribution function (RDF) based on the 3D distance matrix
+    """Calculate and return the radial distribution function (RDF) based on the 3D distance matrix
     **dist**.
 
     :parameter dist: A 3D array representing :math:`m` distance matrices of :math:`n` by
@@ -50,11 +50,11 @@ def get_rdf(dist: np.ndarray,
 
     dist_shape = dist.shape
     dens_mean = dist_shape[2] / ((4/3) * np.pi * (0.5 * dist.max(axis=(1, 2)))**3)
-    dist /= dr
-    dist = dist.astype(np.int32, copy=False)
-    dist.shape = dist_shape[0], dist_shape[1] * dist_shape[2]
+    dist2 = dist / dr
+    dist2 = dist2.astype(np.int32, copy=False)
+    dist2.shape = dist_shape[0], dist_shape[1] * dist_shape[2]
 
-    dens = np.array([np.bincount(i, minlength=idx_max)[:idx_max] for i in dist], dtype=float)
+    dens = np.array([np.bincount(i, minlength=idx_max)[:idx_max] for i in dist2], dtype=float)
     dens /= dist_shape[1]
     dens /= int_step
     dens /= dens_mean[:, None]
@@ -65,8 +65,10 @@ def get_rdf(dist: np.ndarray,
 def get_rdf_lowmem(dist: np.ndarray,
                    dr: float = 0.05,
                    r_max: float = 12.0) -> np.ndarray:
-    """ Calculate and return the radial distribution function (RDF) based on the 2D distance matrix
-    **dist**. A more memory efficient implementation of :func:`FOX.functions.rdf.get_rdf`,
+    """Calculate and return the radial distribution function (RDF) based on the 2D distance matrix
+    **dist**.
+
+    A more memory efficient implementation of :func:`FOX.functions.rdf.get_rdf`,
     which operates on a 3D distance matrix.
 
     :parameter dist: A 2D array representing a distance matrix of :math:`n` by :math:`k` atoms.

@@ -35,10 +35,9 @@ A module for reading multi-xyz files.
 
 
 .. _hdf5_utils: https://github.com/nlesc-nano/auto-FOX/blob/master/FOX/io/hdf5_utils.py
-.. _read_prm: https://github.com/nlesc-nano/auto-FOX/blob/master/FOX/io/read_kf.py
-.. _read_prm: https://github.com/nlesc-nano/auto-FOX/blob/master/FOX/io/read_pdb.py
+.. _read_kf: https://github.com/nlesc-nano/auto-FOX/blob/master/FOX/io/read_kf.py
+.. _read_pdb: https://github.com/nlesc-nano/auto-FOX/blob/master/FOX/io/read_pdb.py
 .. _read_prm: https://github.com/nlesc-nano/auto-FOX/blob/master/FOX/io/read_prm.py
-.. _read_prm: https://github.com/nlesc-nano/auto-FOX/blob/master/FOX/io/read_psf.py
 .. _read_xyz: https://github.com/nlesc-nano/auto-FOX/blob/master/FOX/io/read_xyz.py
 
 .. _HDF5: https://www.h5py.org/

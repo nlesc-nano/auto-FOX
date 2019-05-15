@@ -1,6 +1,8 @@
 
 .. image:: https://travis-ci.org/nlesc-nano/auto-FOX.svg?branch=master
    :target: https://travis-ci.org/nlesc-nano/auto-FOX
+.. image:: https://travis-ci.org/nlesc-nano/auto-FOX.svg?branch=master
+   :target: https://travis-ci.org/nlesc-nano/auto-FOX
 .. image:: https://readthedocs.org/projects/auto-fox/badge/?version=latest
    :target: https://auto-fox.readthedocs.io/en/latest
 .. image:: https://img.shields.io/badge/python-3.7-blue.svg
@@ -71,7 +73,7 @@ Anaconda environments
 - Anaconda environments can be created, enabled and disabled by,
   respectively, typing:
 
-  - Create environment: ``conda create --name FOX python``
+  - Create environment: ``conda create --name FOX python=3.7``
 
   - Enable environment: ``conda activate FOX``
 
@@ -88,24 +90,19 @@ Installing **Auto-FOX**
 
 Optional dependencies
 ---------------------
-- "Just give me all optional dependancies (8_)":
-
-   - Anaconda:   ``conda install --name FOX -y -c
-     conda-forge matplotlib h5py pyyaml``
-
-|
-
-- The plotting of data produced by **Auto-FOX** requires Matplotlib_.
-  Matplotlib is distributed by both PyPi and Anaconda:
-
-   - Anaconda:   ``conda install --name FOX -y -c conda-forge matplotlib``
-
-   - PyPi:       ``pip install matplotlib``
 
 - Use of the FOX.monte_carlo_ module requires h5py_ and PyYAML_.
   Note: h5py is not distrbuted via PyPi:
 
-   - Anaconda:   ``conda install --name FOX -y -c conda-forge h5py pyyaml``
+  - Anaconda:   ``conda install --name FOX -y -c conda-forge h5py``
+
+- The plotting of data produced by **Auto-FOX** requires Matplotlib_.
+  Matplotlib is distributed by both PyPi and Anaconda:
+
+  - Anaconda:   ``conda install --name FOX -y -c conda-forge matplotlib``
+
+  - PyPi:       ``pip install matplotlib``
+
 
 
 .. _1: https://auto-fox.readthedocs.io/en/latest/3_multimolecule.html

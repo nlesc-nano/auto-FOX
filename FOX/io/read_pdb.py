@@ -1,17 +1,17 @@
-""" A module for reading protein DataBank (.pdb) files. """
+"""A module for reading protein DataBank (.pdb) files."""
 
-__all__ = ['read_pdb']
-
-from typing import (Tuple, List)
+from typing import (Tuple, List, Iterable, Sequence)
 
 import pandas as pd
 import numpy as np
 
 from ..functions.utils import slice_str
 
+__all__ = ['read_pdb']
+
 
 def read_pdb(filename: str) -> Tuple[pd.DataFrame, np.ndarray]:
-    """ Read the content of protein DataBank file (pdb_).
+    """Read the content of protein DataBank file (pdb_).
 
     :parameter str filename: The path+name of a .pdb file.
     :return: A dataframe holding the ATOM/HETATM block and an array holding the CONECT block.
@@ -37,8 +37,9 @@ def read_pdb(filename: str) -> Tuple[pd.DataFrame, np.ndarray]:
     return _get_atoms_df(atoms), _get_bonds_array(bonds)
 
 
-def _get_bonds_array(bonds: List[List[int]]) -> np.ndarray:
-    """ Convert the connectivity list produced by :func:`.read_pdb` into an array of integers.
+def _get_bonds_array(bonds: Iterable[Sequence[str]]) -> np.ndarray:
+    """Convert the connectivity list produced by :func:`.read_pdb` into an array of integers.
+
     Bond orders are multiplied by :math:`10` and stored as integers,
     thus effectively being stored as floats with single-decimal precision.
 
@@ -50,7 +51,7 @@ def _get_bonds_array(bonds: List[List[int]]) -> np.ndarray:
 
     .. _pdb: https://www.cgl.ucsf.edu/chimera/docs/UsersGuide/tutorials/pdbintro.html
     """
-    ret = []
+    ret: List[Sequence[object]] = []
     j_old = None
     for i in bonds:
         for j in i[1:]:
@@ -64,11 +65,11 @@ def _get_bonds_array(bonds: List[List[int]]) -> np.ndarray:
                 ret.append((i[0], j, 10))
             j_old = j
 
-    return np.array(ret, int)
+    return np.array(ret, dtype=int)
 
 
-def _get_atoms_df(atoms: List[List[str]]) -> pd.DataFrame:
-    """ Convert the atom list produced by :func:`.read_pdb` into a dataframe.
+def _get_atoms_df(atoms: Iterable[Sequence[str]]) -> pd.DataFrame:
+    """Convert the atom list produced by :func:`.read_pdb` into a dataframe.
 
     :parameter list atoms: A nested list of atom data as retrieved from a pdb_ file.
     :return: A dataframe with 16 columns containing the .pdb data of :math:`n` atoms.

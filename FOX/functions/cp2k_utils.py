@@ -1,18 +1,18 @@
-""" A module with miscellaneous functions related to CP2K. """
-
-__all__ = ['update_cp2k_settings', 'set_keys']
+"""A module with miscellaneous functions related to CP2K."""
 
 import itertools
-from typing import List
 
 import pandas as pd
 
 from scm.plams import Settings
 
+__all__ = ['update_cp2k_settings', 'set_keys']
+
 
 def set_subsys_kind(settings: Settings,
                     df: pd.DataFrame) -> None:
-    """ Set the FORCE_EVAL/SUBSYS/KIND_ keyword(s) in CP2K job settings.
+    """Set the FORCE_EVAL/SUBSYS/KIND_ keyword(s) in CP2K job settings.
+
     Performs an inplace update of the input.force_eval.subsys key in **settings**.
 
     .. _KIND: https://manual.cp2k.org/trunk/CP2K_INPUT/FORCE_EVAL/SUBSYS/KIND.html
@@ -30,7 +30,8 @@ def set_subsys_kind(settings: Settings,
 
 def set_lennard_jones(settings: Settings,
                       lj_df: pd.DataFrame) -> None:
-    """ Set the FORCE_EVAL/MM/FORCEFIELD/NONBONDED/LENNARD-JONES_ keyword(s) in CP2K job settings.
+    """Set the FORCE_EVAL/MM/FORCEFIELD/NONBONDED/LENNARD-JONES_ keyword(s) in CP2K job settings.
+
     Performs an inplace update of **lj_df** and the input.mm.forcefield.nonbonded key in
     **settings**.
 
@@ -57,7 +58,8 @@ def set_lennard_jones(settings: Settings,
 
 def set_atomic_charges(settings: Settings,
                        charge_df: pd.DataFrame) -> None:
-    """ Set the FORCE_EVAL/MM/FORCEFIELD/CHARGE_ keyword(s) in CP2K job settings.
+    """Set the FORCE_EVAL/MM/FORCEFIELD/CHARGE_ keyword(s) in CP2K job settings.
+
     Performs an inplace update of **charge_df** and the input.mm.forcefield key in **settings**.
 
     .. _CHARGE: https://manual.cp2k.org/trunk/CP2K_INPUT/FORCE_EVAL/MM/FORCEFIELD/CHARGE.html
@@ -79,7 +81,7 @@ def set_atomic_charges(settings: Settings,
 
 def update_cp2k_settings(settings: Settings,
                          param: pd.DataFrame) -> None:
-    """ Update CP2K job settings with those provided in param.
+    """Update CP2K job settings with those provided in param.
 
     :parameter settings: The CP2K job settings.
     :type settings: |plams.Settings|_
@@ -99,8 +101,8 @@ def update_cp2k_settings(settings: Settings,
 
 def set_keys(settings: Settings,
              param: pd.DataFrame,
-             rcut: float = 12.0) -> List[str]:
-    r""" Find and return the keys in **settings** matching all parameters in **param**.
+             rcut: float = 12.0) -> list:
+    r"""Find and return the keys in **settings** matching all parameters in **param**.
 
     Units can be specified under the *unit* key (see the CP2K_ documentation for more details).
 

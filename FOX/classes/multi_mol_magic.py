@@ -1,28 +1,28 @@
-""" A Module for setting up the magic methods and properties of the MultiMolecule class. """
+"""A Module for setting up the magic methods and properties of the MultiMolecule class."""
 
 from __future__ import annotations
 
-__all__ = []
-
-
 import itertools
-from typing import List, Dict
+from typing import (Dict, Optional, List, Any)
 
 import numpy as np
 
 from scm.plams import PeriodicTable
 from scm.plams.core.settings import Settings
 
+__all__: List[str] = []
+
 
 class _MultiMolecule(np.ndarray):
-    """ A class for handling the magic methods and
+    """A class for handling the magic methods and
     @property decorated methods of :class:`FOX.classes.multi_mol.MultiMolecule`.
     """
+
     def __new__(cls,
                 coords: np.ndarray,
-                atoms: Dict[str, List[int]] = None,
-                bonds: np.ndarray = None,
-                properties: dict = None) -> _MultiMolecule:
+                atoms: Optional[Dict[str, List[int]]] = None,
+                bonds: Optional[np.ndarray] = None,
+                properties: Optional[Dict[str, Any]] = None) -> _MultiMolecule:
 
         obj = np.asarray(coords).view(cls)
         _MultiMolecule._sanitize_coords(obj)
@@ -42,7 +42,7 @@ class _MultiMolecule(np.ndarray):
 
     @staticmethod
     def _sanitize_coords(coords: np.ndarray) -> None:
-        """ A function for sanitizing the 'coords' arguments in :meth:`_MultiMolecule.__new__`. """
+        """Sanitize the 'coords' arguments in :meth:`_MultiMolecule.__new__`."""
         shape_error = ("The 'coords' argument expects a 'm*n*k' list-like object."
                        "The following shape was observed: '{}'")
         dtype_error = ("The 'coords' argument expects a list-like object consisting exclusively of "
@@ -56,20 +56,22 @@ class _MultiMolecule(np.ndarray):
             raise ValueError(dtype_error.format(ar_type))
 
     @staticmethod
-    def _sanitize_bonds(bonds: np.ndarray) -> np.ndarray:
-        """ A function for sanitizing the 'bonds' arguments in :meth:`_MultiMolecule.__new__`. """
+    def _sanitize_bonds(bonds: Optional[np.ndarray]) -> np.ndarray:
+        """Sanitize the 'bonds' arguments in :meth:`_MultiMolecule.__new__`."""
         shape_error = ("The 'bonds' argument expects a 2-dimensional list-like object. "
                        "A {:d}-dimensional object was supplied")
 
-        if bonds is not None:
-            bonds = np.asarray(bonds, dtype=int)
-            if not bonds.ndim == 2:
-                raise ValueError(shape_error.format(bonds.ndim))
-        return bonds
+        if bonds is None:
+            return np.empty((0, 3), dtype=int)
+        else:
+            ret = np.asarray(bonds, dtype=int)
+            if not ret.ndim == 2:
+                raise ValueError(shape_error.format(ret.ndim))
+            return ret
 
     @staticmethod
-    def _sanitize_atoms(atoms: Dict[str, List[int]]) -> Dict[str, List[int]]:
-        """ A function for sanitizing the 'atoms' arguments in :meth:`_MultiMolecule.__new__`. """
+    def _sanitize_atoms(atoms: Optional[Dict[str, List[int]]]) -> Dict[str, list]:
+        """Sanitize the 'atoms' arguments in :meth:`_MultiMolecule.__new__`."""
         type_error = "The 'atoms' argument expects a 'dict' object. A '{}' object was supplied"
 
         if atoms is None:
@@ -80,9 +82,8 @@ class _MultiMolecule(np.ndarray):
             return atoms
 
     @staticmethod
-    def _sanitize_properties(properties: dict) -> Settings:
-        """ A function for sanitizing the 'properties' arguments in :meth:`_MultiMolecule.__new__`.
-        """
+    def _sanitize_properties(properties: Optional[dict]) -> Settings:
+        """Sanitize the 'properties' arguments in :meth:`_MultiMolecule.__new__`."""
         type_error = "The 'properties' argument expects a 'dict' object. A '{}' object was supplied"
 
         if properties is None:
@@ -92,20 +93,20 @@ class _MultiMolecule(np.ndarray):
                 raise TypeError(type_error.format(properties.__class__.__name__))
             return Settings(properties)
 
-    """ ##############################  plams-based properties  ############################### """
+    """##############################  plams-based properties  ############################### """
 
     @property
     def atom12(self) -> _MultiMolecule:
-        """ Return the indices of the atoms for all bonds in **self.bonds** as 2D array"""
+        """Return the indices of the atoms for all bonds in **self.bonds** as 2D array."""
         return self.bonds[:, 0:2]
 
     @atom12.setter
-    def atom12(self, value: np.darray) -> _MultiMolecule:
+    def atom12(self, value: np.ndarray) -> None:
         self.bonds[:, 0:2] = value
 
     @property
     def atom1(self) -> _MultiMolecule:
-        """ Return the indices of the first atoms in all bonds of **self.bonds** as 1D array"""
+        """Return the indices of the first atoms in all bonds of **self.bonds** as 1D array."""
         return self.bonds[:, 0]
 
     @atom1.setter
@@ -114,7 +115,7 @@ class _MultiMolecule(np.ndarray):
 
     @property
     def atom2(self) -> np.ndarray:
-        """ Return the indices of the second atoms in all bonds of **self.bonds** as 1D array. """
+        """Return the indices of the second atoms in all bonds of **self.bonds** as 1D array."""
         return self.bonds[:, 1]
 
     @atom2.setter
@@ -123,7 +124,7 @@ class _MultiMolecule(np.ndarray):
 
     @property
     def order(self) -> np.ndarray:
-        """ Return the bond orders for all bonds in **self.bonds** as 1D array. """
+        """Return the bond orders for all bonds in **self.bonds** as 1D array."""
         return self.bonds[:, 2] / 10.0
 
     @order.setter
@@ -132,7 +133,7 @@ class _MultiMolecule(np.ndarray):
 
     @property
     def x(self) -> _MultiMolecule:
-        """ Return the x coordinates for all atoms in **self** as 2D array. """
+        """Return the x coordinates for all atoms in **self** as 2D array."""
         return self[:, :, 0]
 
     @x.setter
@@ -141,7 +142,7 @@ class _MultiMolecule(np.ndarray):
 
     @property
     def y(self) -> _MultiMolecule:
-        """ Return the y coordinates for all atoms in **self** as 2D array. """
+        """Return the y coordinates for all atoms in **self** as 2D array."""
         return self[:, :, 1]
 
     @y.setter
@@ -150,7 +151,7 @@ class _MultiMolecule(np.ndarray):
 
     @property
     def z(self) -> _MultiMolecule:
-        """ Return the z coordinates for all atoms in **self** as 2D array. """
+        """Return the z coordinates for all atoms in **self** as 2D array."""
         return self[:, :, 2]
 
     @z.setter
@@ -159,31 +160,31 @@ class _MultiMolecule(np.ndarray):
 
     @property
     def symbol(self) -> np.ndarray:
-        """ Return the atomic symbols of all atoms in **self.atoms** as 1D array. """
+        """Return the atomic symbols of all atoms in **self.atoms** as 1D array."""
         return self._get_atomic_property('symbol')
 
     @property
     def atnum(self) -> np.ndarray:
-        """ Return the atomic numbers of all atoms in **self.atoms** as 1D array. """
+        """Return the atomic numbers of all atoms in **self.atoms** as 1D array."""
         return self._get_atomic_property('atnum')
 
     @property
     def mass(self) -> np.ndarray:
-        """ Return the atomic masses of all atoms in **self.atoms** as 1D array. """
+        """Return the atomic masses of all atoms in **self.atoms** as 1D array."""
         return self._get_atomic_property('mass')
 
     @property
     def radius(self) -> np.ndarray:
-        """ Return the atomic radii of all atoms in **self.atoms** as 1d array. """
+        """Return the atomic radii of all atoms in **self.atoms** as 1d array."""
         return self._get_atomic_property('radius')
 
     @property
     def connectors(self) -> np.ndarray:
-        """ Return the atomic connectors of all atoms in **self.atoms** as 1D array. """
+        """Return the atomic connectors of all atoms in **self.atoms** as 1D array."""
         return self._get_atomic_property('connectors')
 
     def _get_atomic_property(self, prop: str = 'symbol') -> np.ndarray:
-        """ Take **self.atoms** and return an (concatenated) array of a specific property associated
+        """Take **self.atoms** and return an (concatenated) array of a specific property associated
         with an atom type. Values are sorted by their indices.
 
         :parameter str prop: The to be returned property. Accepted values:
@@ -202,7 +203,7 @@ class _MultiMolecule(np.ndarray):
         }
 
         # Create a concatenated lists of the keys and values in **self.atoms**
-        prop_list = []
+        prop_list: list = []
         for at, idx in self.atoms.items():
             at_prop = prop_dict[prop](at)
             prop_list += [at_prop] * len(idx)
@@ -211,10 +212,11 @@ class _MultiMolecule(np.ndarray):
         idx_gen = itertools.chain.from_iterable(self.atoms.values())
         return np.array([prop for _, prop in sorted(zip(idx_gen, prop_list))])
 
-    """ ##################################  Magic methods  #################################### """
+    """##################################  Magic methods  #################################### """
 
-    def copy(self, order: str = 'C', copy_attr: bool = True) -> _MultiMolecule:
-        """ Return a copy of the MultiMolecule object.
+    def copy(self, order: str = 'C',
+             copy_attr: bool = True) -> _MultiMolecule:
+        """Return a copy of the MultiMolecule object.
 
         :parameter str order: Controls the memory layout of the copy.
             see np.ndarray.copy_ for more details.

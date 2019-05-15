@@ -209,7 +209,7 @@ def test_get_at_idx():
     """ Test :meth:`FOX.MultiMolecule.get_at_idx`. """
     mol = MOL.copy()
 
-    rmsf, idx_series, rdf = mol.init_shell_search()
+    rmsf, idx_series, _ = mol.init_shell_search()
     dist = 3.0, 6.5, 10.0
     dist_dict = {'Cd': dist, 'Se': dist, 'O': dist, 'C': dist, 'H': dist}
     dict_ = mol.get_at_idx(rmsf, idx_series, dist_dict)
