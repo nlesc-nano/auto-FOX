@@ -771,7 +771,7 @@ class MultiMolecule(_MultiMolecule):
         return df
 
     def get_dist_mat(self, mol_subset: MolSubset = None,
-                     atom_subset=Tuple[AtomSubset, AtomSubset]) -> np.ndarray:
+                     atom_subset: Tuple[AtomSubset] = (None, None)) -> np.ndarray:
         """Create and return a distance matrix for all molecules and atoms in **self**.
 
         Returns a 3D array.
@@ -868,7 +868,7 @@ class MultiMolecule(_MultiMolecule):
         return df
 
     def get_angle_mat(self, mol_subset: MolSubset = 0,
-                      atom_subset = (None, None, None),
+                      atom_subset: Tuple[AtomSubset] = (None, None, None),
                       get_r_max: bool = False) -> np.ndarray:
         """Create and return an angle matrix for all molecules and atoms in **self**.
 

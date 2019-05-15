@@ -39,7 +39,6 @@ extensions = [
     'sphinx.ext.viewcode',
     'sphinx.ext.githubpages',
     'sphinx.ext.napoleon',
-    'sphinx_autodoc_typehints',
     'matplotlib.sphinxext.plot_directive'
     ]
 
