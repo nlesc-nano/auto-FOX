@@ -46,8 +46,7 @@ The algorithm
     the auxiliary error (:math:`\Delta \varepsilon_{QM-MM}`) with respect to
     the previous set of accepted parameters, :math:`S_{k}`
     (see :eq:`1`). Given a PES descriptor, :math:`r`, consisting
-    of a matrix with :math:`N` elements, the auxiliary error is herein defined
-    as the root mean square of the normalized deviation (see :eq:`2`).
+    of a matrix with :math:`N` elements, the auxiliary error is defined in :eq:`2`.
 
 .. math::
     :label: 2
