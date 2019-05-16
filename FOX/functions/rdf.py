@@ -1,13 +1,15 @@
-""" A module for constructing radial distribution functions. """
-
-__all__ = ['get_rdf_lowmem', 'get_rdf']
+"""A module for constructing radial distribution functions."""
 
 import numpy as np
 import pandas as pd
 
+__all__ = ['get_rdf_lowmem', 'get_rdf']
 
-def get_rdf_df(atom_pairs, dr=0.05, r_max=12.0):
-    """ Construct and return a pandas dataframe filled with zeros.
+
+def get_rdf_df(atom_pairs,
+               dr: float = 0.05,
+               r_max: float = 12.0) -> pd.DataFrame:
+    """Construct and return a pandas dataframe filled with zeros.
 
     :parameter float dr: The integration step-size in Angstrom, *i.e.* the distance between
         concentric spheres.
@@ -26,8 +28,10 @@ def get_rdf_df(atom_pairs, dr=0.05, r_max=12.0):
     return df
 
 
-def get_rdf(dist, dr=0.05, r_max=12.0):
-    """ Calculate and return the radial distribution function (RDF) based on the 3D distance matrix
+def get_rdf(dist: np.ndarray,
+            dr: float = 0.05,
+            r_max: float = 12.0) -> np.ndarray:
+    """Calculate and return the radial distribution function (RDF) based on the 3D distance matrix
     **dist**.
 
     :parameter dist: A 3D array representing :math:`m` distance matrices of :math:`n` by
@@ -46,11 +50,11 @@ def get_rdf(dist, dr=0.05, r_max=12.0):
 
     dist_shape = dist.shape
     dens_mean = dist_shape[2] / ((4/3) * np.pi * (0.5 * dist.max(axis=(1, 2)))**3)
-    dist /= dr
-    dist = dist.astype(np.int32, copy=False)
-    dist.shape = dist_shape[0], dist_shape[1] * dist_shape[2]
+    dist2 = dist / dr
+    dist2 = dist2.astype(np.int32, copy=False)
+    dist2.shape = dist_shape[0], dist_shape[1] * dist_shape[2]
 
-    dens = np.array([np.bincount(i, minlength=idx_max)[:idx_max] for i in dist], dtype=float)
+    dens = np.array([np.bincount(i, minlength=idx_max)[:idx_max] for i in dist2], dtype=float)
     dens /= dist_shape[1]
     dens /= int_step
     dens /= dens_mean[:, None]
@@ -58,9 +62,13 @@ def get_rdf(dist, dr=0.05, r_max=12.0):
     return np.average(dens, axis=0)
 
 
-def get_rdf_lowmem(dist, dr=0.05, r_max=12.0):
-    """ Calculate and return the radial distribution function (RDF) based on the 2D distance matrix
-    **dist**. A more memory efficient implementation of :func:`FOX.functions.rdf.get_rdf`,
+def get_rdf_lowmem(dist: np.ndarray,
+                   dr: float = 0.05,
+                   r_max: float = 12.0) -> np.ndarray:
+    """Calculate and return the radial distribution function (RDF) based on the 2D distance matrix
+    **dist**.
+
+    A more memory efficient implementation of :func:`FOX.functions.rdf.get_rdf`,
     which operates on a 3D distance matrix.
 
     :parameter dist: A 2D array representing a distance matrix of :math:`n` by :math:`k` atoms.
@@ -72,7 +80,7 @@ def get_rdf_lowmem(dist, dr=0.05, r_max=12.0):
     :rtype: 1D |np.ndarray|_ [|np.float64|_] of length 1 + **r_max** / **dr**.
     """
     idx_max = 1 + int(r_max / dr)
-    dist_int = np.array(dist / dr, dtype=int).flatten()
+    dist_int = np.array(dist / dr, dtype=int).ravel()
 
     # Calculate the average particle density N / V
     # The diameter of the spherical volume (V) is defined by the largest inter-particle distance

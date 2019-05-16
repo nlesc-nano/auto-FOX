@@ -1,29 +1,54 @@
-""" A module with miscellaneous functions. """
+"""A module with miscellaneous functions."""
 
-__all__ = ['get_template', 'template_to_df', 'update_charge', 'get_example_xyz']
-
-from os.path import join
+from typing import (Iterable, Tuple, Callable, Hashable, Sequence, MutableSequence, Optional)
+from os.path import join, isfile
 from functools import wraps
 from pkg_resources import resource_filename
 
+import yaml
 import numpy as np
 import pandas as pd
 
 from scm.plams import (Settings, add_to_class)
 
-try:
-    import yaml
-    YAML_ERROR = False
-except ImportError:
-    __all__ = []
-    YAML_ERROR = "Use of the FOX.{} function requires the 'pyyaml' package (version >=5.1).\
-                  \n\t'pyyaml' can be installed via anaconda or pip with the following commands:\
-                  \n\tconda install --name FOX -y -c conda-forge pyyaml\
-                  \n\tpip install pyyaml"
+__all__ = ['get_template', 'template_to_df', 'get_example_xyz']
 
 
-def assert_error(error_msg=''):
-    """ Take an error message, if not *false* then cause a function or class
+def append_docstring(item: Callable) -> Callable:
+    r"""A decorator for appending the docstring of class, method or function with one provided
+    by another python object, **item**.
+
+    example:
+
+    .. code:: python
+
+        >>> def func1():
+        >>>     """'func1 docstring' """
+        >>>     pass
+
+        >>> @append_docstring(func1)
+        >>> def func2():
+        >>>     """'func2 docstring' """
+        >>>     pass
+
+        >>> help(func2)
+        'func2 docstring'
+
+        'func1 docstring'
+
+    :parameter item: A python object with a docstring.
+    """
+    def decorator(func):
+        try:
+            func.__doc__ += '\n\n' + item.__doc__
+        except TypeError:
+            pass
+        return func
+    return decorator
+
+
+def assert_error(error_msg: str = '') -> Callable:
+    """Take an error message, if not *false* then cause a function or class
     to raise a ModuleNotFoundError upon being called.
 
 
@@ -35,7 +60,7 @@ def assert_error(error_msg=''):
         >>> def my_custom_func():
         >>>     print(True)
 
-        >>> my_func()
+        >>> my_custom_func()
         ModuleNotFoundError: An error was raised by my_custom_func
 
     :parameter str error_msg: A to-be printed error message.
@@ -49,8 +74,9 @@ def assert_error(error_msg=''):
     return decorator
 
 
-def _function_error(f_type, error_msg):
-    """ A function for processing functions fed into :func:`assert_error`. """
+def _function_error(f_type: Callable,
+                    error_msg: str) -> Callable:
+    """A function for processing functions fed into :func:`assert_error`."""
     if not error_msg:
         return f_type
 
@@ -60,8 +86,9 @@ def _function_error(f_type, error_msg):
     return wrapper
 
 
-def _class_error(f_type, error_msg):
-    """ A function for processing classes fed into :func:`assert_error`. """
+def _class_error(f_type: Callable,
+                 error_msg: str) -> Callable:
+    """A function for processing classes fed into :func:`assert_error`."""
     if error_msg:
         @add_to_class(f_type)
         def __init__(self, *arg, **kwarg):
@@ -69,9 +96,10 @@ def _class_error(f_type, error_msg):
     return f_type
 
 
-@assert_error(YAML_ERROR)
-def get_template(name, path=None, as_settings=True):
-    """ Grab a .yaml template and turn it into a Settings object.
+def get_template(name: str,
+                 path: str = None,
+                 as_settings: bool = True) -> dict:
+    """Grab a .yaml template and turn it into a Settings object.
 
     :parameeter str name: The name of the template file.
     :parameter str path: The path where **name** is located.
@@ -81,7 +109,8 @@ def get_template(name, path=None, as_settings=True):
     :rtype: |plams.Settings|_ or |dict|_
     """
     if path is None:
-        path = resource_filename('FOX', join('data', name))
+        if not isfile(name):
+            path = resource_filename('FOX', join('data', name))
     else:
         path = join(path, name)
 
@@ -91,8 +120,9 @@ def get_template(name, path=None, as_settings=True):
         return yaml.load(f, Loader=yaml.FullLoader)
 
 
-def template_to_df(name, path=None):
-    """ Grab a .yaml template and turn it into a pandas dataframe.
+def template_to_df(name: str,
+                   path: str = None) -> pd.DataFrame:
+    """Grab a .yaml template and turn it into a pandas dataframe.
 
     :parameeter str name: The name of the template file.
     :parameter str path: The path where **name** is located.
@@ -109,8 +139,9 @@ def template_to_df(name, path=None):
         return pd.DataFrame(values, index=idx, columns=['charge'])
 
 
-def serialize_array(array, items_per_row=4):
-    """ Serialize an array into a single string.
+def serialize_array(array: np.ndarray,
+                    items_per_row: int = 4) -> str:
+    """Serialize an array into a single string.
     Newlines are placed for every **items_per_row** rows in **array**.
 
     :parameter array: A 2D array.
@@ -135,14 +166,14 @@ def serialize_array(array, items_per_row=4):
     return ret
 
 
-def read_str_file(filename):
-    """ Read atomic charges from CHARMM-compatible stream files (.str), returning a settings object
+def read_str_file(filename: str) -> Optional[zip]:
+    """Read atomic charges from CHARMM-compatible stream files (.str), returning a settings object
     with atom types and (atomic) charges.
 
     :parameter str filename: the path+filename of the .str file.
     :return: A settings object with atom types and (atomic) charges
     :rtype: |plams.Settings|_ (keys: |str|_, values: |tuple|_ [|str|_ or |float|_])
-     """
+    """
     def inner_loop(f):
         ret = []
         for j in f:
@@ -158,35 +189,8 @@ def read_str_file(filename):
                 return zip(*inner_loop(f))
 
 
-def read_param(filename):
-    """ Read a CHARMM parameter file.
-
-    :parameter str filename: the path+filename of the CHARMM parameter file.
-    :return: A settings object consisting of 5 dataframes assigned to the following keys:
-        *bonds*, *angles*, *dihedrals*, *improper* & *nonbonded*.
-    :rtype: |plams.Settings|_ (keys: |str|_, values: |pd.DataFrame|_)
-     """
-    with open(filename, 'r') as f:
-        str_list = f.read().splitlines()
-    str_gen = (i for i in str_list if '*' not in i and '!' not in i)
-
-    headers = ['BONDS', 'ANGLES', 'DIHEDRALS', 'IMPROPER', 'NONBONDED']
-    df_dict = {}
-    for i in str_gen:
-        if i in headers:
-            tmp = []
-            for j in str_gen:
-                if j:
-                    tmp.append(j.split())
-                else:
-                    df_dict[i.lower()] = pd.DataFrame(tmp)
-                    break
-
-    return Settings(df_dict)
-
-
-def get_shape(item):
-    """ Try to infer the shape of an object.
+def get_shape(item: Iterable) -> Tuple[int]:
+    """Try to infer the shape of an object.
 
     :parameter object item: A python object.
     :return: The shape of **item**.
@@ -199,8 +203,9 @@ def get_shape(item):
     return (1, )  # Plan C: **item** has access to neither A nor B
 
 
-def flatten_dict(input_dict):
-    """ Flatten a dictionary.
+def flatten_dict(input_dict: dict) -> dict:
+    """Flatten a dictionary.
+
     The keys of the to be returned dictionary consist are tuples with the old (nested) keys
     of **input_dict**.
 
@@ -217,31 +222,25 @@ def flatten_dict(input_dict):
     :return: A non-nested dicionary derived from **input_dict**.
     :rtype: |dict|_ (keys: |tuple|_)
     """
-    def flatten(item):
-        ret = {}
-        for i in item:
-            if isinstance(item[i], dict):
-                for j in item[i]:
-                    ret[i + (j, )] = item[i][j]
+    def concatenate(key_ret, dict_):
+        for key, value in dict_.items():
+            key = key_ret + (key, )
+            if isinstance(value, dict):
+                concatenate(key, value)
             else:
-                ret[i] = item[i]
-
-        if item == ret:
-            return ret, True
-        return ret, False
+                ret[key] = value
 
     # Changes keys into tuples
-    flat_dict = {(key, ): input_dict[key] for key in input_dict}
-
-    # Un-nest and return the input dictionary
-    flat = False
-    while not flat:
-        flat_dict, flat = flatten(flat_dict)
-    return flat_dict
+    ret = input_dict.__class__()
+    concatenate((), input_dict)
+    return ret
 
 
-def dict_to_pandas(input_dict, name=0, object_type='DataFrame'):
-    """ Turn a (nested) dictionary into a pandas series or dataframe.
+def dict_to_pandas(input_dict: dict,
+                   name: Hashable = 0,
+                   object_type: str = 'DataFrame') -> pd.DataFrame:
+    """Turn a (nested) dictionary into a pandas series or dataframe.
+
     Keys are un-nested and used for generating multiindices (see meth:`flatten_dict`).
 
     :parameter dict input_dict: A (nested) dictionary.
@@ -259,8 +258,9 @@ def dict_to_pandas(input_dict, name=0, object_type='DataFrame'):
         return pd.DataFrame(list(flat_dict.values()), index=idx, columns=[name])
 
 
-def array_to_index(ar):
-    """ Convert a NumPy array into a Pandas Index or MultiIndex.
+def array_to_index(ar: np.ndarray) -> pd.Index:
+    """Convert a NumPy array into a Pandas Index or MultiIndex.
+
     Raises a ValueError if the dimensionality of **ar** is greater than 2.
 
     :parameter ar: A NumPy array.
@@ -279,66 +279,15 @@ def array_to_index(ar):
                      {:d}-dimensional array'.format(ar.dim))
 
 
-def write_psf(atoms=None, bonds=None, angles=None, dihedrals=None, impropers=None,
-              filename='mol.psf'):
-    """ Create a protein structure file (.psf).
-
-    :parameter atoms: A Pandas DataFrame holding the *atoms* block.
-    :type atoms: |pd.DataFrame|_
-    :parameter bonds: An array holding the indices of all atom-pairs defining bonds.
-    :type bonds: :math:`i*2` |np.ndarray|_ [|np.int64|_]
-    :parameter angles: An array holding the indices of all atoms defining angles.
-    :type angles: :math:`j*3` |np.ndarray|_ [|np.int64|_]
-    :parameter dihedrals: An array holding the indices of all atoms defining proper
-        dihedral angles.
-    :type dihedrals: :math:`k*4` |np.ndarray|_ [|np.int64|_]
-    :parameter impropers: An array holding the indices of all atoms defining improper
-        dihedral angles.
-    :type impropers: :math:`l*4` |np.ndarray|_ [|np.int64|_]
-    """
-    # Prepare the !NTITLE block
-    top = 'PSF EXT\n'
-    top += '\n{:>10d} !NTITLE'.format(2)
-    top += '\n{:>10.10} PSF file generated with Auto-FOX:'.format('REMARKS')
-    top += '\n{:>10.10} https://github.com/nlesc-nano/auto-FOX'.format('REMARKS')
-
-    # Prepare the !NATOM block
-    top += '\n\n{:>10d} !NATOM\n'.format(atoms.shape[0])
-    string = '{:>10d} {:8.8} {:<8d} {:8.8} {:8.8} {:6.6} {:>9f} {:>15f} {:>8d}'
-    for i, j in atoms.iterrows():
-        top += string.format(*[i]+j.values.tolist()) + '\n'
-
-    # Prepare arguments
-    items_per_row = [4, 3, 2, 2]
-    bottom_headers = {
-        '{:>10d} !NBOND: bonds': bonds,
-        '{:>10d} !NTHETA: angles': angles,
-        '{:>10d} !NPHI: dihedrals': dihedrals,
-        '{:>10d} !NIMPHI: impropers': impropers
-    }
-
-    # Prepare the !NBOND, !NTHETA, !NPHI and !NIMPHI blocks
-    bottom = ''
-    for i, (key, value) in zip(items_per_row, bottom_headers.items()):
-        if value is None:
-            bottom += '\n\n' + key.format(0)
-        else:
-            bottom += '\n\n' + key.format(value.shape[0])
-            bottom += '\n' + serialize_array(value, i)
-
-    # Write the .psf file
-    with open(filename, 'w') as f:
-        f.write(top)
-        f.write(bottom[1:])
-
-
-def get_example_xyz(name='Cd68Se55_26COO_MD_trajec.xyz'):
-    """ Return the path + name of the example multi-xyz file. """
+def get_example_xyz(name: str = 'Cd68Se55_26COO_MD_trajec.xyz') -> str:
+    """Return the path + name of the example multi-xyz file."""
     return resource_filename('FOX', join('data', name))
 
 
-def _get_move_range(start=0.005, stop=0.1, step=0.005):
-    """ Generate an with array of all allowed moves, the moves spanning both the positive and
+def _get_move_range(start: float = 0.005,
+                    stop: float = 0.1,
+                    step: float = 0.005) -> np.ndarray:
+    """Generate an with array of all allowed moves, the moves spanning both the positive and
     negative range.
 
     :parameter float start: Start of the interval. The interval includes this value.
@@ -352,3 +301,150 @@ def _get_move_range(start=0.005, stop=0.1, step=0.005):
     ret = np.concatenate((rng_range1, rng_range2))
     ret.sort()
     return ret
+
+
+def get_func_name(item: Callable) -> str:
+    """Return the module + class + name of a function.
+
+    Example:
+
+    .. code:: python
+
+        >>> import numpy as np
+        >>> import FOX
+
+        >>> func1 = FOX.MultiMolecule.init_rdf
+        >>> get_func_name(func1)
+        'FOX.MultiMolecule.init_rdf'
+
+        >>> func2 = np.add
+        >>> get_func_name(func2)
+        'numpy.ufunc.add'
+
+    :parameter item: A function.
+    :type item: |type|_
+    :return: The module + class + name of a function.
+    :rtype: |str|_
+    """
+    try:
+        item_class, item_name = item.__qualname__.split('.')
+        item_module = item.__module__.split('.')[0]
+    except AttributeError:
+        item_name = item.__name__
+        item_class = item.__class__.__name__
+        item_module = item.__class__.__module__.split('.')[0]
+    return '{}.{}.{}'.format(item_module, item_class, item_name)
+
+
+def get_class_name(item: Callable) -> str:
+    """Return the module + name of a class.
+
+    Example:
+
+    .. code:: python
+
+        >>> import FOX
+
+        >>> class1 = FOX.MultiMolecule
+        >>> get_func_name(class1)
+        'FOX.MultiMolecule'
+
+        >>> class2 = float
+        >>> get_func_name(class2)
+        'builtins.float'
+
+    :parameter item: A class.
+    :type item: |type|_
+    :return: The module + name of a class.
+    :rtype: |str|_
+    """
+    item_class = item.__qualname__
+    item_module = item.__module__.split('.')[0]
+    if item_module == 'scm':
+        item_module == item.__module__.split('.')[1]
+    return '{}.{}'.format(item_module, item_class)
+
+
+def slice_str(str_: str,
+              intervals: list,
+              strip_spaces: bool = True) -> list:
+    """Slice a string, **str_**, at intervals specified in **intervals**.
+
+    Example:
+
+    .. code:: python
+        >>> my_str = '123456789'
+        >>> intervals = [None, 3, 6, None]
+        >>> slice_str(my_str, intervals)
+        ['123', '456', '789']
+
+    :parameter str str_: A string.
+    :parameter list intverals: A list with :math:`n` objects suitable for slicing.
+    :parameter bool strip_spaces: If empty spaces should be stripped or not.
+    :return: A list of strings as sliced from **str_**.
+    :rtype: :math:`n-1` |list|_ [|str|_]
+    """
+    iter1 = intervals[:-1]
+    iter2 = intervals[1:]
+    if strip_spaces:
+        return [str_[i:j].strip() for i, j in zip(iter1, iter2)]
+    return [str_[i:j] for i, j in zip(iter1, iter2)]
+
+
+def get_nested_value(iterable: Sequence,
+                     key_tup: Iterable[Hashable]) -> any:
+    """Retrieve a value, associated with all keys in **key_tup**, from a nested iterable.
+
+    .. code:: python
+
+        >>> set_nested_value(iterable, ('a', 'b', 3))
+
+    is equivalent to:
+
+    .. code:: python
+
+        >>> iterable['a']['b'][3]
+
+    The function calls the **iterable**.__getitem__() method (recursivelly) untill all keys in
+    **key_tup** are exhausted. Works on any iterable container whose elements can be
+    accessed via their index or key (*e.g.* lists, tuples or dictionaries).
+
+    :parameter object iterable: A (nested) iterable container such as a list, tuple or dictionary.
+    :parameter tuple key_tup: A sequence of nested keys and/or indices.
+    :return: The value in **iterable** associated with all keys in **key**.
+    """
+    iter_slice = iterable
+    for i in key_tup:
+        iter_slice = iter_slice[i]
+    return iter_slice
+
+
+def set_nested_value(iterable: MutableSequence,
+                     key_tup: Iterable[Hashable],
+                     value: any) -> None:
+    """Assign a value, associated with all keys and/or indices in **key_tup**,
+    to a nested iterable.
+
+    .. code:: python
+
+        >>> set_nested_value(iterable, ('a', 'b', 3), True)
+
+    is equivalent to:
+
+    .. code:: python
+
+        >>> iterable['a']['b'][3] = True
+
+    The function calls the **iterable**.__getitem__() method (recursivelly) untill all keys in
+    **key_tup** are exhausted. Works on any mutable iterable container whose elements can be
+    accessed via their index or key (*e.g.* lists or dictionaries).
+
+    :parameter object iterable: A mutable (nested) iterable container such as a list or dictionary.
+    :parameter tuple key_tup: A sequence of nested keys and/or indices.
+    :parameter object value: The to-be assigned value.
+    :return: The value in **iterable** associated with all keys in **key**.
+    """
+    iter_slice = iterable
+    for i in key_tup[:-1]:
+        iter_slice = iter_slice[i]
+    iter_slice[key_tup[-1]] = value

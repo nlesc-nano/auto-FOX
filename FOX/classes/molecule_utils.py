@@ -1,24 +1,29 @@
-""" A module which expands on the Molecule class of PLAMS. """
-
-__all__ = ['Molecule']
+"""A module which expands on the Molecule class of PLAMS."""
 
 import numpy as np
 
 from scm.plams import Molecule as _Molecule
 from scm.plams.core.errors import MoleculeError
 
+from ..functions.utils import append_docstring
 
+__all__ = ['Molecule']
+
+
+@append_docstring(_Molecule)
 class Molecule(_Molecule):
-    """ A modified version of the plams.Molecule_ class, suplemented with a number of
+    """A modified version of the plams.Molecule_ class, suplemented with a number of
     additional methods.
-
 
     .. _plams.Molecule: https://www.scm.com/doc/plams/components/mol_api.html
     """
+
+    @append_docstring(_Molecule.__getitem__)
     def __getitem__(self, key):
-        """ Modified `Molecule.__getitem__ <https://www.scm.com/doc/plams/components/mol_api.html\
-    #scm.plams.mol.molecule.Molecule.__getitem__>`_ method; atoms can now be sliced with instances
-        of both ``int`` and ``np.integer``.
+        """Modified `Molecule.__getitem__ <https://www.scm.com/doc/plams/components/mol_api.html\
+    #scm.plams.mol.molecule.Molecule.__getitem__>`_ method.
+
+        Atoms can now be sliced with instances of both ``int`` and ``np.integer``.
 
         """
         if isinstance(key, (int, np.integer)):
@@ -34,8 +39,9 @@ class Molecule(_Molecule):
         raise MoleculeError('Molecule: invalid argument {} inside []'.format(key))
 
     def separate_mod(self):
-        """ A modified version of the PLAMS Molecule.separate_ method. Separates the molecule into
+        """A modified version of the PLAMS Molecule.separate_ method. Separates the molecule into
         connected component as based on its bonds.
+
         Returns aforementioned components as a nested list of atomic indices.
 
         :return: A nested list of atomic indices, each sublist representing a set of unconnected
@@ -44,9 +50,6 @@ class Molecule(_Molecule):
         .. _Molecule.separate: https://www.scm.com/doc/plams/components/mol_api.html\
     #scm.plams.mol.molecule.Molecule.separate
         """
-        if len(self.bonds) == 0:
-            raise MoleculeError('separate_mod: No bonds were found in plams_mol')
-
         # Mark atoms
         for i, at in enumerate(self.atoms):
             at.id = i
@@ -72,7 +75,7 @@ class Molecule(_Molecule):
         return indices
 
     def fix_bond_orders(self):
-        """ Attempt to fix bond orders and (formal) atomic charges in **self**. """
+        """Attempt to fix bond orders and (formal) atomic charges in **self**."""
         # Set default atomic charges
         for at in self.atoms:
             if not at.properties.charge:
@@ -94,7 +97,7 @@ class Molecule(_Molecule):
                     at2.properties.charge += at2_saturation
 
     def set_atoms_id(self, start=1):
-        """ A modified version of the plams.Molecule.set_atoms_id_ method, allowing one to set the
+        """A modified version of the plams.Molecule.set_atoms_id_ method, allowing one to set the
         starting value, **start**, of the enumeration procedure.
 
 
@@ -105,7 +108,7 @@ class Molecule(_Molecule):
             at.id = i
 
     def get_angles(self):
-        """ Return an array with the atomic indices defining all angles in **self**.
+        """Return an array with the atomic indices defining all angles in **self**.
 
         :return: A 2D array with atomic indices defining :math:`n` angles.
         :rtype: :math:`n*3` |np.ndarray|_ [|np.int64|_].
@@ -123,7 +126,7 @@ class Molecule(_Molecule):
         return np.array(angle, dtype=int) + 1
 
     def get_dihedrals(self):
-        """ Return an array with the atomic indices defining all proper dihedrals in **self**.
+        """Return an array with the atomic indices defining all proper dihedrals in **self**.
 
         :return: A 2D array with atomic indices defining :math:`n` proper dihedrals.
         :rtype: :math:`n*4` |np.ndarray|_ [|np.int64|_].
@@ -146,7 +149,7 @@ class Molecule(_Molecule):
         return np.array(dihed, dtype=int) + 1
 
     def get_impropers(self):
-        """ Return an array with the atomic indices defining all improper dihedrals in **self**.
+        """Return an array with the atomic indices defining all improper dihedrals in **self**.
 
         :return: A 2D array with atomic indices defining :math:`n` improper dihedrals.
         :rtype: :math:`n*4` |np.ndarray|_ [|np.int64|_].
@@ -161,15 +164,13 @@ class Molecule(_Molecule):
                 at2, at3, at4 = [bond.other_end(at1) for bond in at1.bonds]
                 impropers.append((at1.id, at2.id, at3.id, at4.id))
 
+        if not impropers:  # If no impropers are found
+            return np.array([], dtype=int)
+
         # Sort along the rows of columns 2, 3 & 4 based on atomic mass in descending order
         ret = np.array(impropers, dtype=int) + 1
-        mass = np.array([[self[int(j)].mass for j in i] for i in ret[:, 1:]])
+        mass = np.array([[self[j].mass for j in i] for i in ret[:, 1:]])
         idx = np.argsort(mass, axis=1)[:, ::-1]
         for i, j in enumerate(idx):
             ret[i, 1:] = ret[i, 1:][j]
         return ret
-
-
-# Append docstrings
-Molecule.__doc__ += _Molecule.__doc__
-Molecule.__getitem__.__doc__ += _Molecule.__getitem__.__doc__

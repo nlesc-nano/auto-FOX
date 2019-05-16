@@ -49,6 +49,8 @@ def test_random_slice():
         mol.random_slice(start=0, stop=None, p=1.0, inplace=True)
     except ValueError:
         pass
+    else:
+        raise AssertionError
 
     mol_new = mol.random_slice(start=0, stop=None, p=0.5)
     assert mol_new.shape[1:2] == mol.shape[1:2]
@@ -207,7 +209,7 @@ def test_get_at_idx():
     """ Test :meth:`FOX.MultiMolecule.get_at_idx`. """
     mol = MOL.copy()
 
-    rmsf, idx_series, rdf = mol.init_shell_search()
+    rmsf, idx_series, _ = mol.init_shell_search()
     dist = 3.0, 6.5, 10.0
     dist_dict = {'Cd': dist, 'Se': dist, 'O': dist, 'C': dist, 'H': dist}
     dict_ = mol.get_at_idx(rmsf, idx_series, dist_dict)

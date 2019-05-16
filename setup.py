@@ -27,7 +27,8 @@ setup(
         'FOX.data',
         'FOX.examples',
         'FOX.functions',
-        'FOX.classes'
+        'FOX.classes',
+        'FOX.io'
     ],
     package_dir={'FOX': 'FOX'},
     package_data={'FOX': [
@@ -37,6 +38,9 @@ setup(
         'data/*.prm'
     ]},
     include_package_data=True,
+    entry_points={'console_scripts': [
+        'init_armc=FOX.entry_points:main_armc'
+    ]},
     license="GNU General Public License v3 or later",
     zip_safe=False,
     keywords=[
@@ -44,8 +48,7 @@ setup(
         'molecular-mechanics',
         'science',
         'chemistry',
-        'python-3',
-        'python-3.7',
+        'python-3.7'
     ],
     classifiers=[
         'Development Status :: 4 - Beta',
@@ -53,10 +56,11 @@ setup(
         'Topic :: Scientific/Engineering :: Chemistry'
         'License :: OSI Approved :: GNU Lesser General Public License',
         'Natural Language :: English',
-        'Programming Language :: Python :: 3.7',
+        'Programming Language :: Python :: 3.7'
     ],
     test_suite='tests',
     install_requires=[
+        'pyyaml',
         'numpy',
         'scipy',
         'pandas',
@@ -71,12 +75,11 @@ setup(
     tests_require=[
         'pytest',
         'pytest-cov',
-        'pycodestyle',
+        'pycodestyle'
     ],
     extras_require={
-        'MC': ['pyyaml'],
         'doc': ['sphinx', 'sphinx_rtd_theme', 'nbsphinx', 'matplotlib'],
         'test': ['pytest', 'pytest-cov', 'pytest-mock', 'nbsphinx',
-                 'pycodestyle', 'pyyaml', 'matplotlib'],
+                 'pycodestyle', 'matplotlib']
     }
 )

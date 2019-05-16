@@ -1,4 +1,4 @@
-""" A module for testing files in the :mod:`FOX.functions.read_prm` module. """
+""" A module for testing files in the :mod:`FOX.io.read_prm` module. """
 
 __all__ = []
 
@@ -8,14 +8,14 @@ from os.path import join
 import pandas as pd
 import numpy as np
 
-from FOX.functions.read_prm import (read_prm, write_prm, rename_atom_types, update_dtype)
+from FOX.io.read_prm import (read_prm, write_prm, rename_atom_types, update_dtype)
 
 
 REF_DIR = 'test/test_files'
 
 
 def test_read_prm():
-    """ Test :func:`FOX.functions.read_prm.read_prm`. """
+    """ Test :func:`FOX.io.read_prm.read_prm`. """
     prm_dict = read_prm(join(REF_DIR, 'test_param1.prm'))
     nonbonded = 'NONBONDED nbxmod  5 atom cdiel fshift vatom vdistance vfswitch -\n'
     nonbonded += 'cutnb 14.0 ctofnb 12.0 ctonnb 10.0 eps 1.0 e14fac 1.0 wmin 1.5\n'
@@ -35,7 +35,7 @@ def test_read_prm():
 
 
 def test_write_prm():
-    """ Test :func:`FOX.functions.read_prm.write_prm`. """
+    """ Test :func:`FOX.io.read_prm.write_prm`. """
     param_ref = join(REF_DIR, 'test_param2.prm')
     param_tmp = join(REF_DIR, 'param.tmp')
     prm_dict = read_prm(join(REF_DIR, 'test_param1.prm'))
@@ -49,7 +49,7 @@ def test_write_prm():
 
 
 def test_rename_atom_types():
-    """ Test :func:`FOX.functions.read_prm.rename_atom_types`. """
+    """ Test :func:`FOX.io.read_prm.rename_atom_types`. """
     prm_dict = read_prm(join(REF_DIR, 'test_param1.prm'))
 
     rename_dict = {'CG2O3': 'C_1', 'HGR52': 'H_1', 'OG2D2': 'O_1'}
@@ -79,7 +79,7 @@ def test_update_dtype():
 
 
 def test_reorder_column_dict():
-    """ Test :func:`FOX.functions.read_prm.reorder_column_dict`. """
+    """ Test :func:`FOX.io.read_prm.reorder_column_dict`. """
     df = read_prm(join(REF_DIR, 'test_param1.prm'))['ATOMS']
     assert (df.columns == pd.Index(['MASS', '-1', 'mass'], name='parameters')).all()
     assert df.index.name == 'Atom 1'

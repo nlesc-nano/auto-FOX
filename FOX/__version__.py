@@ -1,1 +1,3 @@
-__version__ = '0.3.2'
+"""The Auto-FOX version."""
+
+__version__: str = '0.4.0'

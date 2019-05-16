@@ -31,23 +31,34 @@ The algorithm
     p(k \leftarrow l) =
     \Biggl \lbrace
     {
-        1, \quad \Delta \varepsilon_{QM-MM} ( S_{k} ) \; \lt \; \Delta \varepsilon_{QM-MM} ( S_{l} )
+        1, \quad
+            \Delta \varepsilon_{QM-MM} ( S_{k} )
+            \; \lt \;
+            \Delta \varepsilon_{QM-MM} ( S_{l} )
         \atop
-        0, \quad \Delta \varepsilon_{QM-MM} ( S_{k} ) \; \gt \; \Delta \varepsilon_{QM-MM} ( S_{l} )
+        0, \quad
+            \Delta \varepsilon_{QM-MM} ( S_{k} )
+            \; \gt \;
+            \Delta \varepsilon_{QM-MM} ( S_{l} )
     }
 
 3.  The move is accepted if the new set of parameters, :math:`S_{l}`, lowers
     the auxiliary error (:math:`\Delta \varepsilon_{QM-MM}`) with respect to
     the previous set of accepted parameters, :math:`S_{k}`
-    (see :eq:`1` & :eq:`2`).
+    (see :eq:`1`). Given a PES descriptor, :math:`r`, consisting
+    of a matrix with :math:`N` elements, the auxiliary error is defined in :eq:`2`.
 
 .. math::
     :label: 2
 
     \Delta \varepsilon_{QM-MM} =
-    \sum_{n} \sqrt{
-        \sum_{r_{ij}=0}^{r_{max}} (\Delta g_{n} (r_{ij}))^2
-    }
+        \frac{
+        \sum_{i}^{N}
+        \left(
+            r_{i}^{QM} - r_{i}^{MM}
+        \right )^2}
+        {\sum_{i}^{N} r_{i}^{QM} }
+
 
 4.  The parameter history is updated.
     Based on whether or not the new parameter set is accepted the
@@ -59,13 +70,11 @@ The algorithm
 .. math::
     :label: 3
 
-    \Delta \varepsilon_{QM-MM} ( S_{x} ) + \phi =
-    \Biggl \lbrace
-    {
-        x = k, \quad \Delta \varepsilon_{QM-MM} ( S_{k} ) \; \lt \; \Delta \varepsilon_{QM-MM} ( S_{l} )
-        \atop
-        x = l, \quad \Delta \varepsilon_{QM-MM} ( S_{k} ) \; \gt \; \Delta \varepsilon_{QM-MM} ( S_{l} )
-    }
+    \Delta \varepsilon_{QM-MM} ( S_{k} ) + \phi \quad \text{if}
+    \quad \Delta \varepsilon_{QM-MM} ( S_{k} ) \; \lt \; \Delta \varepsilon_{QM-MM} ( S_{l} )
+    \atop
+    \Delta \varepsilon_{QM-MM} ( S_{l} ) + \phi \quad \text{if}
+    \quad \Delta \varepsilon_{QM-MM} ( S_{k} ) \; \gt \; \Delta \varepsilon_{QM-MM} ( S_{l} )
 
 5.  The parameter :math:`\phi` is updated at regular intervals
     in order to maintain a constant acceptance rate, :math:`\alpha_{t}`.
@@ -91,59 +100,125 @@ Arguments
 ========================== =============== ===========================================================================================================
  Parameter                  Default         Parameter description
 ========================== =============== ===========================================================================================================
- param.charge               -               A dictionary with atoms and matching charges
+ param.prm_file             -               The path+filename of a CHARMM parameter file
+ param.charge               -               A dictionary with atoms and matching atomic charges
  param.epsilon              -               A dictionary with atom-pairs and the matching Lennard-Jones :math:`\epsilon` parameter
  param.sigma                -               A dictionary with atom-pairs and the matching Lennard-Jones :math:`\sigma` parameter
+
+ psf.str_file               -               The path+filename to a stream file; used for assigning atom types and charges to ligands
+ psf.ligand_atoms           -               All atoms within a ligand, used for defining residues
+
+ pes                        rdf: ...        A dictionary holding one or more functions for constructing PES descriptors
+
+ molecule                   -               A :class:`.MultiMolecule` instance or .xyz filename of a reference PES
+
+ job.logfile                armc.log        The path+filename for the to-be created `PLAMS logfile <https://www.scm.com/doc/plams/components/functions.html#logging>`_.
+ job.func                   Cp2kJob         The job type, see Job_
+ job.name                   armc            The base name of the various molecular dynamics jobs
+ job.path                   .               The base path for storing the various molecular dynamics jobs
+ job.folder                 MM_MD_workdir   The name of the to-be created directory for storing all molecular dynamics jobs
+ job.keepfiles              False           Whether the raw MD results should be saved or deleted
+ job.settings               input: ...      A dictionary of job settings or the filename of YAML_ file containing job settings
+
+ hdf5_file                  ARMC.hdf5       The filename of the to-be created HDF5_ file with all ARMC results
+
  armc.iter_len              50000           The total number of ARMC iterations :math:`\kappa \omega`
  armc.sub_iter_len          100             The length of each ARMC subiteration :math:`\omega`
- armc.gamma                 2.0             The constant :math:`gamma`, see :eq:`4`
+ armc.gamma                 2.0             The constant :math:`\gamma`, see :eq:`4`
  armc.a_target              0.25            The target acceptance rate :math:`\alpha_{t}`, see :eq:`4`
  armc.phi                   1.0             The initial value of the variable :math:`\phi`, see :eq:`3` and :eq:`4`
- job.molecule               -               A :class:`.MultiMolecule` instance or .xyz filename
- job.settings               md_cp2k.yaml    A dictionary of job settings or the filename of YAML_ file containing job settings
- job.type                   Cp2kJob         The job type, see Job_
- job.name                   cp2kjob         The base name of the various molecular dynamics jobs, see Job.name_
- job.workdir                MM_MD_workdir   The name of the to-be created directory which is to contain all molecular dynamics jobs, see init.folder_
- job.keepfiles              False           Whether the raw MD results should be saved or deleted
- hdf5_file                  ARMC.hdf5       The filename of the to-be created HDF5_ file containing all ARMC results
+
  move.range.start           0.005           Controls the minimum stepsize of Monte Carlo moves
  move.range.stop            0.1             Controls the maximum stepsize of Monte Carlo moves
  move.range.step            0.005           Controls the allowed stepsize values between the minima and maxima
  move.charge_constraints    -               Controls constraints applied to the atomic charges during Monte Carlo moves
 ========================== =============== ===========================================================================================================
 
+Once a the .yaml file with the ARMC settings has been sufficiently customized
+the parameter optimization can be started via the command prompt with:
+:code:`init_armc my_settings.yaml`
+
+PES descriptors
+---------------
+
+Potential energy surface (PES) descriptors can be descriped in the *pes* block.
+Provided below is an example where the radial dsitribution function (RDF) is
+used as PES descriptor, more specifically the RDF constructed from all possible
+combinations of cadmium, selenium and oxygen atoms.
+
+::
+
+    pes:
+        rdf:
+            func: MultiMolecule.init_rdf
+            kwarg:
+                atom_subset: [Cd, Se, O]
+
+Depending on the system of interest it might be of interest to utilize a PES
+descriptor other than the RDF, or potentially even multiple PES descriptors.
+In the latter case the the total auxiliary error is defined as the sum of the
+auxiliary errors of all induvidual PES descriptors, :math:`R` (see :eq:`5`).
+
+.. math::
+    :label: 5
+
+    \Delta \varepsilon_{QM-MM} = \sum_{r}^{R} \Delta \varepsilon_{r}^{QM-MM}
 
 
-Implementation
---------------
+An example is provided below where both radial and angular distribution
+functions (RDF and ADF) are are used as PES descriptors. In this example
+the RDF is construced for all combinations of cadmium, selenium and oxygen
+atoms whereas the ADF is construced for all combinations of cadmium and
+selenium.
 
-Example ARMC code.
+::
+
+    pes:
+        rdf:
+            func: MultiMolecule.init_rdf
+            kwarg:
+                atom_subset: [Cd, Se, O]
+        adf:
+            func: MultiMolecule.init_adf
+            kwarg:
+                atom_subset: [Cd, Se]
+
+In principle any function, class or method can be provided here,
+as type object, as long as the following requirements are fulfilled:
+
+* The name of the block must consist of a user-specified string
+  (*rdf* and *adf* in the example(s) above).
+* The *func* key must contain a type object of the requested function,
+  method or class.
+* The *kwarg* key must contain all requested keyword arguments associated
+  with *func*.
+* The supplied function must be able to operate on NumPy arrays or
+  its :class:`.MultiMolecule` subclass.
+
+An example of a custom, albit rather nonsensical, PES descriptor:
+
+::
+
+  pes:
+    numpy_sum:
+        func: np.sum
+        kwarg = {}
+
+Which is equivalent to:
 
 .. code:: python
 
-    >>> from os.path import join
+    >>> func = np.sum
+    >>> kwarg = {}
+    >>> pes = MultiMolecule(np.random.rand(5000, 200, 3))
 
-    >>> import FOX
-    >>> from FOX import (ARMC, MultiMolecule, get_template, get_example_xyz)
+    >>> numpy_sum = func(pes, **kwarg)
 
 
-    # Read the .xyz file and create all settings for generating protein structure files (.psf)
-    >>> str_file = join(FOX.__path__[0], 'data/formate.str')
-    >>> mol = MultiMolecule.from_xyz(get_example_xyz())
-    >>> mol.guess_bonds(atom_subset=['C', 'O', 'H'])
-    >>> mol.update_atom_type(str_file)
-    >>> mol.update_atom_charge('Cd', 2.0)
-    >>> mol.update_atom_charge('Se', -2.0)
-    >>> psf = mol.as_psf(return_blocks=True)
+Charge constraints
+------------------
 
-    # Prepare the ARMC settings
-    >>> s = get_template('armc.yaml')
-    >>> s.job.psf = psf
-    >>> s.job.molecule = mol
-
-    # Start the MC parameterization
-    >>> armc = ARMC.from_dict(s)
-    >>> armc.init_armc()
+.. autofunction:: FOX.functions.charge_utils.get_charge_constraints
 
 
 FOX.MonteCarlo API
@@ -156,7 +231,7 @@ FOX.MonteCarlo API
 FOX.ARMC API
 ------------
 
-.. autoclass:: FOX.classes.monte_carlo.ARMC
+.. autoclass:: FOX.classes.armc.ARMC
     :members:
 
 
@@ -164,5 +239,3 @@ FOX.ARMC API
 .. _YAML: https://yaml.org/
 .. _HDF5: https://www.h5py.org/
 .. _Job: https://www.scm.com/doc/plams/components/jobs.html#scm.plams.core.basejob.Job
-.. _Job.name: https://www.scm.com/doc/plams/components/jobs.html#scm.plams.core.basejob.Job
-.. _init.folder: https://www.scm.com/doc/plams/components/functions.html#scm.plams.core.functions.init

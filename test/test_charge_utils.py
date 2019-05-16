@@ -9,7 +9,7 @@ import numpy as np
 from scm.plams import Settings
 
 import FOX
-from FOX import (MultiMolecule, get_example_xyz)
+from FOX import (MultiMolecule, get_example_xyz, PSFDict)
 from FOX.functions.charge_utils import (
     update_charge, update_constrained_charge, update_unconstrained_charge,
     get_charge_constraints, invert_ufunc
@@ -18,10 +18,11 @@ from FOX.functions.charge_utils import (
 
 MOL = MultiMolecule.from_xyz(get_example_xyz())
 MOL.guess_bonds(atom_subset=['C', 'O', 'H'])
-MOL.update_atom_type(join(FOX.__path__[0], 'data/formate.str'))
-MOL.update_atom_charge('Cd', 2.0)
-MOL.update_atom_charge('Se', -2.0)
-DF = MOL.properties.psf
+PSFDICT = PSFDict.from_multi_mol(MOL)
+PSFDICT.update_atom_type(join(FOX.__path__[0], 'examples/ligand.str'))
+PSFDICT.update_atom_charge('Cd', 2.0)
+PSFDICT.update_atom_charge('Se', -2.0)
+DF = PSFDICT['atoms']
 
 
 def test_update_charge():
@@ -45,6 +46,7 @@ def test_update_charge():
     assert np.abs(df['charge'].sum() - net_charge) <= 10**-8
 
     net_charge = df['charge'].sum()
+    exclude = ['H_1']
     update_charge('C_1', -1.0, df, constrain_dict, exclude)
 
     Cd_charge = df.loc[df['atom type'] == 'Cd', 'charge'].iloc[0]

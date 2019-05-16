@@ -3,3 +3,7 @@ sphinx>=1.4
 sphinx_rtd_theme
 nbsphinx
 matplotlib
+numpy
+scipy
+pandas
+plams

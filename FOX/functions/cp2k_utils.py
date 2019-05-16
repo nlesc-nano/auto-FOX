@@ -1,14 +1,18 @@
-""" A module with miscellaneous functions related to CP2K. """
-
-__all__ = ['update_cp2k_settings', 'set_keys']
+"""A module with miscellaneous functions related to CP2K."""
 
 import itertools
 
+import pandas as pd
+
 from scm.plams import Settings
 
+__all__ = ['update_cp2k_settings', 'set_keys']
 
-def set_subsys_kind(settings, df):
-    """ Set the FORCE_EVAL/SUBSYS/KIND_ keyword(s) in CP2K job settings.
+
+def set_subsys_kind(settings: Settings,
+                    df: pd.DataFrame) -> None:
+    """Set the FORCE_EVAL/SUBSYS/KIND_ keyword(s) in CP2K job settings.
+
     Performs an inplace update of the input.force_eval.subsys key in **settings**.
 
     .. _KIND: https://manual.cp2k.org/trunk/CP2K_INPUT/FORCE_EVAL/SUBSYS/KIND.html
@@ -24,8 +28,10 @@ def set_subsys_kind(settings, df):
             settings.input.force_eval.subsys['kind ' + at_type] = {'element': at_name}
 
 
-def set_lennard_jones(settings, lj_df):
-    """ Set the FORCE_EVAL/MM/FORCEFIELD/NONBONDED/LENNARD-JONES_ keyword(s) in CP2K job settings.
+def set_lennard_jones(settings: Settings,
+                      lj_df: pd.DataFrame) -> None:
+    """Set the FORCE_EVAL/MM/FORCEFIELD/NONBONDED/LENNARD-JONES_ keyword(s) in CP2K job settings.
+
     Performs an inplace update of **lj_df** and the input.mm.forcefield.nonbonded key in
     **settings**.
 
@@ -50,8 +56,10 @@ def set_lennard_jones(settings, lj_df):
         settings.input.force_eval.mm.forcefield.nonbonded[i].update(dict_)
 
 
-def set_atomic_charges(settings, charge_df):
-    """ Set the FORCE_EVAL/MM/FORCEFIELD/CHARGE_ keyword(s) in CP2K job settings.
+def set_atomic_charges(settings: Settings,
+                       charge_df: pd.DataFrame) -> None:
+    """Set the FORCE_EVAL/MM/FORCEFIELD/CHARGE_ keyword(s) in CP2K job settings.
+
     Performs an inplace update of **charge_df** and the input.mm.forcefield key in **settings**.
 
     .. _CHARGE: https://manual.cp2k.org/trunk/CP2K_INPUT/FORCE_EVAL/MM/FORCEFIELD/CHARGE.html
@@ -71,38 +79,62 @@ def set_atomic_charges(settings, charge_df):
         }
 
 
-def update_cp2k_settings(settings, param):
-    """ Update CP2K job settings with those provided in param.
+def update_cp2k_settings(settings: Settings,
+                         param: pd.DataFrame) -> None:
+    """Update CP2K job settings with those provided in param.
 
     :parameter settings: The CP2K job settings.
     :type settings: |plams.Settings|_
     :parameter param: A dataframe with (variable) forcefield parameters.
     :type param: |pd.DataFrame|_
     """
+    lj = settings.input.force_eval.mm.forcefield.nonbonded['lennard-jones']
+
     # Update the Lennard-Jones epsilon parameters
-    for _, (i, j, *_) in param.loc['epsilon', :].iterrows():
-        settings.input.force_eval.mm.forcefield.nonbonded['lennard-jones'][int(j)].epsilon = i
+    for _, (param_, unit, i, *_) in param.loc['epsilon', :].iterrows():
+        lj[int(i)].epsilon = unit.format(param_)
 
     # Update the Lennard-Jones sigma parameters
-    for _, (i, j, *_) in param.loc['sigma', :].iterrows():
-        settings.input.force_eval.mm.forcefield.nonbonded['lennard-jones'][int(j)].sigma = i
+    for _, (param_, unit, i, *_) in param.loc['sigma', :].iterrows():
+        lj[int(i)].sigma = unit.format(param_)
 
 
-def set_keys(settings, param, rcut=12.0):
-    """ Find and return the keys in **settings** matching all parameters in **param**.
+def set_keys(settings: Settings,
+             param: pd.DataFrame,
+             rcut: float = 12.0) -> list:
+    r"""Find and return the keys in **settings** matching all parameters in **param**.
 
-    :parameter param: A dataframe with a 2-level multiindex.
-    :parameter param: |pd.DataFrame|_ (index: |pd.MultiIndex|_)
-    :parameter settings: Job settings.
+    Units can be specified under the *unit* key (see the CP2K_ documentation for more details).
+
+    :parameter settings: CP2K Job settings.
     :type settings: |plams.Settings|_
+    :parameter param: A dataframe with MM parameters and parameter names as 2-level multiindex.
+    :type param: |pd.DataFrame|_ (index: |pd.MultiIndex|_)
     :return: A list of all matched keys.
     :rtype: |list|_ [|str|_]
+
+    .. _CP2K: https://manual.cp2k.org/trunk/units.html
     """
     def _get_settings(param, at):
-        return Settings({'epsilon': param.loc[('epsilon', at), 'param'],
-                         'sigma': param.loc[('sigma', at), 'param'],
+        eps_unit = param.loc[('epsilon', at), 'unit']
+        eps_value = param.loc[('epsilon', at), 'param']
+        sigma_unit = param.loc[('sigma', at), 'unit']
+        sigma_value = param.loc[('sigma', at), 'param']
+        return Settings({'epsilon': eps_unit.format(eps_value),
+                         'sigma': sigma_unit.format(sigma_value),
                          'rcut': rcut,
                          'atoms': at})
+
+    # Create a new column in **param** with the quantity units
+    param['unit'] = None
+    unit_dict = {'epsilon': '[K_e] {:f}', 'sigma': '[angstrom] {:f}'}
+    for key, value in unit_dict.items():
+        try:
+            unit = param.loc[(key, 'unit'), 'param']
+            param.loc[[key], 'unit'] = '[{}]'.format(unit) + ' {:f}'
+            param.drop(index=[(key, 'unit')], inplace=True)
+        except KeyError:
+            param.loc[key, 'unit'] = value
 
     # Generate the keys for atomic charges (note: there are no charge keys)
     key_list = [-1 for _ in param.loc['charge'].index]

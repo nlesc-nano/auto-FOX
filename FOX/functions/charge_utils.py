@@ -1,14 +1,22 @@
-""" A module with functions related to manipulating atomic charges. """
+"""A module with functions related to manipulating atomic charges."""
 
-__all__ = ['update_charge', 'get_charge_constraints']
+from typing import Callable
 
 import numpy as np
+import pandas as pd
 
 from scm.plams import Settings
 
+__all__ = ['update_charge', 'get_charge_constraints']
 
-def update_charge(at, charge, df, constrain_dict={}, exclude=[]):
-    """ Set the atomic charge of **at** to **charge**.
+
+def update_charge(at: str,
+                  charge: float,
+                  df: pd.DataFrame,
+                  constrain_dict: dict = {},
+                  exclude: list = []) -> None:
+    """Set the atomic charge of **at** to **charge**.
+
     The atomic charges in **df** are furthermore exposed to the following constraints:
 
         * The total charge remains constant.
@@ -32,18 +40,23 @@ def update_charge(at, charge, df, constrain_dict={}, exclude=[]):
         exclude += update_constrained_charge(at, df, constrain_dict)
         update_unconstrained_charge(net_charge, df, exclude)
     else:
-        update_unconstrained_charge(net_charge, df, exclude + [at])
-        charge = net_charge - df.loc[df['atom type'] == at, 'charge'].sum()
-        atomic_charge = find_q(df, charge, constrain_dict)
+        exclude.append(at)
+        update_unconstrained_charge(net_charge, df, exclude)
+        condition = [at in exclude for at in df['atom type']]
+        charge = net_charge - df.loc[condition, 'charge'].sum()
+        q = find_q(df, charge, constrain_dict)
         for key, value in constrain_dict.items():
             func = invert_ufunc(value['func'])
-            df.loc[df['atom type'] == key, 'charge'] = func(atomic_charge, value['arg'])
+            df.loc[df['atom type'] == key, 'charge'] = func(q, value['arg'])
             update_constrained_charge(key, df, constrain_dict)
             break
 
 
-def update_constrained_charge(at, df, constrain_dict={}):
-    """ Perform a constrained update of atomic charges.
+def update_constrained_charge(at: str,
+                              df: pd.DataFrame,
+                              constrain_dict: dict = {}) -> list:
+    """Perform a constrained update of atomic charges.
+
     Performs an inplace update of the *charge* column in **df**.
 
     :parameter str at: An atom type such as *Se*, *Cd* or *OG2D2*.
@@ -54,15 +67,18 @@ def update_constrained_charge(at, df, constrain_dict={}):
     :rtype: |list|_ [|str|_]
     """
     charge = df.loc[df['atom type'] == at, 'charge'].iloc[0]
-    exclude = []
+    exclude = [at]
+    if not constrain_dict:
+        return exclude
+
     func1 = invert_ufunc(constrain_dict[at]['func'])
     i = constrain_dict[at]['arg']
 
     # Perform a constrained charge update
     for at2, values in constrain_dict.items():
-        exclude.append(at2)
         if at2 == at:
             continue
+        exclude.append(at2)
 
         # Unpack values
         func2 = values['func']
@@ -74,8 +90,11 @@ def update_constrained_charge(at, df, constrain_dict={}):
     return exclude
 
 
-def update_unconstrained_charge(net_charge, df, exclude=[]):
-    """ Perform an unconstrained update of atomic charges.
+def update_unconstrained_charge(net_charge: float,
+                                df: pd.DataFrame,
+                                exclude: list = []) -> None:
+    """Perform an unconstrained update of atomic charges.
+
     Performs an inplace update of the *charge* column in **df**.
 
     :parameter float net_charge: The total charge of the system.
@@ -91,9 +110,13 @@ def update_unconstrained_charge(net_charge, df, exclude=[]):
     df.loc[include, 'charge'] *= i
 
 
-def find_q(df, Q=0.0, constrain_dict={}):
-    r""" Calculates the atomic charge :math:`q` given the total charge :math:`Q`. Atom subsets are
-    denoted by :math:`m` & :math:`n`, with :math:`a` & :math:`b` being subset-dependent constants.
+def find_q(df: pd.DataFrame,
+           Q: float = 0.0,
+           constrain_dict: dict = {}) -> float:
+    r"""Calculate the atomic charge :math:`q` given the total charge :math:`Q`.
+
+    Atom subsets are denoted by :math:`m` & :math:`n`, with :math:`a` & :math:`b`
+    being subset-dependent constants.
 
     .. math::
 
@@ -122,11 +145,11 @@ def find_q(df, Q=0.0, constrain_dict={}):
     return A / B
 
 
-def get_charge_constraints(constrain):
-    """ Take a string containing a set of interdependent charge constraints and translate
+def get_charge_constraints(constrain: str) -> Settings:
+    r"""Take a string containing a set of interdependent charge constraints and translate
     it into a dictionary containing all arguments and operators.
 
-    An example where :math:`q_{Cd} = -\\frac{q_{O}}{0.5} = -q_{Se}`:
+    An example where :math:`q_{Cd} = -0.5*q_{O} = -q_{Se}`:
 
     .. code:: python
 
@@ -206,8 +229,8 @@ def get_charge_constraints(constrain):
     return ret
 
 
-def invert_ufunc(ufunc):
-    """ Invert a universal function, turning addition into substraction,
+def invert_ufunc(ufunc: Callable) -> Callable:
+    """Invert a universal function, turning addition into substraction,
     multiplication into division and exponentiation into recipropal exponentiation.
 
     :parameter ufunc: A NumPy universal function (ufunc).
