@@ -243,12 +243,9 @@ class ARMC(MonteCarlo):
         """
         def norm_mean(mm_pes: np.ndarray, key: str) -> float:
             qm_pes = self.pes[key].ref
-            ret = (qm_pes - mm_pes) / qm_pes
-            ret **= 2
-            try:
-                return ret.values.mean()**0.5
-            except AttributeError:
-                return ret.mean()**0.5
+            A, B = np.asarray(qm_pes), np.asarray(mm_pes)
+            ret = (A - B)**2
+            return ret.sum() / A.sum()
 
         return np.array([norm_mean(mm_pes, key) for key, mm_pes in pes_dict.items()])
 
