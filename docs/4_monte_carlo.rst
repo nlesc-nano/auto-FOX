@@ -53,14 +53,12 @@ The algorithm
     :label: 2
 
     \Delta \varepsilon_{QM-MM} =
-    \sqrt {
-        \frac{1}{N}
+        \frac{
         \sum_{i}^{N}
         \left(
-            \frac{ r_{i}^{QM} - r_{i}^{MM} }
-            {r_{i}^{QM}}
-        \right )^2
-    }
+            r_{i}^{QM} - r_{i}^{MM}
+        \right )^2}
+        {\sum_{i}^{N} r_{i}^{QM} }
 
 
 4.  The parameter history is updated.
