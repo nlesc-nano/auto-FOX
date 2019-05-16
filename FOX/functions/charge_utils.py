@@ -67,7 +67,7 @@ def update_constrained_charge(at: str,
     :rtype: |list|_ [|str|_]
     """
     charge = df.loc[df['atom type'] == at, 'charge'].iloc[0]
-    exclude = []
+    exclude = [at]
     if not constrain_dict:
         return exclude
 
@@ -76,9 +76,9 @@ def update_constrained_charge(at: str,
 
     # Perform a constrained charge update
     for at2, values in constrain_dict.items():
-        exclude.append(at2)
         if at2 == at:
             continue
+        exclude.append(at2)
 
         # Unpack values
         func2 = values['func']
