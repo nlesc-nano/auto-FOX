@@ -17,7 +17,7 @@ Changed
 -------
 * Formatting of docstrings in accordance to PEP257_.
 * Implementation of type hints.
-  * Support for python versions prior to 3.7 has been dropped.
+  Support for python versions prior to 3.7 has been dropped.
 * :class:`.ARMC` was moved to its own seperate modules.
 
 
