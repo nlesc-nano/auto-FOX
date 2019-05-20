@@ -48,7 +48,6 @@ def read_multi_xyz(filename: str) -> Tuple[np.ndarray, Dict[str, List[int]]]:
 
 class XYZError(Exception):
     """Raise when there are issues related to parsing .xyz files."""
-
     pass
 
 
@@ -106,19 +105,19 @@ def _get_line_count(f: TextIOWrapper,
 
 
 def _get_idx_dict(f: TextIOWrapper,
-                  mol_size: int,
+                  atom_count: int,
                   subtract: int = 0) -> Dict[str, list]:
     """Extract atomic symbols and matching atomic indices from **f**.
 
     :parameter f: An opened .xyz file.
     :type f: |io.TextIOWrapper|_
-    :parameter int mol_size: The number of atoms per molecule in **f**.
-    :subtract: Ignore the first :math:`n` lines in **f**
+    :parameter int atom_count: The number of atoms per molecule in **f**.
+    :parameter int subtract: Ignore the first :math:`n` lines in **f**
     :return: A dictionary with atomic symbols and a list of matching atomic indices.
     :rtype: |dict|_ (keys: |str|_, values: |list|_ [|int|_])
     """
     idx_dict: Dict[str, List[int]] = {}
-    abort = mol_size - subtract
+    abort = atom_count - subtract
     for i, at in enumerate(f, -subtract):
         if i < 0:  # Skip the header
             continue
@@ -129,9 +128,9 @@ def _get_idx_dict(f: TextIOWrapper,
         except KeyError:
             idx_dict[at] = [i]
 
-        if i != abort:  # If a single molecule has not been fully parsed yet
-            continue
+        if i == abort:  # If a single molecule has been fully parsed
+            break
 
-        for key in idx_dict:  # Sort the indices and return
-            idx_dict[key] = sorted(idx_dict[key])
-        return idx_dict
+    for value in idx_dict.values():  # Sort the indices and return
+        value.sort()
+    return idx_dict

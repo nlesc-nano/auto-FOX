@@ -22,7 +22,7 @@ from ..functions.adf import (get_adf, get_adf_df)
 
 __all__ = ['MultiMolecule']
 
-MolSubset = Union[None, slice, int, slice]
+MolSubset = Union[None, slice, int]
 AtomSubset = Union[
     None, slice, int, str, Container[int], Container[str], Container[Container[int]]
 ]
@@ -220,7 +220,7 @@ class MultiMolecule(_MultiMolecule):
             self.bonds = self.bonds[idx]
 
     def residue_argsort(self, concatenate: bool = True) -> Union[List[List[int]], np.ndarray]:
-        """Returns the indices that would sort **self** by residue number.
+        """Return the indices that would sort **self** by residue number.
 
         Residues are defined based on moleculair fragments based on **self.bonds**.
 
@@ -290,7 +290,7 @@ class MultiMolecule(_MultiMolecule):
     def _get_time_averaged_prop(self, method: Callable,
                                 atom_subset: AtomSubset = None,
                                 kwarg: dict = {}) -> pd.DataFrame:
-        """A method used for constructing time-averaged properties."""
+        """A method for constructing time-averaged properties."""
         # Prepare arguments
         at_subset = atom_subset or tuple(self.atoms)
         loop = self._get_loop(atom_subset)
@@ -452,12 +452,15 @@ class MultiMolecule(_MultiMolecule):
             return MultiMolecule(v, self.atoms).get_rmsf(mol_subset)
 
     def get_velocity(self, timestep: float = 1.0,
+                     norm: bool = True,
                      mol_subset: MolSubset = None,
                      atom_subset: AtomSubset = None) -> np.ndarray:
         """Calculate the velocty (in fs/A) for all atoms in **atom_subset** over the course of a
         trajectory.
 
         :parameter float timestep: The stepsize, in femtoseconds, between subsequent frames.
+        :parameter float norm: Return the velocity as the norm of the :math:`x`, :math:`y`
+            and :math:`z` components.
         :parameter mol_subset: Perform the calculation on a subset of molecules in **self**, as
             determined by their moleculair index. Include all :math:`m` molecules in **self** if
             *None*.
@@ -466,8 +469,8 @@ class MultiMolecule(_MultiMolecule):
             determined by their atomic index or atomic symbol.  Include all :math:`n` atoms per
             molecule in **self** if *None*.
         :type atom_subset: |None|_, |int|_ or |str|_
-        :return: A 2D array with :math:`m-1` velocities of :math:`n` atoms.
-        :rtype: :math:`(m-1)*n` |np.ndarray|_ [|np.float64|_]
+        :return: A 3D array with :math:`m-1` velocities of :math:`n` atoms.
+        :rtype: :math:`(m-1)*n` or :math:`(m-1)*n*3` |np.ndarray|_ [|np.float64|_]
         """
         # Prepare slices
         i = self._get_mol_subset(mol_subset)
@@ -478,11 +481,17 @@ class MultiMolecule(_MultiMolecule):
         dim1, dim2, dim3 = xyz_slice.shape
         shape = (dim1 - 1) * dim2, dim3
 
-        # Calculate the velocity
+        # Reshape the XYZ array
         A = xyz_slice[:-1].reshape(shape)
         B = xyz_slice[1:].reshape(shape)
-        v = np.linalg.norm(A - B, axis=1)
-        v.shape = (dim1 - 1), dim2
+
+        # Calculate and return the velocity
+        if norm:
+            v = np.linalg.norm(A - B, axis=1)
+            v.shape = (dim1 - 1), dim2
+        else:
+            v = A - B
+            v.shape = (dim1 - 1), dim2, 3
         return v
 
     def get_rmsd(self, mol_subset: MolSubset = None,

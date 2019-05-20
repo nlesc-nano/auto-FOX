@@ -3,14 +3,27 @@
 from __future__ import annotations
 
 import itertools
-from typing import (Dict, Optional, List, Any)
+from typing import (Dict, Optional, List, Any, Callable, Union)
 
 import numpy as np
 
 from scm.plams import PeriodicTable
+from scm.plams.core.errors import PTError
 from scm.plams.core.settings import Settings
 
 __all__: List[str] = []
+
+_prop_dict: Dict[str, Callable] = {
+    'symbol': lambda x: x,
+    'radius': PeriodicTable.get_radius,
+    'atnum': PeriodicTable.get_atomic_number,
+    'mass': PeriodicTable.get_mass,
+    'connectors': PeriodicTable.get_connectors
+}
+
+_none_dict: Dict[str, Union[str, int, float]] = {
+    'symbol': '', 'radius': -1, 'atnum': -1, 'mass': np.nan, 'connectors': -1
+}
 
 
 class _MultiMolecule(np.ndarray):
@@ -193,20 +206,15 @@ class _MultiMolecule(np.ndarray):
         :return: A 1D array with the user-specified properties of :math:`n` atoms.
         :rtype: :math:`n` |np.array|_ [|np.float64|_, |str|_ or |np.int64|_].
         """
-        # Interpret the **values** argument
-        prop_dict = {
-            'symbol': lambda x: x,
-            'radius': PeriodicTable.get_radius,
-            'atnum': PeriodicTable.get_atomic_number,
-            'mass': PeriodicTable.get_mass,
-            'connectors': PeriodicTable.get_connectors
-        }
-
         # Create a concatenated lists of the keys and values in **self.atoms**
         prop_list: list = []
-        for at, idx in self.atoms.items():
-            at_prop = prop_dict[prop](at)
-            prop_list += [at_prop] * len(idx)
+        for at, i in self.atoms.items():
+            try:
+                at_prop = _prop_dict[prop](at)
+            except PTError:
+                at_prop = _none_dict[prop]
+                print("No {} available for {}, defaulting to '{}'".format(prop, at, str(at_prop)))
+            prop_list += [at_prop] * len(i)
 
         # Sort and return
         idx_gen = itertools.chain.from_iterable(self.atoms.values())
