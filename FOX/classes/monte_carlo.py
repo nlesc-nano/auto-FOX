@@ -127,9 +127,12 @@ class MonteCarlo():
         update_cp2k_settings(self.job.settings, self.param)
         return tuple(self.param['param'].values)
 
-    def run_md(self) -> Tuple[MultiMolecule, str]:
-        """Run a molecular dynamics (MD) job, updating the cartesian coordinates of
-        **self.job.mol** and returning a new :class:`.MultiMolecule` instance.
+    def run_md(self) -> Tuple[Optional[MultiMolecule], str]:
+        """Run a molecular dynamics (MD) job.
+
+        Returns a new :class:`.MultiMolecule` instance constructed from the MD trajectory and the
+        path to the MD results.
+        If no trajectory is available (*i.e.* the job crashed) return *None* instead.
 
         * The MD job is constructed according to the provided settings in **self.job**.
 

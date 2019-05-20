@@ -27,7 +27,7 @@ def read_multi_xyz(filename: str) -> Tuple[np.ndarray, Dict[str, List[int]]]:
     # Define constants and construct a dictionary: {atomic symbols: [atomic indices]}
     with open(filename, 'r') as f:
         atom_count = _get_atom_count(f)
-        idx_dict = _get_idx_dict(f, mol_size=atom_count, subtract=1)
+        idx_dict = _get_idx_dict(f, atom_count=atom_count, subtract=1)
         line_count = _get_line_count(f, add=[2, atom_count])
 
     # Check if mol_count is fractional, smaller than 1 or if atom_count is smaller than 1

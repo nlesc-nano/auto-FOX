@@ -1,6 +1,6 @@
 """Functions for storing Monte Carlo results in hdf5 format."""
 
-from typing import (Dict, Iterable)
+from typing import (Dict, Iterable, Optional, Union, Hashable, List, Sequence)
 
 import numpy as np
 import pandas as pd
@@ -18,6 +18,7 @@ except ImportError:
                   \n\tconda install --name FOX -y -c conda-forge h5py"
 
 from ..functions.utils import (get_shape, assert_error, array_to_index)
+from ..classes.mulit_mol import MultiMolecule
 
 __all__ = ['create_hdf5', 'to_hdf5', 'from_hdf5']
 
@@ -25,15 +26,19 @@ __all__ = ['create_hdf5', 'to_hdf5', 'from_hdf5']
 @assert_error(H5PY_ERROR)
 def create_hdf5(filename: str,
                 mc_kwarg: Settings) -> None:
-    """Create a hdf5 file to hold all addaptive rate Mone Carlo results (:class:`FOX.ARMC`).
+    r"""Create a hdf5 file to hold all addaptive rate Mone Carlo results (:class:`FOX.ARMC`).
 
     Datasets are created to hold a number of results following results over the course of the
     MC optimization:
 
-    * The acceptance rate (dataset: *acceptance*)
+    * The xyz coordinates
+    * The value of :math:`/phi` over the course of the parameter optimization (dataset: *phi*).
     * The parameters (dataset: *param*)
+    * The acceptance rate (dataset: *acceptance*)
+    * The unmodified auxiliary error (dataset: *aux_error*)
+    * The modifications to the auxiliary error (dataset: *aux_error_mod*)
     * User-specified PES descriptors (dataset(s): user-specified name(s))
-    * The *index*, *columns* and/or *name* attributes above-mentioned results
+    * User-specified reference PES descriptors (dataset(s): user-specified name(s) + *_ref*)
 
     :parameter str filename: The path+name of the hdf5 file.
     :parameter mc_kwarg: An ARMC object.
@@ -42,7 +47,10 @@ def create_hdf5(filename: str,
     shape = mc_kwarg.armc.iter_len // mc_kwarg.armc.sub_iter_len, mc_kwarg.armc.sub_iter_len
 
     # Create a Settings object with the shape and dtype of all datasets
-    shape_dict = Settings({})
+    shape_dict = Settings()
+    shape_dict.xyz.shape = (shape[1], 1, len(mc_kwarg.job.molecule), 3)
+    shape_dict.xyz.dtype = float
+    shape_dict.xyz.maxshape = (shape[1], None, len(mc_kwarg.job.molecule), 3)
     shape_dict.phi.shape = (shape[0], )
     shape_dict.phi.dtype = float
     shape_dict.param.shape = shape + (len(mc_kwarg.param), )
@@ -61,18 +69,47 @@ def create_hdf5(filename: str,
     with h5py.File(filename, 'w-') as f:
         f.attrs['super-iteration'] = -1
         f.attrs['sub-iteration'] = -1
-        for key, value in shape_dict.items():
-            f.create_dataset(name=key, compression='gzip', **value)
+        for key, kwarg in shape_dict.items():
+            f.create_dataset(name=key, compression='gzip', **kwarg)
+
+            # Add the ab-initio reference PES descriptors to the hdf5 file
+            if key in mc_kwarg.pes:
+                f.create_dataset(
+                    data=mc_kwarg.pes[key].ref,
+                    name=key + '_ref',
+                    compression='gzip',
+                    dtype=value.dtype,
+                    shape=value.shape[2:]
+                )
 
     # Store the *index*, *column* and *name* attributes of dataframes/series in the hdf5 file
     idx = mc_kwarg.param['param'].index.append(pd.MultiIndex.from_tuples([('phi', '')]))
-    pd_dict = {'param': mc_kwarg.param['param'],
-               'phi': pd.Series(np.nan, index=np.arange(shape[0]), name='phi'),
-               'aux_error': pd.Series(np.nan, index=list(mc_kwarg.pes), name='aux_error'),
-               'aux_error_mod': pd.Series(np.nan, index=idx, name='aux_error_mod')}
+    pd_dict = {
+        'param': mc_kwarg.param['param'],
+        'phi': pd.Series(np.nan, index=np.arange(shape[0]), name='phi'),
+        'aux_error': pd.Series(np.nan, index=list(mc_kwarg.pes), name='aux_error'),
+        'aux_error_mod': pd.Series(np.nan, index=idx, name='aux_error_mod')
+    }
+
     for key, value in mc_kwarg.pes.items():
         pd_dict[key] = value.ref
     index_to_hdf5(filename, pd_dict)
+
+
+@assert_error(H5PY_ERROR)
+def xyz_to_hdf5(filename: str,
+                mol: MultiMolecule) -> None:
+    """Reshape the *xyz* dataset in **filename** based on **mol**.
+
+    Axis 1 in *xyz* is set equal to **mol**.shape[0], *i.e.* the number of molecules in **mol**.
+
+    :parameter str filename: The path+name of the hdf5 file.
+    :parameter mol_shape: A :class:`.MultiMolecule` instance.
+    :type mol_shape: |FOX.MultiMolecule|_
+    """
+    with h5py.File(filename, 'r') as f:
+        shape = f['xyz'].shape
+        f['xyz'].shape = (shape[0], ) + mol.shape
 
 
 @assert_error(H5PY_ERROR)
@@ -95,9 +132,9 @@ def index_to_hdf5(filename: str,
         >>>     tuple(f.keys())
         ('df.columns', 'df.index', 'series.index', 'series.name')
 
+    :parameter str filename: The path+name of the hdf5 file.
     :parameter pd_dict: A dictionary with dataset names as keys and matching array-like objects
         as values.
-    :parameter str filename: The path+name of the hdf5 file.
     """
     attr_tup = ('index', 'columns', 'name')
 
@@ -110,7 +147,7 @@ def index_to_hdf5(filename: str,
                     f[key].attrs.create(attr_name, i)
 
 
-def _attr_to_array(item: object) -> np.ndarray:
+def _attr_to_array(item: Union[str, pd.Index]) -> np.ndarray:
     """Convert an attribute value, retrieved from :func:`FOX.index_to_hdf5`, into a NumPy array.
 
     .. code-block:: python
@@ -163,9 +200,11 @@ def to_hdf5(filename: str,
             f[key][kappa, omega] = value
 
 
+DataSets = Optional[Union[Hashable, Iterable[Hashable]]]
+
 @assert_error(H5PY_ERROR)
 def from_hdf5(filename: str,
-              datasets: Iterable[str] = None) -> Dict[str, NDFrame]:
+              datasets: DataSets = None) -> Union[NDFrame, Dict[Hashable, NDFrame]]:
     """Retrieve all user-specified datasets from **name**, returning a dicionary of
     DataFrames and/or Series.
 
@@ -175,15 +214,28 @@ def from_hdf5(filename: str,
     :return: A dicionary with dataset names as keys and the matching data as values.
     :rtype: |dict|_ (values:|pd.DataFrame|_ and/or |pd.Series|_)
     """
-    # TODO: Add the ability to return dataset slices
-    ret = {}
     with h5py.File(filename, 'r') as f:
-        datasets = datasets or f.keys()
+        # Retrieve all values up to and including the current iteration
+        kappa = f.attrs['super-iteration']
+        omega = f.attrs['sub-iteration']
+        omega_max = f['param'].shape[1]
+        i = kappa * omega_max + omega
+
+        # Identify the to-be returned datasets
         if isinstance(datasets, str):
             datasets = (datasets, )
-        for key in datasets:
-            ret[key] = _get_dset(f, key)
+        else:
+            datasets = datasets or f.keys()
 
+        # Retrieve the datasets
+        try:
+            ret = {key: _get_dset(f, key)[:i] for key in datasets}
+        except KeyError as ex:
+            err = "No dataset '{}' in '{}'. The following datasets are available: {}"
+            arg = str(ex).split("'")[1], str(filename), list(f.keys())
+            raise KeyError(err.format(*arg))
+
+    # Return a DataFrame/Series or dictionary of DataFrames/Series
     if len(ret) == 1:
         for i in ret.values():
             return i
@@ -192,15 +244,16 @@ def from_hdf5(filename: str,
 
 @assert_error(H5PY_ERROR)
 def _get_dset(f: 'h5py.File',
-              key: str) -> pd.Series:
-    """Take a h5py dataset and convert it into either a NumPy array or
-    a Pandas DataFrame (:func:`FOX.dset_to_df`) or Series (:func:`FOX.dset_to_series`).
+              key: Hashable) -> Union[pd.Series, pd.DataFrame, List[pd.DataFrame]]:
+    """Take a h5py dataset and convert it into either a Series or DataFrame.
+
+    See :func:`FOX.dset_to_df` and :func:`FOX.dset_to_series` for more details.
 
     :parameter f: An opened hdf5 file.
     :type f: |h5py.File|_
     :parameter str key: The dataset name.
     :return: A NumPy array or a Pandas DataFrame or Series retrieved from **key** in **f**.
-    :rtype: |np.ndarray|_, |pd.DataFrame|_ or |pd.Series|_
+    :rtype: |pd.DataFrame|_ or |pd.Series|_
     """
     if 'columns' in f[key].attrs.keys():
         return dset_to_df(f, key)
@@ -222,19 +275,21 @@ def _get_dset(f: 'h5py.File',
 
 @assert_error(H5PY_ERROR)
 def dset_to_series(f: 'h5py.File',
-                   key: str) -> pd.Series:
-    """Take a h5py dataset and convert it into a Pandas Series (if 1D) or Pandas Series (if 2D).
+                   key: Hashable) -> Union[pd.Series, pd.DataFrame]:
+    """Take a h5py dataset and convert it into a Pandas Series (if 1D) or Pandas DataFrame (if 2D).
 
     :parameter f: An opened hdf5 file.
     :type f: |h5py.File|_
     :parameter str key: The dataset name.
-    :return: A Pandas Series retrieved from **key** in **f**.
-    :rtype: |pd.Series|_ or |list|_ [|pd.Series|_]
+    :return: A Pandas Series or DataFrame retrieved from **key** in **f**.
+    :rtype: |pd.Series|_ or |pd.DataFrame|_
     """
     name = f[key].attrs['name'][0].decode()
     index = array_to_index(f[key].attrs['index'][:])
     data = f[key][:]
     data.shape = np.product(data.shape[:-1], dtype=int), -1
+
+    # Return a Series or DataFrame
     if data.ndim == 1:
         return pd.Series(f[key][:], index=index, name=name)
     else:
@@ -250,7 +305,7 @@ def dset_to_series(f: 'h5py.File',
 
 @assert_error(H5PY_ERROR)
 def dset_to_df(f: 'h5py.File',
-               key: str) -> pd.DataFrame:
+               key: Hashable) -> Union[pd.DataFrame, List[pd.DataFrame], 'xr.DataArray']:
     """Take a h5py dataset and convert it into a Pandas DataFrame (if 2D) or list of Pandas
     DataFrames (if 3D).
 
@@ -264,6 +319,9 @@ def dset_to_df(f: 'h5py.File',
     index = array_to_index(f[key].attrs['index'][:])
     data = f[key][:]
     data.shape = np.product(data.shape[:-2], dtype=int), data.shape[-2], -1
+
+    # Return a DataFrame or list of DataFrames
     if data.ndim == 2:
         return pd.DataFrame(data, index=index, columns=columns)
-    return [pd.DataFrame(i, index=index, columns=columns) for i in data]
+    else:
+        return [pd.DataFrame(i, index=index, columns=columns) for i in data]
