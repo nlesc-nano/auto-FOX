@@ -1,6 +1,6 @@
 """Functions for storing Monte Carlo results in hdf5 format."""
 
-from typing import (Dict, Iterable, Optional, Union, Hashable, List, Sequence)
+from typing import (Dict, Iterable, Optional, Union, Hashable, List)
 
 import numpy as np
 import pandas as pd
@@ -10,9 +10,11 @@ from scm.plams import Settings
 
 try:
     import h5py
+    H5pyFile = h5py.File
     H5PY_ERROR = ''
 except ImportError:
     __all__: list = []
+    H5pyFile = 'h5py.File'
     H5PY_ERROR = "Use of the FOX.{} function requires the 'h5py' package.\
                   \n\t'h5py' can be installed via anaconda with the following command:\
                   \n\tconda install --name FOX -y -c conda-forge h5py"
@@ -67,8 +69,6 @@ def create_hdf5(filename: str,
 
     # Create a hdf5 file with *n* datasets
     with h5py.File(filename, 'w-') as f:
-        f.attrs['super-iteration'] = -1
-        f.attrs['sub-iteration'] = -1
         for key, kwarg in shape_dict.items():
             f.create_dataset(name=key, compression='gzip', **kwarg)
 
@@ -81,6 +81,9 @@ def create_hdf5(filename: str,
                     dtype=value.dtype,
                     shape=value.shape[2:]
                 )
+        f.attrs['super-iteration'] = -1
+        f.attrs['sub-iteration'] = -1
+        f['xyz'].attrs['atoms'] = np.array([at.symbol for at in mc_kwarg.job.mol], dtype='S')
 
     # Store the *index*, *column* and *name* attributes of dataframes/series in the hdf5 file
     idx = mc_kwarg.param['param'].index.append(pd.MultiIndex.from_tuples([('phi', '')]))
@@ -94,22 +97,6 @@ def create_hdf5(filename: str,
     for key, value in mc_kwarg.pes.items():
         pd_dict[key] = value.ref
     index_to_hdf5(filename, pd_dict)
-
-
-@assert_error(H5PY_ERROR)
-def xyz_to_hdf5(filename: str,
-                mol: MultiMolecule) -> None:
-    """Reshape the *xyz* dataset in **filename** based on **mol**.
-
-    Axis 1 in *xyz* is set equal to **mol**.shape[0], *i.e.* the number of molecules in **mol**.
-
-    :parameter str filename: The path+name of the hdf5 file.
-    :parameter mol_shape: A :class:`.MultiMolecule` instance.
-    :type mol_shape: |FOX.MultiMolecule|_
-    """
-    with h5py.File(filename, 'r') as f:
-        shape = f['xyz'].shape
-        f['xyz'].shape = (shape[0], ) + mol.shape
 
 
 @assert_error(H5PY_ERROR)
@@ -141,14 +128,18 @@ def index_to_hdf5(filename: str,
     with h5py.File(filename, 'r+') as f:
         for key, value in pd_dict.items():
             for attr_name in attr_tup:
-                if hasattr(value, attr_name):
-                    attr = getattr(value, attr_name)
-                    i = _attr_to_array(attr).T
-                    f[key].attrs.create(attr_name, i)
+                if not hasattr(value, attr_name):
+                    continue
+
+                attr = getattr(value, attr_name)
+                i = _attr_to_array(attr).T
+                f[key].attrs.create(attr_name, i)
 
 
-def _attr_to_array(item: Union[str, pd.Index]) -> np.ndarray:
+def _attr_to_array(index: Union[str, pd.Index]) -> np.ndarray:
     """Convert an attribute value, retrieved from :func:`FOX.index_to_hdf5`, into a NumPy array.
+
+    Accepts strings and instances of pd.Index.
 
     .. code-block:: python
 
@@ -156,20 +147,21 @@ def _attr_to_array(item: Union[str, pd.Index]) -> np.ndarray:
         >>> _attr_to_array(item)
         array([b'name'], dtype='|S4')
 
-        >>> item = pd.Index(np.arange(5))
+        >>> item = pd.RangeIndex(stop=4)
         >>> _attr_to_array(item)
-        array([0, 1, 2, 3, 4, 5])
+        array([0, 1, 2, 3, 4])
 
-    :parameter object item: An object that may or may not be an instance of pd.Index.
+    :parameter item: A string or instance of pd.Index (or one of its subclasses).
+    :type index: |str|_ or |pd.Index|_
     :return: An array created fron **item**.
     :rtype: |np.ndarray|_
     """
     # If **idx** does not belong to the pd.Index class or one of its subclass
-    if not isinstance(item, pd.Index):  # **item** belongs to the *name* attribute of pd.Series
-        return np.array(item, dtype='S', ndmin=1)
+    if not isinstance(index, pd.Index):  # **item** belongs to the *name* attribute of pd.Series
+        return np.array(index, dtype='S', ndmin=1, copy=False)
 
     # Convert **item** into an array
-    ret = np.array(item.to_list())
+    ret = np.array(index.to_list())
     if 'U' in ret.dtype.str:  # h5py does not support unicode strings
         return ret.astype('S', copy=False)  # Convert to byte strings
     return ret
@@ -179,8 +171,7 @@ def _attr_to_array(item: Union[str, pd.Index]) -> np.ndarray:
 def to_hdf5(filename: str,
             dset_dict: Dict[str, np.array],
             kappa: int,
-            omega: int,
-            phi: float) -> None:
+            omega: int) -> None:
     r"""Export results from **dict_** to the hdf5 file **name**.
 
     :parameter str filename: The path+name of the hdf5 file.
@@ -190,17 +181,37 @@ def to_hdf5(filename: str,
         :meth:`.ARMC.init_armc`.
     :parameter int omega: The sub-iteration, :math:`\omega`, in the inner loop of
         :meth:`.ARMC.init_armc`.
-    :parameter float phi: The value of the :class:`.ARMC` variable :math:`\phi`.
-    """
+    n"""
     with h5py.File(filename, 'r+') as f:
         f.attrs['super-iteration'] = kappa
         f.attrs['sub-iteration'] = omega
-        f['phi'][kappa] = phi
         for key, value in dset_dict.items():
-            f[key][kappa, omega] = value
+            if key == 'xyz':
+                f[key][omega] = value
+            if key == 'phi':
+                f[key][kappa] = value
+            else:
+                f[key][kappa, omega] = value
+
+
+@assert_error(H5PY_ERROR)
+def reshape_xyz(filename: str,
+                mol: MultiMolecule) -> None:
+    """Reshape the *xyz* dataset in **filename** based on **mol**.
+
+    Axis 1 in *xyz* is set equal to **mol**.shape[0], *i.e.* the number of molecules in **mol**.
+
+    :parameter str filename: The path+name of the hdf5 file.
+    :parameter mol_shape: A :class:`.MultiMolecule` instance.
+    :type mol_shape: |FOX.MultiMolecule|_
+    """
+    with h5py.File(filename, 'r') as f:
+        shape = f['xyz'].shape
+        f['xyz'].shape = (shape[0], ) + mol.shape
 
 
 DataSets = Optional[Union[Hashable, Iterable[Hashable]]]
+
 
 @assert_error(H5PY_ERROR)
 def from_hdf5(filename: str,
@@ -243,7 +254,7 @@ def from_hdf5(filename: str,
 
 
 @assert_error(H5PY_ERROR)
-def _get_dset(f: 'h5py.File',
+def _get_dset(f: H5pyFile,
               key: Hashable) -> Union[pd.Series, pd.DataFrame, List[pd.DataFrame]]:
     """Take a h5py dataset and convert it into either a Series or DataFrame.
 
@@ -255,7 +266,10 @@ def _get_dset(f: 'h5py.File',
     :return: A NumPy array or a Pandas DataFrame or Series retrieved from **key** in **f**.
     :rtype: |pd.DataFrame|_ or |pd.Series|_
     """
-    if 'columns' in f[key].attrs.keys():
+    if key == 'xyz':
+        return _get_xyz_dset(f)
+
+    elif 'columns' in f[key].attrs.keys():
         return dset_to_df(f, key)
 
     elif 'name' in f[key].attrs.keys():
@@ -274,7 +288,35 @@ def _get_dset(f: 'h5py.File',
 
 
 @assert_error(H5PY_ERROR)
-def dset_to_series(f: 'h5py.File',
+def _get_xyz_dset(f: H5pyFile) -> MultiMolecule:
+    """ Return the *xyz* dataset from **f** as a :class:`MultiMolecule` instance.
+
+    :parameter f: An opened hdf5 file.
+    :type f: |h5py.File|_
+    :return: A list of :math:`k` MultiMolecule instances with :math:`m` molecules and
+        :math:`n` atoms.
+    :rtype: :math:`k`|list|_ [:math:`m*n*3` |FOX.MultiMolecule|_]
+    """
+    key = 'xyz'
+
+    # Construct a dictionary with atomic symbols and matching atomic indices
+    idx_dict = {}
+    for i, at in enumerate(f[key].attrs['atoms']):
+        try:
+            idx_dict[at].append(i)
+        except KeyError:
+            idx_dict[at] = [i]
+
+    # Extract the Cartesian coordinates; sort in chronological order
+    i = f.attrs['sub-iteration']
+    ret = [MultiMolecule(i, atoms=idx_dict.copy()) for j in f[key][i:]]
+    ret += [MultiMolecule(i, atoms=idx_dict.copy()) for j in f[key][:i]]
+
+    return ret
+
+
+@assert_error(H5PY_ERROR)
+def dset_to_series(f: H5pyFile,
                    key: Hashable) -> Union[pd.Series, pd.DataFrame]:
     """Take a h5py dataset and convert it into a Pandas Series (if 1D) or Pandas DataFrame (if 2D).
 
@@ -304,7 +346,7 @@ def dset_to_series(f: 'h5py.File',
 
 
 @assert_error(H5PY_ERROR)
-def dset_to_df(f: 'h5py.File',
+def dset_to_df(f: H5pyFile,
                key: Hashable) -> Union[pd.DataFrame, List[pd.DataFrame], 'xr.DataArray']:
     """Take a h5py dataset and convert it into a Pandas DataFrame (if 2D) or list of Pandas
     DataFrames (if 3D).

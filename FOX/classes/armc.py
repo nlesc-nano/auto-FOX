@@ -13,7 +13,7 @@ from scm.plams.core.functions import (init, finish, config)
 
 from .psf_dict import PSFDict
 from .monte_carlo import MonteCarlo
-from ..io.hdf5_utils import (create_hdf5, to_hdf5)
+from ..io.hdf5_utils import (create_hdf5, to_hdf5, reshape_xyz)
 from ..functions.utils import (get_template, get_class_name, get_func_name)
 from ..functions.cp2k_utils import set_subsys_kind
 from ..functions.armc_sanitization import init_armc_sanitization
@@ -152,9 +152,10 @@ class ARMC(MonteCarlo):
         # Initialize the first MD calculation
         history_dict: dict = {}
         key_new = tuple(self.param['param'].values)
-        pes_new = self.get_pes_descriptors(history_dict, key_new)
+        pes_new, mol = self.get_pes_descriptors(history_dict, key_new)
         history_dict[key_new] = self.get_aux_error(pes_new)
         self.param['param_old'] = self.param['param']
+        reshape_xyz(self.hdf5_file, mol)
 
         # Start the main loop
         for kappa in range(super_iter):
@@ -178,7 +179,7 @@ class ARMC(MonteCarlo):
         :rtype: |tuple|_ [|int|_] and |np.ndarray|_ [|bool|_]
         """
         acceptance = np.zeros(self.armc.sub_iter_len, dtype=bool)
-        hdf5_kwarg = {'param': self.param, 'acceptance': False}
+        hdf5_kwarg = {'param': self.param, 'acceptance': False, 'phi': self.phi.phi}
 
         for omega in range(self.armc.sub_iter_len):
             # Step 1: Perform a random move
@@ -186,7 +187,7 @@ class ARMC(MonteCarlo):
             key_new = self.move_param()
 
             # Step 2: Check if the move has been performed already; calculate PES descriptors if not
-            pes_new = self.get_pes_descriptors(history_dict, key_new)
+            pes_new, mol = self.get_pes_descriptors(history_dict, key_new)
             hdf5_kwarg.update(pes_new)
 
             # Step 3: Evaluate the auxiliary error; accept if the new parameter set lowers the error
@@ -209,10 +210,12 @@ class ARMC(MonteCarlo):
                                                         self.phi.phi)
 
             # Step 5: Export the results to HDF5
+            hdf5_kwarg['xyz'] = mol
+            hdf5_kwarg['phi'] = self.phi.phi
             hdf5_kwarg['param'] = self.param['param']
             hdf5_kwarg['acceptance'] = accept
             hdf5_kwarg['aux_error'] = aux_new
-            to_hdf5(self.hdf5_file, hdf5_kwarg, kappa, omega, self.phi.phi)
+            to_hdf5(self.hdf5_file, hdf5_kwarg, kappa, omega)
 
         self.update_phi(acceptance)
         return key_new

@@ -154,7 +154,8 @@ class MonteCarlo():
 
     def get_pes_descriptors(self,
                             history_dict: Dict[Tuple[float], np.ndarray],
-                            key: Tuple[float]) -> Optional[Dict[str, np.ndarray]]:
+                            key: Tuple[float]
+                            ) -> Tuple[Dict[str, np.ndarray], Optional[MultiMolecule]]:
         """Check if a **key** is already present in **history_dict**.
 
         If *True*, return the matching list of PES descriptors;
@@ -171,15 +172,15 @@ class MonteCarlo():
         """
         # Generate PES descriptors
         mol, path = self.run_md()
-        if mol is not None:
-            ret = {key: value.func(mol, **value.kwarg) for key, value in self.pes.items()}
-        else:  # The MD simulation crashed
+        if mol is None:  # The MD simulation crashed
             ret = {key: np.inf for key, value in self.pes.items()}
+        else:
+            ret = {key: value.func(mol, **value.kwarg) for key, value in self.pes.items()}
 
         # Delete the output directory and return
         if not self.job.keep_files:
             shutil.rmtree(path)
-        return ret
+        return ret, mol
 
     @staticmethod
     def get_move_range(start: float = 0.005,
