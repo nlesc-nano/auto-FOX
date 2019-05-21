@@ -4,7 +4,7 @@ import os
 import shutil
 from os.path import join
 
-from typing import (Tuple, List, Dict, Optional)
+from typing import (Tuple, List, Dict, Optional, Union)
 import numpy as np
 import pandas as pd
 
@@ -89,12 +89,23 @@ class MonteCarlo():
     def __repr__(self) -> str:
         return str(Settings(vars(self)))
 
+    def as_dict(self, as_Settings: bool = False) -> Union[dict, Settings]:
+        """Create a dictionary out of a :class:`.MonteCarlo` instance.
+
+        :parameter bool as_Settings: Return as a Settings instance rather than a dictionary.
+        :return: A (nested) dictionary constructed from **self**.
+        :rtype: |dict|_ or |plams.Settings|_
+        """
+        if as_Settings:
+            return Settings(dir(self))
+        else:
+            return {k: (v.as_dict() if isinstance(v, Settings) else v) for k, v in dir(self)}
+
     def move_param(self) -> Tuple[float]:
         """Update a random parameter in **self.param** by a random value from **self.move.range**.
 
         Performs in inplace update of the *param* column in **self.param**.
         By default the move is applied in a multiplicative manner
-        (see :meth:`MonteCarlo.reconfigure_move_atr`).
 
         :return: A tuple with the (new) values in the *param* column of **self.param**.
         :rtype: |tuple|_ [|float|_]

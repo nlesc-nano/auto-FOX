@@ -177,8 +177,8 @@ class ARMC(MonteCarlo):
             course of the inner loop.
         :rtype: |tuple|_ [|int|_] and |np.ndarray|_ [|bool|_]
         """
+        hdf5_kwarg = {}
         acceptance = np.zeros(self.armc.sub_iter_len, dtype=bool)
-        hdf5_kwarg = {'param': self.param, 'acceptance': False, 'phi': self.phi.phi}
 
         for omega in range(self.armc.sub_iter_len):
             # Step 1: Perform a random move
