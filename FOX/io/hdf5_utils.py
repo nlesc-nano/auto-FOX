@@ -228,7 +228,7 @@ def from_hdf5(filename: str,
 
         # Retrieve the datasets
         try:
-            ret = {key: _get_dset(f, key)[:i] for key in datasets}
+            ret = {key: _get_dset(f, key)[:i+1] for key in datasets}
         except KeyError as ex:
             err = "No dataset '{}' in '{}'. The following datasets are available: {}"
             arg = str(ex).split("'")[1], str(filename), list(f.keys())

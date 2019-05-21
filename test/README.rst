@@ -14,6 +14,12 @@ test_example.py_
 
 A module for testing example input files in the FOX.examples_ directory.
 
+~~~~~~~~~~~~~~~~~~~
+test_hdf5_utils.py_
+~~~~~~~~~~~~~~~~~~~
+
+A module for testing functions in the FOX.io.hdf5_utils_ module.
+
 ~~~~~~~~~~~~~
 test_lint.py_
 ~~~~~~~~~~~~~
@@ -59,6 +65,7 @@ A module for testing functions in the FOX.functions.utils_ module.
 
 .. _test_charge_utils.py: https://github.com/nlesc-nano/auto-FOX/blob/master/test/test_charge_utils.py
 .. _test_example.py: https://github.com/nlesc-nano/auto-FOX/blob/master/test/test_example.py
+.. _test_hdf5_utils.py: https://github.com/nlesc-nano/auto-FOX/blob/master/test/test_hdf5_utils.py
 .. _test_lint.py: https://github.com/nlesc-nano/auto-FOX/blob/master/test/test_lint.py
 .. _test_multi_mol.py: https://github.com/nlesc-nano/auto-FOX/blob/master/test/test_multi_mol.py
 .. _test_molecule_utils.py: https://github.com/nlesc-nano/auto-FOX/blob/master/test/_test_molecule_utils.py
@@ -70,6 +77,7 @@ A module for testing functions in the FOX.functions.utils_ module.
 
 .. _FOX.functions.charge_utils: https://github.com/nlesc-nano/auto-FOX/blob/master/FOX/functions/charge_utils.py
 .. _FOX.examples: https://github.com/nlesc-nano/auto-FOX/tree/master/FOX/examples
+.. _FOX.io.hdf5_utils.py: https://github.com/nlesc-nano/auto-FOX/blob/master/FOX/io/hdf5_utils.py
 .. _Molecule: https://github.com/nlesc-nano/auto-FOX/blob/master/FOX/classes/molecule_utils.py
 .. _MultiMolecule: https://github.com/nlesc-nano/auto-FOX/blob/master/FOX/classes/multi_mol.py
 .. _FOX.io.read_kf.py: https://github.com/nlesc-nano/auto-FOX/blob/master/FOX/io/read_kf.py
