@@ -89,7 +89,7 @@ Installing **Auto-FOX**
 Optional dependencies
 ---------------------
 
-- Use of the FOX.monte_carlo_ module requires h5py_ and PyYAML_.
+- Use of the FOX.monte_carlo_ module requires h5py_.
   Note: h5py is not distrbuted via PyPi:
 
   - Anaconda:   ``conda install --name FOX -y -c conda-forge h5py``
@@ -118,5 +118,4 @@ Optional dependencies
 .. _FOX.data: https://github.com/nlesc-nano/auto-FOX/blob/master/FOX/data
 .. _FOX.examples: https://github.com/nlesc-nano/auto-FOX/blob/master/FOX/examples/input.py
 .. _h5py: https://www.h5py.org/
-.. _PyYAML: https://pyyaml.org/
 .. _FOX.monte_carlo: https://auto-fox.readthedocs.io/en/latest/4_monte_carlo.html
