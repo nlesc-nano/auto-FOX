@@ -447,9 +447,10 @@ class MultiMolecule(_MultiMolecule):
                                    atom_subset: AtomSubset = None) -> np.ndarray:
         """Return the mean or root-mean squared velocity (mean = time-averaged)."""
         if not rms:
-            return self.get_velocity(timestep, mol_subset, atom_subset).mean(axis=0)
+            return self.get_velocity(timestep, mol_subset=mol_subset,
+                                     atom_subset=atom_subset).mean(axis=0)
         else:
-            v = self.get_velocity(timestep, mol_subset, atom_subset)
+            v = self.get_velocity(timestep, mol_subset=mol_subset, atom_subset=atom_subset)
             return MultiMolecule(v, self.atoms).get_rmsf(mol_subset)
 
     def get_velocity(self, timestep: float = 1.0,
