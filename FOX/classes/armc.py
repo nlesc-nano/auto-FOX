@@ -13,7 +13,7 @@ from scm.plams.core.functions import (init, finish, config)
 
 from .psf_dict import PSFDict
 from .monte_carlo import MonteCarlo
-from ..io.hdf5_utils import (create_hdf5, to_hdf5, reshape_xyz)
+from ..io.hdf5_utils import (create_hdf5, to_hdf5)
 from ..functions.utils import (get_template, get_class_name, get_func_name)
 from ..functions.cp2k_utils import set_subsys_kind
 from ..functions.armc_sanitization import init_armc_sanitization
@@ -155,7 +155,6 @@ class ARMC(MonteCarlo):
         pes_new, mol = self.get_pes_descriptors(history_dict, key_new)
         history_dict[key_new] = self.get_aux_error(pes_new)
         self.param['param_old'] = self.param['param']
-        reshape_xyz(self.hdf5_file, mol)
 
         # Start the main loop
         for kappa in range(super_iter):

@@ -181,10 +181,11 @@ def sanitize_pes(pes: Settings,
         assert_type(value.kwarg, dict, 'pes'+str(key)+'kwarg')
 
     for key, value in pes.items():
-        try:
-            value.kwarg.sort()
-        except AttributeError:
-            pass
+        for i in value.kwarg.values():
+            try:
+                i.sort()
+            except AttributeError:
+                pass
         check_key_type(key, value)
         value.ref = value.func(mol, **value.kwarg)
     return pes

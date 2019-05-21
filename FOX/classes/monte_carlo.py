@@ -127,7 +127,7 @@ class MonteCarlo():
         update_cp2k_settings(self.job.settings, self.param)
         return tuple(self.param['param'].values)
 
-    def run_md(self) -> Tuple[Optional[MultiMolecule], str]:
+    def run_md(self) -> Tuple[Optional[MultiMolecule], Tuple[str]]:
         """Run a molecular dynamics (MD) job.
 
         Returns a new :class:`.MultiMolecule` instance constructed from the MD trajectory and the
@@ -138,19 +138,33 @@ class MonteCarlo():
 
         :return: A :class:`.MultiMolecule` instance constructed from the MD trajectory &
             the path to the PLAMS results directory.
-        :rtype: |FOX.MultiMolecule|_ and |str|_
+        :rtype: |FOX.MultiMolecule|_ and |tuple|_ [|str|_]
         """
-        # Run an MD calculation
         job_type = self.job.func
-        job = job_type(name=self.job.name, molecule=self.job.molecule, settings=self.job.settings)
-        results = job.run()
-        results.wait()
+
+        # Prepare preoptimization settings
+        s1 = self.job.settings.copy()
+        s1.input['global'].run_type = 'geometry_optimization'
+        s1.input.motion.geo_opt.max_iter = s1.input.motion.md.steps // 100
+        del s1.input.motion.md
+
+        # Preoptimize
+        job1 = job_type(name=self.job.name + '_pre_opt', molecule=self.job.molecule, settings=s1)
+        results1 = job1.run()
+        results1.wait()
+        mol_path = results1.get_xyz_path()
+        mol_preopt = MultiMolecule.from_xyz(mol_path).as_Molecule(-1)[0]
+
+        # Run an MD calculation
+        job2 = job_type(name=self.job.name, molecule=mol_preopt, settings=self.job.settings)
+        results2 = job2.run()
+        results2.wait()
 
         try:  # Construct and return a MultiMolecule object
-            mol = MultiMolecule.from_xyz(results.get_xyz_path())
+            mol = MultiMolecule.from_xyz(results2.get_xyz_path())
         except TypeError:  # The MD simulation crashed
             mol = None
-        return mol, job.path
+        return mol, (job1.path, job2.path)
 
     def get_pes_descriptors(self,
                             history_dict: Dict[Tuple[float], np.ndarray],
@@ -179,7 +193,8 @@ class MonteCarlo():
 
         # Delete the output directory and return
         if not self.job.keep_files:
-            shutil.rmtree(path)
+            for i in path:
+                shutil.rmtree(i)
         return ret, mol
 
     @staticmethod

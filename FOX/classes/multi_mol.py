@@ -435,9 +435,10 @@ class MultiMolecule(_MultiMolecule):
                              atom_subset: AtomSubset = None) -> np.ndarray:
         """Return the mean or root-mean squared velocity."""
         if not rms:
-            return self.get_velocity(timestep, mol_subset, atom_subset).mean(axis=1)
+            return self.get_velocity(timestep, mol_subset=mol_subset,
+                                     atom_subset=atom_subset).mean(axis=1)
         else:
-            v = self.get_velocity(timestep, mol_subset, atom_subset)
+            v = self.get_velocity(timestep, mol_subset=mol_subset, atom_subset=atom_subset)
             return MultiMolecule(v, self.atoms).get_rmsd(mol_subset)
 
     def get_time_averaged_velocity(self, timestep: float = 1.0,
@@ -1156,7 +1157,7 @@ class MultiMolecule(_MultiMolecule):
             mol_template.add_atom(atom)
 
         # Fill the template molecule with bonds
-        if self.bonds is not None:
+        if self.bonds.any():
             bond_idx = np.ones(len(self))
             bond_idx[at_subset] += np.arange(len(at_subset))
             for i, j, order in self.bonds:

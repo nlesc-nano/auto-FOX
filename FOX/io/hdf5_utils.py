@@ -1,6 +1,6 @@
 """Functions for storing Monte Carlo results in hdf5 format."""
 
-from typing import (Dict, Iterable, Optional, Union, Hashable, List)
+from typing import (Dict, Iterable, Optional, Union, Hashable, List, Tuple)
 
 import numpy as np
 import pandas as pd
@@ -20,7 +20,6 @@ except ImportError:
                   \n\tconda install --name FOX -y -c conda-forge h5py"
 
 from ..functions.utils import (get_shape, assert_error, array_to_index)
-from ..classes.mulit_mol import MultiMolecule
 
 __all__ = ['create_hdf5', 'to_hdf5', 'from_hdf5']
 
@@ -53,6 +52,7 @@ def create_hdf5(filename: str,
     shape_dict.xyz.shape = (shape[1], 1, len(mc_kwarg.job.molecule), 3)
     shape_dict.xyz.dtype = float
     shape_dict.xyz.maxshape = (shape[1], None, len(mc_kwarg.job.molecule), 3)
+    shape_dict.xyz.fillvalue = np.nan
     shape_dict.phi.shape = (shape[0], )
     shape_dict.phi.dtype = float
     shape_dict.param.shape = shape + (len(mc_kwarg.param), )
@@ -78,8 +78,8 @@ def create_hdf5(filename: str,
                     data=mc_kwarg.pes[key].ref,
                     name=key + '_ref',
                     compression='gzip',
-                    dtype=value.dtype,
-                    shape=value.shape[2:]
+                    dtype=kwarg.dtype,
+                    shape=kwarg.shape[2:]
                 )
         f.attrs['super-iteration'] = -1
         f.attrs['sub-iteration'] = -1
@@ -187,27 +187,15 @@ def to_hdf5(filename: str,
         f.attrs['sub-iteration'] = omega
         for key, value in dset_dict.items():
             if key == 'xyz':
-                f[key][omega] = value
-            if key == 'phi':
+                try:
+                    f[key][omega] = value
+                except TypeError:  # Reshape and try again
+                    f[key].shape = (f[key].shape[0],) + value.shape
+                    f[key][omega] = value
+            elif key == 'phi':
                 f[key][kappa] = value
             else:
                 f[key][kappa, omega] = value
-
-
-@assert_error(H5PY_ERROR)
-def reshape_xyz(filename: str,
-                mol: MultiMolecule) -> None:
-    """Reshape the *xyz* dataset in **filename** based on **mol**.
-
-    Axis 1 in *xyz* is set equal to **mol**.shape[0], *i.e.* the number of molecules in **mol**.
-
-    :parameter str filename: The path+name of the hdf5 file.
-    :parameter mol_shape: A :class:`.MultiMolecule` instance.
-    :type mol_shape: |FOX.MultiMolecule|_
-    """
-    with h5py.File(filename, 'r') as f:
-        shape = f['xyz'].shape
-        f['xyz'].shape = (shape[0], ) + mol.shape
 
 
 DataSets = Optional[Union[Hashable, Iterable[Hashable]]]
@@ -288,14 +276,14 @@ def _get_dset(f: H5pyFile,
 
 
 @assert_error(H5PY_ERROR)
-def _get_xyz_dset(f: H5pyFile) -> MultiMolecule:
+def _get_xyz_dset(f: H5pyFile) -> Tuple[np.ndarray, Dict[str, List[int]]]:
     """ Return the *xyz* dataset from **f** as a :class:`MultiMolecule` instance.
 
     :parameter f: An opened hdf5 file.
     :type f: |h5py.File|_
     :return: A list of :math:`k` MultiMolecule instances with :math:`m` molecules and
         :math:`n` atoms.
-    :rtype: :math:`k`|list|_ [:math:`m*n*3` |FOX.MultiMolecule|_]
+    :rtype: :math:`k*m*n*3` |np.ndarray|_ and |dict|_
     """
     key = 'xyz'
 
@@ -309,10 +297,11 @@ def _get_xyz_dset(f: H5pyFile) -> MultiMolecule:
 
     # Extract the Cartesian coordinates; sort in chronological order
     i = f.attrs['sub-iteration']
-    ret = [MultiMolecule(i, atoms=idx_dict.copy()) for j in f[key][i:]]
-    ret += [MultiMolecule(i, atoms=idx_dict.copy()) for j in f[key][:i]]
-
-    return ret
+    j = f[key].shape[0] - i
+    ret = np.empty_like(f[key])
+    ret[:j] = f[key][i:]
+    ret[j:] = f[key][:i]
+    return ret, idx_dict
 
 
 @assert_error(H5PY_ERROR)
