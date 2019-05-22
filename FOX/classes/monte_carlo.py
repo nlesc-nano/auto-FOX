@@ -112,26 +112,22 @@ class MonteCarlo():
         """
         # Unpack arguments
         param = self.param
-        psf = self.job.psf['atoms']
+        psf = self.job.psf.atoms
 
         # Perform a move
-        i = param.loc[:, 'param'].sample()
-        j = np.random.choice(self.move.range, 1)
-        param.loc[i.index, 'param'] = self.move.func(i, j, **self.move.kwarg)
-        i = param.loc[i.index, 'param']
+        idx, x1 = next(param.loc[:, 'param'].sample().items())
+        x2 = np.random.choice(self.move.range, 1)
+        param.at[idx, 'param'] = self.move.func(x1, x2, **self.move.kwarg)
 
         # Constrain the atomic charges
-        if 'charge' in i:
-            for (_, at), charge in i.iteritems():
-                pass
+        if 'charge' in idx:
+            at, charge = idx[1], param.at[idx, 'param']
             exclude = list({i for i in psf['atom type'] if i not in param.loc['charge'].index})
             update_charge(at, charge, psf, self.move.charge_constraints, exclude)
-            idx_set = set(psf['atom type'].values)
-            for at in idx_set:
-                if ('charge', at) in param.index:
-                    condition = psf['atom type'] == at, 'charge'
-                    param.loc[('charge', at), 'param'] = psf.loc[condition].iloc[0]
-            if self.job.psf[0]:
+            for at in param.loc['charge'].index:
+                charge = psf.loc[psf['atom type'] == at, 'charge'].iloc[0]
+                param.at[('charge', 'at'), 'param'] = charge
+            if self.job.psf.filename.any():
                 PSFDict.write_psf(self.job.psf)
 
         # Update job settings and return a tuple with new parameters

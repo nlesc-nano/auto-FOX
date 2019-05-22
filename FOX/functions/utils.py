@@ -203,8 +203,9 @@ def get_shape(item: Iterable) -> Tuple[int]:
     return (1, )  # Plan C: **item** has access to neither A nor B
 
 
-def flatten_dict(input_dict: dict) -> dict:
-    """Flatten a dictionary.
+def flatten_dict(input_dict: dict,
+                 clip: Optional[int] = None) -> dict:
+    """Flatten a nested dictionary.
 
     The keys of the to be returned dictionary consist are tuples with the old (nested) keys
     of **input_dict**.
@@ -219,6 +220,8 @@ def flatten_dict(input_dict: dict) -> dict:
         {('a', 'b', 'c'): True}
 
     :parameter dict input_dict: A (nested) dicionary.
+    :parameter int clip: The maximum length of the tuple keys. The maximum length is enforced by
+        disgarding the first :math:`n` elements of a tuple key (if necessary).
     :return: A non-nested dicionary derived from **input_dict**.
     :rtype: |dict|_ (keys: |tuple|_)
     """
@@ -227,8 +230,11 @@ def flatten_dict(input_dict: dict) -> dict:
             key = key_ret + (key, )
             if isinstance(value, dict):
                 concatenate(key, value)
-            else:
+            elif clip is None:
                 ret[key] = value
+            else:
+                i = len(key) - clip
+                ret[key[i:]] = value
 
     # Changes keys into tuples
     ret = input_dict.__class__()
@@ -238,24 +244,35 @@ def flatten_dict(input_dict: dict) -> dict:
 
 def dict_to_pandas(input_dict: dict,
                    name: Hashable = 0,
-                   object_type: str = 'DataFrame') -> pd.DataFrame:
-    """Turn a (nested) dictionary into a pandas series or dataframe.
+                   object_type: str = 'pd.DataFrame') -> pd.DataFrame:
+    """Turn a nested dictionary into a pandas series or dataframe.
 
     Keys are un-nested and used for generating multiindices (see meth:`flatten_dict`).
 
-    :parameter dict input_dict: A (nested) dictionary.
-    :parameter object name: The name of the to be returned series/dataframe.
+    :parameter dict input_dict: A nested dictionary.
+    :parameter object name: The name of the to be returned series or dataframe column.
     :parameter str object_type: The object type of the to be returned item.
         Accepted values are *Series* or *DataFrame*
     :return: A pandas series or dataframe created fron **input_dict**.
     :rtype: |pd.Series|_ or |pd.DataFrame|_ (index: |pd.MultiIndex|_)
     """
-    flat_dict = flatten_dict(input_dict)
+    # Construct a MultiIndex
+    flat_dict = flatten_dict(input_dict, clip=2)
     idx = pd.MultiIndex.from_tuples(flat_dict.keys())
-    if object_type.lower() == 'series':
-        return pd.Series(list(flat_dict.values()), index=idx, name=name)
-    elif object_type.lower() == 'dataframe':
-        return pd.DataFrame(list(flat_dict.values()), index=idx, columns=[name])
+
+    # Construct a DataFrame or Series
+    pd_type = object_type.split('.')[-1].lower()
+    if pd_type == 'series':
+        ret = pd.Series(list(flat_dict.values()), index=idx, name=name)
+    elif pd_type == 'dataframe':
+        ret = pd.DataFrame(list(flat_dict.values()), index=idx, columns=[name])
+    else:
+        raise ValueError("{} is not an accepted value for the keyword argument 'object_type'."
+                         "Accepted values are 'DataFrame' or 'Series'".format(str(object_type)))
+
+    # Sort and return
+    ret.sort_index(inplace=True)
+    return ret
 
 
 def array_to_index(ar: np.ndarray) -> pd.Index:

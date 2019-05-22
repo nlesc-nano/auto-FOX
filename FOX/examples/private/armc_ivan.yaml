@@ -3,20 +3,21 @@ param:
         Cs: 1.000
         Pb: 2.000
         Br: -1.000
-    epsilon:
-        unit: kjmol
-        Cs Cs: 0.3101
-        Cs Br: 1.5225
-        Pb Pb: 1.6135
-        Pb Br: 1.8340
-        Br Br: 1.8000
-    sigma:
-        unit: nm
-        Cs Cs: 0.1234
-        Cs Br: 0.4852
-        Pb Pb: 0.2940
-        Pb Br: 0.2471
-        Br Br: 0.3526
+    lennard-jones:
+        epsilon:
+            unit: kjmol
+            Cs Cs: 0.3101
+            Cs Br: 1.5225
+            Pb Pb: 1.6135
+            Pb Br: 1.8340
+            Br Br: 1.8000
+        sigma:
+            unit: nm
+            Cs Cs: 0.1234
+            Cs Br: 0.4852
+            Pb Pb: 0.2940
+            Pb Br: 0.2471
+            Br Br: 0.3526
 
 pes:
     rdf:
