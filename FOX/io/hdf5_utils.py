@@ -1,5 +1,6 @@
 """Functions for storing Monte Carlo results in hdf5 format."""
 
+from time import sleep
 from typing import (Dict, Iterable, Optional, Union, Hashable, List, Tuple)
 
 import numpy as np
@@ -181,7 +182,17 @@ def to_hdf5(filename: str,
         :meth:`.ARMC.init_armc`.
     :parameter int omega: The sub-iteration, :math:`\omega`, in the inner loop of
         :meth:`.ARMC.init_armc`.
-    n"""
+    """
+    # Check if the hdf5 file is already opened. If opened: wait for 5 sec and try again.
+    while True:
+        try:
+            with h5py.File(filename, 'r+') as _:
+                break
+        except OSError:
+            print("'{}' is temporary unavailable; repeating attempt in 5 seconds".format(filename))
+            sleep(5.0)
+
+    # Update the hdf5 file
     with h5py.File(filename, 'r+') as f:
         f.attrs['super-iteration'] = kappa
         f.attrs['sub-iteration'] = omega
@@ -223,8 +234,8 @@ def from_hdf5(filename: str,
         # Identify the to-be returned datasets
         if isinstance(datasets, str):
             datasets = (datasets, )
-        else:
-            datasets = datasets or f.keys()
+        elif datasets is None:
+            datasets = (i for i in f.keys() if i != 'xyz')
 
         # Retrieve the datasets
         try:

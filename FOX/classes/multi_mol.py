@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from itertools import (chain, combinations_with_replacement)
 from typing import (
-    Container, Optional, Union, List, Hashable, Callable, Iterable, Dict, Tuple, Any
+    Container, Optional, Union, List, Hashable, Callable, Iterable, Dict, Tuple, Any, overload
 )
 
 import numpy as np
@@ -24,7 +24,7 @@ __all__ = ['MultiMolecule']
 
 MolSubset = Union[None, slice, int]
 AtomSubset = Union[
-    None, slice, int, str, Container[int], Container[str], Container[Container[int]]
+    None, slice, range, int, str, Container[int], Container[str], Container[Container[int]]
 ]
 
 
@@ -678,7 +678,6 @@ class MultiMolecule(_MultiMolecule):
         """Create subsets of atomic indices (using **rmsf** and **idx_series**) based on
         distance criteria in **dist_dict**.
 
-
         For example, ``dist_dict = {'Cd': [3.0, 6.5]}`` will create and return a dictionary with
         three keys: One for all atoms whose RMSF is smaller than 3.0, one where the RMSF is
         between 3.0 and 6.5, and finally one where the RMSF is larger than 6.5.
@@ -928,47 +927,62 @@ class MultiMolecule(_MultiMolecule):
                 return np.arccos(np.einsum('ijkl,ijml->ijkm', unit_vec1, unit_vec2)), r_max
             return np.arccos(np.einsum('ijkl,ijml->ijkm', unit_vec1, unit_vec2))
 
-    def _get_atom_subset(self, subset: AtomSubset) -> Union[slice, Container[int]]:
+    def _get_atom_subset(self, atom_subset: AtomSubset,
+                         as_sequence: bool = False) -> Union[slice, range, Container[int]]:
         """Grab and return a list of indices from **self.atoms**.
 
         Return *at* if it is *None*, an *int* or iterable container consisting of *int*.
-        """
-        if subset is None:
-            return slice(0, None)
-        elif isinstance(subset, slice):
-            return subset
 
-        elif isinstance(subset, (int, np.integer)):
-            return [subset]
-        elif isinstance(subset[0], (int, np.integer)):
-            return subset
-        elif isinstance(subset, str):
-            return self.atoms[subset]
-        elif isinstance(subset[0], str):
-            return list(chain.from_iterable(self.atoms[i] for i in subset))
-        elif isinstance(subset[0][0], (int, np.integer)):
-            return list(chain.from_iterable(subset))
-        raise TypeError("'{}' is not a supported object type".format(subset.__class__.__name__))
+        If **as_sequence** is *True*, ensure that a sequence is returned.
+        """
+        if as_sequence:
+            if atom_subset is None:
+                return np.arange(0, self.shape[1])
+            elif isinstance(atom_subset, (range, slice)):
+                return np.arange(atom_subset.start, atom_subset.stop, atom_subset.step)
+        else:
+            if atom_subset is None:
+                return slice(0, None)
+            elif isinstance(atom_subset, (range, slice)):
+                return atom_subset
+
+        if isinstance(atom_subset, (int, np.integer)):
+            return [atom_subset]
+        elif isinstance(atom_subset[0], (int, np.integer)):
+            return atom_subset
+        elif isinstance(atom_subset, str):
+            return self.atoms[atom_subset]
+        elif isinstance(atom_subset[0], str):
+            return list(chain.from_iterable(self.atom_subset[i] for i in atom_subset))
+        elif isinstance(atom_subset[0][0], (int, np.integer)):
+            return list(chain.from_iterable(atom_subset))
+
+        err = "'{}' of type '{}' is an invalid argument for 'atom_subset'"
+        raise TypeError(err.format(str(atom_subset), atom_subset.__class__.__name__))
 
     @staticmethod
-    def _get_mol_subset(subset: MolSubset) -> slice:
+    def _get_mol_subset(mol_subset: MolSubset) -> slice:
         """"""
-        if subset is None:
+        if mol_subset is None:
             return slice(0, None)
-        elif isinstance(subset, slice):
-            return subset
-        elif isinstance(subset, (int, np.integer)):
-            if subset >= 0:
-                return slice(subset, subset+1)
+        elif isinstance(mol_subset, slice):
+            return mol_subset
+
+        elif isinstance(mol_subset, (int, np.integer)):
+            if mol_subset >= 0:
+                return slice(mol_subset, mol_subset+1)
             else:
-                return slice(subset-1, subset)
-        elif len(subset) == 1 and isinstance(subset[0], (int, np.integer)):
-            i = subset[0]
+                return slice(mol_subset-1, mol_subset)
+
+        elif len(mol_subset) == 1 and isinstance(mol_subset[0], (int, np.integer)):
+            i = mol_subset[0]
             if i >= 0:
                 return slice(i, i+1)
             else:
                 return slice(i-1, i)
-        raise TypeError("'{}' is not a supported object type".format(subset.__class__.__name__))
+
+        err = "'{}' of type '{}' is an invalid argument for 'mol_subset'"
+        raise TypeError(err.format(str(mol_subset), mol_subset.__class__.__name__))
 
     """#################################  Type conversion  ################################### """
 

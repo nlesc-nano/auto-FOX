@@ -1,6 +1,8 @@
 """A module with miscellaneous functions."""
 
-from typing import (Iterable, Tuple, Callable, Hashable, Sequence, MutableSequence, Optional)
+from typing import (
+    Iterable, Tuple, Callable, Hashable, Sequence, MutableSequence, Optional, List, Any
+)
 from os.path import join, isfile
 from functools import wraps
 from pkg_resources import resource_filename
@@ -221,7 +223,7 @@ def flatten_dict(input_dict: dict,
 
     :parameter dict input_dict: A (nested) dicionary.
     :parameter int clip: The maximum length of the tuple keys. The maximum length is enforced by
-        disgarding the first :math:`n` elements of a tuple key (if necessary).
+        concatenating the first :math:`n` elements of a tuple key into a string (if necessary).
     :return: A non-nested dicionary derived from **input_dict**.
     :rtype: |dict|_ (keys: |tuple|_)
     """
@@ -233,8 +235,12 @@ def flatten_dict(input_dict: dict,
             elif clip is None:
                 ret[key] = value
             else:
-                i = len(key) - clip
-                ret[key[i:]] = value
+                i = len(key) - clip + 1
+                try:
+                    key = (' '.join(key[:i]), ) + key[i:]
+                except TypeError:  # Try harder
+                    key = (' '.join(str(j) for j in key[:i]), ) + key[i:]
+                ret[key] = value
 
     # Changes keys into tuples
     ret = input_dict.__class__()
@@ -409,22 +415,19 @@ def slice_str(str_: str,
 
 
 def get_nested_value(iterable: Sequence,
-                     key_tup: Iterable[Hashable]) -> any:
+                     key_tup: Iterable[Hashable]) -> Any:
     """Retrieve a value, associated with all keys in **key_tup**, from a nested iterable.
 
-    .. code:: python
-
-        >>> set_nested_value(iterable, ('a', 'b', 3))
-
-    is equivalent to:
+    The following two expressions are equivalent:
 
     .. code:: python
 
+        >>> get_nested_value(iterable, ('a', 'b', 3))
         >>> iterable['a']['b'][3]
 
     The function calls the **iterable**.__getitem__() method (recursivelly) untill all keys in
     **key_tup** are exhausted. Works on any iterable container whose elements can be
-    accessed via their index or key (*e.g.* lists, tuples or dictionaries).
+    accessed via their index or key (*e.g.* lists, tuples and dictionaries).
 
     :parameter object iterable: A (nested) iterable container such as a list, tuple or dictionary.
     :parameter tuple key_tup: A sequence of nested keys and/or indices.
@@ -437,24 +440,21 @@ def get_nested_value(iterable: Sequence,
 
 
 def set_nested_value(iterable: MutableSequence,
-                     key_tup: Iterable[Hashable],
-                     value: any) -> None:
+                     key_tup: Sequence[Hashable],
+                     value: Any) -> None:
     """Assign a value, associated with all keys and/or indices in **key_tup**,
     to a nested iterable.
+
+    The following two expressions are equivalent:
 
     .. code:: python
 
         >>> set_nested_value(iterable, ('a', 'b', 3), True)
-
-    is equivalent to:
-
-    .. code:: python
-
         >>> iterable['a']['b'][3] = True
 
     The function calls the **iterable**.__getitem__() method (recursivelly) untill all keys in
     **key_tup** are exhausted. Works on any mutable iterable container whose elements can be
-    accessed via their index or key (*e.g.* lists or dictionaries).
+    accessed via their index or key (*e.g.* lists and dictionaries).
 
     :parameter object iterable: A mutable (nested) iterable container such as a list or dictionary.
     :parameter tuple key_tup: A sequence of nested keys and/or indices.
@@ -465,3 +465,26 @@ def set_nested_value(iterable: MutableSequence,
     for i in key_tup[:-1]:
         iter_slice = iter_slice[i]
     iter_slice[key_tup[-1]] = value
+
+
+def get_atom_count(iterable: Iterable[Sequence[str]],
+                   mol: 'FOX.MultiMolecule') -> List[int]:
+    """ Count the number of atoms/atom-pairs from **iterable** in **mol**.
+
+    :parameter list iterable: A nested iterable with :math:`n` atoms and/or atom pairs.
+    :parameter mol: A :class:`.MultiMolecule` instance with
+    :type mol: |FOX.MultiMolecule|_
+    :return: A list of atom(-pair) counts.
+    :rtype: :math:`n` |list|_ [|int|_]
+    """
+    def _get_atom_count(at):
+        at_list = at.split()
+        if len(at_list) == 2 and at_list[0] == at_list[1]:
+            at1, _ = [len(mol.atoms[i]) for i in at_list]
+            return (at1**2 - at1) // 2
+        elif len(at_list) == 2:
+            return np.product([len(mol.atoms[i]) for i in at_list])
+        else:
+            return len(mol.atoms[at])
+
+    return [_get_atom_count(at) for *_, at in iterable]

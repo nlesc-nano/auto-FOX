@@ -11,7 +11,7 @@ from scm.plams import Settings
 from scm.plams.core.basejob import Job
 from scm.plams.interfaces.thirdparty.cp2k import Cp2kJob
 
-from .utils import (get_template, _get_move_range, dict_to_pandas)
+from .utils import (get_template, _get_move_range, dict_to_pandas, get_atom_count)
 from .cp2k_utils import set_keys
 from .charge_utils import get_charge_constraints
 from ..classes.psf_dict import PSFDict
@@ -44,7 +44,7 @@ def init_armc_sanitization(dict_: dict) -> Tuple[MultiMolecule, pd.DataFrame, Se
     del s.molecule
     del s.psf
 
-    s.param = sanitize_param(s.param, s.job.settings)
+    s.param = sanitize_param(s.param, s.job.settings, mol)
     s.pes = sanitize_pes(s.pes, mol)
     s.hdf5_file = sanitize_hdf5_file(s.hdf5_file)
     s.move = sanitize_move(s.move)
@@ -133,7 +133,8 @@ def sanitize_armc(armc: Settings) -> Tuple[Settings, Settings]:
 
 
 def sanitize_param(param: Settings,
-                   settings: Settings) -> Settings:
+                   settings: Settings,
+                   mol: MultiMolecule) -> Settings:
     """Sanitize the param block."""
     def check_key1_type(key1):
         if not isinstance(key1, str):
@@ -151,7 +152,7 @@ def sanitize_param(param: Settings,
             raise TypeError(error)
         elif isinstance(value2, (int, np.int)):
             param[key1][key2] = float(value2)
-        elif not isinstance(value2, (float, np.float, str)):
+        elif not isinstance(value2, (float, np.float, str, dict)):
             error = TYPE_ERR.format('param.{}.{}'.format(str(key1), str(key2)),
                                     'float', get_name(value2))
             raise TypeError(error)
@@ -161,9 +162,10 @@ def sanitize_param(param: Settings,
         for key2, value2 in value1.items():
             check_key2_type(key2)
 
-    param = dict_to_pandas(param.as_dict(), 'param')
+    param = dict_to_pandas(param, 'param')
+    param['param old'] = np.nan
     param['key'] = set_keys(settings, param)
-    param['param_old'] = np.nan
+    param['count'] = get_atom_count(param.index, mol)
     return param
 
 

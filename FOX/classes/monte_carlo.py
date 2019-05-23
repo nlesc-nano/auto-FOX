@@ -14,8 +14,7 @@ from scm.plams.interfaces.thirdparty.cp2k import (Cp2kJob, Cp2kResults)
 
 from .psf_dict import PSFDict
 from .multi_mol import MultiMolecule
-from ..functions.utils import (get_template, _get_move_range)
-from ..functions.cp2k_utils import update_cp2k_settings
+from ..functions.utils import (get_template, _get_move_range, set_nested_value)
 from ..functions.charge_utils import update_charge
 
 __all__: List[str] = []
@@ -105,14 +104,14 @@ class MonteCarlo():
         """Update a random parameter in **self.param** by a random value from **self.move.range**.
 
         Performs in inplace update of the *param* column in **self.param**.
-        By default the move is applied in a multiplicative manner
+        By default the move is applied in a multiplicative manner.
+        **self.job.settings** is updated to reflect the change in parameters.
 
         :return: A tuple with the (new) values in the *param* column of **self.param**.
         :rtype: |tuple|_ [|float|_]
         """
         # Unpack arguments
         param = self.param
-        psf = self.job.psf.atoms
 
         # Perform a move
         idx, x1 = next(param.loc[:, 'param'].sample().items())
@@ -122,16 +121,13 @@ class MonteCarlo():
         # Constrain the atomic charges
         if 'charge' in idx:
             at, charge = idx[1], param.at[idx, 'param']
-            exclude = list({i for i in psf['atom type'] if i not in param.loc['charge'].index})
-            update_charge(at, charge, psf, self.move.charge_constraints, exclude)
-            for at in param.loc['charge'].index:
-                charge = psf.loc[psf['atom type'] == at, 'charge'].iloc[0]
-                param.at[('charge', 'at'), 'param'] = charge
-            if self.job.psf.filename.any():
-                PSFDict.write_psf(self.job.psf)
+            update_charge(at, charge, param.loc['charge'], self.move.charge_constraints)
+            for key, value, fstring in param.loc['charge', ['key', 'param', 'unit']].values:
+                set_nested_value(self.job.settings, key, fstring.format(value))
+        else:
+            key, value, fstring = next(iter(param.loc['charge', ['key', 'param', 'unit']].values))
+            set_nested_value(self.job.settings, key, fstring.format(value))
 
-        # Update job settings and return a tuple with new parameters
-        update_cp2k_settings(self.job.settings, self.param)
         return tuple(self.param['param'].values)
 
     def run_md(self) -> Tuple[Optional[MultiMolecule], Tuple[str]]:
