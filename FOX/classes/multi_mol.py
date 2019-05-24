@@ -966,8 +966,7 @@ class MultiMolecule(_MultiMolecule):
         err = "'{}' of type '{}' is an invalid argument for 'atom_subset'"
         raise TypeError(err.format(str(atom_subset), atom_subset.__class__.__name__))
 
-    @staticmethod
-    def _get_mol_subset(mol_subset: MolSubset) -> slice:
+    def _get_mol_subset(self, mol_subset: MolSubset) -> slice:
         """"""
         if mol_subset is None:
             return slice(0, None)
@@ -978,14 +977,16 @@ class MultiMolecule(_MultiMolecule):
             if mol_subset >= 0:
                 return slice(mol_subset, mol_subset+1)
             else:
-                return slice(mol_subset-1, mol_subset)
+                j = len(self) + 1 - mol_subset
+                return slice(mol_subset, j)
 
         elif len(mol_subset) == 1 and isinstance(mol_subset[0], (int, np.integer)):
             i = mol_subset[0]
             if i >= 0:
                 return slice(i, i+1)
             else:
-                return slice(i-1, i)
+                j = len(self) + 1 - i
+                return slice(i, j)
 
         err = "'{}' of type '{}' is an invalid argument for 'mol_subset'"
         raise TypeError(err.format(str(mol_subset), mol_subset.__class__.__name__))
