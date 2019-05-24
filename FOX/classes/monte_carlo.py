@@ -12,7 +12,6 @@ from scm.plams import Settings, Molecule
 from scm.plams.core.functions import add_to_class
 from scm.plams.interfaces.thirdparty.cp2k import (Cp2kJob, Cp2kResults)
 
-from .psf_dict import PSFDict
 from .multi_mol import MultiMolecule
 from ..functions.utils import (get_template, _get_move_range, set_nested_value)
 from ..functions.charge_utils import update_charge
@@ -121,7 +120,8 @@ class MonteCarlo():
         # Constrain the atomic charges
         if 'charge' in idx:
             at, charge = idx[1], param.at[idx, 'param']
-            update_charge(at, charge, param.loc['charge'], self.move.charge_constraints)
+            with pd.option_context('mode.chained_assignment', None):
+                update_charge(at, charge, param.loc['charge'], self.move.charge_constraints)
             for key, value, fstring in param.loc['charge', ['key', 'param', 'unit']].values:
                 set_nested_value(self.job.settings, key, fstring.format(value))
         else:
@@ -149,6 +149,7 @@ class MonteCarlo():
         s_cp = self.job.settings.copy()
         s_cp.input['global'].run_type = 'geometry_optimization'
         s_cp.input.motion.geo_opt.max_iter = s_cp.input.motion.md.steps // 100
+        s_cp.input.motion.geo_opt.optimizer = 'LBFGS'
         del s_cp.input.motion.md
 
         # Preoptimize
