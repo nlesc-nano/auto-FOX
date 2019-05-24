@@ -131,7 +131,7 @@ class MonteCarlo():
         return tuple(self.param['param'].values)
 
     def run_md(self) -> Tuple[Optional[MultiMolecule], Tuple[str]]:
-        """Run a molecular dynamics (MD) job.
+        """Run a geometry optimization followed by a molecular dynamics (MD) job.
 
         Returns a new :class:`.MultiMolecule` instance constructed from the MD trajectory and the
         path to the MD results.
@@ -140,28 +140,29 @@ class MonteCarlo():
         * The MD job is constructed according to the provided settings in **self.job**.
 
         :return: A :class:`.MultiMolecule` instance constructed from the MD trajectory &
-            the path to the PLAMS results directory.
+            a tuple with the paths to the PLAMS results directories.
         :rtype: |FOX.MultiMolecule|_ and |tuple|_ [|str|_]
         """
         job_type = self.job.func
 
         # Prepare preoptimization settings
-        s1 = self.job.settings.copy()
-        s1.input['global'].run_type = 'geometry_optimization'
-        s1.input.motion.geo_opt.max_iter = s1.input.motion.md.steps // 100
-        del s1.input.motion.md
+        s_cp = self.job.settings.copy()
+        s_cp.input['global'].run_type = 'geometry_optimization'
+        s_cp.input.motion.geo_opt.max_iter = s_cp.input.motion.md.steps // 100
+        del s_cp.input.motion.md
 
         # Preoptimize
-        job1 = job_type(name=self.job.name + '_pre_opt', molecule=self.job.molecule, settings=s1)
+        job1 = job_type(name=self.job.name + '_pre_opt', molecule=self.job.molecule, settings=s_cp)
         results1 = job1.run()
-        results1.wait()
         mol_path = results1.get_xyz_path()
-        mol_preopt = MultiMolecule.from_xyz(mol_path).as_Molecule(-1)[0]
+        try:
+            mol_preopt = MultiMolecule.from_xyz(mol_path).as_Molecule(-1)[0]
+        except TypeError:  # The geometry optimization crashed
+            return None, (job1.path, )
 
         # Run an MD calculation
         job2 = job_type(name=self.job.name, molecule=mol_preopt, settings=self.job.settings)
         results2 = job2.run()
-        results2.wait()
 
         try:  # Construct and return a MultiMolecule object
             mol = MultiMolecule.from_xyz(results2.get_xyz_path())
