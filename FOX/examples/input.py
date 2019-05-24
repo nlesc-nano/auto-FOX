@@ -32,4 +32,4 @@ try:
     rmsf.plot()
     rmsd.plot()
 except Exception as ex:
-    print(ex)
+    print('{}: {}'.format(ex.__class__.__name__, ex))
