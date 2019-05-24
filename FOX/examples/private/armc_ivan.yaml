@@ -8,6 +8,7 @@ param:
             unit: kjmol
             Cs Cs: 0.3101
             Cs Br: 1.5225
+            Cs Pb: 1.5000
             Pb Pb: 1.6135
             Pb Br: 1.8340
             Br Br: 1.8000
@@ -15,6 +16,7 @@ param:
             unit: nm
             Cs Cs: 0.1234
             Cs Br: 0.4852
+            Cs Pb: 0.3000
             Pb Pb: 0.2940
             Pb Br: 0.2471
             Br Br: 0.3526
@@ -25,18 +27,20 @@ pes:
         kwarg:
             atom_subset: [Cs, Pb, Br]
 
-molecule: /Users/bvanbeek/Downloads/md_dft.xyz
+molecule: /Users/basvanbeek/Downloads/md_dft.xyz
 
 job:
-    logfile: armc.log
+    logfile: /Users/basvanbeek/Downloads/armc.log
     func: Cp2kJob
     name: armc
-    path: .
+    path: /Users/basvanbeek/Downloads
     folder: MM_MD_workdir
-    keep_files: False
+    keep_files: True
 
     settings:
         input:
+            global:
+                print_level: LOW
             force_eval:
                 subsys:
                     cell:
@@ -54,7 +58,7 @@ job:
                         csvr:
                             timecon: 1250
 
-hdf5_file: /Users/bvanbeek/Downloads/armc.hdf5
+hdf5_file: /Users/basvanbeek/Downloads/armc.hdf5
 
 armc:
     iter_len: 20000
