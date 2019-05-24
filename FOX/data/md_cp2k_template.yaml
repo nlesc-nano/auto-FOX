@@ -11,7 +11,7 @@ input:
                 do_nonbonded: ''
                 shift_cutoff: .TRUE.
                 spline:
-                    emax_spline: 10e10
+                    emax_spline: 10e99
             poisson:
                 ewald:
                     ewald_type: spme
