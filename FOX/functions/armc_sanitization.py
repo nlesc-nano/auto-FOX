@@ -114,15 +114,18 @@ def sanitize_armc(armc: Settings) -> Tuple[Settings, Settings]:
 
     if hasattr(armc.gamma, '__index__'):
         armc.gamma = float(armc.gamma)
-    assert_type(armc.gamma, (float, np.float), 'armc.gamma')
+    else:
+        assert_type(armc.gamma, (float, np.float), 'armc.gamma')
 
     if hasattr(armc.a_target, '__index__'):
         armc.a_target = float(armc.a_target)
-    assert_type(armc.a_target, (float, np.float), 'armc.a_target')
+    else:
+        assert_type(armc.a_target, (float, np.float), 'armc.a_target')
 
     if hasattr(armc.phi, '__index__'):
         armc.phi = float(armc.phi)
-    assert_type(armc.phi, (float, np.float), 'armc.phi')
+    else:
+        assert_type(armc.phi, (float, np.float), 'armc.phi')
 
     phi = Settings()
     phi.phi = armc.pop('phi')
@@ -138,24 +141,21 @@ def sanitize_param(param: Settings,
     """Sanitize the param block."""
     def check_key1_type(key1):
         if not isinstance(key1, str):
-            error = TYPE_ERR.format('param.{}'.format(str(key1)) + ' key', 'str', get_name(key1))
-            raise TypeError(error)
+            err = 'param.{}'.format(str(key1)) + ' key', 'str', get_name(key1)
+            raise TypeError(TYPE_ERR.format(*err))
         elif not isinstance(value1, dict):
-            error = TYPE_ERR.format('param.{}'.format(str(key1)) + ' value',
-                                    'dict', get_name(value1))
-            raise TypeError(error)
+            err = 'param.{}'.format(str(key1)) + ' value', 'dict', get_name(value1)
+            raise TypeError(TYPE_ERR.format(*err))
 
     def check_key2_type(key2):
         if not isinstance(key2, str):
-            error = TYPE_ERR.format('param.{}.{}'.format(str(key1), str(key2)) +
-                                    ' key', 'str', get_name(key2))
-            raise TypeError(error)
+            err = 'param.{}.{}'.format(str(key1), str(key2)) + ' key', 'str', get_name(key2)
+            raise TypeError(TYPE_ERR.format(*err))
         elif isinstance(value2, (int, np.int)):
             param[key1][key2] = float(value2)
         elif not isinstance(value2, (float, np.float, str, dict)):
-            error = TYPE_ERR.format('param.{}.{}'.format(str(key1), str(key2)),
-                                    'float', get_name(value2))
-            raise TypeError(error)
+            err = 'param.{}.{}'.format(str(key1), str(key2)), 'float', get_name(value2)
+            raise TypeError(TYPE_ERR.format(*err))
 
     for key1, value1 in param.items():
         check_key1_type(key1)
@@ -196,7 +196,8 @@ def sanitize_pes(pes: Settings,
 def sanitize_hdf5_file(hdf5_file: str) -> str:
     """Sanitize the hdf5_file block."""
     if not isinstance(hdf5_file, str):
-        raise TypeError(TYPE_ERR.format('hdf5_file', 'str', get_name(hdf5_file)))
+        err = 'hdf5_file', 'str', get_name(hdf5_file)
+        raise TypeError(TYPE_ERR.format(*err))
     return hdf5_file
 
 
@@ -217,14 +218,14 @@ def sanitize_job(job: Settings,
     elif not isinstance(job.func, Job):
         raise TypeError(TYPE_ERR.format('job.func', 'Job', get_name(job.func)))
 
-    if isinstance(job.settings, str):
-        if isfile(job.settings):
-            head, tail = split(job.settings)
-            job.settings = get_template(tail, path=head)
-        else:
-            job.settings = get_template(job.settings)
+    if isinstance(job.settings, str) and isfile(job.settings):
+        head, tail = split(job.settings)
+        job.settings = get_template(tail, path=head)
+    elif isinstance(job.settings, str):
+        job.settings = get_template(job.settings)
     elif not isinstance(job.settings, dict):
-        raise TypeError(TYPE_ERR2.format('job.settings', 'dict', 'str', get_name(job.settings)))
+        err = 'job.settings', 'dict', 'str', get_name(job.settings)
+        raise TypeError(TYPE_ERR2.format(*err))
     job.settings.soft_update(get_template('md_cp2k_template.yaml'))
 
     assert_type(job.path, str, 'job.path')
