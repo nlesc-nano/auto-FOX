@@ -11,11 +11,21 @@ def get_rdf_df(atom_pairs,
                r_max: float = 12.0) -> pd.DataFrame:
     """Construct and return a pandas dataframe filled with zeros.
 
-    :parameter float dr: The integration step-size in Angstrom, *i.e.* the distance between
-        concentric spheres.
-    :parameter float r_max: The maximum to be evaluated interatomic distance.
-    :parameter atom_pairs: An dictionary of 2-tuples representing the keys of the dataframe.
-    :type atom_pairs: |dict|_ [|tuple|_]
+    Parameters
+    ----------
+    dict atom_pairs:
+        Aa dictionary of 2-tuples representing the keys of the dataframe.
+
+    float dr:
+        The integration step-size in Angstrom, *i.e.* the distance between concentric spheres.
+
+    float r_max:
+        The maximum to be evaluated interatomic distance.
+
+    Returns
+    -------
+    |pd.DataFrame|_:
+        An empty dataframe to hold the RDF.
     """
     # Prepare the DataFrame arguments
     shape = 1 + int(r_max / dr), len(atom_pairs)
@@ -31,17 +41,25 @@ def get_rdf_df(atom_pairs,
 def get_rdf(dist: np.ndarray,
             dr: float = 0.05,
             r_max: float = 12.0) -> np.ndarray:
-    """Calculate and return the radial distribution function (RDF) based on the 3D distance matrix
-    **dist**.
+    """Calculate and return the radial distribution function (RDF).
 
-    :parameter dist: A 3D array representing :math:`m` distance matrices of :math:`n` by
-        :math:`k` atoms.
-    :type dist: :math:`m*n*k` |np.ndarray|_ [|np.float64|_]
-    :parameter float dr: The integration step-size in Angstrom, *i.e.* the distance between
-        concentric spheres.
-    :parameter float r_max: The maximum to be evaluated interatomic distance.
-    :return: An array with the resulting radial distribution function.
-    :rtype: 1D |np.ndarray|_ [|np.float64|_] of length 1 + **r_max** / **dr**.
+    The RDF is calculated using the 3D distance matrix **dist**.
+
+    Parameters
+    ----------
+    |np.ndarray|_ dist:
+        A 3D array representing :math:`m` distance matrices of :math:`n` by :math:`k` atoms.
+
+    float dr:
+        The integration step-size in Angstrom, *i.e.* the distance between concentric spheres.
+
+    float r_max:
+        The maximum to be evaluated interatomic distance.
+
+    Returns
+    -------
+    1D |np.ndarray|_ [|np.float64|_] of length 1 + **r_max** / **dr**:
+        An array with the resulting radial distribution function.
     """
     r = np.arange(0, r_max + dr, dr)
     idx_max = 1 + int(r_max / dr)
@@ -65,19 +83,28 @@ def get_rdf(dist: np.ndarray,
 def get_rdf_lowmem(dist: np.ndarray,
                    dr: float = 0.05,
                    r_max: float = 12.0) -> np.ndarray:
-    """Calculate and return the radial distribution function (RDF) based on the 2D distance matrix
-    **dist**.
+    """Calculate and return the radial distribution function (RDF).
+
+    The RDF is calculated using the 2D distance matrix **dist**.
 
     A more memory efficient implementation of :func:`FOX.functions.rdf.get_rdf`,
     which operates on a 3D distance matrix.
 
-    :parameter dist: A 2D array representing a distance matrix of :math:`n` by :math:`k` atoms.
-    :type dist: :math:`n*k` |np.ndarray|_ [|np.float64|_]
-    :parameter float dr: The integration step-size in Angstrom, *i.e.* the distance between
-        concentric spheres.
-    :parameter float r_max: The maximum to be evaluated interatomic distance.
-    :return: An array with the resulting radial distribution function.
-    :rtype: 1D |np.ndarray|_ [|np.float64|_] of length 1 + **r_max** / **dr**.
+    Parameters
+    ----------
+    |np.ndarray|_ dist:
+        A 2D array representing a single distance matrices of :math:`n` by :math:`k` atoms.
+
+    float dr:
+        The integration step-size in Angstrom, *i.e.* the distance between concentric spheres.
+
+    float r_max:
+        The maximum to be evaluated interatomic distance.
+
+    Returns
+    -------
+    1D |np.ndarray|_ [|np.float64|_] of length 1 + **r_max** / **dr**:
+        An array with the resulting radial distribution function.
     """
     idx_max = 1 + int(r_max / dr)
     dist_int = np.array(dist / dr, dtype=int).ravel()

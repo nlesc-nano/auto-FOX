@@ -34,17 +34,21 @@ def create_hdf5(filename: str,
     MC optimization:
 
     * The xyz coordinates
-    * The value of :math:`/phi` over the course of the parameter optimization (dataset: *phi*).
-    * The parameters (dataset: *param*)
-    * The acceptance rate (dataset: *acceptance*)
-    * The unmodified auxiliary error (dataset: *aux_error*)
-    * The modifications to the auxiliary error (dataset: *aux_error_mod*)
+    * The value of :math:`/phi` over the course of the parameter optimization (dataset: ``"phi"``)
+    * The parameters (dataset: ``"param"``)
+    * The acceptance rate (dataset: ``"acceptance"``)
+    * The unmodified auxiliary error (dataset: ``"aux_error"``)
+    * The modifications to the auxiliary error (dataset: ``"aux_error_mod"``)
     * User-specified PES descriptors (dataset(s): user-specified name(s))
-    * User-specified reference PES descriptors (dataset(s): user-specified name(s) + *_ref*)
+    * User-specified reference PES descriptors (dataset(s): user-specified name(s) + ``"_ref"``)
 
-    :parameter str filename: The path+name of the hdf5 file.
-    :parameter mc_kwarg: An ARMC object.
-    :type mc_kwarg: |FOX.ARMC|_
+    Parameters
+    ----------
+    str filename:
+        The path+filename of the hdf5 file.
+
+    |FOX.ARMC|_ mc_kwarg:
+        An ARMC object.
     """
     shape = mc_kwarg.armc.iter_len // mc_kwarg.armc.sub_iter_len, mc_kwarg.armc.sub_iter_len
 
@@ -103,12 +107,13 @@ def create_hdf5(filename: str,
 @assert_error(H5PY_ERROR)
 def index_to_hdf5(filename: str,
                   pd_dict: Dict[str, NDFrame]) -> None:
-    """Export the *index* and *columns* / *name* attributes of a Pandas dataframe/series to a
-    pre-existing hdf5 file.
+    """Store the ``index`` and ``columns`` / ``name`` attributes in hdf5 format.
 
     Attributes are exported for all dataframes/series in **pd_dict** and skipped otherwise.
-    The keys in **pd_dict**, together with the attribute names, are used for naming the datasets:
+    The keys in **pd_dict**, together with the attribute names, are used for naming the datasets.
 
+    Examples
+    --------
     .. code-block:: python
 
         >>> pd_dict = {}
@@ -120,9 +125,13 @@ def index_to_hdf5(filename: str,
         >>>     tuple(f.keys())
         ('df.columns', 'df.index', 'series.index', 'series.name')
 
-    :parameter str filename: The path+name of the hdf5 file.
-    :parameter pd_dict: A dictionary with dataset names as keys and matching array-like objects
-        as values.
+    Parameter
+    ---------
+    str filename:
+        The path+name of the hdf5 file.
+
+    dict pd_dict:
+        A dictionary with dataset names as keys and matching array-like objects as values.
     """
     attr_tup = ('index', 'columns', 'name')
 
@@ -142,6 +151,8 @@ def _attr_to_array(index: Union[str, pd.Index]) -> np.ndarray:
 
     Accepts strings and instances of pd.Index.
 
+    Examples
+    --------
     .. code-block:: python
 
         >>> item = 'name'
@@ -152,10 +163,15 @@ def _attr_to_array(index: Union[str, pd.Index]) -> np.ndarray:
         >>> _attr_to_array(item)
         array([0, 1, 2, 3, 4])
 
-    :parameter item: A string or instance of pd.Index (or one of its subclasses).
-    :type index: |str|_ or |pd.Index|_
-    :return: An array created fron **item**.
-    :rtype: |np.ndarray|_
+    Parameters
+    ----------
+    |pd.Index|_ item:
+        A string or instance of pd.Index (or one of its subclasses).
+
+    Returns
+    -------
+    |np.ndarray|_:
+        An array created fron **item**.
     """
     # If **idx** does not belong to the pd.Index class or one of its subclass
     if not isinstance(index, pd.Index):  # **item** belongs to the *name* attribute of pd.Series
@@ -175,13 +191,19 @@ def to_hdf5(filename: str,
             omega: int) -> None:
     r"""Export results from **dict_** to the hdf5 file **name**.
 
-    :parameter str filename: The path+name of the hdf5 file.
-    :parameter dict dset_dict: A dictionary with dataset names as keys and matching array-like
-        objects as values.
-    :parameter int kappa: The super-iteration, :math:`\kappa`, in the outer loop of
-        :meth:`.ARMC.init_armc`.
-    :parameter int omega: The sub-iteration, :math:`\omega`, in the inner loop of
-        :meth:`.ARMC.init_armc`.
+    Parameters
+    ----------
+    str filename:
+        The path+filename of the hdf5 file.
+
+    dict dset_dict:
+        A dictionary with dataset names as keys and matching array-like objects as values.
+
+    int kappa:
+        The super-iteration, :math:`\kappa`, in the outer loop of :meth:`.ARMC.init_armc`.
+
+    int omega:
+        The sub-iteration, :math:`\omega`, in the inner loop of :meth:`.ARMC.init_armc`.
     """
     # Check if the hdf5 file is already opened. If opened: wait for 5 sec and try again.
     while True:
@@ -215,14 +237,22 @@ DataSets = Optional[Union[Hashable, Iterable[Hashable]]]
 @assert_error(H5PY_ERROR)
 def from_hdf5(filename: str,
               datasets: DataSets = None) -> Union[NDFrame, Dict[Hashable, NDFrame]]:
-    """Retrieve all user-specified datasets from **name**, returning a dicionary of
-    DataFrames and/or Series.
+    """Retrieve all user-specified datasets from **name**
 
-    :parameter str filename: The path+name of the hdf5 file.
-    :parameter list datasets: A list of to be retrieved dataset names.
-        All datasets will be retrieved if *None*.
-    :return: A dicionary with dataset names as keys and the matching data as values.
-    :rtype: |dict|_ (values:|pd.DataFrame|_ and/or |pd.Series|_)
+    Values are returned in dictionary of DataFrames and/or Series.
+
+    Parameters
+    ----------
+    str filename:
+        The path+name of the hdf5 file.
+    list datasets:
+        A list of to be retrieved dataset names.
+        All datasets will be retrieved if ``None``.
+
+    Returns
+    -------
+    |dict|_ (values:|pd.DataFrame|_ and/or |pd.Series|_):
+        A dicionary with dataset names as keys and the matching data as values.
     """
     with h5py.File(filename, 'r') as f:
         # Retrieve all values up to and including the current iteration
@@ -259,11 +289,18 @@ def _get_dset(f: H5pyFile,
 
     See :func:`FOX.dset_to_df` and :func:`FOX.dset_to_series` for more details.
 
-    :parameter f: An opened hdf5 file.
-    :type f: |h5py.File|_
-    :parameter str key: The dataset name.
-    :return: A NumPy array or a Pandas DataFrame or Series retrieved from **key** in **f**.
-    :rtype: |pd.DataFrame|_ or |pd.Series|_
+    Parameters
+    ----------
+    |h5py.File|_ f:
+        An opened hdf5 file.
+
+    str key:
+        The dataset name.
+
+    Returns
+    -------
+    |pd.DataFrame|_, |pd.Series|_ or |np.ndarray|_:
+        A NumPy array or a Pandas DataFrame or Series retrieved from **key** in **f**.
     """
     if key == 'xyz':
         return _get_xyz_dset(f)
@@ -288,13 +325,18 @@ def _get_dset(f: H5pyFile,
 
 @assert_error(H5PY_ERROR)
 def _get_xyz_dset(f: H5pyFile) -> Tuple[np.ndarray, Dict[str, List[int]]]:
-    """ Return the *xyz* dataset from **f** as a :class:`MultiMolecule` instance.
+    """ Return the ``"xyz"zz dataset from **f**.
 
-    :parameter f: An opened hdf5 file.
-    :type f: |h5py.File|_
-    :return: A list of :math:`k` MultiMolecule instances with :math:`m` molecules and
+    Parameters
+    ----------
+    |h5py.File|_ f:
+        An opened hdf5 file.
+
+    Returns
+    -------
+    :math:`k*m*n*3` |np.ndarray|_ and |dict|_:
+        An array of :math:`k` MultiMolecule instances with :math:`m` molecules and
         :math:`n` atoms.
-    :rtype: :math:`k*m*n*3` |np.ndarray|_ and |dict|_
     """
     key = 'xyz'
 
@@ -320,11 +362,18 @@ def dset_to_series(f: H5pyFile,
                    key: Hashable) -> Union[pd.Series, pd.DataFrame]:
     """Take a h5py dataset and convert it into a Pandas Series (if 1D) or Pandas DataFrame (if 2D).
 
-    :parameter f: An opened hdf5 file.
-    :type f: |h5py.File|_
-    :parameter str key: The dataset name.
-    :return: A Pandas Series or DataFrame retrieved from **key** in **f**.
-    :rtype: |pd.Series|_ or |pd.DataFrame|_
+    Parameters
+    ----------
+    |h5py.File|_ f:
+        An opened hdf5 file.
+
+    str key:
+        The dataset name.
+
+    Returns
+    -------
+    |pd.Series|_ or |pd.DataFrame|_:
+        A Pandas Series or DataFrame retrieved from **key** in **f**.
     """
     name = f[key].attrs['name'][0].decode()
     index = array_to_index(f[key].attrs['index'][:])
@@ -348,14 +397,20 @@ def dset_to_series(f: H5pyFile,
 @assert_error(H5PY_ERROR)
 def dset_to_df(f: H5pyFile,
                key: Hashable) -> Union[pd.DataFrame, List[pd.DataFrame], 'xr.DataArray']:
-    """Take a h5py dataset and convert it into a Pandas DataFrame (if 2D) or list of Pandas
-    DataFrames (if 3D).
+    """Take a h5py dataset and create a DataFrame (if 2D) or list of DataFrames (if 3D).
 
-    :parameter f: An opened hdf5 file.
-    :type f: |h5py.File|_
-    :parameter str key: The dataset name.
-    :return: A Pandas DataFrame retrieved from **key** in **f**.
-    :rtype: |pd.DataFrame|_ or |list|_ [|pd.DataFrame|_]
+    Parameters
+    ----------
+    |h5py.File|_ f:
+        An opened hdf5 file.
+
+    str key:
+        The dataset name.
+
+    Returns
+    -------
+    |pd.DataFrame|_ or |list|_ [|pd.DataFrame|_]:
+        A Pandas DataFrame retrieved from **key** in **f**.
     """
     columns = array_to_index(f[key].attrs['columns'][:])
     index = array_to_index(f[key].attrs['index'][:])

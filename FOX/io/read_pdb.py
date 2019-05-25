@@ -13,11 +13,17 @@ __all__ = ['read_pdb']
 def read_pdb(filename: str) -> Tuple[pd.DataFrame, np.ndarray]:
     """Read the content of protein DataBank file (pdb_).
 
-    :parameter str filename: The path+name of a .pdb file.
-    :return: A dataframe holding the ATOM/HETATM block and an array holding the CONECT block.
-    :rtype: |pd.DataFrame|_ and |np.ndarray|_ [|np.int64|_]
-
     .. _pdb: https://www.cgl.ucsf.edu/chimera/docs/UsersGuide/tutorials/pdbintro.html
+
+    Parameters
+    ----------
+    str filename:
+        The path+name of a .pdb file.
+
+    Returns
+    -------
+    |pd.DataFrame|_ and |np.ndarray|_ [|np.int64|_]:
+        A dataframe holding the ATOM/HETATM block and an array holding the CONECT block.
     """
     atoms = []
     bonds = []
@@ -43,13 +49,18 @@ def _get_bonds_array(bonds: Iterable[Sequence[str]]) -> np.ndarray:
     Bond orders are multiplied by :math:`10` and stored as integers,
     thus effectively being stored as floats with single-decimal precision.
 
-    :parameter list bonds: A nested list of atomic indices as retrieved from a pdb_ file.
-    :return: An array with :math:`n` bonds.
+    .. _pdb: https://www.cgl.ucsf.edu/chimera/docs/UsersGuide/tutorials/pdbintro.html
+
+    Parameters
+    ----------
+    list bonds: A nested list of atomic indices as retrieved from a pdb_ file.
+
+    Returns
+    -------
+    :math:`n*3` |np.ndarray|_ [|np.int64|_]:
+        An array with :math:`n` bonds.
         Atomic indices are located in columns 1 & 2 and bond orders, multiplied by 10, are located
         in column 3.
-    :rtype: :math:`n*3` |np.ndarray|_ [|np.int64|_]
-
-    .. _pdb: https://www.cgl.ucsf.edu/chimera/docs/UsersGuide/tutorials/pdbintro.html
     """
     ret: List[Sequence[object]] = []
     j_old = None
@@ -71,11 +82,16 @@ def _get_bonds_array(bonds: Iterable[Sequence[str]]) -> np.ndarray:
 def _get_atoms_df(atoms: Iterable[Sequence[str]]) -> pd.DataFrame:
     """Convert the atom list produced by :func:`.read_pdb` into a dataframe.
 
-    :parameter list atoms: A nested list of atom data as retrieved from a pdb_ file.
-    :return: A dataframe with 16 columns containing the .pdb data of :math:`n` atoms.
-    :rtype: :math:`n*16` |pd.DataFrame|_
-
     .. _pdb: https://www.cgl.ucsf.edu/chimera/docs/UsersGuide/tutorials/pdbintro.html
+
+    Parameters
+    ----------
+    list atoms: A nested list of atom data as retrieved from a pdb_ file.
+
+    Returns
+    -------
+    :math:`n*16` |pd.DataFrame|_:
+        A dataframe with 16 columns containing the .pdb data of :math:`n` atoms.
     """
     at_columns = {
         'ATOM': object,

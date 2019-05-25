@@ -36,6 +36,7 @@ class _MultiMolecule(np.ndarray):
                 atoms: Optional[Dict[str, List[int]]] = None,
                 bonds: Optional[np.ndarray] = None,
                 properties: Optional[Dict[str, Any]] = None) -> _MultiMolecule:
+        """Create and return a new object."""
 
         obj = np.asarray(coords).view(cls)
         _MultiMolecule._sanitize_coords(obj)
@@ -47,6 +48,7 @@ class _MultiMolecule(np.ndarray):
         return obj
 
     def __array_finalize__(self, obj: _MultiMolecule) -> None:
+        """Finalize the array creation."""
         if obj is None:
             return
         self.atoms = getattr(obj, 'atoms', None)
@@ -197,14 +199,21 @@ class _MultiMolecule(np.ndarray):
         return self._get_atomic_property('connectors')
 
     def _get_atomic_property(self, prop: str = 'symbol') -> np.ndarray:
-        """Take **self.atoms** and return an (concatenated) array of a specific property associated
+        """Return a flattened array of atomic properties.
+
+        Take **self.atoms** and return an (concatenated) array of a specific property associated
         with an atom type. Values are sorted by their indices.
 
-        :parameter str prop: The to be returned property. Accepted values:
-            **symbol**, **atnum**, **mass**, **radius** or **connectors**.
-            See the |PeriodicTable|_ module of PLAMS for more details.
-        :return: A 1D array with the user-specified properties of :math:`n` atoms.
-        :rtype: :math:`n` |np.array|_ [|np.float64|_, |str|_ or |np.int64|_].
+        Parameters:
+            str prop:
+                The name of the to be returned property.
+                Accepted values: ``'symbol'``, ``'atnum'``, ``'mass'``, ``'radius'``
+                or ``'connectors'``.
+                See the |PeriodicTable|_ class of PLAMS for more details.
+
+        Returns:
+            :math:`n` |np.array|_ [|np.float64|_, |str|_ or |np.int64|_]:
+                A 1D array with the user-specified properties of :math:`n` atoms.
         """
         # Create a concatenated lists of the keys and values in **self.atoms**
         prop_list: list = []
@@ -226,14 +235,19 @@ class _MultiMolecule(np.ndarray):
              copy_attr: bool = True) -> _MultiMolecule:
         """Return a copy of the MultiMolecule object.
 
-        :parameter str order: Controls the memory layout of the copy.
-            see np.ndarray.copy_ for more details.
-        :parameter bool copy_attr: Whether or not the attributes of **self** should returned as
-            copies or views.
-        :return: A copy of **self**.
-        :rtype: |FOX.MultiMolecule|_
-        .. _np.ndarray.copy: https://docs.scipy.org/doc/numpy/reference/generated/\
-    numpy.ndarray.copy.html
+        Parameters:
+            str order:
+                Controls the memory layout of the copy.
+                See np.ndarray.copy_ for details.
+
+            bool copy_attr:
+                Whether or not the attributes of **self** should returned as copies or views.
+
+        Returns:
+            |FOX.MultiMolecule|_:
+                A copy of **self**.
+
+        .. _np.ndarray.copy: https://docs.scipy.org/doc/numpy/reference/generated/numpy.ndarray.copy.html  # noqa
         """
         ret = super().copy(order)
         if not copy_attr:
@@ -248,12 +262,15 @@ class _MultiMolecule(np.ndarray):
         return ret
 
     def __copy__(self) -> _MultiMolecule:
+        """Create copy of this instance."""
         return self.copy(order='K', copy_attr=False)
 
     def __deepcopy__(self, memo: None) -> _MultiMolecule:
+        """Create a deep copy of this instance."""
         return self.copy(order='K', copy_attr=True)
 
     def __str__(self) -> str:
+        """Return a string constructed from this instance."""
         ret = 'Atomic coordinates:\n'
         ret += super().__str__()
         ret += '\n'

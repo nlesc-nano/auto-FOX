@@ -21,13 +21,19 @@ def read_kf(filename: str) -> Tuple[np.ndarray, Dict[str, List[int]]]:
 
     Current KF file support is limited to those produced with the AMS_ engine.
 
-    :parameter str filename: The path + filename of the kf file.
-    :return: A 3D array with cartesian coordinates and a dictionary
-        with atomic symbols as keys and lists of matching atomic indices as values.
-    :rtype: :math:`m*n*3` |np.ndarray|_ [|np.float64|_] and |dict|_
-        (keys: |str|_, values: |list|_ [|int|_]).
-
     .. _ams: https://www.scm.com/product/ams/
+
+    Parameters
+    ----------
+    str filename:
+        The path+filename of the KF binary file.
+
+    Returns
+    -------
+    :math:`m*n*3` |np.ndarray|_ [|np.float64|_] and |dict|_
+    (keys: |str|_, values: |list|_ [|int|_]):
+        A 3D array with cartesian coordinates and a dictionary
+        with atomic symbols as keys and lists of matching atomic indices as values.
     """
     kf = KFReader(filename)
     atom_count = kf.read('Molecule', 'nAtoms')
@@ -49,10 +55,15 @@ def read_kf(filename: str) -> Tuple[np.ndarray, Dict[str, List[int]]]:
 def _get_idx_dict(kf: KFReader) -> Dict[str, list]:
     """Extract atomic symbols and matching atomic indices from **kf**.
 
-    :parameter kf: A KFReader instance constructed from a KF binary file.
-    :type kf: |plams.KFReader|_
-    :return: A dictionary with atomic symbols and a list of matching atomic indices.
-    :rtype: |dict|_ (keys: |str|_, values: |list|_ [|int|_])
+    Parameters
+    ----------
+    |plams.KFReader|_ kf:
+        A KFReader instance constructed from a KF binary file.
+
+    Returns
+    -------
+    |dict|_ (keys: |str|_, values: |list|_ [|int|_]):
+        A dictionary with atomic symbols and a list of matching atomic indices.
     """
     at_list = kf.read('Molecule', 'AtomSymbols').split()
 

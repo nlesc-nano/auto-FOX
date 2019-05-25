@@ -8,10 +8,10 @@ param:
     epsilon:
         unit: kjmol
         Cd Cd: 0.3101
-        Se Se: 0.4266
-        Cd Se: 1.5225
         Cd O_1: 1.8340
+        Cd Se: 1.5225
         Se O_1: 1.6135
+        Se Se: 0.4266
     sigma:
         unit: nm
         Cd Cd: 0.1234

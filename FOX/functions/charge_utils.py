@@ -11,21 +11,32 @@ __all__ = ['update_charge', 'get_charge_constraints']
 
 
 def get_net_charge(df: pd.DataFrame,
-                    index_slice=None,
-                    charge: str = 'param',
-                    atom_count: str = 'count') -> float:
+                   index_slice=None,
+                   charge: str = 'param',
+                   atom_count: str = 'count') -> float:
     """Calculate the total charge in **df**.
 
     Returns the (summed) product of the **charge** and **atom_count** columns in **df**.
 
-    :parameter df: A dataframe with atomic charges.
-        Charges should be stored in the *param* column and atom counts in the *count* column.
-    :type df: pd.DataFrame
-    :parameter object index_slice: An object for slicing the index of **df**.
-    :parameter str charge: The name of the column holding the atomic charges (per atom type).
-    :parameter str atom_count: The name of the column holding the number of atoms (per atom type).
-    :return: The total charge in **df**.
-    :rtype: |float|_
+    Parameters
+    ----------
+    |pd.DataFrame|_ df:
+        A dataframe with atomic charges.
+        Charges should be stored in the *param* column and atom counts in the ``"count"`` column.
+
+    object index_slice:
+        An object for slicing the index of **df**.
+
+    str charge:
+        The name of the column holding the atomic charges (per atom type).
+
+    str atom_count:
+        The name of the column holding the number of atoms (per atom type).
+
+    Returns
+    -------
+    |float|_:
+        The total charge in **df**.
     """
     if index_slice is None:
         return df.loc[:, [charge, atom_count]].product(axis=1).sum()
@@ -46,7 +57,8 @@ def update_charge(at: str,
 
     Performs an inplace update of the *param* column in **df**.
 
-    Example **df**:
+    Examples
+    --------
 
     .. code:: python
 
@@ -56,12 +68,20 @@ def update_charge(at: str,
         Cs    1.0    112
         Pb    2.0     64
 
-    :parameter str at: An atom type such as *Se*, *Cd* or *OG2D2*.
-    :parameter float charge: The new charge associated with **at**.
-    :parameter df: A dataframe with atomic charges.
+    Parameters
+    ----------
+    str at:
+        An atom type such as ``"Se"``, ``"Cd"`` or ``"OG2D2"``.
+
+    float charge:
+        The new charge associated with **at**.
+
+    |pd.DataFrame|_ df:
+        A dataframe with atomic charges.
         Charges should be stored in the *param* column and atom counts in the *count* column.
-    :type df: |pd.DataFrame|_
-    :parameter dict constrain_dict: A dictionary with charge constrains.
+
+    dict constrain_dict:
+        A dictionary with charge constrains.
     """
     net_charge = get_net_charge(df)
     df.at[at, 'param'] = charge
@@ -87,14 +107,23 @@ def update_constrained_charge(at1: str,
                               constrain_dict: dict = {}) -> list:
     """Perform a constrained update of atomic charges.
 
-    Performs an inplace update of the *charge* column in **df**.
+    Performs an inplace update of the ``"charge"`` column in **df**.
 
-    :parameter str at1: An atom type such as *Se*, *Cd* or *OG2D2*.
-    :parameter df: A dataframe with atomic charges.
-    :type df: |pd.DataFrame|_
-    :parameter dict constrain_dict: A dictionary with charge constrains.
-    :return: A list of atom types with updated atomic charges.
-    :rtype: |list|_ [|str|_]
+    Parameters
+    ----------
+    str at1:
+        An atom type such as ``"Se"``, ``"Cd"`` or ``"OG2D2"``.
+
+    |pd.DataFrame|_ df:
+        A dataframe with atomic charges.
+
+    dict constrain_dict:
+        A dictionary with charge constrains.
+
+    Returns
+    -------
+    |list|_ [|str|_]:
+        A list of atom types with updated atomic charges.
     """
     charge = df.at[at1, 'param']
     exclude = [at1]
@@ -125,12 +154,18 @@ def update_unconstrained_charge(net_charge: float,
                                 exclude: list = []) -> None:
     """Perform an unconstrained update of atomic charges.
 
-    Performs an inplace update of the *charge* column in **df**.
+    Performs an inplace update of the ``"charge"`` column in **df**.
 
-    :parameter float net_charge: The total charge of the system.
-    :parameter df: A dataframe with atomic charges.
-    :type df: |pd.DataFrame|_
-    :parameter dict constrain_dict: A list of atom types whose atomic charges should not be updated.
+    Parameters
+    ----------
+    float net_charge:
+        The total charge of the system.
+
+    |pd.DataFrame|_ df:
+        A dataframe with atomic charges.
+
+    list exclude:
+        A list of atom types whose atomic charges should not be updated.
     """
     include = np.array([i not in exclude for i in df.index])
     if not include.any():
@@ -155,12 +190,21 @@ def find_q(df: pd.DataFrame,
         q = \frac{Q + \sum_{j} (q * b_{j}) * \sum_{n_{j}} n_{j}}
             {\sum_{i} (q * a_{i}) * \sum_{m_{i}} m_{i} + \sum_{j, n_{j}} n_{j}}
 
-    :parameter float Q: The sum of all atomic charges.
-    :parameter df: A dataframe with atomic charges.
-    :type df: |pd.DataFrame|_
-    :parameter dict constrain_dict: A dictionary with charge constrains.
-    :return: A list of atom types with updated atomic charges.
-    :rtype: |float|_
+    Parameters
+    ----------
+    float Q:
+        The sum of all atomic charges.
+
+    |pd.DataFrame|_ df:
+        A dataframe with atomic charges.
+
+    dict constrain_dict:
+        A dictionary with charge constrains.
+
+    Returns
+    -------
+    |float|_:
+        A list of atom types with updated atomic charges.
     """
     A = Q
     B = 0.0
@@ -176,8 +220,16 @@ def find_q(df: pd.DataFrame,
 
 
 def get_charge_constraints(constrain: str) -> Settings:
-    r"""Take a string containing a set of interdependent charge constraints and translate
+    r"""Construct a set of charge constraints out of a string.
+
+    Take a string containing a set of interdependent charge constraints and translate
     it into a dictionary containing all arguments and operators.
+
+    .. _addition: https://docs.scipy.org/doc/numpy/reference/generated/numpy.add.html
+    .. _multiplication: https://docs.scipy.org/doc/numpy/reference/generated/numpy.multiply.html
+
+    Examples
+    --------
 
     An example where :math:`q_{Cd} = -0.5*q_{O} = -q_{Se}`:
 
@@ -224,12 +276,15 @@ def get_charge_constraints(constrain: str) -> Settings:
      multiplication_  ``*``
     ================= =======
 
-    :parameter str item: A string with all charge constraints.
-    :return: A Settings object with all charge constraints.
-    :rtype: |plams.Settings|_
+    Parameters
+    ----------
+    str item:
+        A string with all charge constraints.
 
-    .. _addition: https://docs.scipy.org/doc/numpy/reference/generated/numpy.add.html
-    .. _multiplication: https://docs.scipy.org/doc/numpy/reference/generated/numpy.multiply.html
+    Returns
+    -------
+    |plams.Settings|_:
+        A Settings object with all charge constraints.
     """
     def _loop(i, operator_dict):
         for operator in operator_dict:
@@ -264,10 +319,15 @@ def invert_ufunc(ufunc: Callable) -> Callable:
 
     Addition will be turned into substraction and multiplication into division.
 
-    :parameter ufunc: A NumPy universal function (ufunc).
-    :type ufunc: |type|_
-    :return: An inverted NumPy universal function.
-    :rtype: |type|_
+    Parameters
+    ----------
+    Callable ufunc:
+        A NumPy universal function (ufunc).
+
+    Returns
+    -------
+    Callable:
+        An inverted NumPy universal function.
     """
     invert_dict = {
         np.add: np.subtract,

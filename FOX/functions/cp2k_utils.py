@@ -17,11 +17,13 @@ def set_subsys_kind(settings: Settings,
 
     .. _KIND: https://manual.cp2k.org/trunk/CP2K_INPUT/FORCE_EVAL/SUBSYS/KIND.html
 
-    :parameter settings: CP2K settings.
-    :type settings: |plams.Settings|_
-    :parameter df: A dataframe with atom names (*e.g.* *O*, *H* & *C*) and atom types
-        (*e.g.* *OG2D2*, *HGR52* & *CG2O3*).
-    :type df: |pd.DataFrame|_
+    Parameters
+    ----------
+    |plams.Settings|_ settings:
+        CP2K settings.
+
+    |pd.DataFrame|_ df: A dataframe with atom names (*e.g.* ``"O"``, ``"H"`` & ``"C"``)
+        and atom types (*e.g.* ``"OG2D2"``, ``"HGR52"`` & ``"CG2O3"``).
     """
     for at_name, at_type in df[['atom name', 'atom type']].values:
         if not settings.input.force_eval.subsys['kind ' + at_type]:
@@ -34,14 +36,20 @@ def set_keys(settings: Settings,
 
     Units can be specified under the *unit* key (see the CP2K_ documentation for more details).
 
-    :parameter df: A dataframe with MM parameters and parameter names as 2-level multiindex.
-    :type df: |pd.DataFrame|_ (index: |pd.MultiIndex|_)
-    :parameter settings: CP2K Job settings.
-    :type settings: |plams.Settings|_
-    :return: A list of (flattened) keys.
-    :rtype: |list|_ [|tuple|_ [|str|_]]
-
     .. _CP2K: https://manual.cp2k.org/trunk/units.html
+
+    Parameters
+    ----------
+    |pd.DataFrame|_ df:
+        A dataframe with MM parameters and parameter names as 2-level multiindex.
+
+    |plams.Settings|_ settings:
+        CP2K Job settings.
+
+    Returns
+    -------
+    |list|_ [|tuple|_ [|str|_]]:
+        A list of (flattened) keys.
     """
     # Create a new column in **param** with the quantity units
     param['unit'] = None
@@ -61,12 +69,18 @@ def _get_key_list(settings: Settings,
                   param: pd.DataFrame) -> List[Tuple[Hashable]]:
     """ Prepare the list of to-be returned keys for :func:`.set_keys`.
 
-    :parameter param: A dataframe with MM parameters and parameter names as 2-level multiindex.
-    :type param: |pd.DataFrame|_ (index: |pd.MultiIndex|_)
-    :parameter settings: CP2K Job settings.
-    :type settings: |plams.Settings|_
-    :return: A list of (flattened) keys.
-    :rtype: |list|_ [|tuple|_ [|str|_]]
+    Parameters
+    ----------
+    |pd.DataFrame|_ param:
+        A dataframe with MM parameters and parameter names as 2-level multiindex.
+
+    |plams.Settings|_ settings:
+        CP2K Job settings.
+
+    Returns
+    -------
+    |list|_ [|tuple|_ [|str|_]]:
+        A list of (flattened) keys.
     """
     ret = []
     forcefield = ('input', 'force_eval', 'mm', 'forcefield')

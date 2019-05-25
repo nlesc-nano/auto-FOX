@@ -212,11 +212,21 @@ autodoc_warningiserror = True
 autodoc_mock_imports = ['h5py']
 
 
-# True to parse Google style docstrings. False to disable support for Google style docstrings. Defaults to True.
+# True to parse Google style docstrings.
+# False to disable support for Google style docstrings.
+# Defaults to True.
 napoleon_google_docstring = True
 
 
-# True to use the .. admonition:: directive for the Example and Examples sections. False to use the .. rubric:: directive instead. One may look better than the other depending on what HTML theme is used. Defaults to False.
+# True to parse NumPy style docstrings.
+# False to disable support for NumPy style docstrings.
+# Defaults to True.
+napoleon_numpy_docstring = True
+
+
+# True to use the .. admonition:: directive for the Example and Examples sections.
+# False to use the .. rubric:: directive instead. One may look better than the other depending on what HTML theme is used.
+# Defaults to False.
 napoleon_use_admonition_for_examples = True
 
 

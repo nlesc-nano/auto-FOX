@@ -1,7 +1,6 @@
 """A module for reading CHARMM .prm files."""
 
-from io import TextIOWrapper
-from typing import (Dict, Tuple, Union)
+from typing import (Dict, Tuple, Union, TextIO)
 
 import pandas as pd
 import numpy as np
@@ -13,12 +12,17 @@ def write_prm(prm_dict: Dict[str, pd.DataFrame],
               filename: str) -> None:
     """Create a new CHARM parameter file (prm_) out of **prm_dict**.
 
-    :parameter prm_dict: A dictionary with block names as keys and a dataframe of matching
-        parameters as value. Atom types should be used as (multi-)index.
-    :type prm_dict: |dict|_ (keys: |str|_, values: |pd.DataFrame|_)
-    :parameter str filename: The path+filename of the to-be created .prm file.
-
     .. _prm: https://mackerell.umaryland.edu/charmm_ff.shtml
+
+    Parameters
+    ----------
+    dict prm_dict:
+        A dictionary with block names as keys and a dataframe of matching
+        parameters as value.
+        Atom types should be used as (multi-)index.
+
+    str filename:
+        The path+filename of the to-be created .prm file.
     """
     with open(filename, 'w') as f:
         for key, df in prm_dict.items():
@@ -56,12 +60,18 @@ def read_prm(filename: str) -> Dict[str, pd.DataFrame]:
 
     Blocks not mentioned herein are unsupported.
 
-    :parameter str filename: The path+filename of the parameter file.
-    :return: A dictionary with block names as keys and a dataframe of matching parameters as value.
-        Atom types are used as (multi-)index.
-    :rtype: |dict|_ (keys: |str|_, values: |pd.DataFrame|_)
-
     .. _prm: https://mackerell.umaryland.edu/charmm_ff.shtml
+
+    Parameters
+    ----------
+    str filename:
+        The path+filename of the parameter file.
+
+    Returns
+    -------
+    |dict|_ (keys: |str|_, values: |pd.DataFrame|_):
+        A dictionary with block names as keys and a dataframe of matching parameters as value.
+        Atom types are used as (multi-)index.
     """
     ret = {}
     with open(filename, 'r') as f:
@@ -75,7 +85,7 @@ def read_prm(filename: str) -> Dict[str, pd.DataFrame]:
     return _proccess_prm_df(ret)
 
 
-def read_blocks(f: TextIOWrapper,
+def read_blocks(f: TextIO,
                 key: str) -> Tuple[Dict[str, pd.DataFrame], Union[str, bool]]:
     """Read the content of a .prm block.
 
@@ -90,12 +100,19 @@ def read_blocks(f: TextIOWrapper,
         * NONBONDED
         * HBOND
 
-    :parameter f: An opened .prm file.
-    :type f: |io.TextIOWrapper|_
-    :parameter str key: The key of the current .prm block.
-    :return: A dictionary with **key** as key and a dataframe of accumulated data as value.
+    Parameters
+    ----------
+    |io.TextIOWrapper|_ f:
+        An opened .prm file.
+
+    str key:
+        The key of the current .prm block.
+
+    Returns
+    -------
+    |dict|_ (key: |str|_, value: |pd.DataFrame|_) and |str|_:
+        A dictionary with **key** as key and a dataframe of accumulated data as value.
         In addition, the key of the next .prm block is returned.
-    :rtype: |dict|_ (key: |str|_, value: |pd.DataFrame|_) and |str|_
     """
     stop = ('ATOMS', 'BONDS', 'ANGLES', 'DIHEDRALS', 'NBFIX', 'IMPROPERS')
     ret: list = []
@@ -143,13 +160,14 @@ def rename_atom_types(prm_dict: Dict[str, pd.DataFrame],
         >>> 'H_new' in atom_dict['ATOMS'].index
         True
 
-    :parameter prm_dict: A dictionary with **key** as key and a dataframe of accumulated data as
-        value.
-    :parameter rename_dict: A dictionary or series with old atom types as keys and new atom types
-        as values
-    :type atom_dict: |dict|_ or |pd.Series|_ (keys: |str|_, values: |str|_)
-
     .. _prm: https://mackerell.umaryland.edu/charmm_ff.shtml
+
+    Parameters
+    ----------
+    dict prm_dict:
+        A dictionary with **key** as key and a dataframe of accumulated data as value.
+    dict rename_dict:
+        A dictionary or series with old atom types as keys and new atom types as values
     """
     for df in prm_dict.values():
         idx = np.array(df.index.tolist())
@@ -166,14 +184,18 @@ def rename_atom_types(prm_dict: Dict[str, pd.DataFrame],
 
 
 def _get_empty_line(df: pd.DataFrame) -> str:
-    """Create a string with a sufficient amount of curly brackets to hold all items from a single
-    row in **df**.
+    """Create a string with a enough of curly brackets to hold all items in a single **df** row.
 
-    :parameter df: A Pandas dataframe.
-    :type df: |pd.DataFrame|_
-    :return: Given a dataframe, **df**, with :math:`n` columns, return a string with :math:`n`
-        sets of curly brackets.
-    :rtype: |str|_
+    Parameters
+    ----------
+    |pd.DataFrame|_ df:
+        A Pandas dataframe.
+
+    Returns
+    -------
+        |str|_:
+            Given a dataframe, **df**, with :math:`n` columns, return a string with :math:`n`
+            sets of curly brackets.
     """
     ret = ''
     for column in df:
@@ -186,15 +208,21 @@ def _get_empty_line(df: pd.DataFrame) -> str:
     return ret[1:] + '\n'
 
 
-def _get_nonbonded(f: TextIOWrapper,
+def _get_nonbonded(f: TextIO,
                    item: str) -> str:
     """Get the key of the NONBONDED block.
 
-    :parameter f: An opened .prm file.
-    :type f: |io.TextIOWrapper|_
-    :parameter str item: The part of the .prm NONBONDED key.
-    :return: The complete .prm NONBONDED key.
-    :rtype: |str|_
+    Parameters
+    ----------
+    |io.TextIOWrapper|_ f:
+        An opened .prm file.
+    str item:
+        A component of the .prm NONBONDED key.
+
+    Returns
+    -------
+    |str|_:
+        The complete .prm NONBONDED key.
     """
     item2 = '\n'
     while(item2):
@@ -205,13 +233,19 @@ def _get_nonbonded(f: TextIOWrapper,
 
 
 def _proccess_prm_df(prm_dict: Dict[str, pd.DataFrame]) -> Dict[str, pd.DataFrame]:
-    """Process the dataframes produced by :func:`.read_prm`, re-assigning columns,
-    fixing data types and using atom types as (multi-)index.
+    """Process the dataframes produced by :func:`.read_prm`.
 
-    :parameter prm_dict: A dictionary with **key** as key and a dataframe of accumulated data as
-        value.
-    :return: **prm_dict** with new columns, indices and datatypes.
-    :rtype: |dict|_ (key: |str|_, value: |pd.DataFrame|_)
+    Collumns are re-assigned, fixing their data types and using atom types as (multi-)index.
+
+    Parameters
+    ----------
+    dict prm_dict:
+        A dictionary with **key** as key and a dataframe of accumulated data as value.
+
+    Returns
+    -------
+    |dict|_:
+        **prm_dict** with new columns, indices and datatypes.
     """
     float_blacklist = {'ATOMS': ('-1'), 'DIHEDRALS': ('param 2'), 'IMPROPERS': ('param 2')}
 
@@ -271,16 +305,20 @@ def update_dtype(df: pd.DataFrame,
                  float_blacklist: list = []) -> None:
     """Update the dtype of all columns in **df**.
 
-    All columns will be turned into dtype('float64') unless a value error is raised, in which case
-    the current dtype will remain unchanged.
+    All columns will be turned into ``dtype("float64")`` unless a value error is raised,
+    in which case the current dtype will remain unchanged.
     An exception is made for columns whose name is present in **float_blacklist**, in wich case the
-    dtype of the respective column(s) is converted into dtype('int64').
+    dtype of the respective column(s) is converted into ``dtype("int64")``.
     Performs an inplace update of all columns in **df**.
 
-    :parameter df: A Pandas dataframe.
-    :type df: |pd.DataFrame|_
-    :parameter list float_blacklist: A list of column names of columns whose desired dtype is
-        dtype('int64') rather than dtype('float64').
+    Parameters
+    ----------
+    |pd.DataFrame|_ df:
+        A Pandas dataframe.
+
+    list float_blacklist:
+        A list of column names of columns whose desired dtype is ``dtype("int64")``
+        rather than ``dtype("float64")``.
     """
     for column in df:
         if column in float_blacklist:

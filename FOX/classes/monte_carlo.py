@@ -12,7 +12,6 @@ from scm.plams import Settings, Molecule
 from scm.plams.core.functions import add_to_class
 from scm.plams.interfaces.thirdparty.cp2k import (Cp2kJob, Cp2kResults)
 
-from .psf_dict import PSFDict
 from .multi_mol import MultiMolecule
 from ..functions.utils import (get_template, _get_move_range, set_nested_value)
 from ..functions.charge_utils import update_charge
@@ -86,14 +85,18 @@ class MonteCarlo():
         self.move.range = self.get_move_range()
 
     def __repr__(self) -> str:
-        return str(Settings(vars(self)))
+        return repr(Settings(vars(self)))
 
     def as_dict(self, as_Settings: bool = False) -> Union[dict, Settings]:
         """Create a dictionary out of a :class:`.MonteCarlo` instance.
 
-        :parameter bool as_Settings: Return as a Settings instance rather than a dictionary.
-        :return: A (nested) dictionary constructed from **self**.
-        :rtype: |dict|_ or |plams.Settings|_
+        Parameters:
+            bool as_Settings:
+                Return as a Settings instance rather than a dictionary.
+
+        Returns:
+            |dict|_ or |plams.Settings|_:
+                A (nested) dictionary constructed from **self**.
         """
         if as_Settings:
             return Settings(dir(self))
@@ -103,12 +106,13 @@ class MonteCarlo():
     def move_param(self) -> Tuple[float]:
         """Update a random parameter in **self.param** by a random value from **self.move.range**.
 
-        Performs in inplace update of the *param* column in **self.param**.
+        Performs in inplace update of the ``'param'`` column in **self.param**.
         By default the move is applied in a multiplicative manner.
         **self.job.settings** is updated to reflect the change in parameters.
 
-        :return: A tuple with the (new) values in the *param* column of **self.param**.
-        :rtype: |tuple|_ [|float|_]
+        Returns:
+            |tuple|_ [|float|_]:
+                A tuple with the (new) values in the ``'param'`` column of **self.param**.
         """
         # Unpack arguments
         param = self.param
@@ -139,9 +143,10 @@ class MonteCarlo():
 
         * The MD job is constructed according to the provided settings in **self.job**.
 
-        :return: A :class:`.MultiMolecule` instance constructed from the MD trajectory &
-            a tuple with the paths to the PLAMS results directories.
-        :rtype: |FOX.MultiMolecule|_ and |tuple|_ [|str|_]
+        Returns:
+            |FOX.MultiMolecule|_ and |tuple|_ [|str|_]:
+                A :class:`.MultiMolecule` instance constructed from the MD trajectory &
+                a tuple with the paths to the PLAMS results directories.
         """
         job_type = self.job.func
 
@@ -181,12 +186,17 @@ class MonteCarlo():
 
         * The PES descriptors are constructed by the provided settings in **self.pes**.
 
-        :parameter history_dict: A dictionary with results from previous iteractions.
-        :type history_dict: |dict|_ (keys: |tuple|_, values: |list|_)
-        :parameter key: A key in **history_dict**.
-        :type key: |tuple|_
-        :return: A previous value from **history_dict** or a new value from an MD calculation.
-        :rtype: |dict|_ (keys: |str|_, values: |np.ndarray|_ [|np.float64|_])
+        Parameters:
+            dict history_dict:
+                A dictionary with results from previous iteractions.
+
+            tuple key:
+                A key in **history_dict**.
+
+        Returns:
+            |dict|_ (keys: |str|_, values: array-like)
+                A previous value from **history_dict** or a new value from an MD calculation.
+                Values are set to np.inf if the MD job crashed.
         """
         # Generate PES descriptors
         mol, path = self.run_md()
@@ -221,10 +231,18 @@ class MonteCarlo():
              1.005 1.01  1.015 1.02  1.025 1.03  1.035 1.04  1.045 1.05
              1.055 1.06  1.065 1.07  1.075 1.08  1.085 1.09  1.095 1.1  ]
 
-        :parameter float start: Start of the interval. The interval includes this value.
-        :parameter float stop: End of the interval. The interval includes this value.
-        :parameter float step: Spacing between values.
-        :return: An array with allowed moves.
-        :rtype: |np.ndarray|_ [|np.int64|_]
+        Parameters:
+            float start:
+                Start of the interval. The interval includes this value.
+
+            float stop:
+                End of the interval. The interval includes this value.
+
+            float step:
+                Spacing between values.
+
+        Returns:
+            |np.ndarray|_ [|np.int64|_]:
+                An array with allowed moves.
         """
         return _get_move_range(start, stop, step)

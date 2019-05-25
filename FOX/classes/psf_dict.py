@@ -166,9 +166,12 @@ class PSFDict(defaultdict):
             >>> psf_dict = read_psf('old_file.psf')
             >>> write_psf('new_file.psf', **psf_dict)
 
-        :parameter str filename: The path + filename of a .psf file.
-        :return: A dictionary holding the content of a .psf file.
-        :rtype: |dict|_ (keys: |str|_)
+        Parameters:
+            str filename: The path + filename of a .psf file.
+
+        Returns:
+            |dict|_ (keys: |str|_):
+                A dictionary holding the content of a .psf file.
         """
         header_dict = {'!NTITLE': 'title',
                        '!NATOM': 'atoms',
@@ -212,11 +215,13 @@ class PSFDict(defaultdict):
         * The atoms block is converted into a Pandas DataFrame.
         * All other blocks are converted into a flattened array of integers.
 
-        :parameter psf_dict: A dictionary holding the content of a .psf file
-            (see :func:`.read_psf`).
-        :type psf_dict: |dict|_ (keys: |str|_, values: |list|_[|list|_[|str|_]])
-        :return: The .psf output, **psf_dict**, with properly formatted values.
-        :rtype: |dict|_ (keys: |str|_)
+        Parameters:
+            dict psf_dict:
+                A dictionary holding the content of a .psf file (see :func:`.read_psf`).
+
+        Returns:
+            |dict|_ (keys: |str|_):
+                The .psf output, **psf_dict**, with properly formatted values.
         """
         shape_dict = {'bonds': 2,
                       'angles': 3,
@@ -256,8 +261,11 @@ class PSFDict(defaultdict):
     def write_psf(self, filename: str = None) -> None:
         """Create a protein structure file (.psf) out of a :class:`.PSFDict` instance.
 
-        :parameter str filename: The path+filename of the .psf file.
-            If *None*, try to pull the name from **self['filename']** (see :meth:`set_filename`).
+        Parameters:
+            str filename:
+                The path+filename of the .psf file.
+                If ``None``, try to pull the name from **self['filename']**
+                (see :meth:`set_filename`).
         """
         try:
             filename = filename or self.filename[0]
@@ -307,7 +315,7 @@ class PSFDict(defaultdict):
 
     @classmethod
     def from_multi_mol(cls, multi_mol: MultiMolecule) -> PSFDict:
-        """Construct :class:`PSFdict` instance from a :class:`.MultiMolecule`."""
+        """Construct :class:`PSFdict` instance from a :class:`.MultiMolecule` instance."""
         res = multi_mol.residue_argsort(concatenate=False)
         plams_mol = multi_mol.as_Molecule(0)[0]
         plams_mol.fix_bond_orders()
