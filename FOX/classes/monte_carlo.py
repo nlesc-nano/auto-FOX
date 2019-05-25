@@ -125,7 +125,8 @@ class MonteCarlo():
         # Constrain the atomic charges
         if 'charge' in idx:
             at, charge = idx[1], param.at[idx, 'param']
-            update_charge(at, charge, param.loc['charge'], self.move.charge_constraints)
+            with pd.option_context('mode.chained_assignment', None):
+                update_charge(at, charge, param.loc['charge'], self.move.charge_constraints)
             for key, value, fstring in param.loc['charge', ['key', 'param', 'unit']].values:
                 set_nested_value(self.job.settings, key, fstring.format(value))
         else:
@@ -154,6 +155,7 @@ class MonteCarlo():
         s_cp = self.job.settings.copy()
         s_cp.input['global'].run_type = 'geometry_optimization'
         s_cp.input.motion.geo_opt.max_iter = s_cp.input.motion.md.steps // 100
+        s_cp.input.motion.geo_opt.optimizer = 'LBFGS'
         del s_cp.input.motion.md
 
         # Preoptimize
