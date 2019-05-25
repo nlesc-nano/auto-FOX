@@ -31,9 +31,9 @@ job:
     logfile: armc.log
     func: Cp2kJob
     name: armc
-    path: .
+    path: /Users/bvanbeek/Downloads/
     folder: MM_MD_workdir
-    keep_files: False
+    keep_files: True
 
     settings:
         input:
@@ -47,8 +47,8 @@ job:
                     ensemble: NVT
                     temperature: 300.0
                     timestep: 2.5
-                    time_start_val: 50
-                    steps: 100
+                    time_start_val: 5000
+                    steps: 10000
                     thermostat:
                         type: CSVR
                         csvr:
