@@ -49,6 +49,7 @@ def create_hdf5(filename: str,
 
     |FOX.ARMC|_ mc_kwarg:
         An ARMC object.
+
     """
     shape = mc_kwarg.armc.iter_len // mc_kwarg.armc.sub_iter_len, mc_kwarg.armc.sub_iter_len
 
@@ -132,6 +133,7 @@ def index_to_hdf5(filename: str,
 
     dict pd_dict:
         A dictionary with dataset names as keys and matching array-like objects as values.
+
     """
     attr_tup = ('index', 'columns', 'name')
 
@@ -172,6 +174,7 @@ def _attr_to_array(index: Union[str, pd.Index]) -> np.ndarray:
     -------
     |np.ndarray|_:
         An array created fron **item**.
+
     """
     # If **idx** does not belong to the pd.Index class or one of its subclass
     if not isinstance(index, pd.Index):  # **item** belongs to the *name* attribute of pd.Series
@@ -204,6 +207,7 @@ def to_hdf5(filename: str,
 
     int omega:
         The sub-iteration, :math:`\omega`, in the inner loop of :meth:`.ARMC.init_armc`.
+
     """
     # Check if the hdf5 file is already opened. If opened: wait for 5 sec and try again.
     while True:
@@ -237,7 +241,7 @@ DataSets = Optional[Union[Hashable, Iterable[Hashable]]]
 @assert_error(H5PY_ERROR)
 def from_hdf5(filename: str,
               datasets: DataSets = None) -> Union[NDFrame, Dict[Hashable, NDFrame]]:
-    """Retrieve all user-specified datasets from **name**
+    """Retrieve all user-specified datasets from **name**.
 
     Values are returned in dictionary of DataFrames and/or Series.
 
@@ -253,6 +257,7 @@ def from_hdf5(filename: str,
     -------
     |dict|_ (values:|pd.DataFrame|_ and/or |pd.Series|_):
         A dicionary with dataset names as keys and the matching data as values.
+
     """
     with h5py.File(filename, 'r') as f:
         # Retrieve all values up to and including the current iteration
@@ -301,6 +306,7 @@ def _get_dset(f: H5pyFile,
     -------
     |pd.DataFrame|_, |pd.Series|_ or |np.ndarray|_:
         A NumPy array or a Pandas DataFrame or Series retrieved from **key** in **f**.
+
     """
     if key == 'xyz':
         return _get_xyz_dset(f)
@@ -325,7 +331,7 @@ def _get_dset(f: H5pyFile,
 
 @assert_error(H5PY_ERROR)
 def _get_xyz_dset(f: H5pyFile) -> Tuple[np.ndarray, Dict[str, List[int]]]:
-    """ Return the ``"xyz"zz dataset from **f**.
+    """Return the ``"xyz"zz dataset from **f**.
 
     Parameters
     ----------
@@ -337,6 +343,7 @@ def _get_xyz_dset(f: H5pyFile) -> Tuple[np.ndarray, Dict[str, List[int]]]:
     :math:`k*m*n*3` |np.ndarray|_ and |dict|_:
         An array of :math:`k` MultiMolecule instances with :math:`m` molecules and
         :math:`n` atoms.
+
     """
     key = 'xyz'
 
@@ -374,6 +381,7 @@ def dset_to_series(f: H5pyFile,
     -------
     |pd.Series|_ or |pd.DataFrame|_:
         A Pandas Series or DataFrame retrieved from **key** in **f**.
+
     """
     name = f[key].attrs['name'][0].decode()
     index = array_to_index(f[key].attrs['index'][:])
@@ -411,6 +419,7 @@ def dset_to_df(f: H5pyFile,
     -------
     |pd.DataFrame|_ or |list|_ [|pd.DataFrame|_]:
         A Pandas DataFrame retrieved from **key** in **f**.
+
     """
     columns = array_to_index(f[key].attrs['columns'][:])
     index = array_to_index(f[key].attrs['index'][:])

@@ -34,6 +34,7 @@ def read_kf(filename: str) -> Tuple[np.ndarray, Dict[str, List[int]]]:
     (keys: |str|_, values: |list|_ [|int|_]):
         A 3D array with cartesian coordinates and a dictionary
         with atomic symbols as keys and lists of matching atomic indices as values.
+
     """
     kf = KFReader(filename)
     atom_count = kf.read('Molecule', 'nAtoms')
@@ -64,6 +65,7 @@ def _get_idx_dict(kf: KFReader) -> Dict[str, list]:
     -------
     |dict|_ (keys: |str|_, values: |list|_ [|int|_]):
         A dictionary with atomic symbols and a list of matching atomic indices.
+
     """
     at_list = kf.read('Molecule', 'AtomSymbols').split()
 

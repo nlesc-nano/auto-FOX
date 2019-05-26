@@ -24,6 +24,7 @@ def read_pdb(filename: str) -> Tuple[pd.DataFrame, np.ndarray]:
     -------
     |pd.DataFrame|_ and |np.ndarray|_ [|np.int64|_]:
         A dataframe holding the ATOM/HETATM block and an array holding the CONECT block.
+
     """
     atoms = []
     bonds = []
@@ -61,6 +62,7 @@ def _get_bonds_array(bonds: Iterable[Sequence[str]]) -> np.ndarray:
         An array with :math:`n` bonds.
         Atomic indices are located in columns 1 & 2 and bond orders, multiplied by 10, are located
         in column 3.
+
     """
     ret: List[Sequence[object]] = []
     j_old = None
@@ -92,6 +94,7 @@ def _get_atoms_df(atoms: Iterable[Sequence[str]]) -> pd.DataFrame:
     -------
     :math:`n*16` |pd.DataFrame|_:
         A dataframe with 16 columns containing the .pdb data of :math:`n` atoms.
+
     """
     at_columns = {
         'ATOM': object,

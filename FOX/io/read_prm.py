@@ -23,6 +23,7 @@ def write_prm(prm_dict: Dict[str, pd.DataFrame],
 
     str filename:
         The path+filename of the to-be created .prm file.
+
     """
     with open(filename, 'w') as f:
         for key, df in prm_dict.items():
@@ -72,6 +73,7 @@ def read_prm(filename: str) -> Dict[str, pd.DataFrame]:
     |dict|_ (keys: |str|_, values: |pd.DataFrame|_):
         A dictionary with block names as keys and a dataframe of matching parameters as value.
         Atom types are used as (multi-)index.
+
     """
     ret = {}
     with open(filename, 'r') as f:
@@ -113,6 +115,7 @@ def read_blocks(f: TextIO,
     |dict|_ (key: |str|_, value: |pd.DataFrame|_) and |str|_:
         A dictionary with **key** as key and a dataframe of accumulated data as value.
         In addition, the key of the next .prm block is returned.
+
     """
     stop = ('ATOMS', 'BONDS', 'ANGLES', 'DIHEDRALS', 'NBFIX', 'IMPROPERS')
     ret: list = []
@@ -144,8 +147,10 @@ def rename_atom_types(prm_dict: Dict[str, pd.DataFrame],
                       rename_dict: Dict[str, str]) -> None:
     """Rename atom types in a CHARM parameter file (prm_).
 
-    An example is provided below, one where the atom type *H_old* is renamed to *H_new*:
+    An example is provided below, one where the atom type *H_old* is renamed to *H_new*.
 
+    Examples
+    --------
     .. code:: python
 
         >>> 'H_old' in atom_dict['ATOMS'].index
@@ -167,7 +172,8 @@ def rename_atom_types(prm_dict: Dict[str, pd.DataFrame],
     dict prm_dict:
         A dictionary with **key** as key and a dataframe of accumulated data as value.
     dict rename_dict:
-        A dictionary or series with old atom types as keys and new atom types as values
+        A dictionary or series with old atom types as keys and new atom types as values.
+
     """
     for df in prm_dict.values():
         idx = np.array(df.index.tolist())
@@ -196,6 +202,7 @@ def _get_empty_line(df: pd.DataFrame) -> str:
         |str|_:
             Given a dataframe, **df**, with :math:`n` columns, return a string with :math:`n`
             sets of curly brackets.
+
     """
     ret = ''
     for column in df:
@@ -223,6 +230,7 @@ def _get_nonbonded(f: TextIO,
     -------
     |str|_:
         The complete .prm NONBONDED key.
+
     """
     item2 = '\n'
     while(item2):
@@ -246,6 +254,7 @@ def _proccess_prm_df(prm_dict: Dict[str, pd.DataFrame]) -> Dict[str, pd.DataFram
     -------
     |dict|_:
         **prm_dict** with new columns, indices and datatypes.
+
     """
     float_blacklist = {'ATOMS': ('-1'), 'DIHEDRALS': ('param 2'), 'IMPROPERS': ('param 2')}
 
@@ -319,6 +328,7 @@ def update_dtype(df: pd.DataFrame,
     list float_blacklist:
         A list of column names of columns whose desired dtype is ``dtype("int64")``
         rather than ``dtype("float64")``.
+
     """
     for column in df:
         if column in float_blacklist:

@@ -54,6 +54,7 @@ class MultiMolecule(_MultiMolecule):
         miscellaneous user-defined (meta-)data.
         Is devoid of keys by default.
         Stored in the **MultiMolecule.properties** attribute.
+
     """
 
     def guess_bonds(self, atom_subset: AtomSubset = None) -> None:
@@ -68,6 +69,7 @@ class MultiMolecule(_MultiMolecule):
             A tuple of atomic symbols. Bonds are guessed between all atoms
             whose atomic symbol is in **atom_subset**.
             If ``None``, guess bonds for all atoms in **self**.
+
         """
         at_subset = np.asarray(sorted(self._get_atom_subset(atom_subset, as_sequence=True)))
 
@@ -108,6 +110,7 @@ class MultiMolecule(_MultiMolecule):
         -------
         |None|_ or |FOX.MultiMolecule|_:
             If **inplace** is ``True``, return a new :class:`MultiMolecule` instance.
+
         """
         if inplace:
             self[:] = self[start:stop:step]
@@ -119,8 +122,7 @@ class MultiMolecule(_MultiMolecule):
                      stop: Union[int, None] = None,
                      p: float = 0.5,
                      inplace: bool = False) -> Optional[MultiMolecule]:
-        """Construct a new :class:`MultiMolecule` instance by iterating through **self** at random
-        intervals.
+        """Construct a new :class:`MultiMolecule` instance by randomly slicing **self**.
 
         The probability of including a particular element is equivalent to **p**.
 
@@ -143,6 +145,7 @@ class MultiMolecule(_MultiMolecule):
         -------
         |None|_ or |FOX.MultiMolecule|_:
             If **inplace** is ``True``, return a new :class:`MultiMolecule` instance.
+
         """
         if p <= 0.0 or p >= 1.0:
             raise ValueError("The supplied probability, 'p': {:f}, must be larger "
@@ -188,6 +191,7 @@ class MultiMolecule(_MultiMolecule):
         -------
         |None|_ or |FOX.MultiMolecule|_:
             If **inplace** is ``True``, return a new :class:`MultiMolecule` instance.
+
         """
         # Prepare slices
         i = self._get_mol_subset(mol_subset)
@@ -228,6 +232,7 @@ class MultiMolecule(_MultiMolecule):
 
         bool reverse:
             Sort in reversed order.
+
         """
         # Create and, potentially, sort a list of indices
         if isinstance(sort_by, str):
@@ -277,6 +282,7 @@ class MultiMolecule(_MultiMolecule):
         -------
         :math:`n` |np.ndarray|_ [|np.int64|_]:
             A 1D array of indices that would sort :math:`n` atoms **self**.
+
         """
         # Define residues
         plams_mol = self.as_Molecule(mol_subset=0)[0]
@@ -321,6 +327,7 @@ class MultiMolecule(_MultiMolecule):
         -------
         :math:`m*3` |np.ndarray|_ [|np.float64|_]:
             A 2D array with the centres of mass of :math:`m` molecules with :math:`n` atoms.
+
         """
         coords = self.as_mass_weighted(mol_subset, atom_subset)
         return coords.sum(axis=1) / self.mass.sum()
@@ -339,6 +346,7 @@ class MultiMolecule(_MultiMolecule):
         -------
         :math:`n` |np.ndarray|_ [|np.int64|_]:
             A 1D array with the number of bonds per atom, for all :math:`n` atoms in **self**.
+
         """
         j = self._get_atom_subset(atom_subset, as_sequence=True)
         if self.bonds is None:
@@ -369,6 +377,7 @@ class MultiMolecule(_MultiMolecule):
         -------
         |pd.DataFrame|_:
             A DataFrame containing a time-averaged property.
+
         """
         # Prepare arguments
         loop, at_subset = self._get_loop(atom_subset)
@@ -409,6 +418,7 @@ class MultiMolecule(_MultiMolecule):
         -------
         |pd.DataFrame|_:
             A DataFrame containing an atomic subset-averaged property.
+
         """
         # Prpare arguments
         loop, at_subset = self._get_loop(atom_subset)
@@ -458,6 +468,7 @@ class MultiMolecule(_MultiMolecule):
         -------
         |pd.DataFrame|_:
             A dataframe holding :math:`m-1` velocities averaged over one or more atom subsets.
+
         """
         kwarg = {'mol_subset': mol_subset, 'timestep': timestep, 'rms': rms}
         df = self._get_average_prop(self.get_average_velocity, atom_subset, kwarg)
@@ -495,6 +506,7 @@ class MultiMolecule(_MultiMolecule):
         -------
         |pd.DataFrame|_:
             A dataframe holding :math:`m-1` time-averaged velocities.
+
         """
         kwarg = {'mol_subset': mol_subset, 'timestep': timestep, 'rms': rms}
         return self._get_time_averaged_prop(self.get_time_averaged_velocity, atom_subset, kwarg)
@@ -528,6 +540,7 @@ class MultiMolecule(_MultiMolecule):
             Keys consist of atomic symbols (*e.g.* ``"Cd"``) if **atom_subset** contains strings,
             otherwise a more generic 'series ' + str(int) scheme is adopted (*e.g.* ``"series 2"``).
             Molecular indices are used as index.
+
         """
         if reset_origin:
             self.reset_origin()
@@ -565,6 +578,7 @@ class MultiMolecule(_MultiMolecule):
             Keys consist of atomic symbols (*e.g.* ``"Cd"``) if **atom_subset** contains strings,
             otherwise a more generic 'series ' + str(int) scheme is adopted (*e.g.* ``"series 2"``).
             Molecular indices are used as indices.
+
         """
         if reset_origin:
             self.reset_origin()
@@ -600,6 +614,7 @@ class MultiMolecule(_MultiMolecule):
         -------
         :math:`m-1` |np.ndarray|_ [|np.float64|_]:
             A 1D array holding :math:`m-1` velocities averaged over one or more atom subsets.
+
         """
         if not rms:
             return self.get_velocity(timestep, mol_subset=mol_subset,
@@ -636,6 +651,7 @@ class MultiMolecule(_MultiMolecule):
         -------
         :math:`n` |np.ndarray|_ [|np.float64|_]:
             A 1D array holding :math:`n` time-averaged velocities.
+
         """
         if not rms:
             return self.get_velocity(timestep, mol_subset=mol_subset,
@@ -677,6 +693,7 @@ class MultiMolecule(_MultiMolecule):
         :math:`(m-1)*n` or :math:`(m-1)*n*3` |np.ndarray|_ [|np.float64|_]:
             A 2D or 3D array of atomic velocities, the number of dimensions depending on the
             value of **norm** (``True`` = 2D; ``False`` = 3D).
+
         """
         # Prepare slices
         i = self._get_mol_subset(mol_subset)
@@ -722,6 +739,7 @@ class MultiMolecule(_MultiMolecule):
         -------
         |pd.DataFrame|_:
             A dataframe with the RMSD as a function of the XYZ frame numbers.
+
         """
         i = self._get_mol_subset(mol_subset)
         j = self._get_atom_subset(atom_subset)
@@ -750,6 +768,7 @@ class MultiMolecule(_MultiMolecule):
         -------
         |pd.DataFrame|_:
             A dataframe with the RMSF as a function of atomic indices.
+
         """
         # Prepare slices
         i = self._get_mol_subset(mol_subset)
@@ -780,6 +799,7 @@ class MultiMolecule(_MultiMolecule):
         -------
         Sequence[Hashable]:
             A sequence with column names for atomic subset-averaged properties.
+
         """
         if loop:  # Plan A: **atom_subset** is a *list* of *str* or nested *list* of *int*
             if isinstance(atom_subset[0], str):  # Use atomic symbols or general indices as keys
@@ -823,6 +843,7 @@ class MultiMolecule(_MultiMolecule):
         Sequence[Hashable] and |np.ndarray|_ [|np.float64|_]:
             A sequence with column names for time-averaged properties
             and an array with the time-averaged data.
+
         """
         if loop:  # Plan A: **atom_subset** is a *list* of *str* or nested *list* of *int*
             if isinstance(atom_subset[0], str):  # Use atomic symbols or general indices as keys
@@ -865,6 +886,7 @@ class MultiMolecule(_MultiMolecule):
         -------
         bool and |np.ndarray|_ [|np.float64|_]:
             A boolean and (nested) iterable consisting of integers.
+
         """
         if subset is None:
             return False, slice(None)
@@ -922,6 +944,7 @@ class MultiMolecule(_MultiMolecule):
                 * A series mapping the indices from 1. to the actual atomic indices.
 
                 * A dataframe holding the RDF with respect to the center of mass.
+
         """
         def _get_mean_dist(mol_cp, at):
             ret = np.linalg.norm(mol_cp[:, mol_cp.atoms[at]], axis=2).mean(axis=0)
@@ -970,6 +993,7 @@ class MultiMolecule(_MultiMolecule):
                    idx_series: pd.Series,
                    dist_dict: Dict[str, List[int]]) -> Dict[str, List[int]]:
         """Create subsets of atomic indices.
+
         The subset is created (using **rmsf** and **idx_series**) based on
         distance criteria in **dist_dict**.
 
@@ -1007,6 +1031,7 @@ class MultiMolecule(_MultiMolecule):
         -------
         |dict|_ (keys: |str|_, values: |list|_ [|int|_])
             A dictionary with atomic symbols as keys, and matching atomic indices as values.
+
         """
         # Double check if all keys in **dist_dict** are available in **rmsf.columns**
         for key in dist_dict:
@@ -1068,6 +1093,7 @@ class MultiMolecule(_MultiMolecule):
             **xyz_array**.
             Keys are of the form: at_symbol1 + ' ' + at_symbol2 (*e.g.* ``"Cd Cd"``).
             Radii are used as index.
+
         """
         # If **atom_subset** is None: extract atomic symbols from they keys of **self.atoms**
         at_subset = atom_subset or tuple(self.atoms.keys())
@@ -1114,6 +1140,7 @@ class MultiMolecule(_MultiMolecule):
         :math:`m*n*k` |np.ndarray|_ [|np.float64|_]:
             A 3D distance matrix of :math:`m` molecules, created out of two sets of :math:`n`
             and :math:`k` atoms.
+
         """
         # Define array slices
         m_subset = self._get_mol_subset(mol_subset)
@@ -1147,6 +1174,7 @@ class MultiMolecule(_MultiMolecule):
 
         int r:
             The length of the to-be returned subsets.
+
         """
         values = list(combinations_with_replacement(atom_subset, r))
 
@@ -1184,6 +1212,7 @@ class MultiMolecule(_MultiMolecule):
         |pd.DataFrame|_:
             A dataframe of angular distribution functions, averaged over all conformations in
             **self**.
+
         """
         # If **atom_subset** is None: extract atomic symbols from they keys of **self.atoms**
         at_subset = atom_subset or tuple(self.atoms.keys())
@@ -1233,6 +1262,7 @@ class MultiMolecule(_MultiMolecule):
             A 4D angle matrix of :math:`m` molecules, created out of three sets of :math:`n`,
             :math:`k` and :math:`l` atoms.
             If **get_r_max** = ``True``, also return the maximum distance.
+
         """
         # Define array slices
         m_subset = self._get_mol_subset(mol_subset)
@@ -1280,6 +1310,7 @@ class MultiMolecule(_MultiMolecule):
         |list|_, |np.ndarray|_, |slice|_ or |range|_:
             An object used for slicing an array.
             The returned object can be used for either indexing or fancy indexing.
+
         """
         if as_sequence:
             if atom_subset is None:
@@ -1306,8 +1337,7 @@ class MultiMolecule(_MultiMolecule):
         err = "'{}' of type '{}' is an invalid argument for 'atom_subset'"
         raise TypeError(err.format(str(atom_subset), atom_subset.__class__.__name__))
 
-    @staticmethod
-    def _get_mol_subset(mol_subset: MolSubset) -> slice:
+    def _get_mol_subset(self, mol_subset: MolSubset) -> slice:
         """Sanitize the **mol_subset** argument.
 
         Parameters
@@ -1325,6 +1355,7 @@ class MultiMolecule(_MultiMolecule):
         |slice|_:
             An object used for slicing an array.
             The returned object cannot be used for fancy indexing.
+
         """
         if mol_subset is None:
             return slice(0, None)
@@ -1370,6 +1401,7 @@ class MultiMolecule(_MultiMolecule):
             Perform the calculation on a subset of molecules in **self**, as
             determined by their moleculair index.
             Include all :math:`m` molecules in **self** if ``None``.
+
         """
         _m_subset = self._get_mol_subset(mol_subset)
         m_subset = range(_m_subset.start, _m_subset.stop, _m_subset.step)
@@ -1404,6 +1436,7 @@ class MultiMolecule(_MultiMolecule):
             Perform the calculation on a subset of molecules in **self**, as
             determined by their moleculair index.
             Include all :math:`m` molecules in **self** if ``None``.
+
         """
         self._mol_to_file(filename, 'pdb', mol_subset)
 
@@ -1424,6 +1457,7 @@ class MultiMolecule(_MultiMolecule):
             Perform the calculation on a subset of molecules in **self**, as
             determined by their moleculair index.
             Include all :math:`m` molecules in **self** if ``None``.
+
         """
         self._mol_to_file(filename, 'mol2', mol_subset)
 
@@ -1444,6 +1478,7 @@ class MultiMolecule(_MultiMolecule):
             Perform the calculation on a subset of molecules in **self**, as
             determined by their moleculair index.
             Include all :math:`m` molecules in **self** if ``None``.
+
         """
         self._mol_to_file(filename, 'mol', mol_subset)
 
@@ -1460,6 +1495,7 @@ class MultiMolecule(_MultiMolecule):
             Perform the calculation on a subset of molecules in **self**, as
             determined by their moleculair index.
             Include all :math:`m` molecules in **self** if ``None``.
+
         """
         # Define constants
         m_subset = self._get_mol_subset(mol_subset)
@@ -1499,6 +1535,7 @@ class MultiMolecule(_MultiMolecule):
         :math:`m*n*3` |np.ndarray|_ [|np.float64|_] or |None|_:
             if **inplace** = ``False`` return a new :class:`.MultiMolecule` instance with the
             mass-weighted Cartesian coordinates of :math:`m` molecules with :math:`n` atoms.
+
         """
         # Prepare slices
         i = self._get_mol_subset(mol_subset)
@@ -1528,6 +1565,7 @@ class MultiMolecule(_MultiMolecule):
             Perform the calculation on a subset of atoms in **self**, as
             determined by their atomic index or atomic symbol.
             Include all :math:`n` atoms per molecule in **self** if ``None``.
+
         """
         # Prepare slices
         i = self._get_mol_subset(mol_subset)
@@ -1556,6 +1594,7 @@ class MultiMolecule(_MultiMolecule):
         -------
         :math:`m` |list|_ [|plams.Molecule|_]:
             A list of :math:`m` PLAMS molecules constructed from **self**.
+
         """
         m_subset = self._get_mol_subset(mol_subset)
         at_subset = np.asarray(sorted(self._get_atom_subset(atom_subset, as_sequence=True)))
@@ -1609,6 +1648,7 @@ class MultiMolecule(_MultiMolecule):
         -------
         |FOX.MultiMolecule|_:
             A :class:`.MultiMolecule` instance constructed from **mol_list**.
+
         """
         if isinstance(mol_list, Molecule):
             plams_mol = mol_list
@@ -1668,6 +1708,7 @@ class MultiMolecule(_MultiMolecule):
         -------
         |FOX.MultiMolecule|_:
             A :class:`.MultiMolecule` instance constructed from **filename**.
+
         """
         return cls(*read_multi_xyz(filename), bonds, properties)
 
@@ -1696,5 +1737,6 @@ class MultiMolecule(_MultiMolecule):
         -------
         |FOX.MultiMolecule|_:
             A :class:`.MultiMolecule` instance constructed from **filename**.
+
         """
         return cls(*read_kf(filename), bonds, properties)

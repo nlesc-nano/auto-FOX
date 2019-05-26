@@ -48,12 +48,14 @@ class MonteCarlo():
                     * **hdf5_file** (|str|_) – The hdf5 path+filename.
 
                     * **move** (|plams.Settings|_) – See :meth:`MonteCarlo.reconfigure_move_atr`.
+
     """
 
     def __init__(self,
                  molecule: Molecule,
                  param: pd.DataFrame,
                  **kwarg: dict) -> None:
+        """Initialize a :class:`MonteCarlo` instance."""
         # Set the inital forcefield parameters
         self.param = param
 
@@ -85,18 +87,21 @@ class MonteCarlo():
         self.move.range = self.get_move_range()
 
     def __repr__(self) -> str:
+        """Return a string containing a printable representation of this instance."""
         return repr(Settings(vars(self)))
 
     def as_dict(self, as_Settings: bool = False) -> Union[dict, Settings]:
         """Create a dictionary out of a :class:`.MonteCarlo` instance.
 
         Parameters:
-            bool as_Settings:
-                Return as a Settings instance rather than a dictionary.
+        bool as_Settings:
+            Return as a Settings instance rather than a dictionary.
 
-        Returns:
-            |dict|_ or |plams.Settings|_:
-                A (nested) dictionary constructed from **self**.
+        Returns
+        -------
+        |dict|_ or |plams.Settings|_:
+            A (nested) dictionary constructed from **self**.
+
         """
         if as_Settings:
             return Settings(dir(self))
@@ -111,8 +116,9 @@ class MonteCarlo():
         **self.job.settings** is updated to reflect the change in parameters.
 
         Returns:
-            |tuple|_ [|float|_]:
-                A tuple with the (new) values in the ``'param'`` column of **self.param**.
+        |tuple|_ [|float|_]:
+            A tuple with the (new) values in the ``'param'`` column of **self.param**.
+
         """
         # Unpack arguments
         param = self.param
@@ -145,9 +151,10 @@ class MonteCarlo():
         * The MD job is constructed according to the provided settings in **self.job**.
 
         Returns:
-            |FOX.MultiMolecule|_ and |tuple|_ [|str|_]:
-                A :class:`.MultiMolecule` instance constructed from the MD trajectory &
-                a tuple with the paths to the PLAMS results directories.
+        |FOX.MultiMolecule|_ and |tuple|_ [|str|_]:
+            A :class:`.MultiMolecule` instance constructed from the MD trajectory &
+            a tuple with the paths to the PLAMS results directories.
+
         """
         job_type = self.job.func
 
@@ -183,22 +190,25 @@ class MonteCarlo():
                             ) -> Tuple[Dict[str, np.ndarray], Optional[MultiMolecule]]:
         """Check if a **key** is already present in **history_dict**.
 
-        If *True*, return the matching list of PES descriptors;
-        If *False*, construct and return a new list of PES descriptors.
+        If ``True``, return the matching list of PES descriptors;
+        If ``False``, construct and return a new list of PES descriptors.
 
         * The PES descriptors are constructed by the provided settings in **self.pes**.
 
-        Parameters:
-            dict history_dict:
-                A dictionary with results from previous iteractions.
+        Parameters
+        ----------
+        dict history_dict:
+            A dictionary with results from previous iteractions.
 
-            tuple key:
-                A key in **history_dict**.
+        tuple key:
+            A key in **history_dict**.
 
-        Returns:
-            |dict|_ (keys: |str|_, values: array-like)
-                A previous value from **history_dict** or a new value from an MD calculation.
-                Values are set to np.inf if the MD job crashed.
+        Returns
+        -------
+        |dict|_ (keys: |str|_, values: array-like)
+            A previous value from **history_dict** or a new value from an MD calculation.
+            Values are set to np.inf if the MD job crashed.
+
         """
         # Generate PES descriptors
         mol, path = self.run_md()
@@ -222,8 +232,8 @@ class MonteCarlo():
         The move range spans a range of 1.0 +- **stop** and moves are thus intended to
         applied in a multiplicative manner (see :meth:`MonteCarlo.move_param`).
 
-        Example:
-
+        Examples
+        --------
         .. code: python
 
             >>> move_range = ARMC.get_move_range(start=0.005, stop=0.1, step=0.005)
@@ -233,18 +243,21 @@ class MonteCarlo():
              1.005 1.01  1.015 1.02  1.025 1.03  1.035 1.04  1.045 1.05
              1.055 1.06  1.065 1.07  1.075 1.08  1.085 1.09  1.095 1.1  ]
 
-        Parameters:
-            float start:
-                Start of the interval. The interval includes this value.
+        Parameters
+        ----------
+        float start:
+            Start of the interval. The interval includes this value.
 
-            float stop:
-                End of the interval. The interval includes this value.
+        float stop:
+            End of the interval. The interval includes this value.
 
-            float step:
-                Spacing between values.
+        float step:
+            Spacing between values.
 
-        Returns:
-            |np.ndarray|_ [|np.int64|_]:
-                An array with allowed moves.
+        Returns
+        -------
+        |np.ndarray|_ [|np.int64|_]:
+            An array with allowed moves.
+
         """
         return _get_move_range(start, stop, step)

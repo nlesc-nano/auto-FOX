@@ -166,12 +166,15 @@ class PSFDict(defaultdict):
             >>> psf_dict = read_psf('old_file.psf')
             >>> write_psf('new_file.psf', **psf_dict)
 
-        Parameters:
-            str filename: The path + filename of a .psf file.
+        Parameters
+        ----------
+        str filename: The path + filename of a .psf file.
 
-        Returns:
-            |dict|_ (keys: |str|_):
-                A dictionary holding the content of a .psf file.
+        Returns
+        -------
+        |dict|_ (keys: |str|_):
+            A dictionary holding the content of a .psf file.
+            
         """
         header_dict = {'!NTITLE': 'title',
                        '!NATOM': 'atoms',
@@ -215,13 +218,16 @@ class PSFDict(defaultdict):
         * The atoms block is converted into a Pandas DataFrame.
         * All other blocks are converted into a flattened array of integers.
 
-        Parameters:
-            dict psf_dict:
-                A dictionary holding the content of a .psf file (see :func:`.read_psf`).
+        Parameters
+        ----------
+        dict psf_dict:
+            A dictionary holding the content of a .psf file (see :func:`.read_psf`).
 
-        Returns:
-            |dict|_ (keys: |str|_):
-                The .psf output, **psf_dict**, with properly formatted values.
+        Returns
+        -------
+        |dict|_ (keys: |str|_):
+            The .psf output, **psf_dict**, with properly formatted values.
+
         """
         shape_dict = {'bonds': 2,
                       'angles': 3,
@@ -261,11 +267,13 @@ class PSFDict(defaultdict):
     def write_psf(self, filename: str = None) -> None:
         """Create a protein structure file (.psf) out of a :class:`.PSFDict` instance.
 
-        Parameters:
-            str filename:
-                The path+filename of the .psf file.
-                If ``None``, try to pull the name from **self['filename']**
-                (see :meth:`set_filename`).
+        Parameters
+        ----------
+        str filename:
+            The path+filename of the .psf file.
+            If ``None``, try to pull the name from **self['filename']**
+            (see :meth:`set_filename`).
+            
         """
         try:
             filename = filename or self.filename[0]

@@ -22,8 +22,9 @@ __all__ = ['ARMC']
 
 
 class ARMC(MonteCarlo):
-    """The Addaptive Rate Monte Carlo class (:class:`.ARMC`), a subclass of the base
-    :class:`.MonteCarlo` class.
+    """The Addaptive Rate Monte Carlo class (:class:`.ARMC`).
+
+    A subclass of :class:`.MonteCarlo`.
 
     :Atributes:     * **armc** (|plams.Settings|_) – See :meth:`ARMC.reconfigure_armc_atr`
 
@@ -34,6 +35,7 @@ class ARMC(MonteCarlo):
                  molecule: Molecule,
                  param: pd.DataFrame,
                  **kwarg: dict) -> None:
+        """Initialize a :class:`ARMC` instance."""
         MonteCarlo.__init__(self, molecule, param, **kwarg)
 
         # Settings specific to addaptive rate Monte Carlo (ARMC)
@@ -60,6 +62,7 @@ class ARMC(MonteCarlo):
                 setattr(self, key, value)
 
     def __str__(self) -> str:
+        """Return a string constructed from this instance."""
         ret = Settings(vars(self))
 
         # The self.pes block
@@ -109,13 +112,16 @@ class ARMC(MonteCarlo):
     def from_yaml(filename: str) -> ARMC:
         """Create a :class:`.ARMC` instance from a .yaml file.
 
-        Parameters:
-            str filename:
-                The path+filename of a .yaml file containing all :class:`ARMC` settings.
+        Parameters
+        ----------
+        str filename:
+            The path+filename of a .yaml file containing all :class:`ARMC` settings.
 
-        Returns:
-            |FOX.ARMC|_:
-                A new :class:`ARMC` instance.
+        Returns
+        -------
+        |FOX.ARMC|_:
+            A new :class:`ARMC` instance.
+
         """
         if isfile(filename):
             path, filename = split(filename)
@@ -127,13 +133,16 @@ class ARMC(MonteCarlo):
     def from_dict(cls, armc_dict: Settings) -> ARMC:
         """Create a :class:`.ARMC` instance from a dictionary.
 
-        Parameters:
-            dict armc_dict:
-                A dictionary containing all :class:`ARMC` settings.
+        Parameters
+        ----------
+        dict armc_dict:
+            A dictionary containing all :class:`ARMC` settings.
 
-        Returns:
-            |FOX.ARMC|_:
-                A new :class:`ARMC` instance.
+        Returns
+        -------
+        |FOX.ARMC|_:
+            A new :class:`ARMC` instance.
+
         """
         molecule, param, dict_ = init_armc_sanitization(armc_dict)
         set_subsys_kind(dict_.job.settings, dict_.job.psf['atoms'])
@@ -160,7 +169,7 @@ class ARMC(MonteCarlo):
         # Initialize the first MD calculation
         history_dict: dict = {}
         key_new = tuple(self.param['param'].values)
-        pes_new, mol = self.get_pes_descriptors(history_dict, key_new)
+        pes_new, _ = self.get_pes_descriptors(history_dict, key_new)
         history_dict[key_new] = self.get_aux_error(pes_new)
         self.param['param_old'] = self.param['param']
 
@@ -173,22 +182,25 @@ class ARMC(MonteCarlo):
                  kappa: float,
                  history_dict: Dict[Tuple[float], np.ndarray],
                  key_new: Tuple[float]) -> Tuple[float]:
-        r"""A method that handles the inner loop of the :meth:`ARMC.init_armc` method.
+        r"""Run the inner loop of the :meth:`ARMC.init_armc` method.
 
-        Parameters:
-            int kappa:
-                The super-iteration, :math:`\kappa`, in :meth:`ARMC.init_armc`.
+        Parameters
+        ----------
+        int kappa:
+            The super-iteration, :math:`\kappa`, in :meth:`ARMC.init_armc`.
 
-            dict history_dict:
-                A dictionary with parameters as keys and a list of PES descriptors as values.
+        dict history_dict:
+            A dictionary with parameters as keys and a list of PES descriptors as values.
 
-            tuple key_new:
-                A tuple with the latest set of forcefield parameters.
+        tuple key_new:
+            A tuple with the latest set of forcefield parameters.
 
-        Returns:
-            |tuple|_ [|int|_] and |np.ndarray|_ [|bool|_]:
-                The latest set of parameters and the acceptance rate, :math:`\alpha`, over the
-                course of the inner loop.
+        Returns
+        -------
+        |tuple|_ [|int|_] and |np.ndarray|_ [|bool|_]:
+            The latest set of parameters and the acceptance rate, :math:`\alpha`, over the
+            course of the inner loop.
+
         """
         hdf5_kwarg = {}
         acceptance = np.zeros(self.armc.sub_iter_len, dtype=bool)
@@ -233,11 +245,12 @@ class ARMC(MonteCarlo):
         return key_new
 
     def get_aux_error(self, pes_dict: Dict[str, np.ndarray]) -> np.ndarray:
-        r"""Return the auxiliary error, :math:`\Delta \varepsilon_{QM-MM}`, of the PES descriptors
-        in **values** with respect to **self.ref**.
+        r"""Return the auxiliary error :math:`\Delta \varepsilon_{QM-MM}`.
 
+        The auxiliary error is constructed using the PES descriptors in **values**
+        with respect to **self.ref**.
 
-        The default is equivalent to:
+        The default function is equivalent to:
 
         .. math::
 
@@ -251,13 +264,16 @@ class ARMC(MonteCarlo):
                 \right )^2
             }
 
-        Parameters:
-            dict pes_dict:
-                A dictionary with *n* PES descriptors.
+        Parameters
+        ----------
+        dict pes_dict:
+            A dictionary with *n* PES descriptors.
 
-        Returns:
-            :math:`n` |np.ndarray|_ [|np.float64|_]:
-                An array with *n* auxilary errors
+        Returns
+        -------
+        :math:`n` |np.ndarray|_ [|np.float64|_]:
+            An array with *n* auxilary errors
+
         """
         def norm_mean(mm_pes: np.ndarray, key: str) -> float:
             qm_pes = self.pes[key].ref
@@ -268,36 +284,38 @@ class ARMC(MonteCarlo):
         return np.array([norm_mean(mm_pes, key) for key, mm_pes in pes_dict.items()])
 
     def apply_phi(self, aux_error: float) -> float:
-        r"""Apply :math:`\phi` to all auxiliary errors, :math:`\Delta \varepsilon_{QM-MM}`,
-        in **aux_error**.
+        r"""Apply :math:`\phi` to all auxiliary errors :math:`\Delta \varepsilon_{QM-MM}`.
 
         * The values are updated according to the provided settings in **self.armc**.
 
-
-        The default is equivalent to:
+        The default function is equivalent to:
 
         .. math::
 
             \Delta \varepsilon_{QM-MM} = \Delta \varepsilon_{QM-MM} + \phi
 
-        Parameters:
-            |np.ndarray|_ aux_error:
-                An array with auxiliary errors.
+        Parameters
+        ----------
+        |np.ndarray|_ aux_error:
+            An array with auxiliary errors.
 
-        Returns:
-            |np.ndarray|_ [|np.float64|_]:
-                **aux_error** with updated values.
+        Returns
+        -------
+        |np.ndarray|_ [|np.float64|_]:
+            **aux_error** with updated values.
+
         """
         return self.phi.func(aux_error, self.phi.phi, **self.phi.kwarg)
 
     def update_phi(self, acceptance: np.ndarray) -> None:
-        r"""Update :math:`\phi` based on the target accepatance rate, :math:`\alpha_{t}`, and the
-        acceptance rate, **acceptance**, in the current super-iteration.
+        r"""Update the variable :math:`\phi`.
+
+        :math:`\phi` is updated based on the target accepatance rate, :math:`\alpha_{t}`, and the
+        acceptance rate, **acceptance**, of the current super-iteration.
 
         * The values are updated according to the provided settings in **self.armc**.
 
-
-        The default is equivalent to:
+        The default function is equivalent to:
 
         .. math::
 
@@ -306,9 +324,11 @@ class ARMC(MonteCarlo):
                 \text{sgn} ( \alpha_{t} - \overline{\alpha}_{ ( \kappa - 1 ) })
             }
 
-        Parameters:
-            |np.ndarray|_ acceptance:
-                A 1D boolean array denoting the accepted moves within a sub-iteration.
+        Parameters
+        ----------
+        |np.ndarray|_ acceptance:
+            A 1D boolean array denoting the accepted moves within a sub-iteration.
+
         """
         sign = np.sign(self.armc.a_target - np.mean(acceptance))
         self.phi.phi *= self.armc.gamma**sign

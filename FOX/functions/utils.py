@@ -21,16 +21,15 @@ def append_docstring(item: Callable) -> Callable:
 
     Examples
     --------
-
     .. code:: python
 
         >>> def func1():
-        >>>     """'func1 docstring' """
+        >>>     """'func1 docstring'"""
         >>>     pass
 
         >>> @append_docstring(func1)
         >>> def func2():
-        >>>     """'func2 docstring' """
+        >>>     """'func2 docstring'"""
         >>>     pass
 
         >>> help(func2)
@@ -42,6 +41,7 @@ def append_docstring(item: Callable) -> Callable:
     ----------
     Callable item:
         A Callable object with a docstring.
+
     """
     def decorator(func):
         try:
@@ -60,7 +60,6 @@ def assert_error(error_msg: str = '') -> Callable:
 
     Examples
     --------
-
     .. code:: python
 
         >>> @assert_error('An error was raised by {}')
@@ -76,6 +75,7 @@ def assert_error(error_msg: str = '') -> Callable:
         A to-be printed error message.
         If available, a single set of curly brackets will be replaced
         with the function or class name.
+
     """
     type_dict = {'function': _function_error, 'type': _class_error}
 
@@ -86,7 +86,7 @@ def assert_error(error_msg: str = '') -> Callable:
 
 def _function_error(f_type: Callable,
                     error_msg: str) -> Callable:
-    """A function for processing functions fed into :func:`assert_error`."""
+    """Process functions fed into :func:`assert_error`."""
     if not error_msg:
         return f_type
 
@@ -98,7 +98,7 @@ def _function_error(f_type: Callable,
 
 def _class_error(f_type: Callable,
                  error_msg: str) -> Callable:
-    """A function for processing classes fed into :func:`assert_error`."""
+    """Process classes fed into :func:`assert_error`."""
     if error_msg:
         @add_to_class(f_type)
         def __init__(self, *arg, **kwarg):
@@ -127,6 +127,7 @@ def get_template(name: str,
     -------
     |plams.Settings|_ or |dict|_:
         A settings object or dictionary as constructed from the template file.
+
     """
     if path is None:
         if not isfile(name):
@@ -157,6 +158,7 @@ def template_to_df(name: str,
     -------
     |pd.DataFrame|_:
         A dataframe as constructed from the template file.
+
     """
     template_dict = get_template(name, path=path, as_settings=False)
     try:
@@ -185,6 +187,7 @@ def serialize_array(array: np.ndarray,
     -------
     |str|_:
         A serialized array.
+
     """
     if len(array) == 0:
         return ''
@@ -215,7 +218,8 @@ def read_str_file(filename: str) -> Optional[zip]:
     Returns
     -------
     |plams.Settings|_ (keys: |str|_, values: |tuple|_ [|str|_ or |float|_]):
-        A settings object with atom types and (atomic) charges
+        A settings object with atom types and (atomic) charges.
+
     """
     def inner_loop(f):
         ret = []
@@ -244,6 +248,7 @@ def get_shape(item: Iterable) -> Tuple[int]:
     -------
     |tuple|_ [|int|_]:
         The shape of **item**.
+
     """
     if hasattr(item, 'shape'):  # Plan A: **item** is an np.ndarray derived object
         return item.shape
@@ -261,7 +266,6 @@ def flatten_dict(input_dict: dict,
 
     Examples
     --------
-
     .. code-block:: python
 
         >>> print(input_dict)
@@ -285,6 +289,7 @@ def flatten_dict(input_dict: dict,
     -------
     |dict|_ (keys: |tuple|_):
         A non-nested dicionary derived from **input_dict**.
+
     """
     def concatenate(key_ret, dict_):
         for key, value in dict_.items():
@@ -330,6 +335,7 @@ def dict_to_pandas(input_dict: dict,
     -------
     |pd.Series|_ or |pd.DataFrame|_ (index: |pd.MultiIndex|_):
         A pandas series or dataframe created fron **input_dict**.
+
     """
     # Construct a MultiIndex
     flat_dict = flatten_dict(input_dict, clip=2)
@@ -364,6 +370,7 @@ def array_to_index(ar: np.ndarray) -> pd.Index:
     -------
     |pd.Index|_ or |pd.MultiIndex|_:
         A Pandas Index or MultiIndex constructed from **ar**.
+
     """
     if 'bytes' in ar.dtype.name:
         ar = ar.astype(str, copy=False)
@@ -405,6 +412,7 @@ def _get_move_range(start: float = 0.005,
     -------
     |np.ndarray|_ [|np.int64|_]:
         An array with allowed moves.
+
     """
     rng_range1 = np.arange(1 + start, 1 + stop, step, dtype=float)
     rng_range2 = np.arange(1 - stop, 1 - start + step, step, dtype=float)
@@ -418,7 +426,6 @@ def get_func_name(item: Callable) -> str:
 
     Examples
     --------
-
     .. code:: python
 
         >>> import numpy as np
@@ -441,6 +448,7 @@ def get_func_name(item: Callable) -> str:
     -------
     |str|_:
         The module + class + name of a function.
+
     """
     try:
         item_class, item_name = item.__qualname__.split('.')
@@ -457,7 +465,6 @@ def get_class_name(item: Callable) -> str:
 
     Examples
     --------
-
     .. code:: python
 
         >>> import FOX
@@ -479,6 +486,7 @@ def get_class_name(item: Callable) -> str:
     -------
     |str|_:
         The module + name of a class.
+
     """
     item_class = item.__qualname__
     item_module = item.__module__.split('.')[0]
@@ -494,7 +502,6 @@ def slice_str(str_: str,
 
     Examples
     --------
-
     .. code:: python
         >>> my_str = '123456789'
         >>> intervals = [None, 3, 6, None]
@@ -516,6 +523,7 @@ def slice_str(str_: str,
     -------
     :math:`n-1` |list|_ [|str|_]:
         A list of strings as sliced from **str_**.
+
     """
     iter1 = intervals[:-1]
     iter2 = intervals[1:]
@@ -551,6 +559,7 @@ def get_nested_value(iterable: Sequence,
     -------
     object:
         The value in **iterable** associated with all keys in **key**.
+
     """
     iter_slice = iterable
     for i in key_tup:
@@ -590,6 +599,7 @@ def set_nested_value(iterable: MutableSequence,
     -------
     object:
         The value in **iterable** associated with all keys in **key**.
+
     """
     iter_slice = iterable
     for i in key_tup[:-1]:
@@ -599,7 +609,7 @@ def set_nested_value(iterable: MutableSequence,
 
 def get_atom_count(iterable: Iterable[Sequence[str]],
                    mol: 'FOX.MultiMolecule') -> List[int]:
-    """ Count the occurences of each atom/atom-pair (from **iterable**) in **mol**.
+    """Count the occurences of each atom/atom-pair (from **iterable**) in **mol**.
 
     Parameters
     ----------
@@ -613,6 +623,7 @@ def get_atom_count(iterable: Iterable[Sequence[str]],
     -------
     :math:`n` |list|_ [|int|_]:
         A list of atom(-pair) counts.
+
     """
     def _get_atom_count(at):
         at_list = at.split()

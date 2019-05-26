@@ -37,6 +37,7 @@ def get_net_charge(df: pd.DataFrame,
     -------
     |float|_:
         The total charge in **df**.
+
     """
     if index_slice is None:
         return df.loc[:, [charge, atom_count]].product(axis=1).sum()
@@ -59,7 +60,6 @@ def update_charge(at: str,
 
     Examples
     --------
-
     .. code:: python
 
         >>> print(df)
@@ -82,6 +82,7 @@ def update_charge(at: str,
 
     dict constrain_dict:
         A dictionary with charge constrains.
+
     """
     net_charge = get_net_charge(df)
     df.at[at, 'param'] = charge
@@ -124,6 +125,7 @@ def update_constrained_charge(at1: str,
     -------
     |list|_ [|str|_]:
         A list of atom types with updated atomic charges.
+
     """
     charge = df.at[at1, 'param']
     exclude = [at1]
@@ -166,6 +168,7 @@ def update_unconstrained_charge(net_charge: float,
 
     list exclude:
         A list of atom types whose atomic charges should not be updated.
+
     """
     include = np.array([i not in exclude for i in df.index])
     if not include.any():
@@ -205,6 +208,7 @@ def find_q(df: pd.DataFrame,
     -------
     |float|_:
         A list of atom types with updated atomic charges.
+
     """
     A = Q
     B = 0.0
@@ -230,7 +234,6 @@ def get_charge_constraints(constrain: str) -> Settings:
 
     Examples
     --------
-
     An example where :math:`q_{Cd} = -0.5*q_{O} = -q_{Se}`:
 
     .. code:: python
@@ -285,6 +288,7 @@ def get_charge_constraints(constrain: str) -> Settings:
     -------
     |plams.Settings|_:
         A Settings object with all charge constraints.
+
     """
     def _loop(i, operator_dict):
         for operator in operator_dict:
@@ -328,6 +332,7 @@ def invert_ufunc(ufunc: Callable) -> Callable:
     -------
     Callable:
         An inverted NumPy universal function.
+
     """
     invert_dict = {
         np.add: np.subtract,

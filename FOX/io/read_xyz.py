@@ -28,6 +28,7 @@ def read_multi_xyz(filename: str) -> Tuple[np.ndarray, Dict[str, List[int]]]:
     (keys: |str|_, values: |list|_ [|int|_]):
         A 3D array with cartesian coordinates and a dictionary
         with atomic symbols as keys and lists of matching atomic indices as values.
+
     """
     # Define constants and construct a dictionary: {atomic symbols: [atomic indices]}
     with open(filename, 'r') as f:
@@ -56,6 +57,7 @@ def read_multi_xyz(filename: str) -> Tuple[np.ndarray, Dict[str, List[int]]]:
 
 class XYZError(Exception):
     """Raise when there are issues related to parsing .xyz files."""
+
     pass
 
 
@@ -76,6 +78,7 @@ def validate_xyz(mol_count: float,
 
     str xyz_file:
         The path + filename of a (multi) .xyz file.
+
     """
     if not mol_count.is_integer():
         error = "A non-integer number of molecules ({:d}) was found in '{}'"
@@ -100,6 +103,7 @@ def _get_atom_count(f: TextIO) -> int:
     -------
     |int|_:
         The number of atoms per molecule.
+
     """
     ret = f.readline()
     try:
@@ -125,6 +129,7 @@ def _get_line_count(f: TextIO,
     -------
     |int|_:
         The total number of lines in **f**.
+
     """
     for i, _ in enumerate(f, 1):
         pass
@@ -151,6 +156,7 @@ def _get_idx_dict(f: TextIO,
     -------
     |dict|_ (keys: |str|_, values: |list|_ [|int|_]):
         A dictionary with atomic symbols and a list of matching atomic indices.
+
     """
     idx_dict: Dict[str, List[int]] = {}
     abort = atom_count - subtract

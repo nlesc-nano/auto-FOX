@@ -20,6 +20,7 @@ def get_adf_df(atom_pairs: Sequence[Sequence[Hashable]]) -> pd.DataFrame:
     -------
     |pd.DataFrame|_:
         An empty dataframe.
+
     """
     # Prepare the DataFrame arguments
     shape = 181, len(atom_pairs)
@@ -52,6 +53,7 @@ def get_adf(ang_mat: np.ndarray,
     :math:`181` |np.ndarray|_ [|np.float64|_]:
         A 1D array with an angular distribution function spanning all values between 0 and 180
         degrees.
+
     """
     ang_mat[np.isnan(ang_mat)] = 10
     ang_int = np.array(np.degrees(ang_mat), dtype=int)

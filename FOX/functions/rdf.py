@@ -26,6 +26,7 @@ def get_rdf_df(atom_pairs,
     -------
     |pd.DataFrame|_:
         An empty dataframe to hold the RDF.
+
     """
     # Prepare the DataFrame arguments
     shape = 1 + int(r_max / dr), len(atom_pairs)
@@ -60,6 +61,7 @@ def get_rdf(dist: np.ndarray,
     -------
     1D |np.ndarray|_ [|np.float64|_] of length 1 + **r_max** / **dr**:
         An array with the resulting radial distribution function.
+
     """
     r = np.arange(0, r_max + dr, dr)
     idx_max = 1 + int(r_max / dr)
@@ -105,6 +107,7 @@ def get_rdf_lowmem(dist: np.ndarray,
     -------
     1D |np.ndarray|_ [|np.float64|_] of length 1 + **r_max** / **dr**:
         An array with the resulting radial distribution function.
+
     """
     idx_max = 1 + int(r_max / dr)
     dist_int = np.array(dist / dr, dtype=int).ravel()

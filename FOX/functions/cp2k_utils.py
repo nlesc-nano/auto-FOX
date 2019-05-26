@@ -24,6 +24,7 @@ def set_subsys_kind(settings: Settings,
 
     |pd.DataFrame|_ df: A dataframe with atom names (*e.g.* ``"O"``, ``"H"`` & ``"C"``)
         and atom types (*e.g.* ``"OG2D2"``, ``"HGR52"`` & ``"CG2O3"``).
+
     """
     for at_name, at_type in df[['atom name', 'atom type']].values:
         if not settings.input.force_eval.subsys['kind ' + at_type]:
@@ -50,6 +51,7 @@ def set_keys(settings: Settings,
     -------
     |list|_ [|tuple|_ [|str|_]]:
         A list of (flattened) keys.
+
     """
     # Create a new column in **param** with the quantity units
     param['unit'] = None
@@ -67,7 +69,7 @@ def set_keys(settings: Settings,
 
 def _get_key_list(settings: Settings,
                   param: pd.DataFrame) -> List[Tuple[Hashable]]:
-    """ Prepare the list of to-be returned keys for :func:`.set_keys`.
+    """Prepare the list of to-be returned keys for :func:`.set_keys`.
 
     Parameters
     ----------
@@ -81,6 +83,7 @@ def _get_key_list(settings: Settings,
     -------
     |list|_ [|tuple|_ [|str|_]]:
         A list of (flattened) keys.
+
     """
     ret = []
     forcefield = ('input', 'force_eval', 'mm', 'forcefield')
