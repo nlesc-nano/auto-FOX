@@ -25,13 +25,12 @@ def read_kf(filename: str) -> Tuple[np.ndarray, Dict[str, List[int]]]:
 
     Parameters
     ----------
-    str filename:
+    filename : str
         The path+filename of the KF binary file.
 
     Returns
     -------
-    :math:`m*n*3` |np.ndarray|_ [|np.float64|_] and |dict|_
-    (keys: |str|_, values: |list|_ [|int|_]):
+    :math:`m*n*3` |np.ndarray|_ [|np.float64|_] and |dict|_ [|str|_, |list|_ [|int|_]]:
         A 3D array with cartesian coordinates and a dictionary
         with atomic symbols as keys and lists of matching atomic indices as values.
 
@@ -58,12 +57,12 @@ def _get_idx_dict(kf: KFReader) -> Dict[str, list]:
 
     Parameters
     ----------
-    |plams.KFReader|_ kf:
+    kf : |plams.KFReader|_
         A KFReader instance constructed from a KF binary file.
 
     Returns
     -------
-    |dict|_ (keys: |str|_, values: |list|_ [|int|_]):
+    |dict|_ [|str|_, |list|_ [|int|_]]:
         A dictionary with atomic symbols and a list of matching atomic indices.
 
     """

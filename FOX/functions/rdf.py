@@ -1,25 +1,27 @@
 """A module for constructing radial distribution functions."""
 
+from typing import (Sequence, Hashable)
+
 import numpy as np
 import pandas as pd
 
 __all__ = ['get_rdf_lowmem', 'get_rdf']
 
 
-def get_rdf_df(atom_pairs,
+def get_rdf_df(atom_pairs: Sequence[Hashable],
                dr: float = 0.05,
                r_max: float = 12.0) -> pd.DataFrame:
     """Construct and return a pandas dataframe filled with zeros.
 
     Parameters
     ----------
-    dict atom_pairs:
+    atom_pairs : dict
         Aa dictionary of 2-tuples representing the keys of the dataframe.
 
-    float dr:
+    dr : float
         The integration step-size in Angstrom, *i.e.* the distance between concentric spheres.
 
-    float r_max:
+    r_max : float
         The maximum to be evaluated interatomic distance.
 
     Returns
@@ -48,13 +50,13 @@ def get_rdf(dist: np.ndarray,
 
     Parameters
     ----------
-    |np.ndarray|_ dist:
+    dist : :math:`m*n*k` |np.ndarray|_ [|np.float64|_]
         A 3D array representing :math:`m` distance matrices of :math:`n` by :math:`k` atoms.
 
-    float dr:
+    dr : float
         The integration step-size in Angstrom, *i.e.* the distance between concentric spheres.
 
-    float r_max:
+    r_max : float
         The maximum to be evaluated interatomic distance.
 
     Returns
@@ -94,13 +96,13 @@ def get_rdf_lowmem(dist: np.ndarray,
 
     Parameters
     ----------
-    |np.ndarray|_ dist:
+    dist : :math:`n*k` |np.ndarray|_ [|np.float64|_]
         A 2D array representing a single distance matrices of :math:`n` by :math:`k` atoms.
 
-    float dr:
+    dr : float
         The integration step-size in Angstrom, *i.e.* the distance between concentric spheres.
 
-    float r_max:
+    r_max : float
         The maximum to be evaluated interatomic distance.
 
     Returns

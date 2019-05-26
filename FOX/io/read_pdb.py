@@ -54,7 +54,8 @@ def _get_bonds_array(bonds: Iterable[Sequence[str]]) -> np.ndarray:
 
     Parameters
     ----------
-    list bonds: A nested list of atomic indices as retrieved from a pdb_ file.
+    bonds : |Iterable|_ [|Sequence|_ [str]]
+        A nested list of atomic indices as retrieved from a pdb_ file.
 
     Returns
     -------
@@ -88,7 +89,8 @@ def _get_atoms_df(atoms: Iterable[Sequence[str]]) -> pd.DataFrame:
 
     Parameters
     ----------
-    list atoms: A nested list of atom data as retrieved from a pdb_ file.
+    bonds : |Iterable|_ [|Sequence|_ [str]]
+        A nested list of atom data as retrieved from a pdb_ file.
 
     Returns
     -------

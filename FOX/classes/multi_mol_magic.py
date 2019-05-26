@@ -206,7 +206,7 @@ class _MultiMolecule(np.ndarray):
 
         Parameters
         ----------
-        str prop:
+        prop : str
             The name of the to be returned property.
             Accepted values: ``'symbol'``, ``'atnum'``, ``'mass'``, ``'radius'``
             or ``'connectors'``.
@@ -242,16 +242,17 @@ class _MultiMolecule(np.ndarray):
 
         Parameters
         ----------
-        str order:
+        order : str
             Controls the memory layout of the copy.
             See np.ndarray.copy_ for details.
-        bool copy_attr:
-            Whether or not the attributes of **self** should returned as copies or views.
+
+        copy_attr : bool
+            Whether or not the attributes of this instance should be returned as copies or views.
 
         Returns
         -------
         |FOX.MultiMolecule|_:
-            A copy of **self**.
+            A copy of this instance.
 
         """
         ret = super().copy(order)

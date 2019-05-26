@@ -236,6 +236,7 @@ rst_epilog = """
 .. _FOX.MultiMolecule: 3_multimolecule.html#api
 .. _FOX.MonteCarlo: 4_monte_carlo.html#fox-montecarlo-api
 .. _FOX.ARMC: 4_monte_carlo.html#fox-armc-api
+.. _FOX.PSFDict: https://github.com/nlesc-nano/auto-FOX/blob/master/FOX/classes/psf_dict.py
 .. _plams.PeriodicTable: https://www.scm.com/doc/plams/components/utils.html#periodic-table
 .. _plams.Job: https://www.scm.com/doc/plams/components/jobs.html#job-api
 .. _plams.Settings: https://www.scm.com/doc/plams/components/settings.html
@@ -256,10 +257,16 @@ rst_epilog = """
 .. _bool: https://docs.python.org/3/library/functions.html#bool
 .. _type: https://docs.python.org/3/library/functions.html#type
 .. _None: https://docs.python.org/3/library/constants.html#None
+.. _Callable: https://docs.python.org/3/library/collections.abc.html#collections.abc.Callable
+.. _Sequence: https://docs.python.org/3/library/collections.abc.html#collections.abc.Sequence
+.. _MutableSequence: https://docs.python.org/3/library/collections.abc.html#collections.abc.MutableSequence
+.. _Hashable: https://docs.python.org/3/library/collections.abc.html#collections.abc.Hashable
+.. _Iterable: https://docs.python.org/3/library/collections.abc.html#collections.abc.Iterable
 
 .. |FOX.ARMC| replace:: *FOX.ARMC*
 .. |FOX.MonteCarlo| replace:: *FOX.MonteCarlo*
 .. |FOX.MultiMolecule| replace:: *FOX.MultiMolecule*
+.. |FOX.PSFDict| replace:: *FOX.PSFDict*
 .. |plams.Job| replace:: *plams.Job*
 .. |plams.Molecule| replace:: *plams.Molecule*
 .. |plams.Settings| replace:: *plams.Settings*
@@ -279,4 +286,9 @@ rst_epilog = """
 .. |bool| replace:: *bool*
 .. |type| replace:: *type*
 .. |None| replace:: *None*
+.. |Callable| replace:: *Callable*
+.. |Sequence| replace:: *Sequence*
+.. |MutableSequence| replace:: *MutableSequence*
+.. |Hashable| replace:: *Hashable*
+.. |Iterable| replace:: *Iterable*
 """

@@ -47,9 +47,11 @@ class Molecule(_Molecule):
         Separates the molecule into connected component as based on its bonds.
         Returns aforementioned components as a nested list of atomic indices.
 
-        :return: A nested list of atomic indices, each sublist representing a set of unconnected
+        Returns
+        -------
+        |list|_ [|list|_ [|int|_]]:
+            A nested list of atomic indices, each sublist representing a set of unconnected
             moleculair fragments.
-        :rtype: |list|_ [|list|_ [|int|_]].
 
         .. _Molecule.separate: https://www.scm.com/doc/plams/components/mol_api.html#scm.plams.mol.molecule.Molecule.separate  # noqa
         """

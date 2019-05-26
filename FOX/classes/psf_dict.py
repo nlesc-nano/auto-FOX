@@ -136,7 +136,11 @@ class PSFDict(defaultdict):
         The value is used by the :meth:`write_psf` method, serving as the filename of a to-be
         created .psf file.
 
-        :parameter str filename: The path+filename of a to-be created .psf file.
+        Parameters
+        ----------
+        filename : str
+            The path+filename of a to-be created .psf file.
+
         """
         self.filename = np.array(filename, ndmin=1)
 
@@ -168,13 +172,14 @@ class PSFDict(defaultdict):
 
         Parameters
         ----------
-        str filename: The path + filename of a .psf file.
+        str filename:
+            The path + filename of a .psf file.
 
         Returns
         -------
-        |dict|_ (keys: |str|_):
-            A dictionary holding the content of a .psf file.
-            
+        |FOX.PSFDict|_:
+            A :class:`PSFDict` instance holding the content of a .psf file.
+
         """
         header_dict = {'!NTITLE': 'title',
                        '!NATOM': 'atoms',
@@ -220,12 +225,12 @@ class PSFDict(defaultdict):
 
         Parameters
         ----------
-        dict psf_dict:
+        psf_dict : dict [str, |np.ndarray|_]
             A dictionary holding the content of a .psf file (see :func:`.read_psf`).
 
         Returns
         -------
-        |dict|_ (keys: |str|_):
+        |dict|_ [|str|_, |np.ndarray|_]:
             The .psf output, **psf_dict**, with properly formatted values.
 
         """
@@ -269,11 +274,11 @@ class PSFDict(defaultdict):
 
         Parameters
         ----------
-        str filename:
+        filename : str
             The path+filename of the .psf file.
             If ``None``, try to pull the name from **self['filename']**
             (see :meth:`set_filename`).
-            
+
         """
         try:
             filename = filename or self.filename[0]

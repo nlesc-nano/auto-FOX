@@ -16,12 +16,12 @@ def write_prm(prm_dict: Dict[str, pd.DataFrame],
 
     Parameters
     ----------
-    dict prm_dict:
+    prm_dict : dict [str, |pd.DataFrame|_]
         A dictionary with block names as keys and a dataframe of matching
         parameters as value.
         Atom types should be used as (multi-)index.
 
-    str filename:
+    filename : str
         The path+filename of the to-be created .prm file.
 
     """
@@ -65,7 +65,7 @@ def read_prm(filename: str) -> Dict[str, pd.DataFrame]:
 
     Parameters
     ----------
-    str filename:
+    filename : str
         The path+filename of the parameter file.
 
     Returns
@@ -104,10 +104,10 @@ def read_blocks(f: TextIO,
 
     Parameters
     ----------
-    |io.TextIOWrapper|_ f:
+    f : |io.TextIOWrapper|_
         An opened .prm file.
 
-    str key:
+    key : str
         The key of the current .prm block.
 
     Returns
@@ -169,9 +169,10 @@ def rename_atom_types(prm_dict: Dict[str, pd.DataFrame],
 
     Parameters
     ----------
-    dict prm_dict:
+    prm_dict : dict [str, |pd.DataFrame|_]
         A dictionary with **key** as key and a dataframe of accumulated data as value.
-    dict rename_dict:
+
+    rename_dict : dict [str, str]
         A dictionary or series with old atom types as keys and new atom types as values.
 
     """
@@ -194,7 +195,7 @@ def _get_empty_line(df: pd.DataFrame) -> str:
 
     Parameters
     ----------
-    |pd.DataFrame|_ df:
+    df : |pd.DataFrame|_
         A Pandas dataframe.
 
     Returns
@@ -221,9 +222,9 @@ def _get_nonbonded(f: TextIO,
 
     Parameters
     ----------
-    |io.TextIOWrapper|_ f:
+    f : |io.TextIOWrapper|_
         An opened .prm file.
-    str item:
+    item : str
         A component of the .prm NONBONDED key.
 
     Returns
@@ -247,7 +248,7 @@ def _proccess_prm_df(prm_dict: Dict[str, pd.DataFrame]) -> Dict[str, pd.DataFram
 
     Parameters
     ----------
-    dict prm_dict:
+    prm_dict : dict [str, |pd.DataFrame|_]
         A dictionary with **key** as key and a dataframe of accumulated data as value.
 
     Returns
@@ -322,10 +323,10 @@ def update_dtype(df: pd.DataFrame,
 
     Parameters
     ----------
-    |pd.DataFrame|_ df:
+    df : |pd.DataFrame|_
         A Pandas dataframe.
 
-    list float_blacklist:
+    float_blacklist : list
         A list of column names of columns whose desired dtype is ``dtype("int64")``
         rather than ``dtype("float64")``.
 

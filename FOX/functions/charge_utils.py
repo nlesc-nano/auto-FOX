@@ -20,17 +20,17 @@ def get_net_charge(df: pd.DataFrame,
 
     Parameters
     ----------
-    |pd.DataFrame|_ df:
+    df : |pd.DataFrame|_
         A dataframe with atomic charges.
         Charges should be stored in the *param* column and atom counts in the ``"count"`` column.
 
-    object index_slice:
+    index_slice : slice
         An object for slicing the index of **df**.
 
-    str charge:
+    charge : |Hashable|_
         The name of the column holding the atomic charges (per atom type).
 
-    str atom_count:
+    atom_count : |Hashable|_
         The name of the column holding the number of atoms (per atom type).
 
     Returns
@@ -70,17 +70,17 @@ def update_charge(at: str,
 
     Parameters
     ----------
-    str at:
+    at : str
         An atom type such as ``"Se"``, ``"Cd"`` or ``"OG2D2"``.
 
-    float charge:
+    charge : float
         The new charge associated with **at**.
 
-    |pd.DataFrame|_ df:
+    df : |pd.DataFrame|_
         A dataframe with atomic charges.
         Charges should be stored in the *param* column and atom counts in the *count* column.
 
-    dict constrain_dict:
+    constrain_dict : dict
         A dictionary with charge constrains.
 
     """
@@ -112,13 +112,13 @@ def update_constrained_charge(at1: str,
 
     Parameters
     ----------
-    str at1:
+    at1 : str
         An atom type such as ``"Se"``, ``"Cd"`` or ``"OG2D2"``.
 
-    |pd.DataFrame|_ df:
+    df : |pd.DataFrame|_
         A dataframe with atomic charges.
 
-    dict constrain_dict:
+    constrain_dict : dict
         A dictionary with charge constrains.
 
     Returns
@@ -160,13 +160,13 @@ def update_unconstrained_charge(net_charge: float,
 
     Parameters
     ----------
-    float net_charge:
+    net_charge : float
         The total charge of the system.
 
-    |pd.DataFrame|_ df:
+    df : |pd.DataFrame|_
         A dataframe with atomic charges.
 
-    list exclude:
+    exclude : list [str]
         A list of atom types whose atomic charges should not be updated.
 
     """
@@ -195,13 +195,13 @@ def find_q(df: pd.DataFrame,
 
     Parameters
     ----------
-    float Q:
+    Q : float
         The sum of all atomic charges.
 
-    |pd.DataFrame|_ df:
+    df : |pd.DataFrame|_
         A dataframe with atomic charges.
 
-    dict constrain_dict:
+    constrain_dict : dict
         A dictionary with charge constrains.
 
     Returns
@@ -281,7 +281,7 @@ def get_charge_constraints(constrain: str) -> Settings:
 
     Parameters
     ----------
-    str item:
+    item : str
         A string with all charge constraints.
 
     Returns
@@ -325,12 +325,12 @@ def invert_ufunc(ufunc: Callable) -> Callable:
 
     Parameters
     ----------
-    Callable ufunc:
+    ufunc : |Callable|_
         A NumPy universal function (ufunc).
 
     Returns
     -------
-    Callable:
+    |Callable|_:
         An inverted NumPy universal function.
 
     """

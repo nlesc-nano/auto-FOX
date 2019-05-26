@@ -135,7 +135,7 @@ class ARMC(MonteCarlo):
 
         Parameters
         ----------
-        dict armc_dict:
+        armc_dict : dict
             A dictionary containing all :class:`ARMC` settings.
 
         Returns
@@ -186,18 +186,18 @@ class ARMC(MonteCarlo):
 
         Parameters
         ----------
-        int kappa:
+        kappa : int
             The super-iteration, :math:`\kappa`, in :meth:`ARMC.init_armc`.
 
-        dict history_dict:
+        history_dict : dict [tuple [float], |np.ndarray|_ [|np.float64|_]]
             A dictionary with parameters as keys and a list of PES descriptors as values.
 
-        tuple key_new:
+        key_new : tuple [float]
             A tuple with the latest set of forcefield parameters.
 
         Returns
         -------
-        |tuple|_ [|int|_] and |np.ndarray|_ [|bool|_]:
+        |tuple|_ [|float|_] and |np.ndarray|_ [|bool|_]:
             The latest set of parameters and the acceptance rate, :math:`\alpha`, over the
             course of the inner loop.
 
@@ -266,7 +266,7 @@ class ARMC(MonteCarlo):
 
         Parameters
         ----------
-        dict pes_dict:
+        pes_dict : dict [str, |np.ndarray|_ [|np.float64|_]]
             A dictionary with *n* PES descriptors.
 
         Returns
@@ -296,7 +296,7 @@ class ARMC(MonteCarlo):
 
         Parameters
         ----------
-        |np.ndarray|_ aux_error:
+        aux_error : |np.ndarray|_ [|np.float64|_]
             An array with auxiliary errors.
 
         Returns
@@ -326,7 +326,7 @@ class ARMC(MonteCarlo):
 
         Parameters
         ----------
-        |np.ndarray|_ acceptance:
+        acceptance : |np.ndarray|_ [bool]
             A 1D boolean array denoting the accepted moves within a sub-iteration.
 
         """

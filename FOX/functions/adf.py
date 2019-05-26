@@ -8,13 +8,13 @@ import pandas as pd
 __all__ = ['get_adf']
 
 
-def get_adf_df(atom_pairs: Sequence[Sequence[Hashable]]) -> pd.DataFrame:
+def get_adf_df(atom_pairs: Sequence[Hashable]) -> pd.DataFrame:
     """Construct and return a pandas dataframe filled to hold angular distribution functions.
 
     Parameters
     ----------
-    dict atom_pairs:
-        A dictionary of 3-tuples representing the keys of the dataframe.
+    atom_pairs : |Sequence|_ [|Hashable|_]
+        A nested sequence of collumn names.
 
     Returns
     -------
@@ -41,11 +41,11 @@ def get_adf(ang_mat: np.ndarray,
 
     Parameters
     ----------
-    |np.ndarray|_ ang:
+    ang : :math:`m*n*k*l` |np.ndarray|_ [|np.float64|_]
         A 4D angle matrix constructed from :math:`m` molecules and three sets of
         :math:`n`, :math:`k` and :math:`l` atoms.
 
-    float r_max:
+    r_max : float
         The diameter of the sphere used for converting particle counts into densities.
 
     Returns

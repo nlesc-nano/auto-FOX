@@ -39,8 +39,13 @@ def append_docstring(item: Callable) -> Callable:
 
     Parameters
     ----------
-    Callable item:
+    item : |Callable|_
         A Callable object with a docstring.
+
+    Returns
+    -------
+    |Callable|_
+        A decorated callable.
 
     """
     def decorator(func):
@@ -71,10 +76,15 @@ def assert_error(error_msg: str = '') -> Callable:
 
     Parameters
     ----------
-    str error_msg:
+    error_msg : str
         A to-be printed error message.
         If available, a single set of curly brackets will be replaced
         with the function or class name.
+
+    Returns
+    -------
+    |Callable|_
+        A decorated callable.
 
     """
     type_dict = {'function': _function_error, 'type': _class_error}
@@ -113,15 +123,15 @@ def get_template(name: str,
 
     Parameters
     ----------
-    str name:
+    name : str
         The name of the template file.
 
-    str path:
+    path : str
         The path where **name** is located.
         Will default to the :mod:`FOX.data` directory if *None*.
 
-    bool as_settings:
-        If ``Falsezz, return a dictionary rather than a settings object.
+    as_settings : bool
+        If ``False``, return a dictionary rather than a settings object.
 
     Returns
     -------
@@ -147,10 +157,10 @@ def template_to_df(name: str,
 
     Parameters
     ----------
-    str name:
+    name : str
         The name of the template file.
 
-    str path:
+    path : str
         The path where **name** is located.
         Will default to the :mod:`FOX.data` directory if ``None*``.
 
@@ -177,10 +187,10 @@ def serialize_array(array: np.ndarray,
 
     Parameters
     ----------
-    |np.ndarray|_ array:
+    array : |np.ndarray|_
         A 2D array.
 
-    int items_per_row:
+    items_per_row : int
         The number of values per row before switching to a new line.
 
     Returns
@@ -212,12 +222,12 @@ def read_str_file(filename: str) -> Optional[zip]:
 
     Parameters
     ----------
-    str filename:
+    filename : str
         the path+filename of the .str file.
 
     Returns
     -------
-    |plams.Settings|_ (keys: |str|_, values: |tuple|_ [|str|_ or |float|_]):
+    |plams.Settings|_ [|str|_, |tuple|_ [|str|_ or |float|_]]:
         A settings object with atom types and (atomic) charges.
 
     """
@@ -241,7 +251,7 @@ def get_shape(item: Iterable) -> Tuple[int]:
 
     Parameters
     ----------
-    object item:
+    item : object
         A python object.
 
     Returns
@@ -277,17 +287,17 @@ def flatten_dict(input_dict: dict,
 
     Parameters
     ----------
-    dict input_dict:
+    input_dict : dict
         A (nested) dicionary.
 
-    int clip:
+    clip : int
         The maximum length of the tuple keys.
         The maximum length is enforced by concatenating the first
         :math:`n` elements of a tuple key into a string (if necessary).
 
     Returns
     -------
-    |dict|_ (keys: |tuple|_):
+    |dict|_ [|tuple|_, object]:
         A non-nested dicionary derived from **input_dict**.
 
     """
@@ -321,19 +331,19 @@ def dict_to_pandas(input_dict: dict,
 
     Parameters
     ----------
-    dict input_dict:
+    input_dict : dict
         A nested dictionary.
 
-    object name:
+    name : |Hashable|_
         The name of the to be returned series or dataframe column.
 
-    str object_type:
+    object_type : str
         The object type of the to be returned item.
         Accepted values are ``"Series"`` or ``"DataFrame"``.
 
     Returns
     -------
-    |pd.Series|_ or |pd.DataFrame|_ (index: |pd.MultiIndex|_):
+    |pd.Series|_ or |pd.DataFrame|_ [|pd.MultiIndex|_]:
         A pandas series or dataframe created fron **input_dict**.
 
     """
@@ -363,7 +373,7 @@ def array_to_index(ar: np.ndarray) -> pd.Index:
 
     Parameters
     ----------
-    |np.ndarray|_ ar:
+    ar : |np.ndarray|_
         A 1D or 2D NumPy array.
 
     Results
@@ -397,15 +407,15 @@ def _get_move_range(start: float = 0.005,
 
     Parameters
     ----------
-    float start:
+    start : float
         Start of the interval.
         The interval includes this value.
 
-    float stop:
+    stop : float
         End of the interval.
         The interval includes this value.
 
-    float step:
+    step : float
         Spacing between values.
 
     Returns
@@ -441,8 +451,8 @@ def get_func_name(item: Callable) -> str:
 
     Parameters
     ----------
-    Callable item:
-        A function.
+    item : |Callable|_
+        A function or method.
 
     Returns
     -------
@@ -479,7 +489,7 @@ def get_class_name(item: Callable) -> str:
 
     Parameters
     ----------
-    Callable item:
+    item : |Callable|_
         A class.
 
     Results
@@ -510,13 +520,13 @@ def slice_str(str_: str,
 
     Parameters
     ----------
-    str str_:
+    str_ : str
         A string.
 
-    list intverals:
+    intverals : list [int]
         A list with :math:`n` objects suitable for slicing.
 
-    bool strip_spaces:
+    strip_spaces : bool
         If empty spaces should be stripped or not.
 
     Results
@@ -549,10 +559,10 @@ def get_nested_value(iterable: Sequence,
 
     Parameters
     ----------
-    object iterable:
+    iterable : object
         A (nested) iterable container such as a list, tuple or dictionary.
 
-    tuple key_tup:
+    key_tup : |Sequence|_ [|Hashable|_]
         A sequence of nested keys and/or indices.
 
     Returns
@@ -586,19 +596,14 @@ def set_nested_value(iterable: MutableSequence,
 
     Parameters
     ----------
-    object iterable:
+    iterable : |MutableSequence|_
         A mutable (nested) iterable container such as a list or dictionary.
 
-    tuple key_tup:
+    key_tup : |Sequence|_ [|Hashable|_]
         A sequence of nested keys and/or indices.
 
-    object value:
+    value : object
         The to-be assigned value.
-
-    Returns
-    -------
-    object:
-        The value in **iterable** associated with all keys in **key**.
 
     """
     iter_slice = iterable
@@ -613,11 +618,11 @@ def get_atom_count(iterable: Iterable[Sequence[str]],
 
     Parameters
     ----------
-    list iterable:
+    iterable : |Iterable|_ [|Sequence|_ [str]]
         A nested iterable with :math:`n` atoms and/or atom pairs.
 
-    |FOX.MultiMolecule|_ mol:
-        A :class:`.MultiMolecule` instance with
+    mol : |FOX.MultiMolecule|_
+        A :class:`.MultiMolecule` instance.
 
     Returns
     -------

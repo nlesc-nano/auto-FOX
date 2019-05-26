@@ -44,11 +44,11 @@ def create_hdf5(filename: str,
 
     Parameters
     ----------
-    str filename:
+    filename : str
         The path+filename of the hdf5 file.
 
-    |FOX.ARMC|_ mc_kwarg:
-        An ARMC object.
+    mc_kwarg : |FOX.ARMC|_
+        A :class:`.ARMC` instance.
 
     """
     shape = mc_kwarg.armc.iter_len // mc_kwarg.armc.sub_iter_len, mc_kwarg.armc.sub_iter_len
@@ -108,7 +108,7 @@ def create_hdf5(filename: str,
 @assert_error(H5PY_ERROR)
 def index_to_hdf5(filename: str,
                   pd_dict: Dict[str, NDFrame]) -> None:
-    """Store the ``index`` and ``columns`` / ``name`` attributes in hdf5 format.
+    """Store the ``index`` and ``columns`` / ``name`` attributes of **pd_dict** in hdf5 format.
 
     Attributes are exported for all dataframes/series in **pd_dict** and skipped otherwise.
     The keys in **pd_dict**, together with the attribute names, are used for naming the datasets.
@@ -128,10 +128,10 @@ def index_to_hdf5(filename: str,
 
     Parameter
     ---------
-    str filename:
+    filename : str
         The path+name of the hdf5 file.
 
-    dict pd_dict:
+    pd_dict : dict
         A dictionary with dataset names as keys and matching array-like objects as values.
 
     """
@@ -167,7 +167,7 @@ def _attr_to_array(index: Union[str, pd.Index]) -> np.ndarray:
 
     Parameters
     ----------
-    |pd.Index|_ item:
+    item : str or |pd.Index|_
         A string or instance of pd.Index (or one of its subclasses).
 
     Returns
@@ -195,13 +195,13 @@ def hdf5_availability(filename: str,
 
     Parameters
     ----------
-    str filename:
+    filename : str
         The path+filename of the hdf5 file.
 
-    float timeout:
+    timeout : float
         Time timeout, in seconds, between subsequent attempts of opening **filename**.
 
-    int max_attempts:
+    max_attempts : int
         The maximum number attempts for opening **filename**.
         If the maximum number of attempts is exceeded, raise an ``OSError``.
 
@@ -229,16 +229,16 @@ def to_hdf5(filename: str,
 
     Parameters
     ----------
-    str filename:
+    filename : str
         The path+filename of the hdf5 file.
 
-    dict dset_dict:
+    dset_dict : dict [str, |np.ndarray|_]
         A dictionary with dataset names as keys and matching array-like objects as values.
 
-    int kappa:
+    kappa : int
         The super-iteration, :math:`\kappa`, in the outer loop of :meth:`.ARMC.init_armc`.
 
-    int omega:
+    omega : int
         The sub-iteration, :math:`\omega`, in the inner loop of :meth:`.ARMC.init_armc`.
 
     """
@@ -274,15 +274,15 @@ def from_hdf5(filename: str,
 
     Parameters
     ----------
-    str filename:
+    filename : str
         The path+name of the hdf5 file.
-    list datasets:
+    datasets : list [str]
         A list of to be retrieved dataset names.
         All datasets will be retrieved if ``None``.
 
     Returns
     -------
-    |dict|_ (values:|pd.DataFrame|_ and/or |pd.Series|_):
+    |dict|_ [|str|_, (|pd.DataFrame|_ and/or |pd.Series|_)]:
         A dicionary with dataset names as keys and the matching data as values.
 
     """
@@ -323,10 +323,10 @@ def _get_dset(f: H5pyFile,
 
     Parameters
     ----------
-    |h5py.File|_ f:
+    f : |h5py.File|_
         An opened hdf5 file.
 
-    str key:
+    key : str
         The dataset name.
 
     Returns
@@ -362,7 +362,7 @@ def _get_xyz_dset(f: H5pyFile) -> Tuple[np.ndarray, Dict[str, List[int]]]:
 
     Parameters
     ----------
-    |h5py.File|_ f:
+    f : |h5py.File|_
         An opened hdf5 file.
 
     Returns
@@ -398,10 +398,10 @@ def dset_to_series(f: H5pyFile,
 
     Parameters
     ----------
-    |h5py.File|_ f:
+    f : |h5py.File|_
         An opened hdf5 file.
 
-    str key:
+    key : str
         The dataset name.
 
     Returns
@@ -436,10 +436,10 @@ def dset_to_df(f: H5pyFile,
 
     Parameters
     ----------
-    |h5py.File|_ f:
+    f : |h5py.File|_
         An opened hdf5 file.
 
-    str key:
+    key : str
         The dataset name.
 
     Returns

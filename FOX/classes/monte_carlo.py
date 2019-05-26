@@ -93,8 +93,9 @@ class MonteCarlo():
     def as_dict(self, as_Settings: bool = False) -> Union[dict, Settings]:
         """Create a dictionary out of a :class:`.MonteCarlo` instance.
 
-        Parameters:
-        bool as_Settings:
+        Parameters
+        ----------
+        as_Settings : bool
             Return as a Settings instance rather than a dictionary.
 
         Returns
@@ -115,7 +116,8 @@ class MonteCarlo():
         By default the move is applied in a multiplicative manner.
         **self.job.settings** is updated to reflect the change in parameters.
 
-        Returns:
+        Returns
+        -------
         |tuple|_ [|float|_]:
             A tuple with the (new) values in the ``'param'`` column of **self.param**.
 
@@ -150,7 +152,8 @@ class MonteCarlo():
 
         * The MD job is constructed according to the provided settings in **self.job**.
 
-        Returns:
+        Returns
+        -------
         |FOX.MultiMolecule|_ and |tuple|_ [|str|_]:
             A :class:`.MultiMolecule` instance constructed from the MD trajectory &
             a tuple with the paths to the PLAMS results directories.
@@ -197,15 +200,15 @@ class MonteCarlo():
 
         Parameters
         ----------
-        dict history_dict:
+        history_dict : dict [tuple [float], |np.ndarray|_ [|np.float64|_]]
             A dictionary with results from previous iteractions.
 
-        tuple key:
+        key : tuple [float]
             A key in **history_dict**.
 
         Returns
         -------
-        |dict|_ (keys: |str|_, values: array-like)
+        |dict|_ [|str|_, |np.ndarray|_ [|np.float64|_])
             A previous value from **history_dict** or a new value from an MD calculation.
             Values are set to np.inf if the MD job crashed.
 
@@ -245,13 +248,13 @@ class MonteCarlo():
 
         Parameters
         ----------
-        float start:
+        start : float
             Start of the interval. The interval includes this value.
 
-        float stop:
+        stop : float
             End of the interval. The interval includes this value.
 
-        float step:
+        step : float
             Spacing between values.
 
         Returns

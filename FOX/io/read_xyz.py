@@ -19,13 +19,12 @@ def read_multi_xyz(filename: str) -> Tuple[np.ndarray, Dict[str, List[int]]]:
 
     Parameters
     ----------
-    str filename:
+    filename : str
         The path+filename of a (multi) .xyz file.
 
     Returns
     -------
-    :math:`m*n*3` |np.ndarray|_ [|np.float64|_] and |dict|_
-    (keys: |str|_, values: |list|_ [|int|_]):
+    :math:`m*n*3` |np.ndarray|_ [|np.float64|_] and |dict|_ [|str|_, |list|_ [|int|_]]:
         A 3D array with cartesian coordinates and a dictionary
         with atomic symbols as keys and lists of matching atomic indices as values.
 
@@ -68,15 +67,15 @@ def validate_xyz(mol_count: float,
 
     Parameters
     ----------
-    float mol_count:
+    mol_count : float
         The number of molecules in the xyz file.
         Expects float that is finite with integral value
         (*e.g.* :math:`5.0`, :math:`6.0` or :math:`3.0`).
 
-    int atom_count:
+    atom_count : int
         The number of atoms per molecule.
 
-    str xyz_file:
+    filename : str
         The path + filename of a (multi) .xyz file.
 
     """
@@ -96,7 +95,7 @@ def _get_atom_count(f: TextIO) -> int:
 
     Parameters
     ----------
-    |io.TextIOWrapper|_ f:
+    f : |io.TextIOWrapper|_
         An opened .xyz file.
 
     Returns
@@ -119,10 +118,10 @@ def _get_line_count(f: TextIO,
 
     Parameters
     ----------
-    |io.TextIOWrapper|_ f:
+    f : |io.TextIOWrapper|_
         An opened .xyz file.
 
-    int add:
+    add : int or |Iterable|_ [|int|_]
         Add a constant to the to-be returned line count.
 
     Returns
@@ -143,18 +142,18 @@ def _get_idx_dict(f: TextIO,
 
     Parameters
     ----------
-    |io.TextIOWrapper|_ f:
+    f : |io.TextIOWrapper|_
         An opened .xyz file.
 
-    int atom_count:
+    atom_count : int
         The number of atoms per molecule in **f**.
 
-    int subtract:
+    subtract : int
         Ignore the first :math:`n` lines in **f**
 
     Returns
     -------
-    |dict|_ (keys: |str|_, values: |list|_ [|int|_]):
+    |dict|_ [|str|_, |list|_ [|int|_]]:
         A dictionary with atomic symbols and a list of matching atomic indices.
 
     """

@@ -19,10 +19,11 @@ def set_subsys_kind(settings: Settings,
 
     Parameters
     ----------
-    |plams.Settings|_ settings:
+    settings : |plams.Settings|_
         CP2K settings.
 
-    |pd.DataFrame|_ df: A dataframe with atom names (*e.g.* ``"O"``, ``"H"`` & ``"C"``)
+    df : |pd.DataFrame|_
+        A dataframe with atom names (*e.g.* ``"O"``, ``"H"`` & ``"C"``)
         and atom types (*e.g.* ``"OG2D2"``, ``"HGR52"`` & ``"CG2O3"``).
 
     """
@@ -41,10 +42,10 @@ def set_keys(settings: Settings,
 
     Parameters
     ----------
-    |pd.DataFrame|_ df:
+    param : |pd.DataFrame|_
         A dataframe with MM parameters and parameter names as 2-level multiindex.
 
-    |plams.Settings|_ settings:
+    settings : |plams.Settings|_
         CP2K Job settings.
 
     Returns
@@ -73,10 +74,10 @@ def _get_key_list(settings: Settings,
 
     Parameters
     ----------
-    |pd.DataFrame|_ param:
+    param : |pd.DataFrame|_
         A dataframe with MM parameters and parameter names as 2-level multiindex.
 
-    |plams.Settings|_ settings:
+    settings : |plams.Settings|_
         CP2K Job settings.
 
     Returns

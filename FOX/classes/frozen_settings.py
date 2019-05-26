@@ -51,7 +51,7 @@ class FrozenSettings(Settings):
 
         Parameters
         ----------
-        Iterable[Hashable]:
+        key : Iterable[Hashable]
             An iterable with (nested) keys beloning to this :class:`FrozenSettings` instance.
 
         Returns
