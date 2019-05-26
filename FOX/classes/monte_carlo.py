@@ -161,8 +161,8 @@ class MonteCarlo():
         # Prepare preoptimization settings
         s_cp = self.job.settings.copy()
         s_cp.input['global'].run_type = 'geometry_optimization'
-        s_cp.input.motion.geo_opt.max_iter = s_cp.input.motion.md.steps // 100
-        s_cp.input.motion.geo_opt.optimizer = 'LBFGS'
+        s_cp.input.motion.geo_opt.max_iter = s_cp.input.motion.md.steps // 200
+        s_cp.input.motion.geo_opt.optimizer = 'BFGS'
         del s_cp.input.motion.md
 
         # Preoptimize
