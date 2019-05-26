@@ -234,6 +234,7 @@ class ARMC(MonteCarlo):
                                                         self.phi.phi)
 
             # Step 5: Export the results to HDF5
+            hdf5_kwarg['xyz'] = mol if mol is not None else np.nan
             hdf5_kwarg['phi'] = self.phi.phi
             hdf5_kwarg['param'] = self.param['param']
             hdf5_kwarg['acceptance'] = accept
