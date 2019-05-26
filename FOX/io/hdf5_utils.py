@@ -188,6 +188,39 @@ def _attr_to_array(index: Union[str, pd.Index]) -> np.ndarray:
 
 
 @assert_error(H5PY_ERROR)
+def hdf5_availability(filename: str,
+                      timeout: float = 5.0,
+                      max_attempts: Optional[int] = None) -> None:
+    """Check if a .hdf5 file is opened by another process; return once it is not.
+
+    Parameters
+    ----------
+    str filename:
+        The path+filename of the hdf5 file.
+
+    float timeout:
+        Time timeout, in seconds, between subsequent attempts of opening **filename**.
+
+    int max_attempts:
+        The maximum number attempts for opening **filename**.
+        If the maximum number of attempts is exceeded, raise an ``OSError``.
+
+    """
+    i = max_attempts or np.inf
+    while i:
+        try:
+            with h5py.File(filename, 'r+') as _:
+                return
+        except OSError as ex:
+            print(("'{}' is temporary unavailable; "
+                   "repeating attempt in {:f} seconds").format(filename, timeout))
+            error = ex
+            sleep(timeout)
+        i -= 1
+    raise error
+
+
+@assert_error(H5PY_ERROR)
 def to_hdf5(filename: str,
             dset_dict: Dict[str, np.array],
             kappa: int,
@@ -210,13 +243,7 @@ def to_hdf5(filename: str,
 
     """
     # Check if the hdf5 file is already opened. If opened: wait for 5 sec and try again.
-    while True:
-        try:
-            with h5py.File(filename, 'r+') as _:
-                break
-        except OSError:
-            print("'{}' is temporary unavailable; repeating attempt in 5 seconds".format(filename))
-            sleep(5.0)
+    hdf5_availability()
 
     # Update the hdf5 file
     with h5py.File(filename, 'r+') as f:
