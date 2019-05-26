@@ -243,7 +243,7 @@ def to_hdf5(filename: str,
 
     """
     # Check if the hdf5 file is already opened. If opened: wait for 5 sec and try again.
-    hdf5_availability()
+    hdf5_availability(filename)
 
     # Update the hdf5 file
     with h5py.File(filename, 'r+') as f:
