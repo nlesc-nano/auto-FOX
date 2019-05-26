@@ -17,7 +17,8 @@ with open('README.rst') as readme_file:
 setup(
     name='Auto-FOX',
     version=version['__version__'],
-    description='A tool for parameterizing forcefields by reproducing radial distribution functions.',
+    description='A library for analyzing potential energy surfaces (PESs) and using the resulting\
+    PES descriptors for constructing forcefield parameters.',
     long_description=readme + '\n\n',
     author='Bas van Beek',
     author_email='b.f.van.beek@vu.nl',
@@ -79,7 +80,6 @@ setup(
     ],
     extras_require={
         'doc': ['sphinx', 'sphinx_rtd_theme', 'nbsphinx', 'matplotlib'],
-        'test': ['pytest', 'pytest-cov', 'pytest-mock', 'nbsphinx',
-                 'pycodestyle', 'matplotlib']
+        'test': ['pytest', 'pytest-cov', 'pytest-mock', 'pycodestyle', 'matplotlib']
     }
 )
