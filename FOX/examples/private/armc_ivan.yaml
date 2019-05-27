@@ -14,12 +14,12 @@ param:
             Br Br: 1.8000
         sigma:
             unit: nm
-            Cs Cs: 0.1234
-            Cs Br: 0.4852
-            Cs Pb: 0.3000
-            Pb Pb: 0.2940
-            Pb Br: 0.2471
-            Br Br: 0.3526
+            Cs Cs: 0.58
+            Cs Br: 0.38
+            Cs Pb: 0.50
+            Pb Pb: 0.60
+            Pb Br: 0.28
+            Br Br: 0.42
 
 pes:
     rdf:
