@@ -31,23 +31,6 @@ def get_xyz_path(self):
 class MonteCarlo():
     """The base :class:`.MonteCarlo` class.
 
-    :parameter ref: A list with :math:`n` PES descriptors as derived from , *e.g.*,
-        an *Ab Initio* MD simulation.
-    :type ref: :math:`n` |list|_ [|float|_ or |np.ndarray|_ [|np.float64|_]]
-    :parameter param: An array with the initial to be optimized forcefield parameters.
-    :type param: |np.ndarray|_ [|np.float64|_]
-    :parameter molecule: A molecule.
-    :type molecule: |plams.Molecule|_ or |FOX.MultiMolecule|_
-
-    :Atributes:     * **param** (|pd.DataFrame|_ – See the **param** parameter.
-
-                    * **pes** (|plams.Settings|_) – See :meth:`MonteCarlo.reconfigure_pes_atr`.
-
-                    * **job** (|plams.Settings|_) – See :meth:`MonteCarlo.reconfigure_job_atr`.
-
-                    * **hdf5_file** (|str|_) – The hdf5 path+filename.
-
-                    * **move** (|plams.Settings|_) – See :meth:`MonteCarlo.reconfigure_move_atr`.
 
     """
 
@@ -200,7 +183,7 @@ class MonteCarlo():
 
         Parameters
         ----------
-        history_dict : dict [tuple [float], |np.ndarray|_ [|np.float64|_]]
+        history_dict : |dict|_ [|tuple|_ [|float|_], |np.ndarray|_ [|np.float64|_]]
             A dictionary with results from previous iteractions.
 
         key : tuple [float]
@@ -237,7 +220,7 @@ class MonteCarlo():
 
         Examples
         --------
-        .. code: python
+        .. code:: python
 
             >>> move_range = ARMC.get_move_range(start=0.005, stop=0.1, step=0.005)
             >>> print(move_range)

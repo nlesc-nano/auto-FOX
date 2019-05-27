@@ -55,6 +55,17 @@ class MultiMolecule(_MultiMolecule):
         Is devoid of keys by default.
         Stored in the **MultiMolecule.properties** attribute.
 
+    Attributes
+    ----------
+    atoms : dict [str, list [int]]
+        See the **atoms** paramater.
+
+    bonds : :math:`k*3` |np.ndarray|_ [|np.int64|_]
+        See the **bonds** paramater.
+
+    properties : |plams.Settings|_
+        See the **properties** paramater.
+
     """
 
     def guess_bonds(self, atom_subset: AtomSubset = None) -> None:
@@ -146,6 +157,11 @@ class MultiMolecule(_MultiMolecule):
         |None|_ or |FOX.MultiMolecule|_:
             If **inplace** is ``True``, return a new :class:`MultiMolecule` instance.
 
+        Raises
+        ------
+        ValueError
+            Raised if **p** is smaller than ``0.0`` or larger than ``1.0``.
+
         """
         if p <= 0.0 or p >= 1.0:
             raise ValueError("The supplied probability, 'p': {:f}, must be larger "
@@ -217,13 +233,13 @@ class MultiMolecule(_MultiMolecule):
         else:
             return coords @ rotmat
 
-    def sort(self, sort_by: Union[str, np.ndarray] = 'symbol',
+    def sort(self, sort_by: Union[str, Sequence[int]] = 'symbol',
              reverse: bool = False) -> None:
         """Sort the atoms in **self** and **self.atoms**, performing in inplace update.
 
         Parameters
         ----------
-        sort_by : str or |Sequence|_ [|int|_]
+        sort_by : |str|_ or |Sequence|_ [|int|_]
             The property which is to be used for sorting.
             Accepted values: ``"symbol"`` (*i.e.* alphabetical), ``"atnum"``, ``"mass"``,
             ``"radius"`` or ``"connectors"``.
@@ -872,7 +888,7 @@ class MultiMolecule(_MultiMolecule):
 
         return columns, data
 
-    def _get_loop(self, subset: AtomSubset) -> Tuple[bool, AtomSubset]:
+    def _get_loop(self, atom_subset: AtomSubset) -> Tuple[bool, AtomSubset]:
         """Figure out if the supplied subset warrants a for loop or not.
 
         Parameters
@@ -887,22 +903,29 @@ class MultiMolecule(_MultiMolecule):
         bool and |np.ndarray|_ [|np.float64|_]:
             A boolean and (nested) iterable consisting of integers.
 
+        Raises
+        ------
+        TypeError
+            Raised if **atom_subset** is of an invalid type.
+
         """
-        if subset is None:
+        if atom_subset is None:
             return False, slice(None)
-        elif isinstance(subset, (range, slice)):
-            return False, subset
-        elif isinstance(subset, str):
-            return False, self.atoms[subset]
-        elif isinstance(subset, int):
-            return False, [subset]
-        elif isinstance(subset[0], (int, np.integer)):
-            return False, subset
-        elif isinstance(subset[0], str):
-            return True, [self.atoms[i] for i in subset]
-        elif isinstance(subset[0][0], (int, np.integer)):
-            return True, subset
-        raise TypeError
+        elif isinstance(atom_subset, (range, slice)):
+            return False, atom_subset
+        elif isinstance(atom_subset, str):
+            return False, self.atoms[atom_subset]
+        elif isinstance(atom_subset, int):
+            return False, [atom_subset]
+        elif isinstance(atom_subset[0], (int, np.integer)):
+            return False, atom_subset
+        elif isinstance(atom_subset[0], str):
+            return True, [self.atoms[i] for i in atom_subset]
+        elif isinstance(atom_subset[0][0], (int, np.integer)):
+            return True, atom_subset
+
+        err = "'{}' of type '{}' is an invalid argument for 'atom_subset'"
+        raise TypeError(err.format(str(atom_subset), atom_subset.__class__.__name__))
 
     """#############################  Determining shell structures  ######################### """
 
@@ -1001,8 +1024,8 @@ class MultiMolecule(_MultiMolecule):
         three keys: One for all atoms whose RMSF is smaller than 3.0, one where the RMSF is
         between 3.0 and 6.5, and finally one where the RMSF is larger than 6.5.
 
-        This example is illustrated below:
-
+        Examples
+        --------
         .. code:: python
 
             >>> dist_dict = {'Cd': [3.0, 6.5]}
@@ -1032,11 +1055,17 @@ class MultiMolecule(_MultiMolecule):
         |dict|_ [|str|_, |list|_ [|int|_]]
             A dictionary with atomic symbols as keys, and matching atomic indices as values.
 
+        Raises
+        ------
+        KeyError
+            Raised if a key in **dist_dict** is absent from **rmsf**.
+
         """
         # Double check if all keys in **dist_dict** are available in **rmsf.columns**
         for key in dist_dict:
             if key not in rmsf:
-                raise KeyError(key, 'was found in "dist_dict" yet is absent from "rmsf"')
+                err = "'{}' was found in 'dist_dict' yet is absent from 'rmsf'"
+                raise KeyError(err.format(key))
 
         ret = {}
         for key, value in rmsf.items():
@@ -1295,6 +1324,20 @@ class MultiMolecule(_MultiMolecule):
                          as_sequence: bool = False) -> Union[slice, range, Sequence[int]]:
         """Sanitize the **_get_atom_subset** argument.
 
+        Accepts the following objects:
+
+            * ``None``
+            * ``range`` or ``slice`` instances
+            * Integers
+            * Strings (*i.e.* atom types; see the **MultiMolecule.atoms** attribute)
+            * Sequence of integers (*e.g.* lists, tuples or arrays)
+            * Sequence of strings
+            * Nested sequence of integers
+
+        Notes
+        -----
+        Supports object suitable for both fancy and non-fancy array indexing.
+
         Parameters
         ----------
         atom_subset : |Sequence|_
@@ -1308,8 +1351,12 @@ class MultiMolecule(_MultiMolecule):
         Returns
         -------
         |list|_, |np.ndarray|_, |slice|_ or |range|_:
-            An object used for slicing an array.
-            The returned object can be used for either indexing or fancy indexing.
+            An object suitable for array slicing.
+
+        Raises
+        ------
+        IndexError
+            Raised if an object unsuitable for array slicing is provided.
 
         """
         if as_sequence:
@@ -1335,10 +1382,20 @@ class MultiMolecule(_MultiMolecule):
             return list(chain.from_iterable(atom_subset))
 
         err = "'{}' of type '{}' is an invalid argument for 'atom_subset'"
-        raise TypeError(err.format(str(atom_subset), atom_subset.__class__.__name__))
+        raise IndexError(err.format(str(atom_subset), atom_subset.__class__.__name__))
 
     def _get_mol_subset(self, mol_subset: MolSubset) -> slice:
         """Sanitize the **mol_subset** argument.
+
+        Accepts the following objects:
+
+            * ``None``
+            * ``range`` or ``slice`` instances
+            * Integers
+
+        Notes
+        -----
+        Objects suitable for fancy array indexing are *not* supported.
 
         Parameters
         ----------
@@ -1353,8 +1410,12 @@ class MultiMolecule(_MultiMolecule):
         Returns
         -------
         |slice|_:
-            An object used for slicing an array.
-            The returned object cannot be used for fancy indexing.
+            An object suitable for array slicing.
+
+        Raises
+        ------
+        IndexError
+            Raised if an object unsuitable for array slicing is provided.
 
         """
         if mol_subset is None:
@@ -1378,13 +1439,13 @@ class MultiMolecule(_MultiMolecule):
                 return slice(i, j)
 
         err = "'{}' of type '{}' is an invalid argument for 'mol_subset'"
-        raise TypeError(err.format(str(mol_subset), mol_subset.__class__.__name__))
+        raise IndexError(err.format(str(mol_subset), mol_subset.__class__.__name__))
 
     """#################################  Type conversion  ################################### """
 
     def _mol_to_file(self, filename: str,
                      outputformat: Optional[str] = None,
-                     mol_subset: MolSubset = 0) -> None:
+                     mol_subset: Optional[MolSubset] = 0) -> None:
         """Create files using the plams.Molecule.write_ method.
 
         .. _plams.Molecule.write: https://www.scm.com/doc/plams/components/mol_api.html#scm.plams.mol.molecule.Molecule.write  # noqa
@@ -1421,7 +1482,7 @@ class MultiMolecule(_MultiMolecule):
             plams_mol.write(name.format(i), outputformat=outputformat)
 
     def as_pdb(self, filename: str,
-               mol_subset: MolSubset = 0) -> None:
+               mol_subset: Optional[MolSubset] = 0) -> None:
         """Convert a *MultiMolecule* object into one or more Protein DataBank files (.pdb).
 
         Utilizes the plams.Molecule.write_ method.
@@ -1442,7 +1503,7 @@ class MultiMolecule(_MultiMolecule):
         self._mol_to_file(filename, 'pdb', mol_subset)
 
     def as_mol2(self, filename: str,
-                mol_subset: MolSubset = 0) -> None:
+                mol_subset: Optional[MolSubset] = 0) -> None:
         """Convert a *MultiMolecule* object into one or more .mol2 files.
 
         Utilizes the plams.Molecule.write_ method.
@@ -1463,7 +1524,7 @@ class MultiMolecule(_MultiMolecule):
         self._mol_to_file(filename, 'mol2', mol_subset)
 
     def as_mol(self, filename: str,
-               mol_subset: MolSubset = 0) -> None:
+               mol_subset: Optional[MolSubset] = 0) -> None:
         """Convert a *MultiMolecule* object into one or more .mol files.
 
         Utilizes the plams.Molecule.write_ method.
@@ -1484,7 +1545,7 @@ class MultiMolecule(_MultiMolecule):
         self._mol_to_file(filename, 'mol', mol_subset)
 
     def as_xyz(self, filename: str,
-               mol_subset: MolSubset) -> None:
+               mol_subset: Optional[MolSubset] = None) -> None:
         """Create an .xyz file out of **self**.
 
         Parameters

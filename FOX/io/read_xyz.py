@@ -7,6 +7,12 @@ import numpy as np
 __all__ = ['read_multi_xyz']
 
 
+class XYZError(OSError):
+    """Raise when there are issues related to parsing .xyz files."""
+
+    pass
+
+
 def read_multi_xyz(filename: str) -> Tuple[np.ndarray, Dict[str, List[int]]]:
     """Read a (multi) .xyz file.
 
@@ -27,6 +33,11 @@ def read_multi_xyz(filename: str) -> Tuple[np.ndarray, Dict[str, List[int]]]:
     :math:`m*n*3` |np.ndarray|_ [|np.float64|_] and |dict|_ [|str|_, |list|_ [|int|_]]:
         A 3D array with cartesian coordinates and a dictionary
         with atomic symbols as keys and lists of matching atomic indices as values.
+
+    Raises
+    ------
+    :exc:`.XYZError`
+        Raised when issues are encountered related to parsing .xyz files.
 
     """
     # Define constants and construct a dictionary: {atomic symbols: [atomic indices]}
@@ -54,12 +65,6 @@ def read_multi_xyz(filename: str) -> Tuple[np.ndarray, Dict[str, List[int]]]:
     return xyz, idx_dict
 
 
-class XYZError(Exception):
-    """Raise when there are issues related to parsing .xyz files."""
-
-    pass
-
-
 def validate_xyz(mol_count: float,
                  atom_count: int,
                  filename: str) -> None:
@@ -77,6 +82,11 @@ def validate_xyz(mol_count: float,
 
     filename : str
         The path + filename of a (multi) .xyz file.
+
+    Raises
+    ------
+    :exc:`.XYZError`
+        Raised when issues are encountered related to parsing .xyz files.
 
     """
     if not mol_count.is_integer():
@@ -102,6 +112,11 @@ def _get_atom_count(f: TextIO) -> int:
     -------
     |int|_:
         The number of atoms per molecule.
+
+    Raises
+    ------
+    :exc:`.XYZError`
+        Raised when issues are encountered related to parsing .xyz files.
 
     """
     ret = f.readline()

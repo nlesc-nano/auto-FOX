@@ -229,6 +229,10 @@ napoleon_numpy_docstring = True
 # Defaults to False.
 napoleon_use_admonition_for_examples = True
 
+# True to use the :ivar: role for instance variables.
+# False to use the .. attribute:: directive instead.
+#  Defaults to False.
+napoleon_use_ivar = True
 
 # A string of reStructuredText that will be included at the end of every source file that is read.
 # This is a possible place to add substitutions that should be available in every file (another being rst_prolog).
@@ -262,6 +266,10 @@ rst_epilog = """
 .. _MutableSequence: https://docs.python.org/3/library/collections.abc.html#collections.abc.MutableSequence
 .. _Hashable: https://docs.python.org/3/library/collections.abc.html#collections.abc.Hashable
 .. _Iterable: https://docs.python.org/3/library/collections.abc.html#collections.abc.Iterable
+.. _KeyError: https://docs.python.org/3/library/exceptions.html#KeyError
+.. _ValueError: https://docs.python.org/3/library/exceptions.html#ValueError
+.. _IndexError: https://docs.python.org/3/library/exceptions.html#IndexError
+.. _TypeError: https://docs.python.org/3/library/exceptions.html#TypeError
 
 .. |FOX.ARMC| replace:: *FOX.ARMC*
 .. |FOX.MonteCarlo| replace:: *FOX.MonteCarlo*
@@ -291,4 +299,8 @@ rst_epilog = """
 .. |MutableSequence| replace:: *MutableSequence*
 .. |Hashable| replace:: *Hashable*
 .. |Iterable| replace:: *Iterable*
+.. |KeyError| replace:: *KeyError*
+.. |ValueError| replace:: *ValueError*
+.. |IndexError| replace:: *IndexError*
+.. |TypeError| replace:: *TypeError*
 """
