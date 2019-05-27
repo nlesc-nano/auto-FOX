@@ -1,13 +1,13 @@
 """Functions for storing Monte Carlo results in hdf5 format."""
 
 from time import sleep
-from typing import (Dict, Iterable, Optional, Union, Hashable, List, Tuple)
+from typing import (Dict, Iterable, Optional, Union, Hashable, List, Tuple, Any)
 
 import numpy as np
 import pandas as pd
 from pandas.core.generic import NDFrame
 
-from scm.plams import Settings
+from scm.plams import Settings, Molecule
 
 try:
     import h5py
@@ -27,13 +27,12 @@ __all__ = ['create_hdf5', 'to_hdf5', 'from_hdf5']
 
 @assert_error(H5PY_ERROR)
 def create_hdf5(filename: str,
-                mc_kwarg: Settings) -> None:
+                armc: 'FOX.ARMC') -> None:
     r"""Create a hdf5 file to hold all addaptive rate Mone Carlo results (:class:`FOX.ARMC`).
 
     Datasets are created to hold a number of results following results over the course of the
     MC optimization:
 
-    * The xyz coordinates
     * The value of :math:`/phi` over the course of the parameter optimization (dataset: ``"phi"``)
     * The parameters (dataset: ``"param"``)
     * The acceptance rate (dataset: ``"acceptance"``)
@@ -42,67 +41,92 @@ def create_hdf5(filename: str,
     * User-specified PES descriptors (dataset(s): user-specified name(s))
     * User-specified reference PES descriptors (dataset(s): user-specified name(s) + ``"_ref"``)
 
+    Cartesian coordinates (``"xyz"``) collected over the course of the current super-iteration are
+    stored in a seperate file: ``filename + ".xyz"``.
+
     Parameters
     ----------
     filename : str
         The path+filename of the hdf5 file.
 
-    mc_kwarg : |FOX.ARMC|_
+    armc : |FOX.ARMC|_
         A :class:`.ARMC` instance.
 
     """
-    shape = mc_kwarg.armc.iter_len // mc_kwarg.armc.sub_iter_len, mc_kwarg.armc.sub_iter_len
+    shape = armc.armc.iter_len // armc.armc.sub_iter_len, armc.armc.sub_iter_len
 
     # Create a Settings object with the shape and dtype of all datasets
     shape_dict = Settings()
-    shape_dict.xyz.shape = (shape[1], 1, len(mc_kwarg.job.molecule), 3)
-    shape_dict.xyz.dtype = float
-    shape_dict.xyz.maxshape = (shape[1], None, len(mc_kwarg.job.molecule), 3)
-    shape_dict.xyz.fillvalue = np.nan
     shape_dict.phi.shape = (shape[0], )
     shape_dict.phi.dtype = float
-    shape_dict.param.shape = shape + (len(mc_kwarg.param), )
+    shape_dict.param.shape = shape + (len(armc.param), )
     shape_dict.param.dtype = float
     shape_dict.acceptance.shape = shape
     shape_dict.acceptance.dtype = bool
-    shape_dict.aux_error.shape = shape + (len(mc_kwarg.pes), )
+    shape_dict.aux_error.shape = shape + (len(armc.pes), )
     shape_dict.aux_error.dtype = float
-    shape_dict.aux_error_mod.shape = shape + (1 + len(mc_kwarg.param), )
+    shape_dict.aux_error_mod.shape = shape + (1 + len(armc.param), )
     shape_dict.aux_error_mod.dtype = float
-    for key, value in mc_kwarg.pes.items():
+    for key, value in armc.pes.items():
         shape_dict[key].shape = shape + get_shape(value.ref)
         shape_dict[key].dtype = float
 
     # Create a hdf5 file with *n* datasets
+    _create_xyz_hdf5(filename, armc.job.molecule, shape)
     with h5py.File(filename, 'w-') as f:
         for key, kwarg in shape_dict.items():
-            f.create_dataset(name=key, compression='gzip', **kwarg)
-
-            # Add the ab-initio reference PES descriptors to the hdf5 file
-            if key in mc_kwarg.pes:
-                f.create_dataset(
-                    data=mc_kwarg.pes[key].ref,
-                    name=key + '_ref',
-                    compression='gzip',
-                    dtype=kwarg.dtype,
-                    shape=kwarg.shape[2:]
-                )
+            f.create_dataset(name=key, **kwarg)
+            if key in armc.pes:  # Add the ab-initio reference PES descriptors to the hdf5 file
+                f[key].attrs['ref'] = armc.pes[key].ref
         f.attrs['super-iteration'] = -1
         f.attrs['sub-iteration'] = -1
-        f['xyz'].attrs['atoms'] = np.array([at.symbol for at in mc_kwarg.job.mol], dtype='S')
 
     # Store the *index*, *column* and *name* attributes of dataframes/series in the hdf5 file
-    idx = mc_kwarg.param['param'].index.append(pd.MultiIndex.from_tuples([('phi', '')]))
+    idx = armc.param['param'].index.append(pd.MultiIndex.from_tuples([('phi', '')]))
     pd_dict = {
-        'param': mc_kwarg.param['param'],
+        'param': armc.param['param'],
         'phi': pd.Series(np.nan, index=np.arange(shape[0]), name='phi'),
-        'aux_error': pd.Series(np.nan, index=list(mc_kwarg.pes), name='aux_error'),
+        'aux_error': pd.Series(np.nan, index=list(armc.pes), name='aux_error'),
         'aux_error_mod': pd.Series(np.nan, index=idx, name='aux_error_mod')
     }
 
-    for key, value in mc_kwarg.pes.items():
+    for key, value in armc.pes.items():
         pd_dict[key] = value.ref
     index_to_hdf5(filename, pd_dict)
+
+
+@assert_error(H5PY_ERROR)
+def _create_xyz_hdf5(filename: str,
+                     mol: Molecule,
+                     shape: Tuple[int]) -> None:
+    """Create the ``"xyz"`` dataset for :func:`create_hdf5` in the hdf5 file ``filename+".xyz"``.
+
+    The ``"xyz"`` dataset is to contain Cartesian coordinates collected over the course of the
+    current ARMC super-iteration.
+
+    Parameters
+    ----------
+    filename : str
+        The path+filename of the hdf5 file.
+        **filename** will be appended with ``".xyz"``.
+
+    mol : |plams.Molecule|_
+        A PLAMS Molecule.
+
+    shape: tuple [int]
+        A tuple containing the length of ARMC super- and sub-iterations.
+
+    """
+    xyz = Settings()
+    xyz.shape = (shape[1], 1, len(mol), 3)
+    xyz.dtype = float
+    xyz.maxshape = (shape[1], None, len(mol), 3)
+    xyz.fillvalue = np.nan
+
+    filename_xyz = filename + '.xyz'
+    with h5py.File(filename_xyz, 'w-') as f:
+        f.create_dataset(name='xyz', compression='gzip', **xyz)
+        f['xyz'].attrs['atoms'] = np.array([at.symbol for at in mol], dtype='S')
 
 
 @assert_error(H5PY_ERROR)
@@ -193,6 +217,12 @@ def hdf5_availability(filename: str,
                       max_attempts: Optional[int] = None) -> None:
     """Check if a .hdf5 file is opened by another process; return once it is not.
 
+    If two processes attempt to simultaneously open a single hdf5 file then
+    h5py will raise an ``OSError``.
+    The purpose of this function is ensure that a .hdf5 is actually closed,
+    thus allowing :func:`to_hdf5` to safely access **filename** without the risk of raising
+    an ``OSError``.
+
     Parameters
     ----------
     filename : str
@@ -251,15 +281,20 @@ def to_hdf5(filename: str,
         f.attrs['sub-iteration'] = omega
         for key, value in dset_dict.items():
             if key == 'xyz':
-                try:
-                    f[key][omega] = value
-                except TypeError:  # Reshape and try again
-                    f[key].shape = (f[key].shape[0],) + value.shape
-                    f[key][omega] = value
+                pass
             elif key == 'phi':
                 f[key][kappa] = value
             else:
                 f[key][kappa, omega] = value
+
+    # Update the second hdf5 file with Cartesian coordinates
+    with h5py.File(filename+'.xyz', 'r+') as f:
+        value = dset_dict['xyz']
+        try:
+            f['xyz'][omega] = value
+        except TypeError:  # Reshape and try again
+            f['xyz'].shape = (f['xyz'].shape[0],) + value.shape
+            f['xyz'][omega] = value
 
 
 DataSets = Optional[Union[Hashable, Iterable[Hashable]]]
@@ -431,7 +466,7 @@ def dset_to_series(f: H5pyFile,
 
 @assert_error(H5PY_ERROR)
 def dset_to_df(f: H5pyFile,
-               key: Hashable) -> Union[pd.DataFrame, List[pd.DataFrame], 'xr.DataArray']:
+               key: Hashable) -> Union[pd.DataFrame, List[pd.DataFrame]]:
     """Take a h5py dataset and create a DataFrame (if 2D) or list of DataFrames (if 3D).
 
     Parameters
@@ -458,3 +493,14 @@ def dset_to_df(f: H5pyFile,
         return pd.DataFrame(data, index=index, columns=columns)
     else:
         return [pd.DataFrame(i, index=index, columns=columns) for i in data]
+
+
+def restart_from_hdf5(filename: str) -> Dict[str, Any]:
+    """Restart a previously started Addaptive Rate Monte Carlo procedure.
+
+    Parameters
+    ----------
+    filename : str
+        The path+name of an existing ARMC hdf5 file.
+    """
+    pass

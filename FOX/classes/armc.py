@@ -26,9 +26,14 @@ class ARMC(MonteCarlo):
 
     A subclass of :class:`.MonteCarlo`.
 
-    :Atributes:     * **armc** (|plams.Settings|_) – See :meth:`ARMC.reconfigure_armc_atr`
+    Attributes
+    ----------
+    armc : |plams.Settings|_
+        ARMC specific settings.
 
-                    * **phi** (|plams.Settings|_) – See :meth:`ARMC.reconfigure_phi_atr`
+    phi : |plams.Settings|_
+        Phi specific settings.
+
     """
 
     def __init__(self,
@@ -114,7 +119,7 @@ class ARMC(MonteCarlo):
 
         Parameters
         ----------
-        str filename:
+        filename : str
             The path+filename of a .yaml file containing all :class:`ARMC` settings.
 
         Returns
@@ -189,7 +194,7 @@ class ARMC(MonteCarlo):
         kappa : int
             The super-iteration, :math:`\kappa`, in :meth:`ARMC.init_armc`.
 
-        history_dict : dict [tuple [float], |np.ndarray|_ [|np.float64|_]]
+        history_dict : |dict|_ [|tuple|_ [|float|_], |np.ndarray|_ [|np.float64|_]]
             A dictionary with parameters as keys and a list of PES descriptors as values.
 
         key_new : tuple [float]
@@ -209,6 +214,7 @@ class ARMC(MonteCarlo):
             # Step 1: Perform a random move
             key_old = key_new
             key_new = self.move_param()
+            hdf5_kwarg['param'] = self.param['param']
 
             # Step 2: Check if the move has been performed already; calculate PES descriptors if not
             pes_new, mol = self.get_pes_descriptors(history_dict, key_new)
@@ -236,7 +242,6 @@ class ARMC(MonteCarlo):
             # Step 5: Export the results to HDF5
             hdf5_kwarg['xyz'] = mol if mol is not None else np.nan
             hdf5_kwarg['phi'] = self.phi.phi
-            hdf5_kwarg['param'] = self.param['param']
             hdf5_kwarg['acceptance'] = accept
             hdf5_kwarg['aux_error'] = aux_new
             to_hdf5(self.hdf5_file, hdf5_kwarg, kappa, omega)
@@ -283,7 +288,7 @@ class ARMC(MonteCarlo):
 
         return np.array([norm_mean(mm_pes, key) for key, mm_pes in pes_dict.items()])
 
-    def apply_phi(self, aux_error: float) -> float:
+    def apply_phi(self, aux_error: np.ndarray) -> np.ndarray:
         r"""Apply :math:`\phi` to all auxiliary errors :math:`\Delta \varepsilon_{QM-MM}`.
 
         * The values are updated according to the provided settings in **self.armc**.
@@ -326,12 +331,50 @@ class ARMC(MonteCarlo):
 
         Parameters
         ----------
-        acceptance : |np.ndarray|_ [bool]
+        acceptance : |np.ndarray|_ [|bool|_]
             A 1D boolean array denoting the accepted moves within a sub-iteration.
 
         """
         sign = np.sign(self.armc.a_target - np.mean(acceptance))
         self.phi.phi *= self.armc.gamma**sign
+
+    def restart(self, filename: str) -> None:
+        """Restart a previously started Addaptive Rate Monte Carlo procedure.
+
+        Restarts from the beginning of the last super-iteration :math:`\kappa`.
+
+        Parameters
+        ----------
+        filename : str
+            The path+name of the an ARMC hdf5 file.
+
+        """
+        # Unpack attributes
+        super_iter = self.armc.iter_len // self.armc.sub_iter_len
+
+        # Construct the HDF5 file
+        create_hdf5(self.hdf5_file, self)
+
+        # Initialize
+        init(path=self.job.path, folder=self.job.folder)
+        config.default_jobmanager.settings.hashing = None
+        if self.job.logfile:
+            config.default_jobmanager.logfile = self.job.logfile
+            config.log.file = 3
+        if self.job.psf[0]:
+            PSFDict.write_psf(self.job.psf)
+
+        # Initialize the first MD calculation
+        history_dict: dict = {}
+        key_new = tuple(self.param['param'].values)
+        pes_new, _ = self.get_pes_descriptors(history_dict, key_new)
+        history_dict[key_new] = self.get_aux_error(pes_new)
+        self.param['param_old'] = self.param['param']
+
+        # Start the main loop
+        for kappa in range(super_iter):
+            key_new = self.do_inner(kappa, history_dict, key_new)
+        finish()
 
 
 def _str(dict_: dict,
