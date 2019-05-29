@@ -1,5 +1,7 @@
 """A module for reading multi-xyz files."""
 
+from itertools import islice
+
 from typing import (Tuple, Dict, Iterable, List, TextIO, Union)
 
 import numpy as np
@@ -13,26 +15,26 @@ class XYZError(OSError):
     pass
 
 
-def read_multi_xyz(filename: str) -> Tuple[np.ndarray, Dict[str, List[int]]]:
+def read_multi_xyz(filename: str,
+                   return_comment: bool = True) -> Tuple[np.ndarray, Dict[str, List[int]]]:
     """Read a (multi) .xyz file.
-
-    Returns the following items:
-
-        * An array with the cartesian coordinates of :math:`m` molecules
-          consisting of :math:`n` atoms.
-
-        * A dictionary with atomic symbols and lists of matching atomic indices
 
     Parameters
     ----------
     filename : str
         The path+filename of a (multi) .xyz file.
 
+    return_comment : bool
+        Whether or not the comment line in each Cartesian coordinate block should be returned.
+        Returned as a 1D array of strings.
+
     Returns
     -------
-    :math:`m*n*3` |np.ndarray|_ [|np.float64|_] and |dict|_ [|str|_, |list|_ [|int|_]]:
-        A 3D array with cartesian coordinates and a dictionary
-        with atomic symbols as keys and lists of matching atomic indices as values.
+    :math:`m*n*3` |np.ndarray|_ [|np.float64|_], |dict|_ [|str|_, |list|_ [|int|_]] and\
+    (optional) :math:`m` |np.ndarray|_ [|str|_]:
+        * A 3D array with Cartesian coordinates of :math:`m` molecules with :math:`n` atoms.
+        * A dictionary with atomic symbols as keys and lists of matching atomic indices as values.
+        * (Optional) a 1D array with :math:`m` comments.
 
     Raises
     ------
@@ -62,7 +64,37 @@ def read_multi_xyz(filename: str) -> Tuple[np.ndarray, Dict[str, List[int]]]:
         for i, _ in enumerate(f):
             next(f)
             xyz[i] = [at.split()[1:] for _, at in zip(range(atom_count), f)]
-    return xyz, idx_dict
+
+    if return_comment:
+        return xyz, idx_dict, get_comments(filename, atom_count)
+    else:
+        return xyz, idx_dict
+
+
+def get_comments(filename: str,
+                 atom_count: int) -> np.ndarray:
+    """Read and returns all comment lines in an xyz file.
+
+    A single comment line should be located under the atom count of each molecule.
+
+    Parameters
+    ----------
+    filename : str
+        The path+filename of a (multi) .xyz file.
+
+    atom_count : int
+        The number of atoms per molecule.
+
+    Returns
+    -------
+    :math:`m` |np.ndarray|_ [|str|_]:
+        A 1D array with :math:`m` comments extracted from **filename**.
+
+    """
+    with open(filename, 'r') as f:
+        next(f)
+        iterator = islice(f, 0, None, atom_count+2)  # Generator slicing
+        return np.array([i.rstrip() for i in iterator])
 
 
 def validate_xyz(mol_count: float,

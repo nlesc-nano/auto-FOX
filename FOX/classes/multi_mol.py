@@ -2,7 +2,8 @@
 
 from __future__ import annotations
 
-from itertools import (chain, combinations_with_replacement)
+from collections import abc
+from itertools import (chain, combinations_with_replacement, zip_longest, islice)
 from typing import (
     Sequence, Optional, Union, List, Hashable, Callable, Iterable, Dict, Tuple, Any
 )
@@ -71,7 +72,7 @@ class MultiMolecule(_MultiMolecule):
     def guess_bonds(self, atom_subset: AtomSubset = None) -> None:
         """Guess bonds within the molecules based on atom type and inter-atomic distances.
 
-        Bonds are guessed based on the first molecule in **self**
+        Bonds are guessed based on the first molecule in this instance
         Performs an inplace modification of **self.bonds**
 
         Parameters
@@ -79,7 +80,7 @@ class MultiMolecule(_MultiMolecule):
         atom_subset : |Sequence|_
             A tuple of atomic symbols. Bonds are guessed between all atoms
             whose atomic symbol is in **atom_subset**.
-            If ``None``, guess bonds for all atoms in **self**.
+            If ``None``, guess bonds for all atoms in this instance.
 
         """
         at_subset = np.asarray(sorted(self._get_atom_subset(atom_subset, as_sequence=True)))
@@ -101,7 +102,7 @@ class MultiMolecule(_MultiMolecule):
                   stop: Optional[int] = None,
                   step: int = 1,
                   inplace: bool = False) -> Optional[MultiMolecule]:
-        """Construct a new :class:`MultiMolecule` instance by slicing **self**.
+        """Construct a new :class:`MultiMolecule` instance by slicing this instance.
 
         Equivalent to :code:`MultiMolecule[start:stop:step].copy()` or
         :code:`MultiMolecule[start:stop:step]` depending on the value of **inplace**.
@@ -115,7 +116,7 @@ class MultiMolecule(_MultiMolecule):
             End of the interval.
 
         inplace : bool
-            Instead of returning the new coordinates, perform an inplace update of **self**.
+            Instead of returning the new coordinates, perform an inplace update of this instance.
 
         Returns
         -------
@@ -133,7 +134,7 @@ class MultiMolecule(_MultiMolecule):
                      stop: Union[int, None] = None,
                      p: float = 0.5,
                      inplace: bool = False) -> Optional[MultiMolecule]:
-        """Construct a new :class:`MultiMolecule` instance by randomly slicing **self**.
+        """Construct a new :class:`MultiMolecule` instance by randomly slicing this instance.
 
         The probability of including a particular element is equivalent to **p**.
 
@@ -146,11 +147,11 @@ class MultiMolecule(_MultiMolecule):
             End of the interval.
 
         p : float
-            The probability of including each particular molecule in **self**.
+            The probability of including each particular molecule in this instance.
             Values must be between ``0.0`` (0%) and ``1.0`` (100%).
 
         inplace : bool
-            Instead of returning the new coordinates, perform an inplace update of **self**.
+            Instead of returning the new coordinates, perform an inplace update of this instance.
 
         Returns
         -------
@@ -181,27 +182,27 @@ class MultiMolecule(_MultiMolecule):
     def reset_origin(self, mol_subset: MolSubset = None,
                      atom_subset: AtomSubset = None,
                      inplace: bool = True) -> Optional[MultiMolecule]:
-        """Reallign all molecules in **self**.
+        """Reallign all molecules in this instance.
 
-        All molecules in **self** are rotating and translating, by performing a partial partial
-        Procrustes superimposition with respect to the first molecule in **self**.
+        All molecules in this instance are rotating and translating, by performing a partial partial
+        Procrustes superimposition with respect to the first molecule in this instance.
 
-        The superimposition is carried out with respect to the first molecule in **self**.
+        The superimposition is carried out with respect to the first molecule in this instance.
 
         Parameters
         ----------
         mol_subset : slice
-            Perform the calculation on a subset of molecules in **self**, as
+            Perform the calculation on a subset of molecules in this instance, as
             determined by their moleculair index.
-            Include all :math:`m` molecules in **self** if ``None``.
+            Include all :math:`m` molecules in this instance if ``None``.
 
         atom_subset : |Sequence|_
-            Perform the calculation on a subset of atoms in **self**, as
+            Perform the calculation on a subset of atoms in this instance, as
             determined by their atomic index or atomic symbol.
-            Include all :math:`n` atoms per molecule in **self** if ``None``.
+            Include all :math:`n` atoms per molecule in this instance if ``None``.
 
         inplace : bool
-            Instead of returning the new coordinates, perform an inplace update of **self**.
+            Instead of returning the new coordinates, perform an inplace update of this instance.
 
         Returns
         -------
@@ -226,7 +227,7 @@ class MultiMolecule(_MultiMolecule):
         rotmat[:, 2, 2] = np.linalg.det(V @ Ut)
         rotmat *= V@Ut
 
-        # Return or perform an inplace update of **self**
+        # Return or perform an inplace update of this instance
         if inplace:
             self[i, j, :] = coords @ np.swapaxes(rotmat, 1, 2)
             return None
@@ -235,7 +236,7 @@ class MultiMolecule(_MultiMolecule):
 
     def sort(self, sort_by: Union[str, Sequence[int]] = 'symbol',
              reverse: bool = False) -> None:
-        """Sort the atoms in **self** and **self.atoms**, performing in inplace update.
+        """Sort the atoms in this instance and **self.atoms**, performing in inplace update.
 
         Parameters
         ----------
@@ -263,7 +264,7 @@ class MultiMolecule(_MultiMolecule):
         if reverse:
             idx_range.reverse()
 
-        # Sort **self**
+        # Sort this instance
         self[:] = self[:, idx_range]
 
         # Refill **self.atoms**
@@ -284,7 +285,7 @@ class MultiMolecule(_MultiMolecule):
             self.bonds = self.bonds[idx]
 
     def residue_argsort(self, concatenate: bool = True) -> Union[List[List[int]], np.ndarray]:
-        """Return the indices that would sort **self** by residue number.
+        """Return the indices that would sort this instance by residue number.
 
         Residues are defined based on moleculair fragments based on **self.bonds**.
 
@@ -297,7 +298,7 @@ class MultiMolecule(_MultiMolecule):
         Returns
         -------
         :math:`n` |np.ndarray|_ [|np.int64|_]:
-            A 1D array of indices that would sort :math:`n` atoms **self**.
+            A 1D array of indices that would sort :math:`n` atoms this instance.
 
         """
         # Define residues
@@ -330,14 +331,14 @@ class MultiMolecule(_MultiMolecule):
         Parameters
         ----------
         mol_subset : slice
-            Perform the calculation on a subset of molecules in **self**, as
+            Perform the calculation on a subset of molecules in this instance, as
             determined by their moleculair index.
-            Include all :math:`m` molecules in **self** if ``None``.
+            Include all :math:`m` molecules in this instance if ``None``.
 
         atom_subset : |Sequence|_
-            Perform the calculation on a subset of atoms in **self**, as
+            Perform the calculation on a subset of atoms in this instance, as
             determined by their atomic index or atomic symbol.
-            Include all :math:`n` atoms per molecule in **self** if ``None``.
+            Include all :math:`n` atoms per molecule in this instance if ``None``.
 
         Returns
         -------
@@ -349,19 +350,19 @@ class MultiMolecule(_MultiMolecule):
         return coords.sum(axis=1) / self.mass.sum()
 
     def get_bonds_per_atom(self, atom_subset: AtomSubset = None) -> np.ndarray:
-        """Get the number of bonds per atom in **self**.
+        """Get the number of bonds per atom in this instance.
 
         Parameters
         ----------
         atom_subset : |Sequence|_
-            Perform the calculation on a subset of atoms in **self**, as
+            Perform the calculation on a subset of atoms in this instance, as
             determined by their atomic index or atomic symbol.
-            Include all :math:`n` atoms per molecule in **self** if ``None``.
+            Include all :math:`n` atoms per molecule in this instance if ``None``.
 
         Returns
         -------
         :math:`n` |np.ndarray|_ [|np.int64|_]:
-            A 1D array with the number of bonds per atom, for all :math:`n` atoms in **self**.
+            A 1D array with the number of bonds per atom, for all :math:`n` atoms in this instance.
 
         """
         j = self._get_atom_subset(atom_subset, as_sequence=True)
@@ -382,9 +383,9 @@ class MultiMolecule(_MultiMolecule):
             A function, method or class used for constructing a specific time-averaged property.
 
         atom_subset : |Sequence|_
-            Perform the calculation on a subset of atoms in **self**, as
+            Perform the calculation on a subset of atoms in this instance, as
             determined by their atomic index or atomic symbol.
-            Include all :math:`n` atoms per molecule in **self** if ``None``.
+            Include all :math:`n` atoms per molecule in this instance if ``None``.
 
         kwarg : dict [str, object]
             Keyword arguments that will be supplied to **method**.
@@ -423,9 +424,9 @@ class MultiMolecule(_MultiMolecule):
             property.
 
         atom_subset : |Sequence|_
-            Perform the calculation on a subset of atoms in **self**, as
+            Perform the calculation on a subset of atoms in this instance, as
             determined by their atomic index or atomic symbol.
-            Include all :math:`n` atoms per molecule in **self** if ``None``.
+            Include all :math:`n` atoms per molecule in this instance if ``None``.
 
         kwarg : dict [str, object]
             Keyword arguments that will be supplied to **method**.
@@ -470,15 +471,15 @@ class MultiMolecule(_MultiMolecule):
             Calculate the root-mean squared average velocity instead.
 
         mol_subset : slice
-            Perform the calculation on a subset of molecules in **self**, as
+            Perform the calculation on a subset of molecules in this instance, as
             determined by their moleculair index.
-            Include all :math:`m` molecules in **self** if
+            Include all :math:`m` molecules in this instance if
             ``None``.
 
         atom_subset : |Sequence|_
-            Perform the calculation on a subset of atoms in **self**, as
+            Perform the calculation on a subset of atoms in this instance, as
             determined by their atomic index or atomic symbol.
-            Include all :math:`n` atoms per molecule in **self** if ``None``.
+            Include all :math:`n` atoms per molecule in this instance if ``None``.
 
         Returns
         -------
@@ -509,14 +510,14 @@ class MultiMolecule(_MultiMolecule):
             Calculate the root-mean squared time-averaged velocity instead.
 
         mol_subset : slice
-            Perform the calculation on a subset of molecules in **self**, as
+            Perform the calculation on a subset of molecules in this instance, as
             determined by their moleculair index.
-            Include all :math:`m` molecules in **self** if ``None``.
+            Include all :math:`m` molecules in this instance if ``None``.
 
         atom_subset : |Sequence|_
-            Perform the calculation on a subset of atoms in **self**, as
+            Perform the calculation on a subset of atoms in this instance, as
             determined by their atomic index or atomic symbol.
-            Include all :math:`n` atoms per molecule in **self** if ``None``.
+            Include all :math:`n` atoms per molecule in this instance if ``None``.
 
         Returns
         -------
@@ -535,17 +536,17 @@ class MultiMolecule(_MultiMolecule):
         Parameters
         ----------
             mol_subset : slice
-                Perform the calculation on a subset of molecules in **self**, as
+                Perform the calculation on a subset of molecules in this instance, as
                 determined by their moleculair index.
-                Include all :math:`m` molecules in **self** if ``None``.
+                Include all :math:`m` molecules in this instance if ``None``.
 
             atom_subset : |Sequence|_
-                Perform the calculation on a subset of atoms in **self**, as
+                Perform the calculation on a subset of atoms in this instance, as
                 determined by their atomic index or atomic symbol.
-                Include all :math:`n` atoms per  molecule in **self** if ``None``.
+                Include all :math:`n` atoms per  molecule in this instance if ``None``.
 
             reset_origin : bool
-                Reset the origin of each molecule in **self** by means of
+                Reset the origin of each molecule in this instance by means of
                 a partial Procrustes superimposition, translating and rotating the molecules.
 
         Returns
@@ -573,17 +574,17 @@ class MultiMolecule(_MultiMolecule):
         Parameters
         ----------
         mol_subset : slice
-            Perform the calculation on a subset of molecules in **self**, as
+            Perform the calculation on a subset of molecules in this instance, as
             determined by their moleculair index.
-            Include all :math:`m` molecules in **self** if ``None``.
+            Include all :math:`m` molecules in this instance if ``None``.
 
         atom_subset : |Sequence|_
-            Perform the calculation on a subset of atoms in **self**, as
+            Perform the calculation on a subset of atoms in this instance, as
             determined by their atomic index or atomic symbol.
-            Include all :math:`n` atoms per molecule in **self** if ``None``.
+            Include all :math:`n` atoms per molecule in this instance if ``None``.
 
         reset_origin : bool
-            Reset the origin of each molecule in **self** by means of
+            Reset the origin of each molecule in this instance by means of
             a partial Procrustes superimposition, translating and rotating the molecules.
 
         Returns
@@ -616,15 +617,15 @@ class MultiMolecule(_MultiMolecule):
             Calculate the root-mean squared average velocity instead.
 
         mol_subset : slice
-            Perform the calculation on a subset of molecules in **self**, as
+            Perform the calculation on a subset of molecules in this instance, as
             determined by their moleculair index.
-            Include all :math:`m` molecules in **self** if
+            Include all :math:`m` molecules in this instance if
             ``None``.
 
         atom_subset : |Sequence|_
-            Perform the calculation on a subset of atoms in **self**, as
+            Perform the calculation on a subset of atoms in this instance, as
             determined by their atomic index or atomic symbol.
-            Include all :math:`n` atoms per molecule in **self** if ``None``.
+            Include all :math:`n` atoms per molecule in this instance if ``None``.
 
         Returns
         -------
@@ -654,14 +655,14 @@ class MultiMolecule(_MultiMolecule):
             Calculate the root-mean squared average velocity instead.
 
         mol_subset : slice
-            Perform the calculation on a subset of molecules in **self**, as
+            Perform the calculation on a subset of molecules in this instance, as
             determined by their moleculair index.
-            Include all :math:`m` molecules in **self** if ``None``.
+            Include all :math:`m` molecules in this instance if ``None``.
 
         atom_subset : |Sequence|_
-            Perform the calculation on a subset of atoms in **self**, as
+            Perform the calculation on a subset of atoms in this instance, as
             determined by their atomic index or atomic symbol.
-            Include all :math:`n` atoms per molecule in **self** if ``None``.
+            Include all :math:`n` atoms per molecule in this instance if ``None``.
 
         Returns
         -------
@@ -695,14 +696,14 @@ class MultiMolecule(_MultiMolecule):
             velocity components.
 
         mol_subset : slice
-            Perform the calculation on a subset of molecules in **self**, as
+            Perform the calculation on a subset of molecules in this instance, as
             determined by their moleculair index.
-            Include all :math:`m` molecules in **self** if ``None``.
+            Include all :math:`m` molecules in this instance if ``None``.
 
         atom_subset : |Sequence|_
-            Perform the calculation on a subset of atoms in **self**, as
+            Perform the calculation on a subset of atoms in this instance, as
             determined by their atomic index or atomic symbol.
-            Include all :math:`n` atoms per molecule in **self** if ``None``.
+            Include all :math:`n` atoms per molecule in this instance if ``None``.
 
         Returns
         -------
@@ -737,19 +738,19 @@ class MultiMolecule(_MultiMolecule):
                  atom_subset: AtomSubset = None) -> np.ndarray:
         """Calculate the root mean square displacement (RMSD).
 
-        The RMSD is calculated with respect to the first molecule in **self**.
+        The RMSD is calculated with respect to the first molecule in this instance.
 
         Parameters
         ----------
         mol_subset : slice
-            Perform the calculation on a subset of molecules in **self**, as
+            Perform the calculation on a subset of molecules in this instance, as
             determined by their moleculair index.
-            Include all :math:`m` molecules in **self** if ``None``.
+            Include all :math:`m` molecules in this instance if ``None``.
 
         atom_subset : |Sequence|_
-            Perform the calculation on a subset of atoms in **self**, as
+            Perform the calculation on a subset of atoms in this instance, as
             determined by their atomic index or atomic symbol.
-            Include all :math:`n` atoms per molecule in **self** if ``None``.
+            Include all :math:`n` atoms per molecule in this instance if ``None``.
 
         Returns
         -------
@@ -760,7 +761,7 @@ class MultiMolecule(_MultiMolecule):
         i = self._get_mol_subset(mol_subset)
         j = self._get_atom_subset(atom_subset)
 
-        # Calculate and return the RMSD per molecule in **self**
+        # Calculate and return the RMSD per molecule in this instance
         dist = np.linalg.norm(self[i, j, :] - self[0, j, :], axis=2)
         return np.sqrt(np.einsum('ij,ij->i', dist, dist) / dist.shape[1])
 
@@ -771,14 +772,14 @@ class MultiMolecule(_MultiMolecule):
         Parameters
         ----------
         mol_subset : slice
-            Perform the calculation on a subset of molecules in **self**, as
+            Perform the calculation on a subset of molecules in this instance, as
             determined by their moleculair index.
-            Include all :math:`m` molecules in **self** if ``None``.
+            Include all :math:`m` molecules in this instance if ``None``.
 
         atom_subset : |Sequence|_
-            Perform the calculation on a subset of atoms in **self**, as
+            Perform the calculation on a subset of atoms in this instance, as
             determined by their atomic index or atomic symbol.
-            Include all :math:`n` atoms per molecule in **self** if ``None``.
+            Include all :math:`n` atoms per molecule in this instance if ``None``.
 
         Returns
         -------
@@ -790,7 +791,7 @@ class MultiMolecule(_MultiMolecule):
         i = self._get_mol_subset(mol_subset)
         j = self._get_atom_subset(atom_subset)
 
-        # Calculate the RMSF per molecule in **self**
+        # Calculate the RMSF per molecule in this instance
         mean_coords = np.mean(self[i, j, :], axis=0)[None, ...]
         displacement = np.linalg.norm(self[i, j, :] - mean_coords, axis=2)**2
         return np.mean(displacement, axis=0)
@@ -807,9 +808,9 @@ class MultiMolecule(_MultiMolecule):
             If ``False``, return a sequence with multiple column names.
 
         atom_subset : |Sequence|_
-            Perform the calculation on a subset of atoms in **self**, as
+            Perform the calculation on a subset of atoms in this instance, as
             determined by their atomic index or atomic symbol.
-            Include all :math:`n` atoms per molecule in **self** if ``None``.
+            Include all :math:`n` atoms per molecule in this instance if ``None``.
 
         Returns
         -------
@@ -850,9 +851,9 @@ class MultiMolecule(_MultiMolecule):
             If ``False``, return a sequence with multiple column names.
 
         atom_subset : |Sequence|_
-            Perform the calculation on a subset of atoms in **self**, as
+            Perform the calculation on a subset of atoms in this instance, as
             determined by their atomic index or atomic symbol.
-            Include all :math:`n` atoms per molecule in **self** if ``None``.
+            Include all :math:`n` atoms per molecule in this instance if ``None``.
 
         Returns
         -------
@@ -894,9 +895,9 @@ class MultiMolecule(_MultiMolecule):
         Parameters
         ----------
         atom_subset : |Sequence|_
-            Perform the calculation on a subset of atoms in **self**, as
+            Perform the calculation on a subset of atoms in this instance, as
             determined by their atomic index or atomic symbol.
-            Include all :math:`n` atoms per molecule in **self** if ``None``.
+            Include all :math:`n` atoms per molecule in this instance if ``None``.
 
         Returns
         -------
@@ -944,14 +945,14 @@ class MultiMolecule(_MultiMolecule):
         Parameters
         ----------
         mol_subset : slice
-            Perform the calculation on a subset of molecules in **self**, as
+            Perform the calculation on a subset of molecules in this instance, as
             determined by their moleculair index.
-            Include all :math:`m` molecules in **self** if ``None``.
+            Include all :math:`m` molecules in this instance if ``None``.
 
         atom_subset : |Sequence|_
-            Perform the calculation on a subset of atoms in **self**, as
+            Perform the calculation on a subset of atoms in this instance, as
             determined by their atomic index or atomic symbol.
-            Include all :math:`n` atoms per molecule in **self** if ``None``.
+            Include all :math:`n` atoms per molecule in this instance if ``None``.
 
         rdf_cutoff : float
             Remove all values in the RDF below this value (Angstrom).
@@ -1101,9 +1102,9 @@ class MultiMolecule(_MultiMolecule):
         Parameters
         ----------
         atom_subset : |Sequence|_
-            Perform the calculation on a subset of atoms in **self**, as
+            Perform the calculation on a subset of atoms in this instance, as
             determined by their atomic index or atomic symbol.
-            Include all :math:`n` atoms per molecule in **self** if ``None``.
+            Include all :math:`n` atoms per molecule in this instance if ``None``.
 
         dr : float
             The integration step-size in Ångström, *i.e.* the distance between
@@ -1125,14 +1126,14 @@ class MultiMolecule(_MultiMolecule):
 
         """
         # If **atom_subset** is None: extract atomic symbols from they keys of **self.atoms**
-        at_subset = atom_subset or tuple(self.atoms.keys())
+        at_subset = atom_subset or tuple(sorted(self.atoms.keys(), key=str))
         atom_pairs = self.get_pair_dict(at_subset, r=2)
 
         # Construct an empty dataframe with appropiate dimensions, indices and keys
         df = get_rdf_df(atom_pairs, dr, r_max)
         kwarg = {'dr': dr, 'r_max': r_max}
 
-        # Fill the dataframe with RDF's, averaged over all conformations in **self**
+        # Fill the dataframe with RDF's, averaged over all conformations in this instance
         if low_mem:  # Slower low memory approach
             for i in range(self.shape[0]):
                 for key, at in atom_pairs.items():
@@ -1150,19 +1151,19 @@ class MultiMolecule(_MultiMolecule):
 
     def get_dist_mat(self, mol_subset: MolSubset = None,
                      atom_subset: Tuple[AtomSubset] = (None, None)) -> np.ndarray:
-        """Create and return a distance matrix for all molecules and atoms in **self**.
+        """Create and return a distance matrix for all molecules and atoms in this instance.
 
         Parameters
         ----------
         mol_subset : slice
-            Perform the calculation on a subset of molecules in **self**, as
+            Perform the calculation on a subset of molecules in this instance, as
             determined by their moleculair index.
-            Include all :math:`m` molecules in **self** if ``None``.
+            Include all :math:`m` molecules in this instance if ``None``.
 
         atom_subset : |Sequence|_
-            Perform the calculation on a subset of atoms in **self**, as
+            Perform the calculation on a subset of atoms in this instance, as
             determined by their atomic index or atomic symbol.
-            Include all :math:`n` atoms per molecule in **self** if ``None``.
+            Include all :math:`n` atoms per molecule in this instance if ``None``.
 
         Returns
         -------
@@ -1197,9 +1198,9 @@ class MultiMolecule(_MultiMolecule):
         Parameters
         ----------
         atom_subset : |Sequence|_
-            Perform the calculation on a subset of atoms in **self**, as
+            Perform the calculation on a subset of atoms in this instance, as
             determined by their atomic index or atomic symbol.
-            Include all :math:`n` atoms per molecule in **self** if ``None``.
+            Include all :math:`n` atoms per molecule in this instance if ``None``.
 
         r : int
             The length of the to-be returned subsets.
@@ -1227,9 +1228,9 @@ class MultiMolecule(_MultiMolecule):
         Parameters
         ----------
         atom_subset : |Sequence|_
-            Perform the calculation on a subset of atoms in **self**, as
+            Perform the calculation on a subset of atoms in this instance, as
             determined by their atomic index or atomic symbol.
-            Include all :math:`n` atoms per molecule in **self** if ``None``.
+            Include all :math:`n` atoms per molecule in this instance if ``None``.
 
         low_mem : bool
             If ``True``, use a slower but more memory efficient method for constructing the ADFs.
@@ -1240,7 +1241,7 @@ class MultiMolecule(_MultiMolecule):
         -------
         |pd.DataFrame|_:
             A dataframe of angular distribution functions, averaged over all conformations in
-            **self**.
+            this instance.
 
         """
         # If **atom_subset** is None: extract atomic symbols from they keys of **self.atoms**
@@ -1250,7 +1251,7 @@ class MultiMolecule(_MultiMolecule):
         # Construct an empty dataframe with appropiate dimensions, indices and keys
         df = get_adf_df(atom_pairs)
 
-        # Fill the dataframe with RDF's, averaged over all conformations in **self**
+        # Fill the dataframe with RDF's, averaged over all conformations in this instance
         if low_mem:  # Slower low memory approach
             for i in range(self.shape[0]):
                 for key, at in atom_pairs.items():
@@ -1268,19 +1269,19 @@ class MultiMolecule(_MultiMolecule):
     def get_angle_mat(self, mol_subset: MolSubset = 0,
                       atom_subset: Tuple[AtomSubset, AtomSubset, AtomSubset] = (None, None, None),
                       get_r_max: bool = False) -> np.ndarray:
-        """Create and return an angle matrix for all molecules and atoms in **self**.
+        """Create and return an angle matrix for all molecules and atoms in this instance.
 
         Parameters
         ----------
         mol_subset : slice
-            Perform the calculation on a subset of molecules in **self**, as
+            Perform the calculation on a subset of molecules in this instance, as
             determined by their moleculair index.
-            Include all :math:`m` molecules in **self** if ``None``.
+            Include all :math:`m` molecules in this instance if ``None``.
 
         atom_subset : |Sequence|_
-            Perform the calculation on a subset of atoms in **self**, as
+            Perform the calculation on a subset of atoms in this instance, as
             determined by their atomic index or atomic symbol.
-            Include all :math:`n` atoms per molecule in **self** if ``None``.
+            Include all :math:`n` atoms per molecule in this instance if ``None``.
 
         get_r_max : bool
             Whether or not the maximum distance should be returned or not.
@@ -1341,9 +1342,9 @@ class MultiMolecule(_MultiMolecule):
         Parameters
         ----------
         atom_subset : |Sequence|_
-            Perform the calculation on a subset of atoms in **self**, as
+            Perform the calculation on a subset of atoms in this instance, as
             determined by their atomic index or atomic symbol.
-            Include all :math:`n` atoms per molecule in **self** if ``None``.
+            Include all :math:`n` atoms per molecule in this instance if ``None``.
 
         as_sequence : bool
             Ensure the subset is returned as a sequence.
@@ -1377,7 +1378,7 @@ class MultiMolecule(_MultiMolecule):
         elif isinstance(atom_subset, str):
             return self.atoms[atom_subset]
         elif isinstance(atom_subset[0], str):
-            return list(chain.from_iterable(self.atom_subset[i] for i in atom_subset))
+            return list(chain.from_iterable(self.atoms[i] for i in atom_subset))
         elif isinstance(atom_subset[0][0], (int, np.integer)):
             return list(chain.from_iterable(atom_subset))
 
@@ -1400,9 +1401,9 @@ class MultiMolecule(_MultiMolecule):
         Parameters
         ----------
         mol_subset : slice
-            Perform the calculation on a subset of molecules in **self**, as
+            Perform the calculation on a subset of molecules in this instance, as
             determined by their moleculair index.
-            Include all :math:`m` molecules in **self** if ``None``.
+            Include all :math:`m` molecules in this instance if ``None``.
 
         as_sequence : bool
             Ensure the subset is returned as a sequence.
@@ -1460,9 +1461,9 @@ class MultiMolecule(_MultiMolecule):
             Accepated values are ``"mol"``, ``"mol2"``, ``"pdb"`` or ``"xyz"``.
 
         mol_subset : slice
-            Perform the calculation on a subset of molecules in **self**, as
+            Perform the calculation on a subset of molecules in this instance, as
             determined by their moleculair index.
-            Include all :math:`m` molecules in **self** if ``None``.
+            Include all :math:`m` molecules in this instance if ``None``.
 
         """
         _m_subset = self._get_mol_subset(mol_subset)
@@ -1495,9 +1496,9 @@ class MultiMolecule(_MultiMolecule):
             The path+filename (including extension) of the to be created file.
 
         mol_subset : slice
-            Perform the calculation on a subset of molecules in **self**, as
+            Perform the calculation on a subset of molecules in this instance, as
             determined by their moleculair index.
-            Include all :math:`m` molecules in **self** if ``None``.
+            Include all :math:`m` molecules in this instance if ``None``.
 
         """
         self._mol_to_file(filename, 'pdb', mol_subset)
@@ -1516,9 +1517,9 @@ class MultiMolecule(_MultiMolecule):
             The path+filename (including extension) of the to be created file.
 
         mol_subset : slice
-            Perform the calculation on a subset of molecules in **self**, as
+            Perform the calculation on a subset of molecules in this instance, as
             determined by their moleculair index.
-            Include all :math:`m` molecules in **self** if ``None``.
+            Include all :math:`m` molecules in this instance if ``None``.
 
         """
         self._mol_to_file(filename, 'mol2', mol_subset)
@@ -1537,16 +1538,21 @@ class MultiMolecule(_MultiMolecule):
             The path+filename (including extension) of the to be created file.
 
         mol_subset : slice
-            Perform the calculation on a subset of molecules in **self**, as
+            Perform the calculation on a subset of molecules in this instance, as
             determined by their moleculair index.
-            Include all :math:`m` molecules in **self** if ``None``.
+            Include all :math:`m` molecules in this instance if ``None``.
 
         """
         self._mol_to_file(filename, 'mol', mol_subset)
 
     def as_xyz(self, filename: str,
                mol_subset: Optional[MolSubset] = None) -> None:
-        """Create an .xyz file out of **self**.
+        """Create an .xyz file out of this instance.
+
+        Comments will be constructed by iteration through ``MultiMolecule.properties["comments"]``
+        if the following two conditions are fulfilled:
+            * The ``"comments"`` key is actually present in ``MultiMolecule.properties``.
+            * ``MultiMolecule.properties["comments"]`` is an iterable.
 
         Parameters
         ----------
@@ -1554,43 +1560,51 @@ class MultiMolecule(_MultiMolecule):
             The path+filename (including extension) of the to be created file.
 
         mol_subset : slice
-            Perform the calculation on a subset of molecules in **self**, as
+            Perform the calculation on a subset of molecules in this instance, as
             determined by their moleculair index.
-            Include all :math:`m` molecules in **self** if ``None``.
+            Include all :math:`m` molecules in this instance if ``None``.
 
         """
-        # Define constants
-        m_subset = self._get_mol_subset(mol_subset)
+        # Define constants and variables
+        m_subset = self[self._get_mol_subset(mol_subset)]
         at = self.symbol[:, None]
-        header = '{:d}\nframe '.format(len(at))
+        header = '{:d}\n'.format(len(at))
         kwarg = {'fmt': ['%-10.10s', '%-15s', '%-15s', '%-15s'],
                  'delimiter': '     ',
                  'comments': ''}
 
+        # Alter variables depending on the presence or absence of self.properties.comments
+        if 'comments' in self.properties and isinstance(self.properties.comments, abc.Iterable):
+            header += '{}'
+            iterator = islice(zip_longest(self.properties.comments, m_subset), len(m_subset))
+        else:
+            header += 'Frame {:d}'
+            iterator = enumerate(m_subset, 1)
+
         # Create the .xyz file
         with open(filename, 'wb') as file:
-            for i, xyz in enumerate(self[m_subset], 1):
-                np.savetxt(file, np.hstack((at, xyz)), header=header+str(i), **kwarg)
+            for i, xyz in iterator:
+                np.savetxt(file, np.hstack((at, xyz)), header=header.format(i), **kwarg)
 
     def as_mass_weighted(self, mol_subset: MolSubset = None,
                          atom_subset: AtomSubset = None,
                          inplace: bool = False) -> Optional[MultiMolecule]:
-        """Transform the Cartesian of **self** into mass-weighted Cartesian coordinates.
+        """Transform the Cartesian of this instance into mass-weighted Cartesian coordinates.
 
         Parameters
         ----------
         mol_subset : slice
-            Perform the calculation on a subset of molecules in **self**, as
+            Perform the calculation on a subset of molecules in this instance, as
             determined by their moleculair index.
-            Include all :math:`m` molecules in **self** if ``None``.
+            Include all :math:`m` molecules in this instance if ``None``.
 
         atom_subset : |Sequence|_
-            Perform the calculation on a subset of atoms in **self**, as
+            Perform the calculation on a subset of atoms in this instance, as
             determined by their atomic index or atomic symbol.
-            Include all :math:`n` atoms per molecule in **self** if ``None``.
+            Include all :math:`n` atoms per molecule in this instance if ``None``.
 
         inplace : bool
-            Instead of returning the new coordinates, perform an inplace update of **self**.
+            Instead of returning the new coordinates, perform an inplace update of this instance.
 
         Returns
         -------
@@ -1612,50 +1626,50 @@ class MultiMolecule(_MultiMolecule):
 
     def from_mass_weighted(self, mol_subset: MolSubset = None,
                            atom_subset: AtomSubset = None) -> None:
-        """Transform **self** from mass-weighted Cartesian into Cartesian coordinates.
+        """Transform this instance from mass-weighted Cartesian into Cartesian coordinates.
 
-        Performs an inplace update of **self**.
+        Performs an inplace update of this instance.
 
         Parameters
         ----------
         mol_subset : slice
-            Perform the calculation on a subset of molecules in **self**, as
+            Perform the calculation on a subset of molecules in this instance, as
             determined by their moleculair index.
-            Include all :math:`m` molecules in **self** if ``None``.
+            Include all :math:`m` molecules in this instance if ``None``.
 
         atom_subset : |Sequence|_
-            Perform the calculation on a subset of atoms in **self**, as
+            Perform the calculation on a subset of atoms in this instance, as
             determined by their atomic index or atomic symbol.
-            Include all :math:`n` atoms per molecule in **self** if ``None``.
+            Include all :math:`n` atoms per molecule in this instance if ``None``.
 
         """
         # Prepare slices
         i = self._get_mol_subset(mol_subset)
         j = self._get_atom_subset(atom_subset)
 
-        # Update **self**
+        # Update this instance
         self[i, j, :] /= self.mass[None, j, None]
 
     def as_Molecule(self, mol_subset: MolSubset = None,
                     atom_subset: AtomSubset = None) -> List[Molecule]:
-        """Convert **self** into a *list* of *plams.Molecule*.
+        """Convert this instance into a *list* of *plams.Molecule*.
 
         Parameters
         ----------
         mol_subset : slice
-            Perform the calculation on a subset of molecules in **self**, as
+            Perform the calculation on a subset of molecules in this instance, as
             determined by their moleculair index.
-            Include all :math:`m` molecules in **self** if ``None``.
+            Include all :math:`m` molecules in this instance if ``None``.
 
         atom_subset : |Sequence|_
-            Perform the calculation on a subset of atoms in **self**, as
+            Perform the calculation on a subset of atoms in this instance, as
             determined by their atomic index or atomic symbol.
-            Include all :math:`n` atoms per molecule in **self** if ``None``.
+            Include all :math:`n` atoms per molecule in this instance if ``None``.
 
         Returns
         -------
         :math:`m` |list|_ [|plams.Molecule|_]:
-            A list of :math:`m` PLAMS molecules constructed from **self**.
+            A list of :math:`m` PLAMS molecules constructed from this instance.
 
         """
         m_subset = self._get_mol_subset(mol_subset)
@@ -1701,7 +1715,7 @@ class MultiMolecule(_MultiMolecule):
             A PLAMS molecule or list of PLAMS molecules.
 
         subset : |Sequence|_ [str]
-            Transfer a subset of *plams.Molecule* attributes to **self**.
+            Transfer a subset of *plams.Molecule* attributes to this instance.
             If ``None``, transfer all attributes.
             Accepts one or more of the following values as strings:
             ``"properties"``, ``"atoms"`` and/or ``"bonds"``.
@@ -1751,6 +1765,9 @@ class MultiMolecule(_MultiMolecule):
                  properties: Optional[dict] = None) -> MultiMolecule:
         """Construct a :class:`.MultiMolecule` instance from a (multi) .xyz file.
 
+        Comment lines extracted from the .xyz file are stored, as array, under
+        ``MultiMolecule.properties["comments"]``.
+
         Parameters
         ----------
         filename : str
@@ -1772,7 +1789,8 @@ class MultiMolecule(_MultiMolecule):
             A :class:`.MultiMolecule` instance constructed from **filename**.
 
         """
-        return cls(*read_multi_xyz(filename), bonds, properties)
+        coords, atoms, comments = read_multi_xyz(filename)
+        return cls(coords, atoms, bonds, {'comments': comments})
 
     @classmethod
     def from_kf(cls, filename: str,
