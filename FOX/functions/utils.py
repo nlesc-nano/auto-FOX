@@ -641,3 +641,27 @@ def get_atom_count(iterable: Iterable[Sequence[str]],
             return len(mol.atoms[at])
 
     return [_get_atom_count(at) for *_, at in iterable]
+
+
+def get_nested_element(iterable: Iterable) -> Any:
+    """Grab a (nested) non-iterable element in **iterable**.
+
+    Recursivelly calls ``iter`` followed by ``next`` until maximum recursion depth is reached.
+
+    Parameters
+    ----------
+    iterable : |Iterable|_
+        An iterable.
+
+    Returns
+    -------
+    object:
+        A (nested) non-iterable element extracted from **iterable**.
+
+    """
+    item = iterable
+    while True:
+        try:
+            item = next(iter(item))
+        except TypeError:
+            return item

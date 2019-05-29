@@ -3,13 +3,17 @@
 from __future__ import annotations
 
 import itertools
-from typing import (Dict, Optional, List, Any, Callable, Union)
+from collections import abc
+from typing import (Dict, Optional, List, Any, Callable, Union, Sequence)
 
 import numpy as np
+import pandas as pd
 
 from scm.plams import PeriodicTable
 from scm.plams.core.errors import PTError
 from scm.plams.core.settings import Settings
+
+from ..functions.utils import get_nested_element
 
 __all__: List[str] = []
 
@@ -24,6 +28,15 @@ _prop_dict: Dict[str, Callable] = {
 _none_dict: Dict[str, Union[str, int, float]] = {
     'symbol': '', 'radius': -1, 'atnum': -1, 'mass': np.nan, 'connectors': -1
 }
+
+_shape_warning: str = ("ValueWarning: The '{}' argument expects a 'm*n*k' sequence. "
+                       "The following shape was observed: '{}'")
+
+_dtype_warning: str = ("TypeWarning: The '{}' argument expects a sequence consisting of floats. "
+                       "The following element type was observed: '{}'")
+
+_type_error: str = ("The '{}' argument expects a sequence. "
+                    "The following type was observed: '{}'")
 
 
 class _MultiMolecule(np.ndarray):
@@ -51,50 +64,48 @@ class _MultiMolecule(np.ndarray):
         """Finalize the array creation."""
         if obj is None:
             return
+
         self.atoms = getattr(obj, 'atoms', None)
         self.bonds = getattr(obj, 'bonds', None)
         self.properties = getattr(obj, 'properties', None)
 
     @staticmethod
-    def _sanitize_coords(coords: np.ndarray) -> None:
+    def _sanitize_coords(coords: Optional[Union[Sequence, np.ndarray]]) -> None:
         """Sanitize the 'coords' arguments in :meth:`_MultiMolecule.__new__`."""
-        shape_error = ("The 'coords' argument expects a 'm*n*k' list-like object."
-                       "The following shape was observed: '{}'")
-        dtype_error = ("The 'coords' argument expects a list-like object consisting exclusively of "
-                       "floats. The following type was observed: '{}'")
+        if not isinstance(coords, abc.Collection):
+            raise TypeError(_type_error.format('coords', coords.__class__.__name__))
 
-        if not coords.ndim == 3:
-            shape = ''.join('*{:d}'.format(i) for i in coords.shape)[1:]
-            raise ValueError(shape_error.format(shape))
-        if not isinstance(coords[0, 0, 0], np.float):
-            ar_type = coords[0, 0, 0].__class__.__name__
-            raise ValueError(dtype_error.format(ar_type))
+        if not coords.ndim == 3 or coords.shape[2] != 3:
+            shape = '*'.join('{:d}'.format(i) for i in coords.shape)
+            print(_shape_warning.format('coords', shape))
+
+        i = get_nested_element(coords)
+        if not isinstance(i, (float, np.float)):
+            print(_dtype_warning.format('coords', i.__class__.__name__))
 
     @staticmethod
-    def _sanitize_bonds(bonds: Optional[np.ndarray]) -> np.ndarray:
+    def _sanitize_bonds(bonds: Optional[Union[Sequence, np.ndarray]]) -> np.ndarray:
         """Sanitize the 'bonds' arguments in :meth:`_MultiMolecule.__new__`."""
-        shape_error = ("The 'bonds' argument expects a 2-dimensional list-like object. "
-                       "A {:d}-dimensional object was supplied")
-
         if bonds is None:
             return np.empty((0, 3), dtype=int)
-        else:
-            ret = np.asarray(bonds, dtype=int)
-            if not ret.ndim == 2:
-                raise ValueError(shape_error.format(ret.ndim))
-            return ret
+        elif not isinstance(bonds, abc.Collection):
+            raise TypeError(_type_error.format('bonds', bonds.__class__.__name__))
+
+        ret = np.asarray(bonds, dtype=int)
+        if not ret.ndim == 2:
+            print(_shape_warning.format('bonds', ret.ndim))
+        return ret
 
     @staticmethod
-    def _sanitize_atoms(atoms: Optional[Dict[str, List[int]]]) -> Dict[str, list]:
+    def _sanitize_atoms(atoms: Optional[Dict[str, List[int]]]) -> Dict[str, List[int]]:
         """Sanitize the 'atoms' arguments in :meth:`_MultiMolecule.__new__`."""
         type_error = "The 'atoms' argument expects a 'dict' object. A '{}' object was supplied"
 
         if atoms is None:
             return {}
-        else:
-            if not isinstance(atoms, dict):
-                raise TypeError(type_error.format(atoms.__class__.__name__))
-            return atoms
+        elif not isinstance(atoms, dict):
+            raise TypeError(type_error.format('atoms', atoms.__class__.__name__))
+        return atoms
 
     @staticmethod
     def _sanitize_properties(properties: Optional[dict]) -> Settings:
@@ -102,17 +113,16 @@ class _MultiMolecule(np.ndarray):
         type_error = "The 'properties' argument expects a 'dict' object. A '{}' object was supplied"
 
         if properties is None:
-            return Settings({'atom': None, 'bond': None, 'Molecule': None})
-        else:
-            if not isinstance(properties, dict):
-                raise TypeError(type_error.format(properties.__class__.__name__))
-            return Settings(properties)
+            return Settings()
+        elif not isinstance(properties, dict):
+            raise TypeError(type_error.format('properties', properties.__class__.__name__))
+        return Settings(properties)
 
     """##############################  plams-based properties  ############################### """
 
     @property
     def atom12(self) -> _MultiMolecule:
-        """Return the indices of the atoms for all bonds in **self.bonds** as 2D array."""
+        """Get or set the indices of the atoms for all bonds in **self.bonds** as 2D array."""
         return self.bonds[:, 0:2]
 
     @atom12.setter
@@ -121,7 +131,7 @@ class _MultiMolecule(np.ndarray):
 
     @property
     def atom1(self) -> _MultiMolecule:
-        """Return the indices of the first atoms in all bonds of **self.bonds** as 1D array."""
+        """Get or set the indices of the first atoms in all bonds of **self.bonds** as 1D array."""
         return self.bonds[:, 0]
 
     @atom1.setter
@@ -130,7 +140,7 @@ class _MultiMolecule(np.ndarray):
 
     @property
     def atom2(self) -> np.ndarray:
-        """Return the indices of the second atoms in all bonds of **self.bonds** as 1D array."""
+        """Get or set the indices of the second atoms in all bonds of **self.bonds** as 1D array."""
         return self.bonds[:, 1]
 
     @atom2.setter
@@ -139,7 +149,7 @@ class _MultiMolecule(np.ndarray):
 
     @property
     def order(self) -> np.ndarray:
-        """Return the bond orders for all bonds in **self.bonds** as 1D array."""
+        """Get or set the bond orders for all bonds in **self.bonds** as 1D array."""
         return self.bonds[:, 2] / 10.0
 
     @order.setter
@@ -148,7 +158,7 @@ class _MultiMolecule(np.ndarray):
 
     @property
     def x(self) -> _MultiMolecule:
-        """Return the x coordinates for all atoms in **self** as 2D array."""
+        """Get or set the x coordinates for all atoms in **self** as 2D array."""
         return self[:, :, 0]
 
     @x.setter
@@ -157,7 +167,7 @@ class _MultiMolecule(np.ndarray):
 
     @property
     def y(self) -> _MultiMolecule:
-        """Return the y coordinates for all atoms in **self** as 2D array."""
+        """Get or set the y coordinates for all atoms in **self** as 2D array."""
         return self[:, :, 1]
 
     @y.setter
@@ -166,7 +176,7 @@ class _MultiMolecule(np.ndarray):
 
     @property
     def z(self) -> _MultiMolecule:
-        """Return the z coordinates for all atoms in **self** as 2D array."""
+        """Get or set the z coordinates for all atoms in **self** as 2D array."""
         return self[:, :, 2]
 
     @z.setter
@@ -175,27 +185,27 @@ class _MultiMolecule(np.ndarray):
 
     @property
     def symbol(self) -> np.ndarray:
-        """Return the atomic symbols of all atoms in **self.atoms** as 1D array."""
+        """Get the atomic symbols of all atoms in **self.atoms** as 1D array."""
         return self._get_atomic_property('symbol')
 
     @property
     def atnum(self) -> np.ndarray:
-        """Return the atomic numbers of all atoms in **self.atoms** as 1D array."""
+        """Get the atomic numbers of all atoms in **self.atoms** as 1D array."""
         return self._get_atomic_property('atnum')
 
     @property
     def mass(self) -> np.ndarray:
-        """Return the atomic masses of all atoms in **self.atoms** as 1D array."""
+        """Get the atomic masses of all atoms in **self.atoms** as 1D array."""
         return self._get_atomic_property('mass')
 
     @property
     def radius(self) -> np.ndarray:
-        """Return the atomic radii of all atoms in **self.atoms** as 1d array."""
+        """Get the atomic radii of all atoms in **self.atoms** as 1d array."""
         return self._get_atomic_property('radius')
 
     @property
     def connectors(self) -> np.ndarray:
-        """Return the atomic connectors of all atoms in **self.atoms** as 1D array."""
+        """Get the atomic connectors of all atoms in **self.atoms** as 1D array."""
         return self._get_atomic_property('connectors')
 
     def _get_atomic_property(self, prop: str = 'symbol') -> np.ndarray:
@@ -208,8 +218,8 @@ class _MultiMolecule(np.ndarray):
         ----------
         prop : str
             The name of the to be returned property.
-            Accepted values: ``'symbol'``, ``'atnum'``, ``'mass'``, ``'radius'``
-            or ``'connectors'``.
+            Accepted values: ``"symbol"``, ``"atnum"``, ``"mass"``, ``"radius"``
+            or ``"connectors"``.
             See the |PeriodicTable|_ class of PLAMS for more details.
 
         Returns
@@ -223,9 +233,10 @@ class _MultiMolecule(np.ndarray):
         for at, i in self.atoms.items():
             try:
                 at_prop = _prop_dict[prop](at)
-            except PTError:
+            except PTError:  # A custom atom is encountered
                 at_prop = _none_dict[prop]
-                print("No {} available for {}, defaulting to '{}'".format(prop, at, str(at_prop)))
+                err = "KeyWarning: No {} available for {}, defaulting to '{}'"
+                print(err.format(prop, at, str(at_prop)))
             prop_list += [at_prop] * len(i)
 
         # Sort and return
@@ -275,30 +286,45 @@ class _MultiMolecule(np.ndarray):
         """Create a deep copy of this instance."""
         return self.copy(order='K', copy_attr=True)
 
+    def _get_coords_str(self) -> str:
+        idx = pd.MultiIndex.from_tuples(enumerate(self.symbol))
+        if self.ndim == 3:
+            ret = 'Cartesian coordinates {:d}/{:d}:\n'.format(1, self.shape[0])
+            ret += str(pd.DataFrame(self[0], index=idx, columns=['x', 'y', 'z']))
+        elif self.ndim == 2:
+            ret = 'Cartesian coordinates:\n'
+            ret += str(pd.DataFrame(self, index=idx, columns=['x', 'y', 'z']))
+        elif self.ndim == 1:
+            idx = pd.MultiIndex.from_tuples([(0, '')])
+            ret = 'Cartesian coordinates:\n'
+            ret += str(pd.DataFrame(self[None, :], index=idx, columns=['x', 'y', 'z']))
+        else:
+            ret = 'Cartesian coordinates:\n' + super().__str__()
+        return ret
+
     def __str__(self) -> str:
-        """Return a string constructed from this instance."""
-        ret = 'Atomic coordinates:\n'
-        ret += super().__str__()
-        ret += '\n'
+        """Return a human-readable string constructed from this instance."""
+        ret = self._get_coords_str() + '\n'
+
+        formatter = {'int': '{:4d}'.format, 'float': '{:4.1f}'.format}
+        np.set_printoptions(threshold=10, formatter=formatter)
 
         # Convert atomic symbols
         ret += '\nAtomic symbols & indices:\n'
         if self.atoms is not None:
-            for at in self.atoms:
-                ret += str(at) + ':\t['
-                if len(self.atoms[at]) <= 11:
-                    for i in self.atoms[at][0:-2]:
-                        ret += '{: <5.5}'.format(str(i))
-                else:
-                    for i in self.atoms[at][0:5]:
-                        ret += '{: <5.5}'.format(str(i))
-                    ret += '{: <5.5}'.format('...')
-                    for i in self.atoms[at][-6:-2]:
-                        ret += '{: <5.5}'.format(str(i))
-                ret += '{: <4.4}'.format(str(self.atoms[at][-1])) + ']\n'
+            for at, idx in self.atoms.items():
+                ret += '{}:\t{}\n'.format(at, str(np.array(idx)))
         else:
             ret += str(None) + '\n'
 
-        ret += '\nBonds:\n' + str(self.bonds) + '\n'
-        ret += '\nProperties:\n' + str(self.properties) + '\n'
+        ret += '\nBonds:'
+        ret += '\nAtom1:\t{}'.format(self.atom1)
+        ret += '\nAtom2:\t{}'.format(self.atom2)
+        ret += '\nOrder:\t{}\n'.format(self.order)
+
+        ret += '\n{}'.format(str(Settings({'properties': self.properties})))
         return ret
+
+    def __repr__(self) -> str:
+        """Return the canonical string representation of this instance."""
+        return str(self)
