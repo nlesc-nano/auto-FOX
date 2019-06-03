@@ -13,7 +13,7 @@ from scm.plams.core.functions import (init, finish, config)
 
 from .psf_dict import PSFDict
 from .monte_carlo import MonteCarlo
-from ..io.hdf5_utils import (create_hdf5, to_hdf5)
+from ..io.hdf5_utils import (create_hdf5, to_hdf5, create_xyz_hdf5)
 from ..functions.utils import (get_template, get_class_name, get_func_name)
 from ..functions.cp2k_utils import set_subsys_kind
 from ..functions.armc_sanitization import init_armc_sanitization
@@ -151,7 +151,7 @@ class ARMC(MonteCarlo):
         """
         molecule, param, dict_ = init_armc_sanitization(armc_dict)
         set_subsys_kind(dict_.job.settings, dict_.job.psf['atoms'])
-        molecule = molecule.as_Molecule(-1)[0]
+        molecule = molecule.as_Molecule(0)[0]
         return cls(molecule, param, **dict_)
 
     def init_armc(self) -> None:
@@ -209,6 +209,7 @@ class ARMC(MonteCarlo):
         """
         hdf5_kwarg = {}
         acceptance = np.zeros(self.armc.sub_iter_len, dtype=bool)
+        create_xyz_hdf5(self.hdf5_file, self.job.molecule, iter_len=self.armc.sub_iter_len)
 
         for omega in range(self.armc.sub_iter_len):
             # Step 1: Perform a random move
@@ -339,7 +340,7 @@ class ARMC(MonteCarlo):
         self.phi.phi *= self.armc.gamma**sign
 
     def restart(self, filename: str) -> None:
-        """Restart a previously started Addaptive Rate Monte Carlo procedure.
+        r"""Restart a previously started Addaptive Rate Monte Carlo procedure.
 
         Restarts from the beginning of the last super-iteration :math:`\kappa`.
 
@@ -349,32 +350,7 @@ class ARMC(MonteCarlo):
             The path+name of the an ARMC hdf5 file.
 
         """
-        # Unpack attributes
-        super_iter = self.armc.iter_len // self.armc.sub_iter_len
-
-        # Construct the HDF5 file
-        create_hdf5(self.hdf5_file, self)
-
-        # Initialize
-        init(path=self.job.path, folder=self.job.folder)
-        config.default_jobmanager.settings.hashing = None
-        if self.job.logfile:
-            config.default_jobmanager.logfile = self.job.logfile
-            config.log.file = 3
-        if self.job.psf[0]:
-            PSFDict.write_psf(self.job.psf)
-
-        # Initialize the first MD calculation
-        history_dict: dict = {}
-        key_new = tuple(self.param['param'].values)
-        pes_new, _ = self.get_pes_descriptors(history_dict, key_new)
-        history_dict[key_new] = self.get_aux_error(pes_new)
-        self.param['param_old'] = self.param['param']
-
-        # Start the main loop
-        for kappa in range(super_iter):
-            key_new = self.do_inner(kappa, history_dict, key_new)
-        finish()
+        pass
 
 
 def _str(dict_: dict,

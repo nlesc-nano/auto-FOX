@@ -4,7 +4,7 @@ import os
 import shutil
 from os.path import join
 
-from typing import (Tuple, List, Dict, Optional, Union)
+from typing import (Tuple, List, Dict, Optional, Union, Callable)
 import numpy as np
 import pandas as pd
 
@@ -30,7 +30,6 @@ def get_xyz_path(self):
 
 class MonteCarlo():
     """The base :class:`.MonteCarlo` class.
-
 
     """
 
@@ -140,35 +139,122 @@ class MonteCarlo():
         |FOX.MultiMolecule|_ and |tuple|_ [|str|_]:
             A :class:`.MultiMolecule` instance constructed from the MD trajectory &
             a tuple with the paths to the PLAMS results directories.
+            The :class:`.MultiMolecule` is replaced with ``None`` if the job crashes.
 
         """
         job_type = self.job.func
 
         # Prepare preoptimization settings
-        s_cp = self.job.settings.copy()
-        s_cp.input['global'].run_type = 'geometry_optimization'
-        s_cp.input.motion.geo_opt.max_iter = s_cp.input.motion.md.steps // 200
-        s_cp.input.motion.geo_opt.optimizer = 'BFGS'
-        del s_cp.input.motion.md
-
-        # Preoptimize
-        job1 = job_type(name=self.job.name + '_pre_opt', molecule=self.job.molecule, settings=s_cp)
-        results1 = job1.run()
-        mol_path = results1.get_xyz_path()
-        try:
-            mol_preopt = MultiMolecule.from_xyz(mol_path).as_Molecule(-1)[0]
-        except TypeError:  # The geometry optimization crashed
-            return None, (job1.path, )
+        mol_preopt, path1 = self._md_preopt(job_type)
+        preopt_accept = self._evaluate_rmsd(mol_preopt, self.job.rmsd_threshold)
+        if not preopt_accept:
+            mol_preopt = None  # The RMSD is too large; don't bother with the actual MD simulation
 
         # Run an MD calculation
-        job2 = job_type(name=self.job.name, molecule=mol_preopt, settings=self.job.settings)
-        results2 = job2.run()
+        if mol_preopt is not None:
+            mol, path2 = self._md(job_type, mol_preopt)
+            path = (path1, path2)
+        else:
+            mol = None
+            path = (path1,)
+
+        return mol, path
+
+    def _md_preopt(self, job_type: Callable) -> Tuple[Optional[MultiMolecule], str]:
+        """ Peform a geometry optimization.
+
+        Parameters
+        ----------
+        job_type : |type|_
+            The job type of the geometry optimization.
+            Expects a subclass of plams.Job.
+
+        Returns
+        -------
+        |FOX.MultiMolecule|_ and |str|_
+            A :class:`.MultiMolecule` instance constructed from the geometry optimization &
+            the path to the PLAMS results directory.
+            The :class:`.MultiMolecule` is replaced with ``None`` if the job crashes.
+
+        """
+        # Prepare settings
+        s = self.job.settings.copy()
+        s.input['global'].run_type = 'geometry_optimization'
+        s.input.motion.geo_opt.max_iter = s.input.motion.md.steps // 200
+        s.input.motion.geo_opt.optimizer = 'BFGS'
+        del s.input.motion.md
+
+        # Preoptimize
+        job = job_type(name=self.job.name + '_pre_opt', molecule=self.job.molecule, settings=s)
+        results = job.run()
 
         try:  # Construct and return a MultiMolecule object
-            mol = MultiMolecule.from_xyz(results2.get_xyz_path())
+            mol = MultiMolecule.from_xyz(results.get_xyz_path())
+        except TypeError:  # The geometry optimization crashed
+            mol = None
+        return mol, job.path
+
+    def _md(self, job_type: Callable,
+            mol_preopt: MultiMolecule) -> Tuple[Optional[MultiMolecule], str]:
+        """ Peform a molecular dynamics simulation (MD).
+
+        Parameters
+        ----------
+        job_type : |type|_
+            The job type of the MD simulation.
+            Expects a subclass of plams.Job.
+
+        mol_preopt : |FOX.MultiMolecule|_
+            A :class:`.MultiMolecule` instance constructed from a geometry pre-optimization
+            (see :meth:`_md_preopt`).
+
+        Returns
+        -------
+        |FOX.MultiMolecule|_ and |str|_
+            A :class:`.MultiMolecule` instance constructed from the MD simulation &
+            the path to the PLAMS results directory.
+            The :class:`.MultiMolecule` is replaced with ``None`` if the job crashes.
+
+        """
+        mol = mol_preopt.as_Molecule(-1)[0]
+        job = job_type(name=self.job.name, molecule=mol, settings=self.job.settings)
+        results = job.run()
+
+        try:  # Construct and return a MultiMolecule object
+            mol = MultiMolecule.from_xyz(results.get_xyz_path())
         except TypeError:  # The MD simulation crashed
             mol = None
-        return mol, (job1.path, job2.path)
+        return mol, job.path
+
+    @staticmethod
+    def _evaluate_rmsd(mol_preopt: MultiMolecule,
+                       threshold: Optional[float] = None) -> bool:
+        """Evaluate the RMSD of the geometry optimization (see :meth:`_md_preopt`).
+
+        If the root mean square displacement (RMSD) of the last frame is
+        larger than **threshold**, return ``False``.
+        Otherwise, return ``True`` .
+
+        Parameters
+        ----------
+        mol_preopt : |FOX.MultiMolecule|_
+
+        threshold : float
+            Optional: An RMSD threshold in Angstrom.
+            Determines whether or not a given RMSD will return ``True`` or ``False``.
+
+        Returns
+        -------
+        |bool|_:
+            ``False`` if th RMSD is larger than **threshold**, ``True`` if it is not.
+
+        """
+        threshold = threshold or np.inf
+        mol_subset = slice(0, None, len(mol_preopt) - 1)
+        rmsd = mol_preopt.get_rmsd(mol_subset)
+        if rmsd[1] > threshold:
+            return False
+        return True
 
     def get_pes_descriptors(self,
                             history_dict: Dict[Tuple[float], np.ndarray],
@@ -191,9 +277,10 @@ class MonteCarlo():
 
         Returns
         -------
-        |dict|_ [|str|_, |np.ndarray|_ [|np.float64|_])
-            A previous value from **history_dict** or a new value from an MD calculation.
-            Values are set to np.inf if the MD job crashed.
+        |dict|_ [|str|_, |np.ndarray|_ [|np.float64|_]) and |FOX.MultiMolecule|_
+            A previous value from **history_dict** or a new value from an MD calculation &
+            a :class:`.MultiMolecule` instance constructed from the MD simulation.
+            Values are set to ``np.inf`` if the MD job crashed.
 
         """
         # Generate PES descriptors

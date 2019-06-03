@@ -1,6 +1,10 @@
 """Functions for storing Monte Carlo results in hdf5 format."""
 
+from __future__ import annotations
+
+from os import remove
 from time import sleep
+from os.path import isfile
 from typing import (Dict, Iterable, Optional, Union, Hashable, List, Tuple, Any)
 
 import numpy as np
@@ -22,7 +26,7 @@ except ImportError:
 
 from ..functions.utils import (get_shape, assert_error, array_to_index)
 
-__all__ = ['create_hdf5', 'to_hdf5', 'from_hdf5']
+__all__ = ['create_hdf5', 'create_xyz_hdf5', 'to_hdf5', 'from_hdf5']
 
 
 @assert_error(H5PY_ERROR)
@@ -39,10 +43,9 @@ def create_hdf5(filename: str,
     * The unmodified auxiliary error (dataset: ``"aux_error"``)
     * The modifications to the auxiliary error (dataset: ``"aux_error_mod"``)
     * User-specified PES descriptors (dataset(s): user-specified name(s))
-    * User-specified reference PES descriptors (dataset(s): user-specified name(s) + ``"_ref"``)
 
     Cartesian coordinates (``"xyz"``) collected over the course of the current super-iteration are
-    stored in a seperate file: ``filename + ".xyz"``.
+    stored in a seperate temporary file.
 
     Parameters
     ----------
@@ -72,7 +75,6 @@ def create_hdf5(filename: str,
         shape_dict[key].dtype = float
 
     # Create a hdf5 file with *n* datasets
-    _create_xyz_hdf5(filename, armc.job.molecule, shape)
     with h5py.File(filename, 'w-') as f:
         for key, kwarg in shape_dict.items():
             f.create_dataset(name=key, **kwarg)
@@ -96,9 +98,9 @@ def create_hdf5(filename: str,
 
 
 @assert_error(H5PY_ERROR)
-def _create_xyz_hdf5(filename: str,
-                     mol: Molecule,
-                     shape: Tuple[int]) -> None:
+def create_xyz_hdf5(filename: str,
+                    mol: Molecule,
+                    iter_len: int) -> None:
     """Create the ``"xyz"`` dataset for :func:`create_hdf5` in the hdf5 file ``filename+".xyz"``.
 
     The ``"xyz"`` dataset is to contain Cartesian coordinates collected over the course of the
@@ -117,16 +119,43 @@ def _create_xyz_hdf5(filename: str,
         A tuple containing the length of ARMC super- and sub-iterations.
 
     """
+    # Prepare hdf5 dataset arguments
     xyz = Settings()
-    xyz.shape = (shape[1], 1, len(mol), 3)
+    xyz.shape = (iter_len, 0, len(mol), 3)
     xyz.dtype = float
-    xyz.maxshape = (shape[1], None, len(mol), 3)
+    xyz.maxshape = (iter_len, None, len(mol), 3)
     xyz.fillvalue = np.nan
 
-    filename_xyz = filename + '.xyz'
+    # Remove previous hdf5 xyz files
+    filename_xyz = _get_filename_xyz(filename)
+    if isfile(filename_xyz):
+        remove(filename_xyz)
+
+    # Create a new hdf5 xyz files
     with h5py.File(filename_xyz, 'w-') as f:
         f.create_dataset(name='xyz', compression='gzip', **xyz)
         f['xyz'].attrs['atoms'] = np.array([at.symbol for at in mol], dtype='S')
+
+
+def _get_filename_xyz(filename: str) -> str:
+    """Construct a filename for the xyz-containing .hdf5 file.
+
+    Parameters
+    ----------
+    filename : str
+        The base filename.
+        If possible, ``".xyz"`` is inserted between **filename** and its extensions.
+        If not, then **filename** is appended with ``".xyz"``.
+
+    Returns
+    -------
+    |str|_:
+        The filename of the xyz-containing .hdf5 file.
+
+    """
+    if '.hdf5' in filename:
+        return filename.replace('.hdf5', '.xyz.hdf5')
+    return filename + '.xyz'
 
 
 @assert_error(H5PY_ERROR)
@@ -218,10 +247,10 @@ def hdf5_availability(filename: str,
     """Check if a .hdf5 file is opened by another process; return once it is not.
 
     If two processes attempt to simultaneously open a single hdf5 file then
-    h5py will raise an ``OSError``.
+    h5py will raise an :class:`OSError`.
     The purpose of this function is ensure that a .hdf5 is actually closed,
     thus allowing :func:`to_hdf5` to safely access **filename** without the risk of raising
-    an ``OSError``.
+    an :class:`OSError`.
 
     Parameters
     ----------
@@ -232,18 +261,24 @@ def hdf5_availability(filename: str,
         Time timeout, in seconds, between subsequent attempts of opening **filename**.
 
     max_attempts : int
-        The maximum number attempts for opening **filename**.
+        Optional: The maximum number attempts for opening **filename**.
         If the maximum number of attempts is exceeded, raise an ``OSError``.
 
+    Raises
+    ------
+    OSError
+        Raised if **max_attempts** is exceded.
+
     """
+    warning = "OSWarning: '{}' is currently unavailable; repeating attempt in {:.0f} seconds"
     i = max_attempts or np.inf
+
     while i:
         try:
             with h5py.File(filename, 'r+') as _:
-                return
-        except OSError as ex:
-            print(("'{}' is temporary unavailable; "
-                   "repeating attempt in {:f} seconds").format(filename, timeout))
+                return  # the .hdf5 file can safely be opened
+        except OSError as ex:  # the .hdf5 file cannot be safely opened yet
+            print((warning).format(filename, timeout))
             error = ex
             sleep(timeout)
         i -= 1
@@ -281,19 +316,21 @@ def to_hdf5(filename: str,
         f.attrs['sub-iteration'] = omega
         for key, value in dset_dict.items():
             if key == 'xyz':
-                pass
+                continue
             elif key == 'phi':
                 f[key][kappa] = value
             else:
                 f[key][kappa, omega] = value
 
     # Update the second hdf5 file with Cartesian coordinates
-    with h5py.File(filename+'.xyz', 'r+') as f:
+    filename_xyz = _get_filename_xyz(filename)
+    with h5py.File(filename_xyz, 'r+') as f:
         value = dset_dict['xyz']
+        shape = value.shape
         try:
-            f['xyz'][omega] = value
-        except TypeError:  # Reshape and try again
-            f['xyz'].shape = (f['xyz'].shape[0],) + value.shape
+            f['xyz'][omega, 0:shape[0]] = value
+        except ValueError:  # Reshape and try again
+            f['xyz'].shape = (f['xyz'].shape[0],) + shape
             f['xyz'][omega] = value
 
 
