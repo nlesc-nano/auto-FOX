@@ -4,22 +4,22 @@ param:
         charge:
             Cd: 0.9768
             Se: -0.9768
-            O_1: -0.4704
-            C_1: 0.4524
+            O: -0.4704
+            C: 0.4524
         epsilon:
             unit: kjmol
             Cd Cd: 0.3101
             Se Se: 0.4266
             Cd Se: 1.5225
-            Cd O_1: 1.8340
-            Se O_1: 1.6135
+            Cd O: 1.8340
+            Se O: 1.6135
         sigma:
             unit: nm
             Cd Cd: 0.1234
             Se Se: 0.4852
             Cd Se: 0.2940
-            Cd O_1: 0.2471
-            Se O_1: 0.3526
+            Cd O: 0.2471
+            Se O: 0.3526
 
 psf:
     str_file: ligand.str
@@ -40,6 +40,7 @@ job:
     path: .
     folder: MM_MD_workdir
     keep_files: False
+    rmsd_threshold: 10.0
 
     settings:
         input:

@@ -11,10 +11,10 @@ import numpy as np
 from scm.plams import Settings
 
 import FOX
-from FOX.io.hdf5_utils import (create_hdf5, to_hdf5, from_hdf5)
+from FOX.io.hdf5_utils import (create_hdf5, to_hdf5, from_hdf5, create_xyz_hdf5)
 
 
-REF_DIR = 'test/test_files'
+REF_DIR = 'tests/test_files'
 
 
 def test_create_hdf5():
@@ -82,14 +82,16 @@ def test_to_hdf5():
     }
     hdf5_dict['rdf'] = hdf5_dict['xyz'].init_rdf(atom_subset=['Cd', 'Se', 'O']).values
     hdf5_dict['aux_error_mod'] = np.append(hdf5_dict['param'], hdf5_dict['phi'])
+    hdf5_dict['xyz'] = s.molecule
 
     create_hdf5(hdf5_path, armc)
+    create_xyz_hdf5(hdf5_path, s.molecule.as_Molecule(0)[0], 100)
     to_hdf5(hdf5_path, hdf5_dict, kappa, omega)
     with h5py.File(hdf5_path, 'r') as f:
         for key, value in hdf5_dict.items():
             # Prepare slices
             if key == 'xyz':
-                dset_slice = (omega, )
+                continue
             elif key == 'phi':
                 dset_slice = (kappa, )
             else:
@@ -101,6 +103,7 @@ def test_to_hdf5():
             except ValueError:
                 np.testing.assert_allclose(value, f[key][dset_slice])
     remove(hdf5_path)
+    remove(hdf5_path.replace('.hdf5', '.xyz.hdf5'))
 
 
 def test_from_hdf5():
@@ -128,8 +131,10 @@ def test_from_hdf5():
     }
     hdf5_dict['rdf'] = hdf5_dict['xyz'].init_rdf(atom_subset=['Cd', 'Se', 'O']).values
     hdf5_dict['aux_error_mod'] = np.append(hdf5_dict['param'], hdf5_dict['phi'])
+    hdf5_dict['xyz'] = s.molecule
 
     create_hdf5(hdf5_path, armc)
+    create_xyz_hdf5(hdf5_path, s.molecule.as_Molecule(0)[0], 100)
     to_hdf5(hdf5_path, hdf5_dict, kappa, omega)
     out = from_hdf5(hdf5_path)
 
@@ -138,7 +143,7 @@ def test_from_hdf5():
     assert hdf5_dict['phi'] == out['aux_error_mod'].values[0]
     assert hdf5_dict['phi'] == out['phi'][0][0]
     np.testing.assert_allclose(hdf5_dict['param'], out['param'].values[0])
-    np.testing.assert_allclose(hdf5_dict['xyz'], out['xyz'][0][0])
     np.testing.assert_allclose(hdf5_dict['rdf'], out['rdf'][0].values)
 
     remove(hdf5_path)
+    remove(hdf5_path.replace('.hdf5', '.xyz.hdf5'))

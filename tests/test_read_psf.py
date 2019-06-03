@@ -11,7 +11,7 @@ import numpy as np
 from FOX.classes.psf_dict import PSFDict
 
 
-REF_DIR = 'test/test_files/psf'
+REF_DIR = 'tests/test_files/psf'
 
 
 def test_read_psf():

@@ -77,7 +77,7 @@ def create_hdf5(filename: str,
     # Create a hdf5 file with *n* datasets
     with h5py.File(filename, 'w-') as f:
         for key, kwarg in shape_dict.items():
-            f.create_dataset(name=key, **kwarg)
+            f.create_dataset(name=key, compression='gzip', **kwarg)
             if key in armc.pes:  # Add the ab-initio reference PES descriptors to the hdf5 file
                 f[key].attrs['ref'] = armc.pes[key].ref
         f.attrs['super-iteration'] = -1
@@ -115,8 +115,8 @@ def create_xyz_hdf5(filename: str,
     mol : |plams.Molecule|_
         A PLAMS Molecule.
 
-    shape: tuple [int]
-        A tuple containing the length of ARMC super- and sub-iterations.
+    iter_len: int
+        The length of an ARMC sub-iterations.
 
     """
     # Prepare hdf5 dataset arguments
@@ -287,10 +287,14 @@ def hdf5_availability(filename: str,
 
 @assert_error(H5PY_ERROR)
 def to_hdf5(filename: str,
-            dset_dict: Dict[str, np.array],
+            dset_dict: Dict[str, np.ndarray],
             kappa: int,
             omega: int) -> None:
-    r"""Export results from **dict_** to the hdf5 file **name**.
+    r"""Export results from **dset_dict** to the hdf5 file **filename**.
+
+    All items in **dset_dict**, except ``"xyz"``, are exported to **filename**.
+    The float or :class:`MultiMolecule` instance stored under the ``"xyz"`` key are
+    exported to a seperate .hdf5 file (see :func:`._xyz_to_hdf5`).
 
     Parameters
     ----------
@@ -324,17 +328,37 @@ def to_hdf5(filename: str,
 
     # Update the second hdf5 file with Cartesian coordinates
     filename_xyz = _get_filename_xyz(filename)
-    with h5py.File(filename_xyz, 'r+') as f:
-        value = dset_dict['xyz']
-        if isinstance(value, (float, np.float)):
-            f['xyz'][omega] = value
+    _xyz_to_hdf5(filename_xyz, omega, dset_dict['xyz'])
+
+
+@assert_error(H5PY_ERROR)
+def _xyz_to_hdf5(filename: str,
+                 omega: int,
+                 mol: Union['FOX.MultiMolecule', float, np.float]) -> None:
+    r"""Export **mol** to the hdf5 file **filename**.
+
+    Parameters
+    ----------
+    filename : str
+        The path+filename of the hdf5 file.
+
+    mol : |FOX.MultiMolecule|_ or |float|_
+        A to-be exported :class:`MultiMolecule` instance or float (*e.g.* ``np.nan``).
+
+    omega : int
+        The sub-iteration, :math:`\omega`, in the inner loop of :meth:`.ARMC.init_armc`.
+
+    """
+    with h5py.File(filename, 'a') as f:
+        if isinstance(mol, (float, np.float)):
+            f['xyz'][omega] = mol
         else:
-            shape = value.shape
+            shape = mol.shape
             try:
-                f['xyz'][omega, 0:shape[0]] = value
+                f['xyz'][omega, 0:shape[0]] = mol
             except ValueError:  # Reshape and try again
                 f['xyz'].shape = (f['xyz'].shape[0],) + shape
-                f['xyz'][omega] = value
+                f['xyz'][omega] = mol
 
 
 DataSets = Optional[Union[Hashable, Iterable[Hashable]]]

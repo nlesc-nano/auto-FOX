@@ -237,10 +237,11 @@ def sanitize_job(job: Settings,
     assert_type(job.folder, str, 'job.workdir')
     assert_type(job.keep_files, bool, 'job.keep_files')
 
-    if isinstance(job.rmsd_threshold, (int, np.integer)):
-        job.rmsd_threshold = float(job.rmsd_threshold)
-    else:
-        assert_type(job.rmsd_threshold, (float, np.float), 'job.rmsd_threshold')
+    if 'rmsd_threshold' in job:
+        if isinstance(job.rmsd_threshold, (int, np.integer)):
+            job.rmsd_threshold = float(job.rmsd_threshold)
+        else:
+            assert_type(job.rmsd_threshold, (float, np.float), 'job.rmsd_threshold')
 
     if prm_file:
         assert_type(prm_file, str, 'param.prm_file')
