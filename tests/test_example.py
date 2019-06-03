@@ -12,6 +12,7 @@ import FOX
 
 
 REF_DIR = 'tests/test_files'
+REF_DIR = '/Users/basvanbeek/Documents/GitHub/auto-FOX/tests/test_files'
 
 
 def test_input():
