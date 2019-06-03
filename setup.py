@@ -61,7 +61,7 @@ setup(
     ],
     test_suite='tests',
     install_requires=[
-        'pyyaml',
+        'pyyaml>=5.1',
         'numpy',
         'scipy',
         'pandas',
