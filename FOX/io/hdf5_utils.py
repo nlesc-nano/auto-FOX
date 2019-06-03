@@ -326,12 +326,15 @@ def to_hdf5(filename: str,
     filename_xyz = _get_filename_xyz(filename)
     with h5py.File(filename_xyz, 'r+') as f:
         value = dset_dict['xyz']
-        shape = value.shape
-        try:
-            f['xyz'][omega, 0:shape[0]] = value
-        except ValueError:  # Reshape and try again
-            f['xyz'].shape = (f['xyz'].shape[0],) + shape
+        if isinstance(value, (float, np.float)):
             f['xyz'][omega] = value
+        else:
+            shape = value.shape
+            try:
+                f['xyz'][omega, 0:shape[0]] = value
+            except ValueError:  # Reshape and try again
+                f['xyz'].shape = (f['xyz'].shape[0],) + shape
+                f['xyz'][omega] = value
 
 
 DataSets = Optional[Union[Hashable, Iterable[Hashable]]]
