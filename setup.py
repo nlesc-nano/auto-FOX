@@ -79,7 +79,7 @@ setup(
         'pycodestyle'
     ],
     extras_require={
-        'doc': ['sphinx', 'sphinx_rtd_theme', 'nbsphinx', 'matplotlib'],
+        'doc': ['sphinx', 'sphinx_rtd_theme', 'matplotlib'],
         'test': ['pytest', 'pytest-cov', 'pytest-mock', 'pycodestyle', 'matplotlib']
     }
 )
