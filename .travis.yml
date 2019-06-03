@@ -25,7 +25,7 @@ install:
   
 script:
   # Run the unitary tests excluding the expensive computations
-  - pytest -m "not (slow or long)" --cov-config .coveragerc --cov=FOX test
+  - pytest -m "not (slow or long)" --cov-config .coveragerc --cov=FOX tests
   - coverage xml && coverage report -m
 
 branches:
