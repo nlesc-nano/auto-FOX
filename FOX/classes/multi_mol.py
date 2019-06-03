@@ -1551,8 +1551,9 @@ class MultiMolecule(_MultiMolecule):
 
         Comments will be constructed by iteration through ``MultiMolecule.properties["comments"]``
         if the following two conditions are fulfilled:
-            * The ``"comments"`` key is actually present in ``MultiMolecule.properties``.
-            * ``MultiMolecule.properties["comments"]`` is an iterable.
+
+        * The ``"comments"`` key is actually present in ``MultiMolecule.properties``.
+        * ``MultiMolecule.properties["comments"]`` is an iterable.
 
         Parameters
         ----------
