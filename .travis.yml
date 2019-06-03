@@ -21,6 +21,7 @@ install:
   - conda info -a
   
   # Install the package
+  - conda install -y -c conda-forge h5py
   - pip install .[test]
   
 script:
