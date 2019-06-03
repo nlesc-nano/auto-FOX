@@ -4,14 +4,14 @@ param:
         Pb: 2.000
         Br: -1.000
     lennard-jones:
-        epsilon:
+        epsilon:  # https://doi.org/10.1021/ja00051a040 = {Br: 1.050,  Pb: 2.774, Cs: 0.1883} kj/mol
             unit: kjmol
-            Cs Cs: 0.3101
-            Cs Br: 1.5225
-            Cs Pb: 1.5000
-            Pb Pb: 1.6135
-            Pb Br: 1.8340
-            Br Br: 1.8000
+            Cs Cs: 0.1882
+            Cs Br: 0.4447
+            Cs Pb: 0.7227
+            Pb Pb: 2.7740
+            Pb Br: 1.7068
+            Br Br: 1.0501
         sigma:
             unit: nm
             Cs Cs: 0.58
@@ -27,7 +27,7 @@ pes:
         kwarg:
             atom_subset: [Cs, Pb, Br]
 
-molecule: /Users/basvanbeek/Downloads/md_dft.xyz
+molecule: /Users/basvanbeek/Downloads/cspbbr3_bulk_ortho.xyz
 
 job:
     logfile: /Users/basvanbeek/Downloads/armc.log
@@ -36,17 +36,18 @@ job:
     path: /Users/basvanbeek/Downloads
     folder: MM_MD_workdir
     keep_files: True
-    rmsd_threshold: 5.0
+    rmsd_threshold: 10.0
 
     settings:
         input:
             global:
                 print_level: LOW
             force_eval:
+                stress_tensor: Analytical
                 subsys:
                     cell:
-                        abc: '[angstrom] 50.0 50.0 50.0'
-                        periodic: NONE
+                        abc: '[angstrom] 24.732 35.2053 24.5946'
+                        periodic: XYZ
             motion:
                 md:
                     ensemble: NVT

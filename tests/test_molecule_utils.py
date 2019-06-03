@@ -12,7 +12,7 @@ from FOX import (MultiMolecule, get_example_xyz)
 MOL = MultiMolecule.from_xyz(get_example_xyz())
 MOL.guess_bonds(atom_subset=['C', 'O', 'H'])
 PLAMS_MOL = MOL.as_Molecule(0)[0]
-REF_DIR = 'test/test_files'
+REF_DIR = 'tests/test_files'
 
 
 def test_set_atoms_id():

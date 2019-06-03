@@ -1,15 +1,13 @@
 
 .. image:: https://travis-ci.org/nlesc-nano/auto-FOX.svg?branch=master
    :target: https://travis-ci.org/nlesc-nano/auto-FOX
-.. image:: https://travis-ci.org/nlesc-nano/auto-FOX.svg?branch=master
-   :target: https://travis-ci.org/nlesc-nano/auto-FOX
 .. image:: https://readthedocs.org/projects/auto-fox/badge/?version=latest
    :target: https://auto-fox.readthedocs.io/en/latest
 .. image:: https://img.shields.io/badge/python-3.7-blue.svg
    :target: https://www.python.org
 
 #################################################
-Automated Forcefield Optimization Extension 0.4.0
+Automated Forcefield Optimization Extension 0.4.1
 #################################################
 
 **Auto-FOX** is a library for analyzing potential energy surfaces (PESs) and
@@ -91,7 +89,7 @@ Installing **Auto-FOX**
 Optional dependencies
 ---------------------
 
-- Use of the FOX.monte_carlo_ module requires h5py_ and PyYAML_.
+- Use of the FOX.monte_carlo_ module requires h5py_.
   Note: h5py is not distrbuted via PyPi:
 
   - Anaconda:   ``conda install --name FOX -y -c conda-forge h5py``
@@ -120,5 +118,4 @@ Optional dependencies
 .. _FOX.data: https://github.com/nlesc-nano/auto-FOX/blob/master/FOX/data
 .. _FOX.examples: https://github.com/nlesc-nano/auto-FOX/blob/master/FOX/examples/input.py
 .. _h5py: https://www.h5py.org/
-.. _PyYAML: https://pyyaml.org/
 .. _FOX.monte_carlo: https://auto-fox.readthedocs.io/en/latest/4_monte_carlo.html

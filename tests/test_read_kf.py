@@ -9,7 +9,7 @@ import numpy as np
 from FOX.io.read_kf import read_kf
 
 
-REF_DIR = 'test/test_files'
+REF_DIR = 'tests/test_files'
 
 
 def test_read_kf():

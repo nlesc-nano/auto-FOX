@@ -10,7 +10,7 @@ import numpy as np
 from FOX.io.read_pdb import read_pdb
 
 
-REF_DIR = 'test/test_files'
+REF_DIR = 'tests/test_files'
 
 
 def test_read_pdb():

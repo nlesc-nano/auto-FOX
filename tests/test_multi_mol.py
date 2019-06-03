@@ -12,7 +12,7 @@ from FOX import (MultiMolecule, get_example_xyz, get_template)
 
 
 MOL = MultiMolecule.from_xyz(get_example_xyz())
-REF_DIR = 'test/test_files'
+REF_DIR = 'tests/test_files'
 
 
 def test_guess_bonds():
@@ -24,20 +24,20 @@ def test_guess_bonds():
     np.testing.assert_allclose(mol.bonds, ref)
 
 
-def test_slice():
-    """ Test :meth:`FOX.MultiMolecule.slice`. """
+def test_slice_mol():
+    """ Test :meth:`FOX.MultiMolecule.slice_mol`. """
     mol = MOL.copy()
 
-    mol.slice(start=0, stop=None, step=1, inplace=True)
+    mol.slice_mol(start=0, stop=None, step=1, inplace=True)
     np.testing.assert_allclose(mol, MOL)
 
-    mol_new = mol.slice(start=1000, stop=None, step=1)
+    mol_new = mol.slice_mol(start=1000, stop=None, step=1)
     np.testing.assert_allclose(mol_new, mol[1000:])
 
-    mol_new = mol.slice(start=0, stop=1000, step=1)
+    mol_new = mol.slice_mol(start=0, stop=1000, step=1)
     np.testing.assert_allclose(mol_new, mol[0:1000])
 
-    mol_new = mol.slice(start=0, stop=None, step=10)
+    mol_new = mol.slice_mol(start=0, stop=None, step=10)
     np.testing.assert_allclose(mol_new, mol[0::10])
 
 

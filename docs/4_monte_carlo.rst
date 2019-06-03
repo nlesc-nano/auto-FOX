@@ -204,15 +204,13 @@ An example of a custom, albit rather nonsensical, PES descriptor:
         func: np.sum
         kwarg = {}
 
-Which is equivalent to:
+Which, given a :class:`.MultiMolecule` instance ``mol``, is equivalent to:
 
 .. code:: python
 
     >>> func = np.sum
     >>> kwarg = {}
-    >>> pes = MultiMolecule(np.random.rand(5000, 200, 3))
-
-    >>> numpy_sum = func(pes, **kwarg)
+    >>> func(mol, **kwarg)
 
 
 Charge constraints

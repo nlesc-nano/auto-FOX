@@ -1,7 +1,6 @@
 """ A work in progress recipe for MM-MD parameter optimizations with CP2K. """
 
 from os import remove
-from os.path import join
 
 from scm.plams import add_to_class
 from scm.plams.interfaces.thirdparty.cp2k import Cp2kJob
@@ -15,8 +14,8 @@ def get_runscript(self):
 
 
 # Prepare the ARMC settings
-armc = ARMC.from_yaml('armc_ivan.yaml')
-armc.hdf5_file = join('/Users/bvanbeek/Downloads', 'armc.hdf5')
+f = '/Users/basvanbeek/Documents/GitHub/auto-FOX/FOX/examples/private/armc_ivan_bulk.yaml'
+armc = ARMC.from_yaml(f)
 
 
 # Start ARMC

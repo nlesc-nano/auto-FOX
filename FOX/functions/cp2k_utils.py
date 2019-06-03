@@ -1,12 +1,12 @@
 """A module with miscellaneous functions related to CP2K."""
 
-import itertools
+from typing import (List, Tuple, Hashable)
 
 import pandas as pd
 
 from scm.plams import Settings
 
-__all__ = ['update_cp2k_settings', 'set_keys']
+__all__ = ['set_keys']
 
 
 def set_subsys_kind(settings: Settings,
@@ -17,130 +17,111 @@ def set_subsys_kind(settings: Settings,
 
     .. _KIND: https://manual.cp2k.org/trunk/CP2K_INPUT/FORCE_EVAL/SUBSYS/KIND.html
 
-    :parameter settings: CP2K settings.
-    :type settings: |plams.Settings|_
-    :parameter df: A dataframe with atom names (*e.g.* *O*, *H* & *C*) and atom types
-        (*e.g.* *OG2D2*, *HGR52* & *CG2O3*).
-    :type df: |pd.DataFrame|_
+    Parameters
+    ----------
+    settings : |plams.Settings|_
+        CP2K settings.
+
+    df : |pd.DataFrame|_
+        A dataframe with atom names (*e.g.* ``"O"``, ``"H"`` & ``"C"``)
+        and atom types (*e.g.* ``"OG2D2"``, ``"HGR52"`` & ``"CG2O3"``).
+
     """
     for at_name, at_type in df[['atom name', 'atom type']].values:
         if not settings.input.force_eval.subsys['kind ' + at_type]:
             settings.input.force_eval.subsys['kind ' + at_type] = {'element': at_name}
 
 
-def set_lennard_jones(settings: Settings,
-                      lj_df: pd.DataFrame) -> None:
-    """Set the FORCE_EVAL/MM/FORCEFIELD/NONBONDED/LENNARD-JONES_ keyword(s) in CP2K job settings.
-
-    Performs an inplace update of **lj_df** and the input.mm.forcefield.nonbonded key in
-    **settings**.
-
-    .. _LENNARD-JONES: https://manual.cp2k.org/trunk/CP2K_INPUT/FORCE_EVAL/MM/\
-    FORCEFIELD/NONBONDED/LENNARD-JONES.html
-
-    :parameter settings: CP2K settings.
-    :type settings: |plams.Settings|_
-    :parameter lj_df: A nested dictionary with atom pairs as keys
-        (*e.g.* *Se Se* or *Cd OG2D2*). An overview of accepted values is provided in the
-        LENNARD-JONES_ section of the CP2K documentation. The value assigned to the *rcut* key will
-        default to 12.0 Ångström if not provided by the user.
-    :return:
-    :rtype: |pd.Series|_ (index: |pd.Index|_, values: |str|_)
-    """
-    lj_df['key'] = None
-    key_map = map(''.join, itertools.product(*zip('LENNARD-JONES', 'lennard-jones')))
-    for i, j in zip(key_map, lj_df.index):
-        settings.input.force_eval.mm.forcefield.nonbonded[i] = {'atoms': j, 'rcut': 12.0}
-        lj_df.at[j, 'key'] = i
-        dict_ = lj_df.loc[j, ['epsilon', 'sigma']].to_dict()
-        settings.input.force_eval.mm.forcefield.nonbonded[i].update(dict_)
-
-
-def set_atomic_charges(settings: Settings,
-                       charge_df: pd.DataFrame) -> None:
-    """Set the FORCE_EVAL/MM/FORCEFIELD/CHARGE_ keyword(s) in CP2K job settings.
-
-    Performs an inplace update of **charge_df** and the input.mm.forcefield key in **settings**.
-
-    .. _CHARGE: https://manual.cp2k.org/trunk/CP2K_INPUT/FORCE_EVAL/MM/FORCEFIELD/CHARGE.html
-
-    :parameter settings: CP2K settings.
-    :type settings: |plams.Settings|_
-    :parameter dict charge_df: A dictionary with atom types as keys
-        (*e.g.* *Se*, *Cd* or *COG2D2*) and matching atomic charge as values.
-    """
-    charge_df['key'] = None
-    key_map = map(''.join, itertools.product(*zip('CHARGE', 'charge')))
-    for i, j in zip(key_map, charge_df.index):
-        charge_df.at[j, 'key'] = i
-        settings.input.force_eval.mm.forcefield[i] = {
-            'atom': j,
-            'charge': charge_df.at[j, 'charge']
-        }
-
-
-def update_cp2k_settings(settings: Settings,
-                         param: pd.DataFrame) -> None:
-    """Update CP2K job settings with those provided in param.
-
-    :parameter settings: The CP2K job settings.
-    :type settings: |plams.Settings|_
-    :parameter param: A dataframe with (variable) forcefield parameters.
-    :type param: |pd.DataFrame|_
-    """
-    lj = settings.input.force_eval.mm.forcefield.nonbonded['lennard-jones']
-
-    # Update the Lennard-Jones epsilon parameters
-    for _, (param_, unit, i, *_) in param.loc['epsilon', :].iterrows():
-        lj[int(i)].epsilon = unit.format(param_)
-
-    # Update the Lennard-Jones sigma parameters
-    for _, (param_, unit, i, *_) in param.loc['sigma', :].iterrows():
-        lj[int(i)].sigma = unit.format(param_)
-
-
 def set_keys(settings: Settings,
-             param: pd.DataFrame,
-             rcut: float = 12.0) -> list:
+             param: pd.DataFrame) -> List[Tuple[Hashable]]:
     r"""Find and return the keys in **settings** matching all parameters in **param**.
 
     Units can be specified under the *unit* key (see the CP2K_ documentation for more details).
 
-    :parameter settings: CP2K Job settings.
-    :type settings: |plams.Settings|_
-    :parameter param: A dataframe with MM parameters and parameter names as 2-level multiindex.
-    :type param: |pd.DataFrame|_ (index: |pd.MultiIndex|_)
-    :return: A list of all matched keys.
-    :rtype: |list|_ [|str|_]
-
     .. _CP2K: https://manual.cp2k.org/trunk/units.html
-    """
-    def _get_settings(param, at):
-        eps_unit = param.loc[('epsilon', at), 'unit']
-        eps_value = param.loc[('epsilon', at), 'param']
-        sigma_unit = param.loc[('sigma', at), 'unit']
-        sigma_value = param.loc[('sigma', at), 'param']
-        return Settings({'epsilon': eps_unit.format(eps_value),
-                         'sigma': sigma_unit.format(sigma_value),
-                         'rcut': rcut,
-                         'atoms': at})
 
+    Parameters
+    ----------
+    param : |pd.DataFrame|_
+        A dataframe with MM parameters and parameter names as 2-level multiindex.
+
+    settings : |plams.Settings|_
+        CP2K Job settings.
+
+    Returns
+    -------
+    |list|_ [|tuple|_ [|str|_]]:
+        A list of (flattened) keys.
+
+    """
     # Create a new column in **param** with the quantity units
     param['unit'] = None
-    unit_dict = {'epsilon': '[K_e] {:f}', 'sigma': '[angstrom] {:f}'}
-    for key, value in unit_dict.items():
-        try:
-            unit = param.loc[(key, 'unit'), 'param']
+    for key in param.index.levels[0]:
+        if 'unit' in param.loc[key].index:
+            unit = param.at[(key, 'unit'), 'param']
             param.loc[[key], 'unit'] = '[{}]'.format(unit) + ' {:f}'
-            param.drop(index=[(key, 'unit')], inplace=True)
-        except KeyError:
-            param.loc[key, 'unit'] = value
+            param.drop(index=(key, 'unit'), inplace=True)
+        else:
+            param.loc[key, 'unit'] = '{:f}'
+    param['param'] = param['param'].astype(float)
 
-    # Generate the keys for atomic charges (note: there are no charge keys)
-    key_list = [-1 for _ in param.loc['charge'].index]
+    return _get_key_list(settings, param)
 
-    # Create a list for all CP2K &LENNARD-JONES blocks
-    lj_list = [_get_settings(param, at) for at in param.loc['epsilon'].index]
-    settings.input.force_eval.mm.forcefield.nonbonded.update({'lennard-jones': lj_list})
-    key_list += 2 * [i for i, _ in enumerate(param.loc['epsilon'].index)]
-    return key_list
+
+def _get_key_list(settings: Settings,
+                  param: pd.DataFrame) -> List[Tuple[Hashable]]:
+    """Prepare the list of to-be returned keys for :func:`.set_keys`.
+
+    Parameters
+    ----------
+    param : |pd.DataFrame|_
+        A dataframe with MM parameters and parameter names as 2-level multiindex.
+
+    settings : |plams.Settings|_
+        CP2K Job settings.
+
+    Returns
+    -------
+    |list|_ [|tuple|_ [|str|_]]:
+        A list of (flattened) keys.
+
+    """
+    ret = []
+    forcefield = ('input', 'force_eval', 'mm', 'forcefield')
+
+    for (key, at), (value, fstring) in param[['param', 'unit']].iterrows():
+        # Identify the keys in **settings**
+        if 'charge' in key:
+            super_key = key
+            s = settings.input.force_eval.mm.forcefield
+            atom = 'atom'
+        else:
+            super_key, key = key.split()
+            s = settings.input.force_eval.mm.forcefield.nonbonded
+            atom = 'atoms'
+
+        # Add a new super_key (*e.g.* lennard-jones)
+        if super_key not in s:
+            s[super_key] = []
+            i = 0
+
+        # Update an existing value if possible
+        new_block = True
+        for i, dict_ in enumerate(s[super_key]):
+            if at in dict_.values():
+                dict_[key] = fstring.format(value)
+                new_block = False
+                break
+
+        # Create a new value otherwise
+        if new_block:
+            s[super_key].append(Settings({atom: at, key: fstring.format(value)}))
+            i += 1
+
+        # Update the list of to-be returned keys
+        if key == 'charge':
+            ret.append(forcefield + (super_key, i, key))
+        else:
+            ret.append(forcefield + ('nonbonded', super_key, i, key))
+
+    return ret

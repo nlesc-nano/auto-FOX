@@ -11,7 +11,7 @@ from scm.plams import Settings
 from scm.plams.core.basejob import Job
 from scm.plams.interfaces.thirdparty.cp2k import Cp2kJob
 
-from .utils import (get_template, _get_move_range, dict_to_pandas)
+from .utils import (get_template, _get_move_range, dict_to_pandas, get_atom_count)
 from .cp2k_utils import set_keys
 from .charge_utils import get_charge_constraints
 from ..classes.psf_dict import PSFDict
@@ -44,7 +44,7 @@ def init_armc_sanitization(dict_: dict) -> Tuple[MultiMolecule, pd.DataFrame, Se
     del s.molecule
     del s.psf
 
-    s.param = sanitize_param(s.param, s.job.settings)
+    s.param = sanitize_param(s.param, s.job.settings, mol)
     s.pes = sanitize_pes(s.pes, mol)
     s.hdf5_file = sanitize_hdf5_file(s.hdf5_file)
     s.move = sanitize_move(s.move)
@@ -114,15 +114,18 @@ def sanitize_armc(armc: Settings) -> Tuple[Settings, Settings]:
 
     if hasattr(armc.gamma, '__index__'):
         armc.gamma = float(armc.gamma)
-    assert_type(armc.gamma, (float, np.float), 'armc.gamma')
+    else:
+        assert_type(armc.gamma, (float, np.float), 'armc.gamma')
 
     if hasattr(armc.a_target, '__index__'):
         armc.a_target = float(armc.a_target)
-    assert_type(armc.a_target, (float, np.float), 'armc.a_target')
+    else:
+        assert_type(armc.a_target, (float, np.float), 'armc.a_target')
 
     if hasattr(armc.phi, '__index__'):
         armc.phi = float(armc.phi)
-    assert_type(armc.phi, (float, np.float), 'armc.phi')
+    else:
+        assert_type(armc.phi, (float, np.float), 'armc.phi')
 
     phi = Settings()
     phi.phi = armc.pop('phi')
@@ -133,37 +136,36 @@ def sanitize_armc(armc: Settings) -> Tuple[Settings, Settings]:
 
 
 def sanitize_param(param: Settings,
-                   settings: Settings) -> Settings:
+                   settings: Settings,
+                   mol: MultiMolecule) -> Settings:
     """Sanitize the param block."""
     def check_key1_type(key1):
         if not isinstance(key1, str):
-            error = TYPE_ERR.format('param.{}'.format(str(key1)) + ' key', 'str', get_name(key1))
-            raise TypeError(error)
+            err = 'param.{}'.format(str(key1)) + ' key', 'str', get_name(key1)
+            raise TypeError(TYPE_ERR.format(*err))
         elif not isinstance(value1, dict):
-            error = TYPE_ERR.format('param.{}'.format(str(key1)) + ' value',
-                                    'dict', get_name(value1))
-            raise TypeError(error)
+            err = 'param.{}'.format(str(key1)) + ' value', 'dict', get_name(value1)
+            raise TypeError(TYPE_ERR.format(*err))
 
     def check_key2_type(key2):
         if not isinstance(key2, str):
-            error = TYPE_ERR.format('param.{}.{}'.format(str(key1), str(key2)) +
-                                    ' key', 'str', get_name(key2))
-            raise TypeError(error)
+            err = 'param.{}.{}'.format(str(key1), str(key2)) + ' key', 'str', get_name(key2)
+            raise TypeError(TYPE_ERR.format(*err))
         elif isinstance(value2, (int, np.int)):
             param[key1][key2] = float(value2)
-        elif not isinstance(value2, (float, np.float, str)):
-            error = TYPE_ERR.format('param.{}.{}'.format(str(key1), str(key2)),
-                                    'float', get_name(value2))
-            raise TypeError(error)
+        elif not isinstance(value2, (float, np.float, str, dict)):
+            err = 'param.{}.{}'.format(str(key1), str(key2)), 'float', get_name(value2)
+            raise TypeError(TYPE_ERR.format(*err))
 
     for key1, value1 in param.items():
         check_key1_type(key1)
         for key2, value2 in value1.items():
             check_key2_type(key2)
 
-    param = dict_to_pandas(param.as_dict(), 'param')
+    param = dict_to_pandas(param, 'param')
+    param['param old'] = np.nan
     param['key'] = set_keys(settings, param)
-    param['param_old'] = np.nan
+    param['count'] = get_atom_count(param.index, mol)
     return param
 
 
@@ -181,6 +183,11 @@ def sanitize_pes(pes: Settings,
         assert_type(value.kwarg, dict, 'pes'+str(key)+'kwarg')
 
     for key, value in pes.items():
+        for i in value.kwarg.values():
+            try:
+                i.sort()
+            except AttributeError:
+                pass
         check_key_type(key, value)
         value.ref = value.func(mol, **value.kwarg)
     return pes
@@ -189,7 +196,8 @@ def sanitize_pes(pes: Settings,
 def sanitize_hdf5_file(hdf5_file: str) -> str:
     """Sanitize the hdf5_file block."""
     if not isinstance(hdf5_file, str):
-        raise TypeError(TYPE_ERR.format('hdf5_file', 'str', get_name(hdf5_file)))
+        err = 'hdf5_file', 'str', get_name(hdf5_file)
+        raise TypeError(TYPE_ERR.format(*err))
     return hdf5_file
 
 
@@ -210,14 +218,14 @@ def sanitize_job(job: Settings,
     elif not isinstance(job.func, Job):
         raise TypeError(TYPE_ERR.format('job.func', 'Job', get_name(job.func)))
 
-    if isinstance(job.settings, str):
-        if isfile(job.settings):
-            head, tail = split(job.settings)
-            job.settings = get_template(tail, path=head)
-        else:
-            job.settings = get_template(job.settings)
+    if isinstance(job.settings, str) and isfile(job.settings):
+        head, tail = split(job.settings)
+        job.settings = get_template(tail, path=head)
+    elif isinstance(job.settings, str):
+        job.settings = get_template(job.settings)
     elif not isinstance(job.settings, dict):
-        raise TypeError(TYPE_ERR2.format('job.settings', 'dict', 'str', get_name(job.settings)))
+        err = 'job.settings', 'dict', 'str', get_name(job.settings)
+        raise TypeError(TYPE_ERR2.format(*err))
     job.settings.soft_update(get_template('md_cp2k_template.yaml'))
 
     assert_type(job.path, str, 'job.path')
@@ -228,11 +236,19 @@ def sanitize_job(job: Settings,
     assert_type(job.name, str, 'job.name')
     assert_type(job.folder, str, 'job.workdir')
     assert_type(job.keep_files, bool, 'job.keep_files')
+
+    if 'rmsd_threshold' in job:
+        if isinstance(job.rmsd_threshold, (int, np.integer)):
+            job.rmsd_threshold = float(job.rmsd_threshold)
+        else:
+            assert_type(job.rmsd_threshold, (float, np.float), 'job.rmsd_threshold')
+
     if prm_file:
         assert_type(prm_file, str, 'param.prm_file')
         job.settings.input.force_eval.mm.forcefield.parm_file_name = join(job.path, prm_file)
         job.settings.input.force_eval.mm.forcefield.parmtype = 'CHM'
     else:
+
         job.settings.input.force_eval.mm.forcefield.parmtype = 'OFF'
     job.settings.input['global'].project = job.name
 

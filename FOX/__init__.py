@@ -1,8 +1,5 @@
 """A tool for parameterizing forcefields by reproducing radial distribution functions."""
 
-__author__ = "Bas van Beek"
-__email__ = 'b.f.van.beek@vu.nl'
-
 from .__version__ import __version__
 
 from .functions import (
@@ -17,7 +14,7 @@ from .io import (
     read_multi_xyz,
     read_pdb,
     read_prm, write_prm, rename_atom_types,
-    create_hdf5, to_hdf5, from_hdf5
+    create_hdf5, create_xyz_hdf5, to_hdf5, from_hdf5
 )
 
 from .classes import (
@@ -26,6 +23,10 @@ from .classes import (
     Molecule,
     PSFDict
 )
+
+__version__ = __version__
+__author__ = "Bas van Beek"
+__email__ = 'b.f.van.beek@vu.nl'
 
 __all__ = [
     'get_rdf_lowmem', 'get_rdf',
@@ -36,7 +37,7 @@ __all__ = [
     'read_multi_xyz',
     'read_pdb',
     'read_prm', 'write_prm', 'rename_atom_types',
-    'create_hdf5', 'to_hdf5', 'from_hdf5',
+    'create_hdf5', 'create_xyz_hdf5', 'to_hdf5', 'from_hdf5',
 
     'MultiMolecule',
     'ARMC',

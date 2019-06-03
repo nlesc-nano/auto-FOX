@@ -11,7 +11,7 @@ import pandas as pd
 import FOX
 
 
-REF_DIR = 'test/test_files'
+REF_DIR = 'tests/test_files'
 
 
 def test_input():

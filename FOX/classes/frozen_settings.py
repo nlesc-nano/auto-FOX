@@ -35,8 +35,8 @@ class FrozenSettings(Settings):
     def get_nested_value(self, key: Iterable[Hashable]) -> Any:
         """Return the value from a nested dictionary associated with all keys in **key**.
 
-        Example:
-
+        Examples
+        --------
         .. code:: python
 
             >>> dict_ = {'a': {'b': {'c': 'value1'}}}
@@ -49,9 +49,16 @@ class FrozenSettings(Settings):
             >>> get_nested(dict_, key)
             'value2'
 
+        Parameters
+        ----------
+        key : Iterable[Hashable]
+            An iterable with (nested) keys beloning to this :class:`FrozenSettings` instance.
 
-        :parameter tuple key: A sequence of nested keys.
-        :return: The value associated with all keys in **key**.
+        Returns
+        -------
+        object:
+            The value (nested) associated the keys in **key**.
+
         """
         def iterate(dict_, i):
             return value[i]
@@ -102,6 +109,8 @@ class FrozenSettings(Settings):
         The keys of the to be returned dictionary consist are tuples with the old (nested) keys
         of **input_dict**.
 
+        Examples
+        --------
         .. code-block:: python
 
             >>> print(input_dict)
@@ -111,9 +120,11 @@ class FrozenSettings(Settings):
             >>> print(output_dict)
             {('a', 'b', 'c'): True}
 
-        :parameter dict input_dict: A (nested) dicionary.
-        :return: A non-nested dicionary derived from **input_dict**.
-        :rtype: |dict|_ (keys: |tuple|_)
+        Returns
+        -------
+        |FOX.FrozenSettings|_ (keys: |tuple|_):
+            A newly flattened :class:`FrozenSettings` instance.
+
         """
         def concatenate_dict(key_prepend: tuple, dict_: dict) -> None:
             for key, value in dict_.items():
