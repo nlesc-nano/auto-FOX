@@ -11,13 +11,19 @@ This project adheres to `Semantic Versioning <http://semver.org/>`_.
 
 Added
 -----
-* Potential energy surfaces, over the last ARMC super-iteration,
-  are now stored in .hdf5 format as well.
+* Potential energy surfaces, over the course of last ARMC super-iteration,
+  are now stored in .hdf5 format.
+* Added increased control over the non-bonded inter-atomic potential.
 
 Changed
 -------
 * Molecular dynamics (MD) jobs are now preceded by a geometry
   optimization.
+* MD simulations can now be skipped of the geometry optimization
+  RMSD is too large.
+* Docstrings changed to NumPy style.
+* Cleaned up the AMRC code.
+* Comments in .xyz files are now parsed.
 
 
 0.4.0
