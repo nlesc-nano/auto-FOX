@@ -107,19 +107,20 @@ class MonteCarlo():
         # Unpack arguments
         param = self.param
 
-        # Perform a move
+        # Prepare arguments a move
         idx, x1 = next(param.loc[:, 'param'].sample().items())
         x2 = np.random.choice(self.move.range, 1)
-        param.at[idx, 'param'] = self.move.func(x1, x2, **self.move.kwarg)
 
         # Constrain the atomic charges
         if 'charge' in idx:
-            at, charge = idx[1], param.at[idx, 'param']
+            at = idx[1]
+            charge = self.move.func(x1, x2, **self.move.kwarg)
             with pd.option_context('mode.chained_assignment', None):
                 update_charge(at, charge, param.loc['charge'], self.move.charge_constraints)
             for key, value, fstring in param.loc['charge', ['key', 'param', 'unit']].values:
                 set_nested_value(self.job.settings, key, fstring.format(value))
         else:
+            param.at[idx, 'param'] = self.move.func(x1, x2, **self.move.kwarg)
             key, value, fstring = next(iter(param.loc['charge', ['key', 'param', 'unit']].values))
             set_nested_value(self.job.settings, key, fstring.format(value))
 
