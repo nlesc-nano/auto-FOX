@@ -1,95 +1,29 @@
 """Various templates for validating ARMC inputs."""
-from typing import Callable
 
 import numpy as np
 from collections import abc
 from schema import (And, Optional, Or, Schema, Use)
 
 from FOX.classes.multi_mol import MultiMolecule
+from FOX.functions.utils import str_to_callable
 from FOX.functions.charge_utils import get_charge_constraints
 
 __all__ = []
 
 
-def str_to_callable(string: str) -> Callable:
-    """Create a callable object from a string.
+def get_pes_schema(key: str) -> Schema:
+    err = 'pes.{}.func expects a callable or string-representation of a callable'
+    schema_pes = Schema({
+        'func': Or(abc.Callable, And(str, Use(str_to_callable)),
+                   error=err.format(key)),
 
-    Accepts string-representations of functions, classes and methods, returning the respective
-    callable.
+        Optional('kwarg', default={}): And(dict, lambda x: all([isinstance(i, str) for i in x]),
+                                           error='pes.{}.kwarg expects a dictionary'.format(key)),
 
-    Examples
-    --------
-    An example with a builtin function:
-
-    .. code:: python
-
-        >>> callable_ = str_to_callable('len')
-        >>> print(callable_)
-        <function len(obj, /)>
-
-        >>> out = callable_([True, True, True])
-        >>> print(out)
-        3
-
-    An example with a third-party function from NumPy:
-
-    .. code:: python
-
-        >>> callable_ = str_to_callable('numpy.add')
-        >>> print(callable_)
-        <ufunc 'add'>
-
-        >>> out = callable_(10, 5)
-        >>> print(out)
-        15
-
-    Another example with a third-party method from the :class:`.MultiMolecule` class in Auto-FOX:
-
-    .. code:: python
-
-        >>> from FOX import get_example_xyz
-
-        >>> callable_ = str_to_callable('FOX.MultiMolecule.from_xyz')
-        >>> print(callable_)
-        <bound method MultiMolecule.from_xyz of <class 'FOX.classes.multi_mol.MultiMolecule'>>
-
-        >>> out = callable_(get_example_xyz())
-        >>> print(type(out))
-        <class 'FOX.classes.multi_mol.MultiMolecule'>
-
-
-    Parameters
-    ----------
-    string : str
-        A string represnting a callable object.
-        The path to the callable should be included in the string (see examples).
-
-    Returns
-    -------
-    |Callable|_:
-        A callable object (*e.g.* function, class or method).
-
-    """
-    if '.' not in string:  # Builtin function or class
-        return eval(string)
-
-    elif string.count('.') == 1:
-        try:  # Builtin method
-            return eval(string)
-        except NameError:  # Non-builtin function or class
-            package, func = string.split('.')
-            exec('from {} import {}'.format(package, func))
-            return eval(func)
-
-    else:
-        try:  # Non-builtin function or class
-            package, func = string.rsplit('.', 1)
-            exec('from {} import {}'.format(package, func))
-            return eval(func)
-        except ImportError:  # Non-builtin method
-            package, class_, method = string.rsplit('.', 2)
-            exec('from {} import {}'.format(package, class_))
-            return eval('.'.join([class_, method]))
+        Optional('arg', default=[]): And(abc.Sequence,
+                                         error='pes.{}.arg expects a sequence'.format(key))
+    })
+    return schema_pes
 
 
 _float = Or(int, np.integer, float, np.float)
@@ -160,18 +94,3 @@ schema_psf = Schema({
     ('ligand_atoms',): And(abc.Sequence, lambda x: all([isinstance(i, str) for i in x]),
                            error='psf.ligand_atoms expects a sequence of strings')
 })
-
-
-def get_pes_schema(key: str) -> Schema:
-    err = 'pes.{}.func expects a callable or string-representation of a callable'
-    schema_pes = Schema({
-        'func': Or(abc.Callable, And(str, Use(str_to_callable)),
-                   error=err.format(key)),
-
-        Optional('kwarg', default={}): And(dict, lambda x: all([isinstance(i, str) for i in x]),
-                                           error='pes.{}.kwarg expects a dictionary'.format(key)),
-
-        Optional('arg', default=[]): And(abc.Sequence,
-                                         error='pes.{}.arg expects a sequence'.format(key))
-    })
-    return schema_pes

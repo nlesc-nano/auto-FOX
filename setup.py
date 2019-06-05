@@ -65,6 +65,7 @@ setup(
         'numpy',
         'scipy',
         'pandas',
+        'schema',
         'plams@git+https://github.com/SCM-NV/PLAMS@master'
     ],
     setup_requires=[

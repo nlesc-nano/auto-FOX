@@ -29,6 +29,9 @@ from ..functions.utils import (get_shape, assert_error, array_to_index)
 __all__ = ['create_hdf5', 'create_xyz_hdf5', 'to_hdf5', 'from_hdf5']
 
 
+"""################################### Creating .hdf5 files ####################################"""
+
+
 @assert_error(H5PY_ERROR)
 def create_hdf5(filename: str,
                 armc: 'FOX.ARMC') -> None:
@@ -137,107 +140,7 @@ def create_xyz_hdf5(filename: str,
         f['xyz'].attrs['atoms'] = np.array([at.symbol for at in mol], dtype='S')
 
 
-def _get_filename_xyz(filename: str) -> str:
-    """Construct a filename for the xyz-containing .hdf5 file.
-
-    Parameters
-    ----------
-    filename : str
-        The base filename.
-        If possible, ``".xyz"`` is inserted between **filename** and its extensions.
-        If not, then **filename** is appended with ``".xyz"``.
-
-    Returns
-    -------
-    |str|_:
-        The filename of the xyz-containing .hdf5 file.
-
-    """
-    if '.hdf5' in filename:
-        return filename.replace('.hdf5', '.xyz.hdf5')
-    return filename + '.xyz'
-
-
-@assert_error(H5PY_ERROR)
-def index_to_hdf5(filename: str,
-                  pd_dict: Dict[str, NDFrame]) -> None:
-    """Store the ``index`` and ``columns`` / ``name`` attributes of **pd_dict** in hdf5 format.
-
-    Attributes are exported for all dataframes/series in **pd_dict** and skipped otherwise.
-    The keys in **pd_dict**, together with the attribute names, are used for naming the datasets.
-
-    Examples
-    --------
-    .. code-block:: python
-
-        >>> pd_dict = {}
-        >>> pd_dict['df'] = pd.DataFrame(np.random.rand(10, 10))
-        >>> pd_dict['series'] = pd.Series(np.random.rand(10))
-        >>> index_to_hdf5(pd_dict, name='my_file.hdf5')
-
-        >>> with h5py.File('my_file.hdf5', 'r') as f:
-        >>>     tuple(f.keys())
-        ('df.columns', 'df.index', 'series.index', 'series.name')
-
-    Parameter
-    ---------
-    filename : str
-        The path+name of the hdf5 file.
-
-    pd_dict : dict
-        A dictionary with dataset names as keys and matching array-like objects as values.
-
-    """
-    attr_tup = ('index', 'columns', 'name')
-
-    with h5py.File(filename, 'r+', libver='latest') as f:
-        for key, value in pd_dict.items():
-            for attr_name in attr_tup:
-                if not hasattr(value, attr_name):
-                    continue
-
-                attr = getattr(value, attr_name)
-                i = _attr_to_array(attr).T
-                f[key].attrs.create(attr_name, i)
-
-
-def _attr_to_array(index: Union[str, pd.Index]) -> np.ndarray:
-    """Convert an attribute value, retrieved from :func:`FOX.index_to_hdf5`, into a NumPy array.
-
-    Accepts strings and instances of pd.Index.
-
-    Examples
-    --------
-    .. code-block:: python
-
-        >>> item = 'name'
-        >>> _attr_to_array(item)
-        array([b'name'], dtype='|S4')
-
-        >>> item = pd.RangeIndex(stop=4)
-        >>> _attr_to_array(item)
-        array([0, 1, 2, 3, 4])
-
-    Parameters
-    ----------
-    item : str or |pd.Index|_
-        A string or instance of pd.Index (or one of its subclasses).
-
-    Returns
-    -------
-    |np.ndarray|_:
-        An array created fron **item**.
-
-    """
-    # If **idx** does not belong to the pd.Index class or one of its subclass
-    if not isinstance(index, pd.Index):  # **item** belongs to the *name* attribute of pd.Series
-        return np.array(index, dtype='S', ndmin=1, copy=False)
-
-    # Convert **item** into an array
-    ret = np.array(index.to_list())
-    if 'U' in ret.dtype.str:  # h5py does not support unicode strings
-        return ret.astype('S', copy=False)  # Convert to byte strings
-    return ret
+"""################################### Updating .hdf5 files ####################################"""
 
 
 @assert_error(H5PY_ERROR)
@@ -359,6 +262,9 @@ def _xyz_to_hdf5(filename: str,
             except ValueError:  # Resize and try again
                 f['xyz'].resize(shape + (f['xyz'].shape[0],))
                 f['xyz'][omega] = mol
+
+
+"""#################################### Reading .hdf5 files ####################################"""
 
 
 DataSets = Optional[Union[Hashable, Iterable[Hashable]]]
@@ -490,6 +396,123 @@ def _get_xyz_dset(f: H5pyFile) -> Tuple[np.ndarray, Dict[str, List[int]]]:
     return ret, idx_dict
 
 
+def restart_from_hdf5(filename: str) -> Dict[str, Any]:
+    """Restart a previously started Addaptive Rate Monte Carlo procedure.
+
+    Parameters
+    ----------
+    filename : str
+        The path+name of an existing ARMC hdf5 file.
+    """
+    pass
+
+
+"""###################################### hdf5 utilities #######################################"""
+
+
+def _get_filename_xyz(filename: str) -> str:
+    """Construct a filename for the xyz-containing .hdf5 file.
+
+    Parameters
+    ----------
+    filename : str
+        The base filename.
+        If possible, ``".xyz"`` is inserted between **filename** and its extensions.
+        If not, then **filename** is appended with ``".xyz"``.
+
+    Returns
+    -------
+    |str|_:
+        The filename of the xyz-containing .hdf5 file.
+
+    """
+    if '.hdf5' in filename:
+        return filename.replace('.hdf5', '.xyz.hdf5')
+    return filename + '.xyz'
+
+
+@assert_error(H5PY_ERROR)
+def index_to_hdf5(filename: str,
+                  pd_dict: Dict[str, NDFrame]) -> None:
+    """Store the ``index`` and ``columns`` / ``name`` attributes of **pd_dict** in hdf5 format.
+
+    Attributes are exported for all dataframes/series in **pd_dict** and skipped otherwise.
+    The keys in **pd_dict**, together with the attribute names, are used for naming the datasets.
+
+    Examples
+    --------
+    .. code-block:: python
+
+        >>> pd_dict = {}
+        >>> pd_dict['df'] = pd.DataFrame(np.random.rand(10, 10))
+        >>> pd_dict['series'] = pd.Series(np.random.rand(10))
+        >>> index_to_hdf5(pd_dict, name='my_file.hdf5')
+
+        >>> with h5py.File('my_file.hdf5', 'r') as f:
+        >>>     tuple(f.keys())
+        ('df.columns', 'df.index', 'series.index', 'series.name')
+
+    Parameter
+    ---------
+    filename : str
+        The path+name of the hdf5 file.
+
+    pd_dict : dict
+        A dictionary with dataset names as keys and matching array-like objects as values.
+
+    """
+    attr_tup = ('index', 'columns', 'name')
+
+    with h5py.File(filename, 'r+', libver='latest') as f:
+        for key, value in pd_dict.items():
+            for attr_name in attr_tup:
+                if not hasattr(value, attr_name):
+                    continue
+
+                attr = getattr(value, attr_name)
+                i = _attr_to_array(attr).T
+                f[key].attrs.create(attr_name, i)
+
+
+def _attr_to_array(index: Union[str, pd.Index]) -> np.ndarray:
+    """Convert an attribute value, retrieved from :func:`FOX.index_to_hdf5`, into a NumPy array.
+
+    Accepts strings and instances of pd.Index.
+
+    Examples
+    --------
+    .. code-block:: python
+
+        >>> item = 'name'
+        >>> _attr_to_array(item)
+        array([b'name'], dtype='|S4')
+
+        >>> item = pd.RangeIndex(stop=4)
+        >>> _attr_to_array(item)
+        array([0, 1, 2, 3, 4])
+
+    Parameters
+    ----------
+    item : str or |pd.Index|_
+        A string or instance of pd.Index (or one of its subclasses).
+
+    Returns
+    -------
+    |np.ndarray|_:
+        An array created fron **item**.
+
+    """
+    # If **idx** does not belong to the pd.Index class or one of its subclass
+    if not isinstance(index, pd.Index):  # **item** belongs to the *name* attribute of pd.Series
+        return np.array(index, dtype='S', ndmin=1, copy=False)
+
+    # Convert **item** into an array
+    ret = np.array(index.to_list())
+    if 'U' in ret.dtype.str:  # h5py does not support unicode strings
+        return ret.astype('S', copy=False)  # Convert to byte strings
+    return ret
+
+
 @assert_error(H5PY_ERROR)
 def dset_to_series(f: H5pyFile,
                    key: Hashable) -> Union[pd.Series, pd.DataFrame]:
@@ -557,14 +580,3 @@ def dset_to_df(f: H5pyFile,
         return pd.DataFrame(data, index=index, columns=columns)
     else:
         return [pd.DataFrame(i, index=index, columns=columns) for i in data]
-
-
-def restart_from_hdf5(filename: str) -> Dict[str, Any]:
-    """Restart a previously started Addaptive Rate Monte Carlo procedure.
-
-    Parameters
-    ----------
-    filename : str
-        The path+name of an existing ARMC hdf5 file.
-    """
-    pass
