@@ -35,7 +35,7 @@ job:
     name: armc
     path: /Users/basvanbeek/Downloads
     folder: MM_MD_workdir
-    keep_files: True
+    keep_files: False
     rmsd_threshold: 5.0
 
     settings:

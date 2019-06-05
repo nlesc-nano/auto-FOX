@@ -27,13 +27,13 @@ pes:
         kwarg:
             atom_subset: [Cs, Pb, Br]
 
-molecule: /Users/basvanbeek/Downloads/cspbbr3_bulk_ortho.xyz
+molecule: /Users/bvanbeek/Downloads/cspbbr3_bulk_ortho.xyz
 
 job:
-    logfile: /Users/basvanbeek/Downloads/armc.log
+    logfile: /Users/bvanbeek/Downloads/armc.log
     func: Cp2kJob
     name: armc
-    path: /Users/basvanbeek/Downloads
+    path: /Users/bvanbeek/Downloads
     folder: MM_MD_workdir
     keep_files: True
     rmsd_threshold: 10.0
@@ -50,17 +50,20 @@ job:
                         periodic: XYZ
             motion:
                 md:
-                    ensemble: NVT
+                    ensemble: NPT_F
                     temperature: 300.0
                     timestep: 2.5
-                    time_start_val: 5000
-                    steps: 10000
+                    time_start_val: 0
+                    steps: 400
                     thermostat:
                         type: CSVR
                         csvr:
                             timecon: 1250
+                    barostat:
+                        pressure: 1.01
+                        timecon: 1250
 
-hdf5_file: /Users/basvanbeek/Downloads/armc.hdf5
+hdf5_file: /Users/bvanbeek/Downloads/armc.hdf5
 
 armc:
     iter_len: 20000

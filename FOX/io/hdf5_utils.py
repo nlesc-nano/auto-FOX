@@ -20,9 +20,9 @@ try:
 except ImportError:
     __all__: list = []
     H5pyFile = 'h5py.File'
-    H5PY_ERROR = "Use of the FOX.{} function requires the 'h5py' package.\
-                  \n\t'h5py' can be installed via anaconda with the following command:\
-                  \n\tconda install --name FOX -y -c conda-forge h5py"
+    H5PY_ERROR = ("Use of the FOX.{} function requires the 'h5py' package."
+                  "\n'h5py' can be installed via anaconda with the following command:"
+                  "\n\tconda install --name FOX -y -c conda-forge h5py")
 
 from ..functions.utils import (get_shape, assert_error, array_to_index)
 
@@ -75,7 +75,7 @@ def create_hdf5(filename: str,
         shape_dict[key].dtype = float
 
     # Create a hdf5 file with *n* datasets
-    with h5py.File(filename, 'w-') as f:
+    with h5py.File(filename, 'w-', libver='latest') as f:
         for key, kwarg in shape_dict.items():
             f.create_dataset(name=key, compression='gzip', **kwarg)
             if key in armc.pes:  # Add the ab-initio reference PES descriptors to the hdf5 file
@@ -132,7 +132,7 @@ def create_xyz_hdf5(filename: str,
         remove(filename_xyz)
 
     # Create a new hdf5 xyz files
-    with h5py.File(filename_xyz, 'w-') as f:
+    with h5py.File(filename_xyz, 'w-', libver='latest') as f:
         f.create_dataset(name='xyz', compression='gzip', **xyz)
         f['xyz'].attrs['atoms'] = np.array([at.symbol for at in mol], dtype='S')
 
@@ -190,7 +190,7 @@ def index_to_hdf5(filename: str,
     """
     attr_tup = ('index', 'columns', 'name')
 
-    with h5py.File(filename, 'r+') as f:
+    with h5py.File(filename, 'r+', libver='latest') as f:
         for key, value in pd_dict.items():
             for attr_name in attr_tup:
                 if not hasattr(value, attr_name):
@@ -275,7 +275,7 @@ def hdf5_availability(filename: str,
 
     while i:
         try:
-            with h5py.File(filename, 'r+') as _:
+            with h5py.File(filename, 'r+', libver='latest') as _:
                 return  # the .hdf5 file can safely be opened
         except OSError as ex:  # the .hdf5 file cannot be safely opened yet
             print((warning).format(filename, timeout))
@@ -315,7 +315,7 @@ def to_hdf5(filename: str,
     hdf5_availability(filename)
 
     # Update the hdf5 file
-    with h5py.File(filename, 'r+') as f:
+    with h5py.File(filename, 'r+', libver='latest') as f:
         f.attrs['super-iteration'] = kappa
         f.attrs['sub-iteration'] = omega
         for key, value in dset_dict.items():
@@ -349,15 +349,15 @@ def _xyz_to_hdf5(filename: str,
         The sub-iteration, :math:`\omega`, in the inner loop of :meth:`.ARMC.init_armc`.
 
     """
-    with h5py.File(filename, 'a') as f:
+    with h5py.File(filename, 'a', libver='latest') as f:
         if isinstance(mol, (float, np.float)):
             f['xyz'][omega] = mol
         else:
             shape = mol.shape
             try:
                 f['xyz'][omega, 0:shape[0]] = mol
-            except ValueError:  # Reshape and try again
-                f['xyz'].shape = (f['xyz'].shape[0],) + shape
+            except ValueError:  # Resize and try again
+                f['xyz'].resize(shape + (f['xyz'].shape[0],))
                 f['xyz'][omega] = mol
 
 
@@ -385,7 +385,7 @@ def from_hdf5(filename: str,
         A dicionary with dataset names as keys and the matching data as values.
 
     """
-    with h5py.File(filename, 'r') as f:
+    with h5py.File(filename, 'r', libver='latest') as f:
         # Retrieve all values up to and including the current iteration
         kappa = f.attrs['super-iteration']
         omega = f.attrs['sub-iteration']

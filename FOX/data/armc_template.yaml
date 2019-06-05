@@ -1,0 +1,35 @@
+param: null
+
+psf:
+    str_file: null
+    ligand_atoms: null
+
+pes: null
+
+molecule: null
+
+job:
+    logfile: armc.log
+    func: Cp2kJob
+    name: armc
+    path: .
+    folder: MM_MD_workdir
+    keep_files: False
+    rmsd_threshold: 10.0
+    settings: null
+
+hdf5_file: armc.hdf5
+
+armc:
+    iter_len: 50000
+    sub_iter_len: 100
+    gamma: 2.0
+    a_target: 0.25
+    phi: 1.0
+
+move:
+    charge_constraints: null
+    range:
+        start: 0.005
+        stop: 0.1
+        step: 0.005

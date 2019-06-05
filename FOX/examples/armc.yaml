@@ -27,7 +27,7 @@ psf:
 
 pes:
     rdf:
-        func: MultiMolecule.init_rdf
+        func: FOX.MultiMolecule.init_rdf
         kwarg:
             atom_subset: [Cd, Se, O]
 

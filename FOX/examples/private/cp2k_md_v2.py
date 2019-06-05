@@ -14,7 +14,7 @@ def get_runscript(self):
 
 
 # Prepare the ARMC settings
-f = '/Users/basvanbeek/Documents/GitHub/auto-FOX/FOX/examples/private/armc_ivan_bulk.yaml'
+f = '/Users/bvanbeek/Documents/GitHub/auto-FOX/FOX/examples/private/armc_ivan_bulk.yaml'
 armc = ARMC.from_yaml(f)
 
 
