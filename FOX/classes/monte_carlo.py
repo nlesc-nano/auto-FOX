@@ -29,9 +29,7 @@ def get_xyz_path(self):
 
 
 class MonteCarlo():
-    """The base :class:`.MonteCarlo` class.
-
-    """
+    """The base :class:`.MonteCarlo` class."""
 
     def __init__(self,
                  molecule: Molecule,
@@ -109,7 +107,7 @@ class MonteCarlo():
 
         # Prepare arguments a move
         idx, x1 = next(param.loc[:, 'param'].sample().items())
-        x2 = np.random.choice(self.move.range, 1)
+        x2 = np.random.choice(self.move.range, 1)[0]
 
         # Constrain the atomic charges
         if 'charge' in idx:
@@ -117,12 +115,12 @@ class MonteCarlo():
             charge = self.move.func(x1, x2, **self.move.kwarg)
             with pd.option_context('mode.chained_assignment', None):
                 update_charge(at, charge, param.loc['charge'], self.move.charge_constraints)
-            for key, value, fstring in param.loc['charge', ['key', 'param', 'unit']].values:
-                set_nested_value(self.job.settings, key, fstring.format(value))
+            for k, v, fstring in param.loc['charge', ['key', 'param', 'unit']].values:
+                set_nested_value(self.job.settings, k, fstring.format(v))
         else:
             param.at[idx, 'param'] = self.move.func(x1, x2, **self.move.kwarg)
-            key, value, fstring = next(iter(param.loc['charge', ['key', 'param', 'unit']].values))
-            set_nested_value(self.job.settings, key, fstring.format(value))
+            k, v, fstring = param.loc[idx, ['key', 'param', 'unit']]
+            set_nested_value(self.job.settings, k, fstring.format(v))
 
         return tuple(self.param['param'].values)
 

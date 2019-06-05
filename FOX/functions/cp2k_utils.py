@@ -107,8 +107,9 @@ def _get_key_list(settings: Settings,
 
         # Update an existing value if possible
         new_block = True
-        for i, dict_ in enumerate(s[super_key]):
+        for i, dict_ in enumerate(s[super_key], 1):
             if at in dict_.values():
+                i -= 1
                 dict_[key] = fstring.format(value)
                 new_block = False
                 break
@@ -116,7 +117,6 @@ def _get_key_list(settings: Settings,
         # Create a new value otherwise
         if new_block:
             s[super_key].append(Settings({atom: at, key: fstring.format(value)}))
-            i += 1
 
         # Update the list of to-be returned keys
         if key == 'charge':
