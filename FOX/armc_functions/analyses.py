@@ -69,9 +69,7 @@ def compare_pes_descriptors(filename_in: str,
     # Construct the figures
     fig, ax_tup = plt.subplots(ncols=ncols, sharex=True, sharey=False)
     for key, ax in zip(pes_mm, ax_tup):
-        df = pd.DataFrame(
-            [pes_mm[key], pes_qm[key]], index=pes_mm.index, columns=['QM-MD', 'MM-MD']
-        )
+        df = pd.DataFrame({'MM-MD': pes_mm[key], 'QM-MD': pes_qm[key]}, index=pes_mm.index)
         df.index.name = descriptor
         df.plot(ax=ax, title=key, figsize=figsize)
 

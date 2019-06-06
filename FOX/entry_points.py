@@ -37,13 +37,13 @@ def main_plot_pes(args: Optional[list] = None) -> None:
     """Entrypoint for :func:`FOX.armc_functions.analyses.compare_pes_descriptors`."""
     parser = argparse.ArgumentParser(
          prog='FOX',
-         usage='plot_pes input output -dset dset1 dset2 ...',
-         description=""
+         usage='plot_pes input -o output -dset dset1 dset2 ...',
+         description='Create side by side plots of MM PES descriptors and QM PES descriptors'
     )
 
     parser.add_argument(
         'input', nargs=1, type=str, metavar='input',
-        help='The path+name of the ARMC .hdf5 file'
+        help='Rquired: The path+name of the ARMC .hdf5 file'
     )
 
     parser.add_argument(
@@ -53,14 +53,16 @@ def main_plot_pes(args: Optional[list] = None) -> None:
     )
 
     parser.add_argument(
-        '-i', '--iteration', nargs=1, type=int, default=[-1], required=False, metavar='iter',
+        '-i', '--iteration', nargs=1, type=int, default=[-1], required=False, metavar='iteration',
         help=('Optional: The ARMC iteration containing the PES descriptor of interest.'
               'Set to the last iteration by default')
     )
 
     parser.add_argument(
         '-dset', '--datasets', nargs='+', type=str, metavar='datasets', required=True,
-        dest='datasets', help='One or more names of hdf5 datasets containing PES descriptors.'
+        dest='datasets',
+        help=('Required: One or more hdf5 dataset names. '
+              'The provided dataset(s) should containing PES descriptors.')
     )
 
     # Unpack arguments
