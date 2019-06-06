@@ -6,7 +6,7 @@ from os.path import isfile
 from typing import Optional
 
 from FOX import ARMC
-from FOX.armc_functions.analyses import compare_pes_descriptors
+from FOX.armc_functions.analyses import (compare_pes_descriptors, plot_param)
 
 __all__: list = []
 
@@ -79,3 +79,33 @@ def main_plot_pes(args: Optional[list] = None) -> None:
     else:
         for i, dset in enumerate(datasets):
             compare_pes_descriptors(input_, str(i) + '_' + output, dset, iteration=iteration)
+
+
+def main_plot_param(args: Optional[list] = None) -> None:
+    """Entrypoint for :func:`FOX.armc_functions.analyses.plot_param`."""
+    parser = argparse.ArgumentParser(
+         prog='FOX',
+         usage='plot_pes input -o output -dset dset1 dset2 ...',
+         description='Create side by side plots of MM PES descriptors and QM PES descriptors'
+    )
+
+    parser.add_argument(
+        'input', nargs=1, type=str, metavar='input',
+        help='Rquired: The path+name of the ARMC .hdf5 file'
+    )
+
+    parser.add_argument(
+        '-o', '--output', nargs=1, type=str, metavar='output', required=False, default=[None],
+        help=('Optional: The path+name of the to-be created .png file'
+              'Set to "param.png" in the current working directory by default')
+    )
+
+    # Unpack arguments
+    args_parsed = parser.parse_args(args)
+    input_ = args_parsed.input[0]
+    output = args_parsed.output[0]
+
+    if output is None:
+        plot_param(input_, 'param.png')
+    else:
+        plot_param(input_, output)

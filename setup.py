@@ -42,7 +42,8 @@ setup(
     include_package_data=True,
     entry_points={'console_scripts': [
         'init_armc=FOX.entry_points:main_armc',
-        'plot_pes=FOX.entry_points:main_plot_pes'
+        'plot_pes=FOX.entry_points:main_plot_pes',
+        'plot_param=FOX.entry_points:main_plot_param'
     ]},
     license="GNU General Public License v3 or later",
     zip_safe=False,
