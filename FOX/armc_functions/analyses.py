@@ -2,17 +2,25 @@
 
 from typing import Optional
 
-import h5py
 import pandas as pd
-import matplotlib.pyplot as plt
 
-import FOX
+from FOX.io.hdf5_utils import from_hdf5
+from FOX.functions.utils import assert_error
 
-filename_in = 1
-filename_out = 1
-descriptor = 'RDF'
+try:
+    import matplotlib.pyplot as plt
+    __all__ = ['compare_pes_descriptors']
+    PltFigure = plt.Figure
+    PLT_ERROR = ''
+except ImportError:
+    __all__ = []
+    PltFigure = 'matplotlib.pyplot.Figure'
+    H5PY_ERROR = ("Use of the FOX.{} function requires the 'matplotlib' package."
+                  "\n'matplotlib' can be installed via PyPi with the following command:"
+                  "\n\tpip install matplotlib")
 
 
+@assert_error(H5PY_ERROR)
 def compare_pes_descriptors(filename_in: str,
                             filename_out: str,
                             descriptor: str,
@@ -51,10 +59,8 @@ def compare_pes_descriptors(filename_in: str,
 
     """
     # Gather the pes descriptors
-    pes_mm = FOX.from_hdf5(filename_in, descriptor)[iteration]
-    pes_qm = pes_mm.copy()
-    with h5py.File(filename_in, 'r') as f:
-        pes_qm[:] = f[descriptor].attrs['ref'][:]
+    pes_mm = from_hdf5(filename_in, descriptor)[iteration]
+    pes_qm = from_hdf5(filename_in, descriptor + '.ref')
 
     # Define constants
     ncols = len(pes_mm.columns)

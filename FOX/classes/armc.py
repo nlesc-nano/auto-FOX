@@ -16,7 +16,7 @@ from .monte_carlo import MonteCarlo
 from ..io.hdf5_utils import (create_hdf5, to_hdf5, create_xyz_hdf5)
 from ..functions.utils import (get_template, get_class_name, get_func_name)
 from ..functions.cp2k_utils import set_subsys_kind
-from ..functions.armc_sanitization import init_armc_sanitization
+from ..armc_functions.sanitization import init_armc_sanitization
 
 __all__ = ['ARMC']
 

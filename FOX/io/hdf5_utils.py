@@ -13,20 +13,19 @@ from pandas.core.generic import NDFrame
 
 from scm.plams import Settings, Molecule
 
+from ..functions.utils import (get_shape, assert_error, array_to_index)
+
 try:
     import h5py
+    __all__ = ['create_hdf5', 'create_xyz_hdf5', 'to_hdf5', 'from_hdf5']
     H5pyFile = h5py.File
     H5PY_ERROR = ''
 except ImportError:
-    __all__: list = []
+    __all__ = []
     H5pyFile = 'h5py.File'
     H5PY_ERROR = ("Use of the FOX.{} function requires the 'h5py' package."
                   "\n'h5py' can be installed via anaconda with the following command:"
                   "\n\tconda install --name FOX -y -c conda-forge h5py")
-
-from ..functions.utils import (get_shape, assert_error, array_to_index)
-
-__all__ = ['create_hdf5', 'create_xyz_hdf5', 'to_hdf5', 'from_hdf5']
 
 
 """################################### Creating .hdf5 files ####################################"""
