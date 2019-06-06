@@ -55,47 +55,32 @@ def create_hdf5(filename: str,
         The path+filename of the hdf5 file.
 
     armc : |FOX.ARMC|_
-        A :class:`.ARMC` instance.
+        An :class:`.ARMC` instance.
 
     """
-    shape = armc.armc.iter_len // armc.armc.sub_iter_len, armc.armc.sub_iter_len
-
     # Create a Settings object with the shape and dtype of all datasets
-    shape_dict = Settings()
-    shape_dict.phi.shape = (shape[0], )
-    shape_dict.phi.dtype = float
-    shape_dict.param.shape = shape + (len(armc.param), )
-    shape_dict.param.dtype = float
-    shape_dict.acceptance.shape = shape
-    shape_dict.acceptance.dtype = bool
-    shape_dict.aux_error.shape = shape + (len(armc.pes), )
-    shape_dict.aux_error.dtype = float
-    shape_dict.aux_error_mod.shape = shape + (1 + len(armc.param), )
-    shape_dict.aux_error_mod.dtype = float
-    for key, value in armc.pes.items():
-        shape_dict[key].shape = shape + get_shape(value.ref)
-        shape_dict[key].dtype = float
+    kwarg_dict = _get_kwarg_dict(armc)
 
     # Create a hdf5 file with *n* datasets
     with h5py.File(filename, 'w-', libver='latest') as f:
-        for key, kwarg in shape_dict.items():
+        for key, kwarg in kwarg_dict.items():
             f.create_dataset(name=key, compression='gzip', **kwarg)
-            if key in armc.pes:  # Add the ab-initio reference PES descriptors to the hdf5 file
-                f[key].attrs['ref'] = armc.pes[key].ref
         f.attrs['super-iteration'] = -1
         f.attrs['sub-iteration'] = -1
 
     # Store the *index*, *column* and *name* attributes of dataframes/series in the hdf5 file
+    kappa = armc.armc.iter_len // armc.armc.sub_iter_len
     idx = armc.param['param'].index.append(pd.MultiIndex.from_tuples([('phi', '')]))
     pd_dict = {
         'param': armc.param['param'],
-        'phi': pd.Series(np.nan, index=np.arange(shape[0]), name='phi'),
+        'phi': pd.Series(np.nan, index=np.arange(kappa), name='phi'),
         'aux_error': pd.Series(np.nan, index=list(armc.pes), name='aux_error'),
         'aux_error_mod': pd.Series(np.nan, index=idx, name='aux_error_mod')
     }
 
     for key, value in armc.pes.items():
         pd_dict[key] = value.ref
+        pd_dict[key + '.ref'] = value.ref
     index_to_hdf5(filename, pd_dict)
 
 
@@ -137,6 +122,106 @@ def create_xyz_hdf5(filename: str,
     with h5py.File(filename_xyz, 'w-', libver='latest') as f:
         f.create_dataset(name='xyz', compression='gzip', **xyz)
         f['xyz'].attrs['atoms'] = np.array([at.symbol for at in mol], dtype='S')
+
+
+@assert_error(H5PY_ERROR)
+def index_to_hdf5(filename: str,
+                  pd_dict: Dict[str, NDFrame]) -> None:
+    """Store the ``index`` and ``columns`` / ``name`` attributes of **pd_dict** in hdf5 format.
+
+    Attributes are exported for all dataframes/series in **pd_dict** and skipped otherwise.
+    The keys in **pd_dict**, together with the attribute names, are used for naming the datasets.
+
+    Examples
+    --------
+    .. code-block:: python
+
+        >>> pd_dict = {}
+        >>> pd_dict['df'] = pd.DataFrame(np.random.rand(10, 10))
+        >>> pd_dict['series'] = pd.Series(np.random.rand(10))
+        >>> index_to_hdf5(pd_dict, name='my_file.hdf5')
+
+        >>> with h5py.File('my_file.hdf5', 'r') as f:
+        >>>     tuple(f.keys())
+        ('df.columns', 'df.index', 'series.index', 'series.name')
+
+    Parameter
+    ---------
+    filename : str
+        The path+name of the hdf5 file.
+
+    pd_dict : dict
+        A dictionary with dataset names as keys and matching array-like objects as values.
+
+    """
+    attr_tup = ('index', 'columns', 'name')
+
+    with h5py.File(filename, 'r+', libver='latest') as f:
+        for key, value in pd_dict.items():
+            for attr_name in attr_tup:
+                if not hasattr(value, attr_name):
+                    continue
+
+                attr = getattr(value, attr_name)
+                i = _attr_to_array(attr).T
+                f[key].attrs.create(attr_name, i)
+
+
+def _get_kwarg_dict(armc: 'FOX.ARMC') -> Settings:
+    """Create a Settings instance with keyword arguments for h5py.Group.create_dataset.
+
+    .. _h5py.Group.create_dataset: http://docs.h5py.org/en/stable/high/group.html#Group.create_dataset  # noqa
+
+    Examples
+    --------
+
+    The output has the following general structure:
+
+    .. code:: python
+
+        >>> s = _get_kwarg_dict(armc)
+        >>> print(s)
+        key1:
+             kwarg1: ...
+             kwarg2: ...
+             kwarg3: ...
+        key2:
+             kwarg1: ...
+             kwarg2: ...
+        ...
+
+    Parameters
+    ----------
+    armc : |FOX.ARMC|_
+        An :class:`.ARMC` instance.
+
+    Returns
+    -------
+    |plams.Settings|_:
+        A Settings instance with keyword arguments for h5py.Group.create_dataset_.
+
+    """
+    shape = armc.armc.iter_len // armc.armc.sub_iter_len, armc.armc.sub_iter_len
+
+    ret = Settings()
+    ret.phi.shape = (shape[0], )
+    ret.phi.dtype = float
+    ret.param.shape = shape + (len(armc.param), )
+    ret.param.dtype = float
+    ret.acceptance.shape = shape
+    ret.acceptance.dtype = bool
+    ret.aux_error.shape = shape + (len(armc.pes), )
+    ret.aux_error.dtype = float
+    ret.aux_error_mod.shape = shape + (1 + len(armc.param), )
+    ret.aux_error_mod.dtype = float
+    for key, value in armc.pes.items():
+        ret[key].shape = shape + get_shape(value.ref)
+        ret[key].dtype = float
+        ret[key + '.ref'].shape = get_shape(value.ref)
+        ret[key + '.ref'].dtype = float
+        ret[key + '.ref'].data = value.ref
+
+    return ret
 
 
 """################################### Updating .hdf5 files ####################################"""
@@ -301,7 +386,7 @@ def from_hdf5(filename: str,
         if isinstance(datasets, str):
             datasets = (datasets, )
         elif datasets is None:
-            datasets = (i for i in f.keys() if i != 'xyz')
+            datasets = (i for i in f.keys())
 
         # Retrieve the datasets
         try:
@@ -357,7 +442,7 @@ def _get_dset(f: H5pyFile,
         columns = pd.MultiIndex.from_product([[key], np.arange(data.shape[-1])])
         return pd.DataFrame(data, columns=columns)
 
-    raise TypeError(key, f[key].ndim)
+    raise ValueError(key, f[key].ndim)
 
 
 @assert_error(H5PY_ERROR)
@@ -428,49 +513,6 @@ def _get_filename_xyz(filename: str) -> str:
     if '.hdf5' in filename:
         return filename.replace('.hdf5', '.xyz.hdf5')
     return filename + '.xyz'
-
-
-@assert_error(H5PY_ERROR)
-def index_to_hdf5(filename: str,
-                  pd_dict: Dict[str, NDFrame]) -> None:
-    """Store the ``index`` and ``columns`` / ``name`` attributes of **pd_dict** in hdf5 format.
-
-    Attributes are exported for all dataframes/series in **pd_dict** and skipped otherwise.
-    The keys in **pd_dict**, together with the attribute names, are used for naming the datasets.
-
-    Examples
-    --------
-    .. code-block:: python
-
-        >>> pd_dict = {}
-        >>> pd_dict['df'] = pd.DataFrame(np.random.rand(10, 10))
-        >>> pd_dict['series'] = pd.Series(np.random.rand(10))
-        >>> index_to_hdf5(pd_dict, name='my_file.hdf5')
-
-        >>> with h5py.File('my_file.hdf5', 'r') as f:
-        >>>     tuple(f.keys())
-        ('df.columns', 'df.index', 'series.index', 'series.name')
-
-    Parameter
-    ---------
-    filename : str
-        The path+name of the hdf5 file.
-
-    pd_dict : dict
-        A dictionary with dataset names as keys and matching array-like objects as values.
-
-    """
-    attr_tup = ('index', 'columns', 'name')
-
-    with h5py.File(filename, 'r+', libver='latest') as f:
-        for key, value in pd_dict.items():
-            for attr_name in attr_tup:
-                if not hasattr(value, attr_name):
-                    continue
-
-                attr = getattr(value, attr_name)
-                i = _attr_to_array(attr).T
-                f[key].attrs.create(attr_name, i)
 
 
 def _attr_to_array(index: Union[str, pd.Index]) -> np.ndarray:
