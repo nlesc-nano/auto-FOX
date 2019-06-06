@@ -23,7 +23,7 @@ param:
 
 pes:
     rdf:
-        func: MultiMolecule.init_rdf
+        func: FOX.MultiMolecule.init_rdf
         kwarg:
             atom_subset: [Cs, Pb, Br]
 
@@ -31,7 +31,7 @@ molecule: /Users/basvanbeek/Downloads/md_dft.xyz
 
 job:
     logfile: /Users/basvanbeek/Downloads/armc.log
-    func: Cp2kJob
+    func: scm.plams.Cp2kJob
     name: armc
     path: /Users/basvanbeek/Downloads
     folder: MM_MD_workdir

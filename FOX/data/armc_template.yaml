@@ -1,4 +1,5 @@
-param: null
+param:
+    prm_file: null
 
 psf:
     str_file: null
@@ -10,7 +11,7 @@ molecule: null
 
 job:
     logfile: armc.log
-    func: Cp2kJob
+    func: scm.plams.Cp2kJob
     name: armc
     path: .
     folder: MM_MD_workdir
@@ -29,6 +30,9 @@ armc:
 
 move:
     charge_constraints: null
+    func: numpy.multiply
+    kwarg: {}
+    arg: []
     range:
         start: 0.005
         stop: 0.1

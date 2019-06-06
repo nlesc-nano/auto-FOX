@@ -4,9 +4,9 @@ import numpy as np
 from collections import abc
 from schema import (And, Optional, Or, Schema, Use)
 
-from FOX.classes.multi_mol import MultiMolecule
-from FOX.functions.utils import str_to_callable
-from FOX.functions.charge_utils import get_charge_constraints
+from ..classes.multi_mol import MultiMolecule
+from ..functions.utils import str_to_callable
+from ..functions.charge_utils import get_charge_constraints
 
 __all__ = [
     'get_pes_schema', 'schema_armc', 'schema_move', 'schema_job', 'schema_param',
@@ -48,8 +48,16 @@ schema_armc = Schema({
 })
 
 schema_move = Schema({
-    ('charge_constraint',): Or(None, And(str, get_charge_constraints),
-                               error='move.charge_constrain expects a string or None'),
+    ('charge_constraints',): Or(None, And(str, get_charge_constraints),
+                                error='move.charge_constrain expects a string or None'),
+
+    ('func',): Or(abc.Callable, And(str, Use(str_to_callable)),
+                  error='move.func expects a callable or string-representation of a callable'),
+
+    ('arg',): And(abc.Sequence, error='move.arg expects a sequence'),
+
+    ('kwarg',): And(dict, lambda x: all([isinstance(i, str) for i in x]),
+                    error='move.kwarg expects a dictionary'),
 
     ('range', 'start'): And(_float, Use(float), lambda x: x > 0.0,
                             error='move.range.start expects a float larger than 0.0'),
@@ -80,7 +88,7 @@ schema_job = Schema({
 
 
 schema_param = Schema({
-    tuple: Or(float, np.float, int, np.integer, str,
+    tuple: Or(float, np.float, int, np.integer, str, None,
               error='param expects a (nested) dictionary of floats and/or integers')
 })
 
@@ -92,8 +100,8 @@ schema_molecule = Schema(Or(
 ))
 
 schema_psf = Schema({
-    ('str_file',): And(str, error='psf.str_file expects a string'),
+    ('str_file',): Or(None, And(str), error='psf.str_file expects a string'),
 
-    ('ligand_atoms',): And(abc.Sequence, lambda x: all([isinstance(i, str) for i in x]),
-                           error='psf.ligand_atoms expects a sequence of strings')
+    ('ligand_atoms',): Or(None, And(abc.Sequence, lambda x: all([isinstance(i, str) for i in x])),
+                          error='psf.ligand_atoms expects a sequence of strings')
 })

@@ -26,7 +26,7 @@ psf:
 
 pes:
     rdf:
-        func: MultiMolecule.init_rdf
+        func: FOX.MultiMolecule.init_rdf
         kwarg:
             atom_subset: [Cd, Se, O]
 
@@ -34,7 +34,7 @@ molecule: /Users/bvanbeek/Documents/GitHub/auto-FOX/FOX/data/Cd68Se55_26COO_MD_t
 
 job:
     logfile: armc.log
-    func: Cp2kJob
+    func: scm.plams.Cp2kJob
     name: armc
     path: .
     folder: MM_MD_workdir

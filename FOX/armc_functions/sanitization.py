@@ -1,265 +1,172 @@
-"""A module for parsing and sanitizing :class:`FOX.classes.monte_carlo.ARMC` settings."""
-
-from typing import (Callable, Tuple, Any)
-from os import getcwd
-from os.path import isfile, isdir, split, join
-
 import numpy as np
-import pandas as pd
+
+from os.path import join
 
 from scm.plams import Settings
-from scm.plams.core.basejob import Job
-from scm.plams.interfaces.thirdparty.cp2k import Cp2kJob
 
-from .utils import (get_template, _get_move_range, dict_to_pandas, get_atom_count)
-from .cp2k_utils import set_keys
-from .charge_utils import get_charge_constraints
 from ..classes.psf_dict import PSFDict
-from ..classes.multi_mol import MultiMolecule
+from ..functions.utils import (get_template, _get_move_range, dict_to_pandas, get_atom_count)
+from ..functions.cp2k_utils import (set_keys, set_subsys_kind)
+from ..armc_functions.schemas import (
+    get_pes_schema, schema_armc, schema_move, schema_job, schema_param,
+    schema_hdf5, schema_molecule, schema_psf
+)
 
 __all__ = ['init_armc_sanitization']
 
 
-TYPE_ERR = "{} expects an object of type '{}', not '{}'"
-TYPE_ERR2 = "{} expects an object of type '{}' or '{}', not '{}'"
-TYPE_DICT = {
-    'rdf': MultiMolecule.init_rdf,
-    'adf': MultiMolecule.init_adf,
-    'rmsd': MultiMolecule.init_rmsd,
-    'rmsf': MultiMolecule.init_rmsf,
-    'init_rdf': MultiMolecule.init_rdf,
-    'init_adf': MultiMolecule.init_adf,
-    'init_rmsd': MultiMolecule.init_rmsd,
-    'init_rmsf': MultiMolecule.init_rmsf,
-}
+def init_armc_sanitization(dict_: dict) -> Settings:
+    """Initialize the armc input settings sanitization.
+
+    Parameters
+    ----------
+    dict_ : dict
+        A dictionary containing all ARMC settings.
+
+    Returns
+    -------
+    |plams.Settings|_:
+        A Settings instance suitable for ARMC initialization.
+
+    """
+    # Load and apply the template
+    s = get_template('armc_template.yaml')
+    s.update(Settings(dict_))
+
+    # Validate, post-process and return
+    s_ret = validate(s)
+    reshape_settings(s_ret)
+    return s_ret
 
 
-def init_armc_sanitization(dict_: dict) -> Tuple[MultiMolecule, pd.DataFrame, Settings]:
-    """Initialize the armc input settings sanitization."""
-    s = Settings(dict_)
+def validate(s: Settings) -> Settings:
+    """Validate all settings in **s** using schema_.
 
-    s.job, mol = sanitize_job(s.job, s.molecule, s.param.prm_file)
-    s.job.psf = generate_psf(mol, s.psf, s.param, s.job)
-    del s.param.prm_file
-    del s.molecule
-    del s.psf
+    Preset schemas are stored in :mod:`.schemas`.
 
-    s.param = sanitize_param(s.param, s.job.settings, mol)
-    s.pes = sanitize_pes(s.pes, mol)
-    s.hdf5_file = sanitize_hdf5_file(s.hdf5_file)
-    s.move = sanitize_move(s.move)
-    s.armc, s.phi = sanitize_armc(s.armc)
+    .. _schema: https://github.com/keleshev/schema
 
-    param = s.pop('param')
-    param['param'] = param['param'].astype(float, copy=False)
+    Parameters
+    ----------
+    s : |plams.Settings|_
+        A Settings instance containing all ARMC settings.
 
-    return mol, param, s
+    Returns
+    -------
+    |plams.Settings|_:
+        A validated Settings instance.
+
+    """
+    # Flatten the Settings instance
+    job_settings = s.job.pop('settings')
+    pes_settings = s.pop('pes')
+    s_flat = Settings()
+    for k, v in s.items():
+        try:
+            s_flat[k] = v.flatten(flatten_list=False)
+        except AttributeError:
+            s_flat[k] = v
+
+    # Validate the Settings instance
+    s_flat.psf = schema_psf.validate(s_flat.psf)
+    s_flat.job = schema_job.validate(s_flat.job)
+    s_flat.hdf5_file = schema_hdf5.validate(s_flat.hdf5_file)
+    s_flat.armc = schema_armc.validate(s_flat.armc)
+    s_flat.move = schema_move.validate(s_flat.move)
+    s_flat.param = schema_param.validate(s_flat.param)
+    s_flat.molecule = schema_molecule.validate(s_flat.molecule)
+    for k, v in pes_settings.items():
+        schema_pes = get_pes_schema(k)
+        pes_settings[k] = schema_pes.validate(v)
+
+    # Unflatten and return
+    s_ret = Settings()
+    for k, v in s_flat.items():
+        try:
+            s_ret[k] = v.unflatten()
+        except AttributeError:
+            s_ret[k] = v
+
+    s_ret.job.settings = job_settings
+    s_ret.pes = pes_settings
+    return s_ret
 
 
-def finalize_settings(s: Settings) -> Settings:
-    """Post-processing of **settings**."""
-    if not s.psf:
-        s.psf = False
+def reshape_settings(s: Settings) -> None:
+    """Reshape and post-process the validated ARMC settings.
+
+    Parameters
+    ----------
+    s : |plams.Settings|_
+        A Settings instance containing all ARMC settings.
+
+    """
+    s.job.molecule = s.pop('molecule')
+
+    for v in s.pes.values():
+        v.ref = v.func(s.job.molecule, *v.arg, **v.kwarg)
+
+    s.move.range = _get_move_range(**s.move.range)
+    if s.move.charge_constraints is None:
+        s.move.charge_constraints = Settings()
+
+    if s.param.prm_file is None:
+        s.job.settings.input.force_eval.mm.forcefield.parmtype = 'OFF'
+        del s.param.prm_file
+    else:
+        s.job.settings.input.force_eval.mm.forcefield.conn_file_name = s.param.pop('prm_file')
+
+    s.param = dict_to_pandas(s.param, 'param')
+    s.param['param old'] = np.nan
+    s.param['key'] = set_keys(s.job.settings, s.param)
+    s.param['count'] = get_atom_count(s.param.index, s.job.molecule)
+
+    s.phi.phi = s.armc.pop('phi')
+    s.phi.arg = []
+    s.phi.kwarg = Settings()
+    s.phi.func = np.add
+
+    s.job.psf = generate_psf(s.pop('psf'), s.param, s.job)
+    set_subsys_kind(s.job.settings, s.job.psf['atoms'])
 
 
-def generate_psf(mol: MultiMolecule,
-                 psf: Settings,
+def generate_psf(psf: Settings,
                  param: Settings,
                  job: Settings) -> Settings:
-    """Generate the job.psf block."""
-    psf_file = join(job.path, 'mol.psf')
+    """Generate the job.psf block.
 
-    if psf:
+    Parameters
+    ----------
+    psf : |plams.Settings|_
+        The psf block for the ARMC input settings.
+
+    param : |pd.DataFrame|_
+        A DataFrame with all to-be optimized parameters.
+
+    job : |plams.Settings|_
+        The job block of the ARMC input settings.
+
+    Returns
+    -------
+    |plams.Settings|_:
+        The updated psf block
+
+    """
+    psf_file = join(job.path, 'mol.psf')
+    mol = job.molecule
+
+    if all(i is None for i in psf.values()):
+        psf_dict: PSFDict = PSFDict.from_multi_mol(mol)
+        psf_dict.filename = np.array([False])
+    else:
         mol.guess_bonds(atom_subset=psf.ligand_atoms)
         psf_dict: PSFDict = PSFDict.from_multi_mol(mol)
         psf_dict.filename = psf_file
         psf_dict.update_atom_type(psf.str_file)
         job.settings.input.force_eval.subsys.topology.conn_file_name = psf_file
         job.settings.input.force_eval.subsys.topology.conn_file_format = 'PSF'
-    else:
-        psf_dict: PSFDict = PSFDict.from_multi_mol(mol)
-        psf_dict.filename = np.array([False])
 
-    for at, charge in param.charge.items():
-        assert_type(at, str, 'param.')
-        assert_type(charge, (float, np.float), 'param.charge.' + at)
+    for at, charge in param.loc['charge', 'param'].items():
         psf_dict.update_atom_charge(at, charge)
 
     return psf_dict
-
-
-def get_name(item: Any) -> str:
-    """Return the class name of **item**."""
-    return item.__class__.__name__
-
-
-def assert_type(item: Any,
-                item_type: Callable,
-                name: str = 'argument') -> None:
-    if isinstance(item_type, tuple):
-        type1 = item_type[0].__name__
-    else:
-        type1 = item_type.__name__
-
-    if not isinstance(item, item_type):
-        raise TypeError(TYPE_ERR.format(name, type1, get_name(item)))
-
-
-def sanitize_armc(armc: Settings) -> Tuple[Settings, Settings]:
-    """Sanitize the armc block."""
-    assert_type(armc.iter_len, (int, np.integer), 'armc.iter_len')
-    assert_type(armc.sub_iter_len, (int, np.integer), 'armc.sub_iter_len')
-    if armc.sub_iter_len > armc.iter_len:
-        raise ValueError('armc.sub_iter_len is larger than armc.iter_len')
-
-    if hasattr(armc.gamma, '__index__'):
-        armc.gamma = float(armc.gamma)
-    else:
-        assert_type(armc.gamma, (float, np.float), 'armc.gamma')
-
-    if hasattr(armc.a_target, '__index__'):
-        armc.a_target = float(armc.a_target)
-    else:
-        assert_type(armc.a_target, (float, np.float), 'armc.a_target')
-
-    if hasattr(armc.phi, '__index__'):
-        armc.phi = float(armc.phi)
-    else:
-        assert_type(armc.phi, (float, np.float), 'armc.phi')
-
-    phi = Settings()
-    phi.phi = armc.pop('phi')
-    phi.kwarg = {}
-    phi.func = np.add
-
-    return armc, phi
-
-
-def sanitize_param(param: Settings,
-                   settings: Settings,
-                   mol: MultiMolecule) -> Settings:
-    """Sanitize the param block."""
-    def check_key1_type(key1):
-        if not isinstance(key1, str):
-            err = 'param.{}'.format(str(key1)) + ' key', 'str', get_name(key1)
-            raise TypeError(TYPE_ERR.format(*err))
-        elif not isinstance(value1, dict):
-            err = 'param.{}'.format(str(key1)) + ' value', 'dict', get_name(value1)
-            raise TypeError(TYPE_ERR.format(*err))
-
-    def check_key2_type(key2):
-        if not isinstance(key2, str):
-            err = 'param.{}.{}'.format(str(key1), str(key2)) + ' key', 'str', get_name(key2)
-            raise TypeError(TYPE_ERR.format(*err))
-        elif isinstance(value2, (int, np.int)):
-            param[key1][key2] = float(value2)
-        elif not isinstance(value2, (float, np.float, str, dict)):
-            err = 'param.{}.{}'.format(str(key1), str(key2)), 'float', get_name(value2)
-            raise TypeError(TYPE_ERR.format(*err))
-
-    for key1, value1 in param.items():
-        check_key1_type(key1)
-        for key2, value2 in value1.items():
-            check_key2_type(key2)
-
-    param = dict_to_pandas(param, 'param')
-    param['param old'] = np.nan
-    param['key'] = set_keys(settings, param)
-    param['count'] = get_atom_count(param.index, mol)
-    return param
-
-
-def sanitize_pes(pes: Settings,
-                 mol: MultiMolecule) -> Settings:
-    """Sanitize the pes block."""
-    def check_key_type(key, value):
-        assert_type(key, str)
-        if isinstance(value.func, str):
-            try:
-                value.func = TYPE_DICT[value.func.lower().split('.')[-1]]
-            except KeyError:
-                raise KeyError("No type conversion available for '{}', consider directly passing"
-                               " '{}' as type object".format(*[value.func.__name__]*2))
-        assert_type(value.kwarg, dict, 'pes'+str(key)+'kwarg')
-
-    for key, value in pes.items():
-        for i in value.kwarg.values():
-            try:
-                i.sort()
-            except AttributeError:
-                pass
-        check_key_type(key, value)
-        value.ref = value.func(mol, **value.kwarg)
-    return pes
-
-
-def sanitize_hdf5_file(hdf5_file: str) -> str:
-    """Sanitize the hdf5_file block."""
-    if not isinstance(hdf5_file, str):
-        err = 'hdf5_file', 'str', get_name(hdf5_file)
-        raise TypeError(TYPE_ERR.format(*err))
-    return hdf5_file
-
-
-def sanitize_job(job: Settings,
-                 mol: str,
-                 prm_file: str) -> Settings:
-    """Sanitize the job block."""
-    if isinstance(mol, MultiMolecule):
-        pass
-    elif isinstance(mol, str):
-        mol = MultiMolecule.from_xyz(mol)
-    else:
-        raise TypeError(TYPE_ERR2.format('job.molecule', 'FOX.MultiMolecule',
-                                         'str', get_name(job.molecule)))
-
-    if job.func.lower() == 'cp2kjob':
-        job.func = Cp2kJob
-    elif not isinstance(job.func, Job):
-        raise TypeError(TYPE_ERR.format('job.func', 'Job', get_name(job.func)))
-
-    if isinstance(job.settings, str) and isfile(job.settings):
-        head, tail = split(job.settings)
-        job.settings = get_template(tail, path=head)
-    elif isinstance(job.settings, str):
-        job.settings = get_template(job.settings)
-    elif not isinstance(job.settings, dict):
-        err = 'job.settings', 'dict', 'str', get_name(job.settings)
-        raise TypeError(TYPE_ERR2.format(*err))
-    job.settings.soft_update(get_template('md_cp2k_template.yaml'))
-
-    assert_type(job.path, str, 'job.path')
-    if job.path.lower() in ('.', 'pwd', 'cwd', '$pwd'):
-        job.path = getcwd()
-    assert isdir(job.path)
-
-    assert_type(job.name, str, 'job.name')
-    assert_type(job.folder, str, 'job.workdir')
-    assert_type(job.keep_files, bool, 'job.keep_files')
-
-    if 'rmsd_threshold' in job:
-        if isinstance(job.rmsd_threshold, (int, np.integer)):
-            job.rmsd_threshold = float(job.rmsd_threshold)
-        else:
-            assert_type(job.rmsd_threshold, (float, np.float), 'job.rmsd_threshold')
-
-    if prm_file:
-        assert_type(prm_file, str, 'param.prm_file')
-        job.settings.input.force_eval.mm.forcefield.parm_file_name = join(job.path, prm_file)
-        job.settings.input.force_eval.mm.forcefield.parmtype = 'CHM'
-    else:
-
-        job.settings.input.force_eval.mm.forcefield.parmtype = 'OFF'
-    job.settings.input['global'].project = job.name
-
-    return job, mol
-
-
-def sanitize_move(move: Settings) -> Settings:
-    """Sanitize the move block."""
-    move.range = _get_move_range(**move.range)
-    move.func = np.multiply
-    move.kwarg = {}
-    if move.charge_constraints:
-        move.charge_constraints = get_charge_constraints(move.charge_constraints)
-    return move

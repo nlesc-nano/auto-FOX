@@ -35,7 +35,7 @@ molecule: mol.xyz
 
 job:
     logfile: armc.log
-    func: Cp2kJob
+    func: scm.plams.Cp2kJob
     name: armc
     path: .
     folder: MM_MD_workdir

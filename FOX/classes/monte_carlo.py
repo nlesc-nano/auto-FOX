@@ -8,7 +8,7 @@ from typing import (Tuple, List, Dict, Optional, Union, Callable)
 import numpy as np
 import pandas as pd
 
-from scm.plams import Settings, Molecule
+from scm.plams import Settings
 from scm.plams.core.functions import add_to_class
 from scm.plams.interfaces.thirdparty.cp2k import (Cp2kJob, Cp2kResults)
 
@@ -31,13 +31,10 @@ def get_xyz_path(self):
 class MonteCarlo():
     """The base :class:`.MonteCarlo` class."""
 
-    def __init__(self,
-                 molecule: Molecule,
-                 param: pd.DataFrame,
-                 **kwarg: dict) -> None:
+    def __init__(self, **kwarg: dict) -> None:
         """Initialize a :class:`MonteCarlo` instance."""
         # Set the inital forcefield parameters
-        self.param = param
+        self.param = None
 
         # Settings for generating PES descriptors and assigns of reference PES descriptors
         self.pes = Settings()
@@ -47,7 +44,7 @@ class MonteCarlo():
 
         # Settings for running the actual MD calculations
         self.job = Settings()
-        self.job.molecule = molecule
+        self.job.molecule = None
         self.job.psf = {}
         self.job.func = Cp2kJob
         self.job.settings = get_template('md_cp2k_template.yaml')
@@ -112,13 +109,13 @@ class MonteCarlo():
         # Constrain the atomic charges
         if 'charge' in idx:
             at = idx[1]
-            charge = self.move.func(x1, x2, **self.move.kwarg)
+            charge = self.move.func(x1, x2, *self.move.arg, **self.move.kwarg)
             with pd.option_context('mode.chained_assignment', None):
                 update_charge(at, charge, param.loc['charge'], self.move.charge_constraints)
             for k, v, fstring in param.loc['charge', ['key', 'param', 'unit']].values:
                 set_nested_value(self.job.settings, k, fstring.format(v))
         else:
-            param.at[idx, 'param'] = self.move.func(x1, x2, **self.move.kwarg)
+            param.at[idx, 'param'] = self.move.func(x1, x2, *self.move.arg, **self.move.kwarg)
             k, v, fstring = param.loc[idx, ['key', 'param', 'unit']]
             set_nested_value(self.job.settings, k, fstring.format(v))
 
@@ -226,7 +223,7 @@ class MonteCarlo():
         return mol, job.path
 
     @staticmethod
-    def _evaluate_rmsd(mol_preopt: MultiMolecule,
+    def _evaluate_rmsd(mol_preopt: Optional[MultiMolecule],
                        threshold: Optional[float] = None) -> bool:
         """Evaluate the RMSD of the geometry optimization (see :meth:`_md_preopt`).
 
@@ -248,6 +245,8 @@ class MonteCarlo():
             ``False`` if th RMSD is larger than **threshold**, ``True`` if it is not.
 
         """
+        if mol_preopt is None:
+            return False
         threshold = threshold or np.inf
         mol_subset = slice(0, None, len(mol_preopt) - 1)
         rmsd = mol_preopt.get_rmsd(mol_subset)
@@ -287,7 +286,8 @@ class MonteCarlo():
         if mol is None:  # The MD simulation crashed
             ret = {key: np.inf for key, value in self.pes.items()}
         else:
-            ret = {key: value.func(mol, **value.kwarg) for key, value in self.pes.items()}
+            ret = {key: value.func(mol, *value.arg, **value.kwarg) for
+                   key, value in self.pes.items()}
 
         # Delete the output directory and return
         if not self.job.keep_files:

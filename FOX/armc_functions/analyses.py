@@ -60,7 +60,7 @@ def compare_pes_descriptors(filename_in: str,
     """
     # Gather the pes descriptors
     pes_mm = from_hdf5(filename_in, descriptor)[iteration]
-    pes_qm = from_hdf5(filename_in, descriptor + '.ref')
+    pes_qm = from_hdf5(filename_in, descriptor + '.ref')[0]
 
     # Define constants
     ncols = len(pes_mm.columns)
