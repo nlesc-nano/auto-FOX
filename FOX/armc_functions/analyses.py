@@ -15,12 +15,12 @@ try:
 except ImportError:
     __all__ = []
     PltFigure = 'matplotlib.pyplot.Figure'
-    H5PY_ERROR = ("Use of the FOX.{} function requires the 'matplotlib' package."
-                  "\n'matplotlib' can be installed via PyPi with the following command:"
-                  "\n\tpip install matplotlib")
+    PLT_ERROR = ("Use of the FOX.{} function requires the 'matplotlib' package."
+                 "\n'matplotlib' can be installed via PyPi with the following command:"
+                 "\n\tpip install matplotlib")
 
 
-@assert_error(H5PY_ERROR)
+@assert_error(PLT_ERROR)
 def compare_pes_descriptors(filename_in: str,
                             filename_out: str,
                             descriptor: str,
@@ -64,7 +64,7 @@ def compare_pes_descriptors(filename_in: str,
 
     # Define constants
     ncols = len(pes_mm.columns)
-    figsize = (ncols*4, 6)
+    figsize = (4 * ncols, 6)
 
     # Construct the figures
     fig, ax_tup = plt.subplots(ncols=ncols, sharex=True, sharey=False)
