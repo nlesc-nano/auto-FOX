@@ -28,6 +28,7 @@ setup(
         'FOX.data',
         'FOX.examples',
         'FOX.functions',
+        'FOX.armc_functions',
         'FOX.classes',
         'FOX.io'
     ],
