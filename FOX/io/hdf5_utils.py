@@ -424,8 +424,8 @@ def _get_dset(f: H5pyFile,
         A NumPy array or a Pandas DataFrame or Series retrieved from **key** in **f**.
 
     """
-    if key == 'xyz':
-        return _get_xyz_dset(f)
+    if key == 'phi':
+        return dset_to_series(f, key).T
 
     elif 'columns' in f[key].attrs.keys():
         return dset_to_df(f, key)
