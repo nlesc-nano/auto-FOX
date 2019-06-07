@@ -9,15 +9,15 @@ from ..functions.utils import assert_error
 
 try:
     import matplotlib.pyplot as plt
-    __all__ = ['compare_pes_descriptors']
     PltFigure = plt.Figure
     PLT_ERROR = ''
 except ImportError:
-    __all__ = []
     PltFigure = 'matplotlib.pyplot.Figure'
     PLT_ERROR = ("Use of the FOX.{} function requires the 'matplotlib' package."
                  "\n'matplotlib' can be installed via PyPi with the following command:"
                  "\n\tpip install matplotlib")
+
+__all__ = []
 
 
 @assert_error(PLT_ERROR)
@@ -167,11 +167,11 @@ def plot_dset(filename_in: str,
     --------
     .. code:: python
 
-        >>> datasets = ('aux_error', 'acceptance', 'phi')
+        >>> datasets = ('aux_error', 'acceptance')
         >>> fig = plot_pes_descriptors('armc.hdf5', 'dsets.png', datasets)
         >>> fig.show()
 
-    .. image:: dsets.png
+    .. image:: datasets.png
         :align: center
 
     Parameters

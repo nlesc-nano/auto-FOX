@@ -34,10 +34,9 @@ setup(
     ],
     package_dir={'FOX': 'FOX'},
     package_data={'FOX': [
-        'data/*.xyz',
+        'data/Cd68Se55_26COO_MD_trajec.xyz',
         'data/*.yaml',
-        'data/*.str',
-        'data/*.prm'
+        'armc_functions/*.png'
     ]},
     include_package_data=True,
     entry_points={'console_scripts': [
