@@ -9,6 +9,11 @@ from .classes.armc import ARMC
 from .armc_functions.csv import dset_to_csv
 from .armc_functions.plotting import (plot_pes_descriptors, plot_param, plot_dset)
 
+try:
+    import matplotlib.pyplot as plt
+except ImportError:
+    pass
+
 __all__: list = []
 
 
@@ -79,11 +84,11 @@ def main_plot_pes(args: Optional[list] = None) -> None:
     if output is None:
         for dset in datasets:
             fig = plot_pes_descriptors(input_, dset, dset + '.png', iteration=iteration)
-            fig.show()
+            plt.show(block=True)
     else:
         for i, dset in enumerate(datasets):
             fig = plot_pes_descriptors(input_, dset, str(i) + '_' + output, iteration=iteration)
-            fig.show()
+            plt.show(block=True)
 
 
 def main_plot_param(args: Optional[list] = None) -> None:
@@ -114,7 +119,7 @@ def main_plot_param(args: Optional[list] = None) -> None:
         fig = plot_param(input_, 'param.png')
     else:
         fig = plot_param(input_, output)
-    fig.show()
+    plt.show(block=True)
 
 
 def main_plot_dset(args: Optional[list] = None) -> None:
@@ -153,10 +158,9 @@ def main_plot_dset(args: Optional[list] = None) -> None:
 
     if output is None:
         fig = plot_dset(input_, datasets, 'datasets.png')
-        fig.show()
     else:
         fig = plot_dset(input_, datasets, output)
-        fig.show()
+    plt.show(block=True)
 
 
 def main_dset_to_csv(args: Optional[list] = None) -> None:

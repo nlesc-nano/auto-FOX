@@ -93,6 +93,34 @@ class MonteCarlo():
         By default the move is applied in a multiplicative manner.
         **self.job.settings** is updated to reflect the change in parameters.
 
+        Examples
+        --------
+        .. code:: python
+
+            >>> print(armc.param[['param', 'count']])
+            charge                 Br      -0.731687
+                                   Cs       0.731687
+            lennard-jones epsilon  Br Br    1.045000
+                                   Cs Br    0.437800
+                                   Cs Cs    0.300000
+            lennard-jones sigma    Br Br    0.421190
+                                   Cs Br    0.369909
+                                   Cs Cs    0.592590
+            Name: param, dtype: float64
+
+            >>> for _ in range(1000):  # Perform 1000 random moves
+            >>>     armc.move_param()
+            >>> print(armc.param['param'])
+            charge                 Br      -0.597709
+                                   Cs       0.444592
+            lennard-jones epsilon  Br Br    0.653053
+                                   Cs Br    1.088848
+                                   Cs Cs    1.025769
+            lennard-jones sigma    Br Br    0.339293
+                                   Cs Br    0.136361
+                                   Cs Cs    0.101097
+            Name: param, dtype: float64
+
         Returns
         -------
         |tuple|_ [|float|_]:
@@ -234,6 +262,8 @@ class MonteCarlo():
         Parameters
         ----------
         mol_preopt : |FOX.MultiMolecule|_
+            A :class:`.MultiMolecule` instance constructed from a geometry pre-optimization
+            (see :meth:`_md_preopt`).
 
         threshold : float
             Optional: An RMSD threshold in Angstrom.

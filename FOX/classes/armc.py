@@ -343,6 +343,10 @@ class ARMC(MonteCarlo):
         filename : str
             The path+name of the an ARMC hdf5 file.
 
+        Raises
+        ------
+        NotImplementedError
+
         """
         raise NotImplementedError
 

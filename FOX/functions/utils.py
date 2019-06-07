@@ -115,7 +115,7 @@ def assert_error(error_msg: str = '') -> Callable:
 
 
 def get_template(name: str,
-                 path: str = None,
+                 path: Optional[str] = None,
                  as_settings: bool = True) -> dict:
     """Grab a .yaml template and turn it into a Settings object.
 
@@ -150,7 +150,7 @@ def get_template(name: str,
 
 
 def template_to_df(name: str,
-                   path: str = None) -> pd.DataFrame:
+                   path: Optional[str] = None) -> pd.DataFrame:
     """Grab a .yaml template and turn it into a pandas dataframe.
 
     Parameters
