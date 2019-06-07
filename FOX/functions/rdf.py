@@ -37,7 +37,7 @@ def get_rdf_df(atom_pairs: Sequence[Hashable],
     # Create and return the DataFrame
     df = pd.DataFrame(np.zeros(shape), index=index, columns=atom_pairs)
     df.columns.name = 'Atom pairs'
-    df.index.name = 'r  /  Ångström'
+    df.index.name = 'r  /  Angstrom'
     return df
 
 
