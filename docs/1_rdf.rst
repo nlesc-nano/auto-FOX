@@ -16,7 +16,7 @@ constructing RDFs between all possible (user-defined) atom-pairs.
     \frac{V}{N_a*N_b} \sum_{i=1}^{N_a} \sum_{j=1}^{N_b} \left< *placeholder* \right>
 
 
-Given a trajectory, ``mol``, stored as a *MultiMolecule* object, the RDF can
+Given a trajectory, ``mol``, stored as a :class:`.MultiMolecule` instance, the RDF can
 be calculated with the following
 command: ``rdf = mol.init_rdf(atom_subset=None, low_mem=False)``.
 The resulting ``rdf`` is a Pandas_ dataframe, an object which is effectively a
