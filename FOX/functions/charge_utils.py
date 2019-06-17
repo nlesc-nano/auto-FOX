@@ -119,7 +119,7 @@ def update_constrained_charge(at1: str,
         A dataframe with atomic charges.
 
     constrain_dict : dict
-        A dictionary with charge constrains.
+        A dictionary with charge constrains (see :func:`.get_charge_constraints`).
 
     Returns
     -------
@@ -155,6 +155,8 @@ def update_unconstrained_charge(net_charge: float,
                                 df: pd.DataFrame,
                                 exclude: list = []) -> None:
     """Perform an unconstrained update of atomic charges.
+
+    The total charge in **df** is kept equal to **net_charge**.
 
     Performs an inplace update of the ``"charge"`` column in **df**.
 
@@ -229,6 +231,15 @@ def get_charge_constraints(constrain: str) -> Settings:
     Take a string containing a set of interdependent charge constraints and translate
     it into a dictionary containing all arguments and operators.
 
+    The currently supported operators are:
+
+    ================= =======
+     Operation         Symbol
+    ================= =======
+     addition_        ``+``
+     multiplication_  ``*``
+    ================= =======
+
     .. _addition: https://docs.scipy.org/doc/numpy/reference/generated/numpy.add.html
     .. _multiplication: https://docs.scipy.org/doc/numpy/reference/generated/numpy.multiply.html
 
@@ -270,15 +281,6 @@ def get_charge_constraints(constrain: str) -> Settings:
             arg: 	0.5
             func: 	<ufunc 'multiply'>
 
-    The currently supported operators are:
-
-    ================= =======
-     Operation         Symbol
-    ================= =======
-     addition_        ``+``
-     multiplication_  ``*``
-    ================= =======
-
     Parameters
     ----------
     item : str
@@ -319,14 +321,29 @@ def get_charge_constraints(constrain: str) -> Settings:
 
 
 def invert_ufunc(ufunc: Callable) -> Callable:
-    """Invert a NumPyuniversal function.
+    """Invert a NumPy universal function.
 
     Addition will be turned into substraction and multiplication into division.
+
+    Examples
+    --------
+    .. code:: python
+
+        >>> ufunc = np.add
+        >>> ufunc_invert = invert_ufunc(ufunc)
+        >>> print(ufunc_invert)
+        <ufunc 'subtract'>
+
+        >>> ufunc = np.multiply
+        >>> ufunc_invert = invert_ufunc(ufunc)
+        >>> print(ufunc_invert)
+        <ufunc 'true_divide'>
 
     Parameters
     ----------
     ufunc : |Callable|_
         A NumPy universal function (ufunc).
+        Currently accepted ufuncs are ``np.add`` and ``np.multiply``.
 
     Returns
     -------

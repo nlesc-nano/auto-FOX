@@ -1,5 +1,6 @@
 
 sphinx>=1.4
+sphinx-autodoc-typehints
 sphinx_rtd_theme
 matplotlib
 numpy

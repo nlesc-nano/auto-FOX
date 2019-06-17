@@ -1,29 +1,34 @@
 param:
     charge:
+        keys: [input, force_eval, mm, forcefield, charge]
+        constraints: [ 0 < Cs < 2,
+                       1 < Pb < 3,
+                      -2 < Br < 0]
         Cs: 1.000
         Pb: 2.000
         Br: -1.000
-    lennard-jones:
-        epsilon:  # https://doi.org/10.1021/ja00051a040 = {Br: 1.050,  Pb: 2.774, Cs: 0.1883} kj/mol
-            unit: kjmol
-            Cs Cs: 0.1882
-            Cs Br: 0.4447
-            Cs Pb: 0.7227
-            Pb Pb: 2.7740
-            Pb Br: 1.7068
-            Br Br: 1.0501
-        sigma:
-            unit: nm
-            Cs Cs: 0.58
-            Cs Br: 0.38
-            Cs Pb: 0.50
-            Pb Pb: 0.60
-            Pb Br: 0.28
-            Br Br: 0.42
+    epsilon:  # https://doi.org/10.1021/ja00051a040 = {Br: 1.050,  Pb: 2.774, Cs: 0.1883} kj/mol
+        unit: kjmol
+        keys: [input, force_eval, mm, forcefield, nonbonded, lennard-jones]
+        Cs Cs: 0.1882
+        Cs Br: 0.4447
+        Cs Pb: 0.7227
+        Pb Pb: 2.7740
+        Pb Br: 1.7068
+        Br Br: 1.0501
+    sigma:
+        unit: nm
+        keys: [input, force_eval, mm, forcefield, nonbonded, lennard-jones]
+        Cs Cs: 0.58
+        Cs Br: 0.38
+        Cs Pb: 0.50
+        Pb Pb: 0.60
+        Pb Br: 0.28
+        Br Br: 0.42
 
 pes:
     rdf:
-        func: MultiMolecule.init_rdf
+        func: FOX.MultiMolecule.init_rdf
         kwarg:
             atom_subset: [Cs, Pb, Br]
 
@@ -31,14 +36,21 @@ molecule: /Users/basvanbeek/Downloads/cspbbr3_bulk_ortho.xyz
 
 job:
     logfile: /Users/basvanbeek/Downloads/armc.log
-    func: Cp2kJob
+    func: scm.plams.Cp2kJob
     name: armc
     path: /Users/basvanbeek/Downloads
     folder: MM_MD_workdir
     keep_files: True
     rmsd_threshold: 10.0
 
-    settings:
+    preopt_settings:
+        input:
+            motion:
+                geo_opt:
+                    max_iter: 10
+                    optimizer: BFGS
+
+    md_settings:
         input:
             global:
                 print_level: LOW
@@ -50,15 +62,18 @@ job:
                         periodic: XYZ
             motion:
                 md:
-                    ensemble: NVT
+                    ensemble: NPT_F
                     temperature: 300.0
                     timestep: 2.5
-                    time_start_val: 5000
-                    steps: 10000
+                    time_start_val: 0
+                    steps: 100
                     thermostat:
                         type: CSVR
                         csvr:
                             timecon: 1250
+                    barostat:
+                        pressure: 1.01
+                        timecon: 1250
 
 hdf5_file: /Users/basvanbeek/Downloads/armc.hdf5
 

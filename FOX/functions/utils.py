@@ -87,6 +87,26 @@ def assert_error(error_msg: str = '') -> Callable:
         A decorated callable.
 
     """
+    def _function_error(f_type: Callable,
+                        error_msg: str) -> Callable:
+        """Process functions fed into :func:`assert_error`."""
+        if not error_msg:
+            return f_type
+
+        @wraps(f_type)
+        def wrapper(*arg, **kwarg):
+            raise ModuleNotFoundError(error_msg.format(f_type.__name__))
+        return wrapper
+
+    def _class_error(f_type: Callable,
+                     error_msg: str) -> Callable:
+        """Process classes fed into :func:`assert_error`."""
+        if error_msg:
+            @add_to_class(f_type)
+            def __init__(self, *arg, **kwarg):
+                raise ModuleNotFoundError(error_msg.format(f_type.__name__))
+        return f_type
+
     type_dict = {'function': _function_error, 'type': _class_error}
 
     def decorator(func):
@@ -94,30 +114,8 @@ def assert_error(error_msg: str = '') -> Callable:
     return decorator
 
 
-def _function_error(f_type: Callable,
-                    error_msg: str) -> Callable:
-    """Process functions fed into :func:`assert_error`."""
-    if not error_msg:
-        return f_type
-
-    @wraps(f_type)
-    def wrapper(*arg, **kwarg):
-        raise ModuleNotFoundError(error_msg.format(f_type.__name__))
-    return wrapper
-
-
-def _class_error(f_type: Callable,
-                 error_msg: str) -> Callable:
-    """Process classes fed into :func:`assert_error`."""
-    if error_msg:
-        @add_to_class(f_type)
-        def __init__(self, *arg, **kwarg):
-            raise ModuleNotFoundError(error_msg.format(f_type.__name__))
-    return f_type
-
-
 def get_template(name: str,
-                 path: str = None,
+                 path: Optional[str] = None,
                  as_settings: bool = True) -> dict:
     """Grab a .yaml template and turn it into a Settings object.
 
@@ -152,7 +150,7 @@ def get_template(name: str,
 
 
 def template_to_df(name: str,
-                   path: str = None) -> pd.DataFrame:
+                   path: Optional[str] = None) -> pd.DataFrame:
     """Grab a .yaml template and turn it into a pandas dataframe.
 
     Parameters
@@ -249,6 +247,26 @@ def read_str_file(filename: str) -> Optional[zip]:
 def get_shape(item: Iterable) -> Tuple[int]:
     """Try to infer the shape of an object.
 
+    Examples
+    --------
+
+    .. code:: python
+
+        >>> item = np.random.rand(10, 10, 10)
+        >>> shape = get_shape(item)
+        >>> print(shape)
+        (10, 10, 10)
+
+        >>> item = ['a', 'b', 'c', 'd', 'e']
+        >>> shape = get_shape(item)
+        >>> print(shape)
+        (5,)
+
+        >>> item = None
+        >>> shape = get_shape(item)
+        >>> print(shape)
+        (1,)
+
     Parameters
     ----------
     item : object
@@ -262,64 +280,9 @@ def get_shape(item: Iterable) -> Tuple[int]:
     """
     if hasattr(item, 'shape'):  # Plan A: **item** is an np.ndarray derived object
         return item.shape
-    elif hasattr(item, '__len__'):  # Plan B: **item** has access to the __len__() magic method
+    elif hasattr(item, '__len__'):  # Plan B: **item** has access to the __len__ magic method
         return (len(item), )
     return (1, )  # Plan C: **item** has access to neither A nor B
-
-
-def flatten_dict(input_dict: dict,
-                 clip: Optional[int] = None) -> dict:
-    """Flatten a nested dictionary.
-
-    The keys of the to be returned dictionary consist are tuples with the old (nested) keys
-    of **input_dict**.
-
-    Examples
-    --------
-    .. code-block:: python
-
-        >>> print(input_dict)
-        {'a': {'b': {'c': True}}}
-
-        >>> output_dict = flatten_dict(input_dict)
-        >>> print(output_dict)
-        {('a', 'b', 'c'): True}
-
-    Parameters
-    ----------
-    input_dict : dict
-        A (nested) dicionary.
-
-    clip : int
-        The maximum length of the tuple keys.
-        The maximum length is enforced by concatenating the first
-        :math:`n` elements of a tuple key into a string (if necessary).
-
-    Returns
-    -------
-    |dict|_ [|tuple|_, object]:
-        A non-nested dicionary derived from **input_dict**.
-
-    """
-    def concatenate(key_ret, dict_):
-        for key, value in dict_.items():
-            key = key_ret + (key, )
-            if isinstance(value, dict):
-                concatenate(key, value)
-            elif clip is None:
-                ret[key] = value
-            else:
-                i = len(key) - clip + 1
-                try:
-                    key = (' '.join(key[:i]), ) + key[i:]
-                except TypeError:  # Try harder
-                    key = (' '.join(str(j) for j in key[:i]), ) + key[i:]
-                ret[key] = value
-
-    # Changes keys into tuples
-    ret = input_dict.__class__()
-    concatenate((), input_dict)
-    return ret
 
 
 def dict_to_pandas(input_dict: dict,
@@ -329,13 +292,41 @@ def dict_to_pandas(input_dict: dict,
 
     Keys are un-nested and used for generating multiindices (see meth:`flatten_dict`).
 
+    Examples
+    --------
+
+    .. code:: python
+
+        >>> name = 'param'
+        >>> print(input_dict)
+        epsilon:
+                Br Br:  1.0501
+                Cs Br:  0.4447
+                keys:   ['input', 'force_eval', 'mm', 'forcefield', 'nonbonded', 'lennard-jones']
+        sigma:
+              Br Br:    0.42
+              Cs Br:    0.38
+              keys:     ['input', 'force_eval', 'mm', 'forcefield', 'nonbonded', 'lennard-jones']
+              unit:     nm
+
+        >>> df = dict_to_pandas(input_dict, name=name)
+        >>> print(df)
+                                                                   param
+        epsilon Br Br                                             1.0501
+                Cs Br                                             0.4447
+                keys   [input, force_eval, mm, forcefield, nonbonded,...
+        sigma   Br Br                                               0.42
+                Cs Br                                               0.38
+                keys   [input, force_eval, mm, forcefield, nonbonded,...
+                unit                                                  nm
+
     Parameters
     ----------
     input_dict : dict
         A nested dictionary.
 
     name : |Hashable|_
-        The name of the to be returned series or dataframe column.
+        The name of the to be returned series or, alternatively, the dataframe column.
 
     object_type : str
         The object type of the to be returned item.
@@ -348,7 +339,10 @@ def dict_to_pandas(input_dict: dict,
 
     """
     # Construct a MultiIndex
-    flat_dict = flatten_dict(input_dict, clip=2)
+    if not isinstance(input_dict, Settings):
+        flat_dict = Settings(input_dict).flatten(flatten_list=False)
+    else:
+        flat_dict = input_dict.flatten(flatten_list=False)
     idx = pd.MultiIndex.from_tuples(flat_dict.keys())
 
     # Construct a DataFrame or Series
@@ -358,8 +352,8 @@ def dict_to_pandas(input_dict: dict,
     elif pd_type == 'dataframe':
         ret = pd.DataFrame(list(flat_dict.values()), index=idx, columns=[name])
     else:
-        raise ValueError("{} is not an accepted value for the keyword argument 'object_type'."
-                         "Accepted values are 'DataFrame' or 'Series'".format(str(object_type)))
+        raise ValueError("{} is not an accepted value for the keyword argument 'object_type'. "
+                         "Accepted values are 'DataFrame' and 'Series'".format(str(object_type)))
 
     # Sort and return
     ret.sort_index(inplace=True)
@@ -369,7 +363,21 @@ def dict_to_pandas(input_dict: dict,
 def array_to_index(ar: np.ndarray) -> pd.Index:
     """Convert a NumPy array into a Pandas Index or MultiIndex.
 
-    Raises a ``ValueError`` if the dimensionality of **ar** is greater than 2.
+    Examples
+    --------
+
+    .. code:: python
+
+        >>> ar = np.arange(10)
+        >>> idx = array_to_index(ar)
+        >>> print(idx)
+        Int64Index([0, 1, 2, 3, 4, 5, 6, 7, 8, 9], dtype='int64')
+
+        >>> ar = np.random.randint(0, high=100, size=(4, 2))
+        >>> idx = array_to_index(ar)
+        >>> print(idx)
+        MultiIndex(levels=[[30, 97], [13, 45], [42, 86], [44, 63]],
+                   codes=[[0, 1], [1, 0], [1, 0], [0, 1]])
 
     Parameters
     ----------
@@ -380,6 +388,11 @@ def array_to_index(ar: np.ndarray) -> pd.Index:
     -------
     |pd.Index|_ or |pd.MultiIndex|_:
         A Pandas Index or MultiIndex constructed from **ar**.
+
+    Raises
+    ------
+    ValueError
+        Raised if the dimensionality of **ar** is greater than 2.
 
     """
     if 'bytes' in ar.dtype.name:
@@ -403,7 +416,19 @@ def _get_move_range(start: float = 0.005,
                     step: float = 0.005) -> np.ndarray:
     """Generate an with array of all allowed moves.
 
-    Moves span both the positive and negative range.
+    The move range spans a range of 1.0 +- **stop** and moves are thus intended to
+    applied in a multiplicative manner (see :meth:`MonteCarlo.move_param`).
+
+    Examples
+    --------
+    .. code:: python
+
+        >>> move_range = _get_move_range(start=0.005, stop=0.1, step=0.005)
+        >>> print(move_range)
+        [0.9   0.905 0.91  0.915 0.92  0.925 0.93  0.935 0.94  0.945
+         0.95  0.955 0.96  0.965 0.97  0.975 0.98  0.985 0.99  0.995
+         1.005 1.01  1.015 1.02  1.025 1.03  1.035 1.04  1.045 1.05
+         1.055 1.06  1.065 1.07  1.075 1.08  1.085 1.09  1.095 1.1  ]
 
     Parameters
     ----------
@@ -513,9 +538,11 @@ def slice_str(str_: str,
     Examples
     --------
     .. code:: python
+
         >>> my_str = '123456789'
         >>> intervals = [None, 3, 6, None]
-        >>> slice_str(my_str, intervals)
+        >>> str_list = slice_str(my_str, intervals)
+        >>> print(str_list)
         ['123', '456', '789']
 
     Parameters
@@ -542,84 +569,36 @@ def slice_str(str_: str,
     return [str_[i:j] for i, j in zip(iter1, iter2)]
 
 
-def get_nested_value(iterable: Sequence,
-                     key_tup: Iterable[Hashable]) -> Any:
-    """Retrieve a value, associated with all keys in **key_tup**, from a nested iterable.
-
-    The following two expressions are equivalent:
-
-    .. code:: python
-
-        >>> get_nested_value(iterable, ('a', 'b', 3))
-        >>> iterable['a']['b'][3]
-
-    The function calls the **iterable**.__getitem__() method (recursivelly) untill all keys in
-    **key_tup** are exhausted. Works on any iterable container whose elements can be
-    accessed via their index or key (*e.g.* lists, tuples and dictionaries).
-
-    Parameters
-    ----------
-    iterable : object
-        A (nested) iterable container such as a list, tuple or dictionary.
-
-    key_tup : |Sequence|_ [|Hashable|_]
-        A sequence of nested keys and/or indices.
-
-    Returns
-    -------
-    object:
-        The value in **iterable** associated with all keys in **key**.
-
-    """
-    iter_slice = iterable
-    for i in key_tup:
-        iter_slice = iter_slice[i]
-    return iter_slice
-
-
-def set_nested_value(iterable: MutableSequence,
-                     key_tup: Sequence[Hashable],
-                     value: Any) -> None:
-    """Assign a value, associated with all keys and/or indices in **key_tup**,
-    to a nested iterable.
-
-    The following two expressions are equivalent:
-
-    .. code:: python
-
-        >>> set_nested_value(iterable, ('a', 'b', 3), True)
-        >>> iterable['a']['b'][3] = True
-
-    The function calls the **iterable**.__getitem__() method (recursivelly) untill all keys in
-    **key_tup** are exhausted. Works on any mutable iterable container whose elements can be
-    accessed via their index or key (*e.g.* lists and dictionaries).
-
-    Parameters
-    ----------
-    iterable : |MutableSequence|_
-        A mutable (nested) iterable container such as a list or dictionary.
-
-    key_tup : |Sequence|_ [|Hashable|_]
-        A sequence of nested keys and/or indices.
-
-    value : object
-        The to-be assigned value.
-
-    """
-    iter_slice = iterable
-    for i in key_tup[:-1]:
-        iter_slice = iter_slice[i]
-    iter_slice[key_tup[-1]] = value
-
-
 def get_atom_count(iterable: Iterable[Sequence[str]],
                    mol: 'FOX.MultiMolecule') -> List[int]:
     """Count the occurences of each atom/atom-pair (from **iterable**) in **mol**.
+
+    Duplicate values are removed if when evaluating atom pairs when atom-pairs consist of
+    identical atom types (*e.g.* ``"Cd Cd"``).
+
+    Examples
+    --------
+
+    .. code:: python
+
+        >>> Cd_count = len(mol.atoms['Cd'])
+        >>> print(Cd_count)
+        50
+
+        >>> Se_count = len(mol.atoms['Se'])
+        >>> print(Se_count)
+        25
+
+        >>> iterable = ['Cd', 'Cd Se', 'Cd Cd']
+        >>> at_count = get_atom_count(get_atom_count)
+        >>> print(at_count)
+        [50, 1250, 1225]
 
     Parameters
     ----------
     iterable : |Iterable|_ [|Sequence|_ [str]]
         A nested iterable with :math:`n` atoms and/or atom pairs.
+        Atom pairs are to-be provided as space seperated strings (*e.g.* ``"Cd Cd"``).
 
     mol : |FOX.MultiMolecule|_
         A :class:`.MultiMolecule` instance.
@@ -630,15 +609,20 @@ def get_atom_count(iterable: Iterable[Sequence[str]],
         A list of atom(-pair) counts.
 
     """
+    if isinstance(mol, pd.Series):
+        at_list = pd.Series(mol.index, index=mol)
+    else:
+        at_list = mol.atoms
+
     def _get_atom_count(at):
-        at_list = at.split()
-        if len(at_list) == 2 and at_list[0] == at_list[1]:
-            at1, _ = [len(mol.atoms[i]) for i in at_list]
+        atoms = at.split()
+        if len(atoms) == 2 and atoms[0] == atoms[1]:
+            at1, _ = [len(at_list[i]) for i in atoms]
             return (at1**2 - at1) // 2
-        elif len(at_list) == 2:
-            return np.product([len(mol.atoms[i]) for i in at_list])
+        elif len(atoms) == 2:
+            return np.product([len(at_list[i]) for i in atoms])
         else:
-            return len(mol.atoms[at])
+            return len(at_list[at])
 
     return [_get_atom_count(at) for *_, at in iterable]
 
@@ -659,9 +643,90 @@ def get_nested_element(iterable: Iterable) -> Any:
         A (nested) non-iterable element extracted from **iterable**.
 
     """
-    item = iterable
+    ret = iterable
     while True:
         try:
-            item = next(iter(item))
+            ret = next(iter(ret))
         except TypeError:
-            return item
+            return ret
+
+
+def str_to_callable(string: str) -> Callable:
+    """Create a callable object from a string.
+
+    Accepts string-representations of functions, classes and methods, returning the respective
+    callable.
+
+    Examples
+    --------
+    An example with a builtin function:
+
+    .. code:: python
+
+        >>> callable_ = str_to_callable('len')
+        >>> print(callable_)
+        <function len(obj, /)>
+
+        >>> out = callable_([True, True, True])
+        >>> print(out)
+        3
+
+    An example with a third-party function from NumPy:
+
+    .. code:: python
+
+        >>> callable_ = str_to_callable('numpy.add')
+        >>> print(callable_)
+        <ufunc 'add'>
+
+        >>> out = callable_(10, 5)
+        >>> print(out)
+        15
+
+    Another example with a third-party method from the :class:`.MultiMolecule` class in Auto-FOX:
+
+    .. code:: python
+
+        >>> from FOX import get_example_xyz
+
+        >>> callable_ = str_to_callable('FOX.MultiMolecule.from_xyz')
+        >>> print(callable_)
+        <bound method MultiMolecule.from_xyz of <class 'FOX.classes.multi_mol.MultiMolecule'>>
+
+        >>> out = callable_(get_example_xyz())
+        >>> print(type(out))
+        <class 'FOX.classes.multi_mol.MultiMolecule'>
+
+
+    Parameters
+    ----------
+    string : str
+        A string represnting a callable object.
+        The path to the callable should be included in the string (see examples).
+
+    Returns
+    -------
+    |Callable|_:
+        A callable object (*e.g.* function, class or method).
+
+    """
+    if '.' not in string:  # Builtin function or class
+        return eval(string)
+
+    elif string.count('.') == 1:
+        try:  # Builtin method
+            return eval(string)
+        except NameError:  # Non-builtin function or class
+            package, func = string.split('.')
+            exec('from {} import {}'.format(package, func))
+            return eval(func)
+
+    else:
+        try:  # Non-builtin function or class
+            package, func = string.rsplit('.', 1)
+            exec('from {} import {}'.format(package, func))
+            return eval(func)
+        except ImportError:  # Non-builtin method
+            package, class_, method = string.rsplit('.', 2)
+            exec('from {} import {}'.format(package, class_))
+            return eval('.'.join([class_, method]))

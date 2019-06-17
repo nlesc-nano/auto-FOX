@@ -6,17 +6,15 @@ from os.path import (isfile, split)
 
 from typing import (Tuple, Dict)
 import numpy as np
-import pandas as pd
 
-from scm.plams import Settings, Molecule
+from scm.plams import Settings
 from scm.plams.core.functions import (init, finish, config)
 
 from .psf_dict import PSFDict
 from .monte_carlo import MonteCarlo
 from ..io.hdf5_utils import (create_hdf5, to_hdf5, create_xyz_hdf5)
 from ..functions.utils import (get_template, get_class_name, get_func_name)
-from ..functions.cp2k_utils import set_subsys_kind
-from ..functions.armc_sanitization import init_armc_sanitization
+from ..armc_functions.sanitization import init_armc_sanitization
 
 __all__ = ['ARMC']
 
@@ -36,12 +34,9 @@ class ARMC(MonteCarlo):
 
     """
 
-    def __init__(self,
-                 molecule: Molecule,
-                 param: pd.DataFrame,
-                 **kwarg: dict) -> None:
+    def __init__(self, **kwarg: dict) -> None:
         """Initialize a :class:`ARMC` instance."""
-        MonteCarlo.__init__(self, molecule, param, **kwarg)
+        MonteCarlo.__init__(self, **kwarg)
 
         # Settings specific to addaptive rate Monte Carlo (ARMC)
         self.armc = Settings()
@@ -78,7 +73,8 @@ class ARMC(MonteCarlo):
 
         # The self.job block
         ret.job.molecule = str(self.job.molecule.__class__)
-        ret.job.settings = str(self.job.settings.__class__)
+        ret.job.preopt_settings = str(self.job.preopt_settings.__class__)
+        ret.job.md_settings = str(self.job.md_settings.__class__)
         ret.job.psf = str(self.job.psf.__class__)
         ret.job.func = get_class_name(ret.job.func) + '()'
 
@@ -149,10 +145,9 @@ class ARMC(MonteCarlo):
             A new :class:`ARMC` instance.
 
         """
-        molecule, param, dict_ = init_armc_sanitization(armc_dict)
-        set_subsys_kind(dict_.job.settings, dict_.job.psf['atoms'])
-        molecule = molecule.as_Molecule(0)[0]
-        return cls(molecule, param, **dict_)
+        s = init_armc_sanitization(armc_dict)
+        s.job.molecule = s.job.molecule.as_Molecule(0)[0]
+        return cls(**s)
 
     def init_armc(self) -> None:
         """Initialize the Addaptive Rate Monte Carlo procedure."""
@@ -311,7 +306,7 @@ class ARMC(MonteCarlo):
             **aux_error** with updated values.
 
         """
-        return self.phi.func(aux_error, self.phi.phi, **self.phi.kwarg)
+        return self.phi.func(aux_error, self.phi.phi, *self.phi.arg, **self.phi.kwarg)
 
     def update_phi(self, acceptance: np.ndarray) -> None:
         r"""Update the variable :math:`\phi`.
@@ -349,14 +344,22 @@ class ARMC(MonteCarlo):
         filename : str
             The path+name of the an ARMC hdf5 file.
 
+        Raises
+        ------
+        NotImplementedError
+
         """
-        pass
+        raise NotImplementedError
 
 
 def _str(dict_: dict,
          indent1: str = '') -> str:
     ret = ''
-    indent2 = 3 + max(len(i) for i in dict_.keys())
+    indent2 = 3
+    try:
+        indent2 += max(len(i) for i in dict_.keys())
+    except ValueError:
+        pass
     for key, value in sorted(dict_.items()):
         if indent1 == '':
             ret += '\n'

@@ -118,7 +118,8 @@ Arguments
  job.path                   .               The base path for storing the various molecular dynamics jobs
  job.folder                 MM_MD_workdir   The name of the to-be created directory for storing all molecular dynamics jobs
  job.keepfiles              False           Whether the raw MD results should be saved or deleted
- job.settings               input: ...      A dictionary of job settings or the filename of YAML_ file containing job settings
+ job.md_settings            -               A dictionary of MD job settings or the filename of YAML_ file containing job settings
+ job.preopt_setting         -               A dictionary of geometry preoptimization job settings. Suplemented by job.md_settings.
 
  hdf5_file                  ARMC.hdf5       The filename of the to-be created HDF5_ file with all ARMC results
 
@@ -141,7 +142,7 @@ the parameter optimization can be started via the command prompt with:
 PES descriptors
 ---------------
 
-Potential energy surface (PES) descriptors can be descriped in the *pes* block.
+Potential energy surface (PES) descriptors can be descriped in the ``"pes"`` block.
 Provided below is an example where the radial dsitribution function (RDF) is
 used as PES descriptor, more specifically the RDF constructed from all possible
 combinations of cadmium, selenium and oxygen atoms.
@@ -150,14 +151,14 @@ combinations of cadmium, selenium and oxygen atoms.
 
     pes:
         rdf:
-            func: MultiMolecule.init_rdf
+            func: FOX.MultiMolecule.init_rdf
             kwarg:
                 atom_subset: [Cd, Se, O]
 
 Depending on the system of interest it might be of interest to utilize a PES
 descriptor other than the RDF, or potentially even multiple PES descriptors.
 In the latter case the the total auxiliary error is defined as the sum of the
-auxiliary errors of all induvidual PES descriptors, :math:`R` (see :eq:`5`).
+auxiliary errors of all individual PES descriptors, :math:`R` (see :eq:`5`).
 
 .. math::
     :label: 5
@@ -166,20 +167,24 @@ auxiliary errors of all induvidual PES descriptors, :math:`R` (see :eq:`5`).
 
 
 An example is provided below where both radial and angular distribution
-functions (RDF and ADF) are are used as PES descriptors. In this example
-the RDF is construced for all combinations of cadmium, selenium and oxygen
-atoms whereas the ADF is construced for all combinations of cadmium and
-selenium.
+functions (RDF and ADF, respectively) are are used as PES descriptors.
+In this example the RDF is construced for all combinations of
+cadmium, selenium and oxygen atoms (Cd, Se & O),
+whereas the ADF is construced for all combinations of cadmium and selenium atoms
+(Cd & Se).
 
 ::
 
     pes:
         rdf:
-            func: MultiMolecule.init_rdf
+            func: FOX.MultiMolecule.init_rdf
+            arg: []
             kwarg:
                 atom_subset: [Cd, Se, O]
+
         adf:
-            func: MultiMolecule.init_adf
+            func: FOX.MultiMolecule.init_adf
+            arg: []
             kwarg:
                 atom_subset: [Cd, Se]
 
@@ -187,30 +192,40 @@ In principle any function, class or method can be provided here,
 as type object, as long as the following requirements are fulfilled:
 
 * The name of the block must consist of a user-specified string
-  (*rdf* and *adf* in the example(s) above).
-* The *func* key must contain a type object of the requested function,
-  method or class.
-* The *kwarg* key must contain all requested keyword arguments associated
-  with *func*.
-* The supplied function must be able to operate on NumPy arrays or
-  its :class:`.MultiMolecule` subclass.
+  (``"rdf"`` and ``"adf"`` in the example(s) above).
+* The ``"func"`` key must contain a string representation of thee requested
+  function, method or class.
+  Auto-FOX will internally convert the string into a callable object.
+* The supplied callable *must* be able to operate on NumPy arrays or
+  instances of its :class:`.MultiMolecule` subclass.
+* Arguments and keyword argument can be provided with the
+  ``"arg"`` and ``"kwarg"`` keys, respectively.
+  The ``"arg"`` and ``"kwarg"`` keys are entirely optional and
+  can be skipped if desired.
 
-An example of a custom, albit rather nonsensical, PES descriptor:
+
+An example of a custom, albit rather nonsensical, PES descriptor involving the
+numpy.sum_ function is provided below:
 
 ::
 
   pes:
     numpy_sum:
-        func: np.sum
-        kwarg = {}
+        func: numpy.sum
+        kwarg:
+            axis: 0
 
-Which, given a :class:`.MultiMolecule` instance ``mol``, is equivalent to:
+This .yaml input, given a :class:`.MultiMolecule` instance ``mol``, is equivalent to:
 
 .. code:: python
 
+    >>> import numpy as np
+
     >>> func = np.sum
-    >>> kwarg = {}
-    >>> func(mol, **kwarg)
+    >>> arg = []
+    >>> kwarg = {'axis': 0}
+
+    >>> func(mol, *arg, **kwarg)
 
 
 Charge constraints
@@ -237,3 +252,4 @@ FOX.ARMC API
 .. _YAML: https://yaml.org/
 .. _HDF5: https://www.h5py.org/
 .. _Job: https://www.scm.com/doc/plams/components/jobs.html#scm.plams.core.basejob.Job
+.. _numpy.sum: https://docs.scipy.org/doc/numpy/reference/generated/numpy.sum.html

@@ -44,10 +44,8 @@ def test_create_hdf5():
     ref_dict.phi.dtype = np.float
     ref_dict.rdf.shape = 500, 100, 241, 6
     ref_dict.rdf.dtype = np.float
-    ref_dict.rdf_ref.shape = 241, 6
-    ref_dict.rdf_ref.dtype = np.float
-    ref_dict.xyz.shape = 100, 1, 227, 3
-    ref_dict.xyz.dtype = np.float
+    ref_dict['rdf.ref'].shape = 241, 6
+    ref_dict['rdf.ref'].dtype = np.float
 
     create_hdf5(hdf5_path, armc)
     with h5py.File(hdf5_path, 'r') as f:

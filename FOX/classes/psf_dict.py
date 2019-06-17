@@ -10,8 +10,8 @@ from typing import Dict
 
 from collections import defaultdict
 
-from FOX.classes.multi_mol import MultiMolecule
-from FOX.functions.utils import (serialize_array, read_str_file)
+from .multi_mol import MultiMolecule
+from ..functions.utils import (serialize_array, read_str_file, get_shape)
 
 __all__ = ['PSFDict']
 
@@ -114,13 +114,11 @@ class PSFDict(defaultdict):
 
     def __str__(self) -> str:
         ret = ''
-        item = '\tobject:\t {}\n\tshape:\t {}'
+        item = 'key:\t {}, \tshape:\t {}, \ttype:\t {}\n'
         for key, value in self.items():
             if key == '_type_dict':
                 continue
-            ret += item.format(str(type(value)),
-                               str(value.shape)
-                               )
+            ret += item.format(key, str(get_shape(value)), str(type(value)))
         return ret
 
     def __repr__(self) -> str:

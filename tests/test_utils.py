@@ -11,7 +11,7 @@ from scm.plams import Settings
 
 from FOX.functions.utils import (
     assert_error, get_template, template_to_df, serialize_array, read_str_file, get_shape,
-    flatten_dict, dict_to_pandas
+    dict_to_pandas
 )
 
 
@@ -82,24 +82,6 @@ def test_get_shape():
     assert get_shape(a) == (100, 10)
     assert get_shape(b) == (15, )
     assert get_shape(c) == (1, )
-
-
-def test_flatten_dict():
-    """ Test :func:`FOX.functions.utils.flatten_dict`. """
-    dict_ = {}
-    dict_['a'] = {'a1': 1, 'a2': 2, 'a3': 3}
-    dict_['b'] = {'b1': 4, 'b2': 5}
-    dict_['c'] = {'c1': 6}
-
-    ref = {
-        ('a', 'a1'): 1,
-        ('a', 'a2'): 2,
-        ('a', 'a3'): 3,
-        ('b', 'b1'): 4,
-        ('b', 'b2'): 5,
-        ('c', 'c1'): 6
-     }
-    assert flatten_dict(dict_) == ref
 
 
 def test_dict_to_pandas():

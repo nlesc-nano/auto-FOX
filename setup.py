@@ -28,19 +28,23 @@ setup(
         'FOX.data',
         'FOX.examples',
         'FOX.functions',
+        'FOX.armc_functions',
         'FOX.classes',
         'FOX.io'
     ],
     package_dir={'FOX': 'FOX'},
     package_data={'FOX': [
-        'data/*.xyz',
+        'data/Cd68Se55_26COO_MD_trajec.xyz',
         'data/*.yaml',
-        'data/*.str',
-        'data/*.prm'
+        'armc_functions/*.png'
     ]},
     include_package_data=True,
     entry_points={'console_scripts': [
-        'init_armc=FOX.entry_points:main_armc'
+        'init_armc=FOX.entry_points:main_armc',
+        'plot_pes=FOX.entry_points:main_plot_pes',
+        'plot_param=FOX.entry_points:main_plot_param',
+        'plot_dset=FOX.entry_points:main_plot_dset',
+        'dset_to_csv=FOX.entry_points:main_dset_to_csv'
     ]},
     license="GNU General Public License v3 or later",
     zip_safe=False,
@@ -57,15 +61,18 @@ setup(
         'Topic :: Scientific/Engineering :: Chemistry'
         'License :: OSI Approved :: GNU Lesser General Public License',
         'Natural Language :: English',
+        'Programming Language :: Python :: 3',
         'Programming Language :: Python :: 3.7'
     ],
     test_suite='tests',
+    python_requires = '>=3.7',
     install_requires=[
         'pyyaml>=5.1',
         'numpy',
         'scipy',
         'pandas',
-        'plams@git+https://github.com/SCM-NV/PLAMS@master'
+        'schema',
+        'plams@git+https://github.com/SCM-NV/PLAMS@Minor-changes'
     ],
     setup_requires=[
         'pytest-runner',
@@ -79,7 +86,7 @@ setup(
         'pycodestyle'
     ],
     extras_require={
-        'doc': ['sphinx', 'sphinx_rtd_theme', 'matplotlib'],
+        'doc': ['sphinx', 'sphinx_rtd_theme', 'matplotlib', 'sphinx-autodoc-typehints'],
         'test': ['pytest', 'pytest-cov', 'pytest-mock', 'pycodestyle', 'matplotlib']
     }
 )
