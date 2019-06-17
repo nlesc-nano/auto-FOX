@@ -17,7 +17,8 @@ job:
     folder: MM_MD_workdir
     keep_files: False
     rmsd_threshold: 10.0
-    settings: null
+    preopt_settings: null
+    md_settings: null
 
 hdf5_file: armc.hdf5
 

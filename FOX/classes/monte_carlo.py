@@ -13,7 +13,7 @@ from scm.plams.core.functions import add_to_class
 from scm.plams.interfaces.thirdparty.cp2k import (Cp2kJob, Cp2kResults)
 
 from .multi_mol import MultiMolecule
-from ..functions.utils import (get_template, _get_move_range, set_nested_value)
+from ..functions.utils import _get_move_range
 from ..functions.charge_utils import update_charge
 
 __all__: List[str] = []
@@ -47,7 +47,8 @@ class MonteCarlo():
         self.job.molecule = None
         self.job.psf = {}
         self.job.func = Cp2kJob
-        self.job.settings = get_template('md_cp2k_template.yaml')
+        self.job.md_settings = {}
+        self.job.preopt_settings = {}
         self.job.name = self.job.func.__name__.lower()
         self.job.path = os.getcwd()
         self.job.folder = 'MM_MD_workdir'
@@ -91,34 +92,36 @@ class MonteCarlo():
 
         Performs in inplace update of the ``'param'`` column in **self.param**.
         By default the move is applied in a multiplicative manner.
-        **self.job.settings** is updated to reflect the change in parameters.
+        **self.job.md_settings** and **self.job.preopt_settings** are updated to reflect the
+        change in parameters.
 
         Examples
         --------
         .. code:: python
 
-            >>> print(armc.param[['param', 'count']])
-            charge                 Br      -0.731687
-                                   Cs       0.731687
-            lennard-jones epsilon  Br Br    1.045000
-                                   Cs Br    0.437800
-                                   Cs Cs    0.300000
-            lennard-jones sigma    Br Br    0.421190
-                                   Cs Br    0.369909
-                                   Cs Cs    0.592590
+            >>> print(armc.param['param'])
+            charge   Br      -0.731687
+                     Cs       0.731687
+            epsilon  Br Br    1.045000
+                     Cs Br    0.437800
+                     Cs Cs    0.300000
+            sigma    Br Br    0.421190
+                     Cs Br    0.369909
+                     Cs Cs    0.592590
             Name: param, dtype: float64
 
             >>> for _ in range(1000):  # Perform 1000 random moves
             >>>     armc.move_param()
+
             >>> print(armc.param['param'])
-            charge                 Br      -0.597709
-                                   Cs       0.444592
-            lennard-jones epsilon  Br Br    0.653053
-                                   Cs Br    1.088848
-                                   Cs Cs    1.025769
-            lennard-jones sigma    Br Br    0.339293
-                                   Cs Br    0.136361
-                                   Cs Cs    0.101097
+            charge   Br      -0.597709
+                     Cs       0.444592
+            epsilon  Br Br    0.653053
+                     Cs Br    1.088848
+                     Cs Cs    1.025769
+            sigma    Br Br    0.339293
+                     Cs Br    0.136361
+                     Cs Cs    0.101097
             Name: param, dtype: float64
 
         Returns
@@ -133,19 +136,29 @@ class MonteCarlo():
         # Prepare arguments a move
         idx, x1 = next(param.loc[:, 'param'].sample().items())
         x2 = np.random.choice(self.move.range, 1)[0]
+        value = self.move.func(x1, x2, *self.move.arg, **self.move.kwarg)
+
+        # Ensure that the moved value does not exceed the user-specified minimum and maximum
+        if value < self.param.at[idx, 'min']:
+            v_min = self.param.at[idx, 'min']
+            value += v_min - value
+        elif value > self.param.at[idx, 'max']:
+            v_max = self.param.at[idx, 'max']
+            value += v_max - value
 
         # Constrain the atomic charges
         if 'charge' in idx:
             at = idx[1]
-            charge = self.move.func(x1, x2, *self.move.arg, **self.move.kwarg)
             with pd.option_context('mode.chained_assignment', None):
-                update_charge(at, charge, param.loc['charge'], self.move.charge_constraints)
-            for k, v, fstring in param.loc['charge', ['key', 'param', 'unit']].values:
-                set_nested_value(self.job.settings, k, fstring.format(v))
+                update_charge(at, value, param.loc['charge'], self.move.charge_constraints)
+            for k, v, fstring in param.loc['charge', ['keys', 'param', 'unit']].values:
+                self.job.md_settings.set_nested(k, fstring.format(v))
+                self.job.preopt_settings.set_nested(k, fstring.format(v))
         else:
-            param.at[idx, 'param'] = self.move.func(x1, x2, *self.move.arg, **self.move.kwarg)
-            k, v, fstring = param.loc[idx, ['key', 'param', 'unit']]
-            set_nested_value(self.job.settings, k, fstring.format(v))
+            param.at[idx, 'param'] = value
+            k, v, fstring = param.loc[idx, ['keys', 'param', 'unit']]
+            self.job.md_settings.set_nested(k, fstring.format(v))
+            self.job.preopt_settings.set_nested(k, fstring.format(v))
 
         return tuple(self.param['param'].values)
 
@@ -169,17 +182,23 @@ class MonteCarlo():
         job_type = self.job.func
 
         # Prepare preoptimization settings
-        mol_preopt, path1 = self._md_preopt(job_type)
-        preopt_accept = self._evaluate_rmsd(mol_preopt, self.job.rmsd_threshold)
-        if not preopt_accept:
-            mol_preopt = None  # The RMSD is too large; don't bother with the actual MD simulation
+        if self.job.preopt_settings is not None:
+            mol_preopt, path1 = self._md_preopt(job_type)
+            preopt_accept = self._evaluate_rmsd(mol_preopt, self.job.rmsd_threshold)
+            if not preopt_accept:
+                # The RMSD is too large; don't bother with the actual MD simulation
+                mol_preopt = None
 
-        # Run an MD calculation
-        if mol_preopt is not None:
-            mol, path2 = self._md(job_type, mol_preopt)
-            path = (path1, path2)
-        else:
-            mol = None
+            # Run an MD calculation
+            if mol_preopt is not None:
+                mol, path2 = self._md(job_type, mol_preopt)
+                path = (path1, path2)
+            else:
+                mol = None
+                path = (path1,)
+
+        else:  # preoptimization is disabled
+            mol, path1 = self._md(job_type, mol_preopt)
             path = (path1,)
 
         return mol, path
@@ -201,12 +220,7 @@ class MonteCarlo():
             The :class:`.MultiMolecule` is replaced with ``None`` if the job crashes.
 
         """
-        # Prepare settings
-        s = self.job.settings.copy()
-        s.input['global'].run_type = 'geometry_optimization'
-        s.input.motion.geo_opt.max_iter = s.input.motion.md.steps // 200
-        s.input.motion.geo_opt.optimizer = 'BFGS'
-        del s.input.motion.md
+        s = self.job.preopt_settings
 
         # Preoptimize
         job = job_type(name=self.job.name + '_pre_opt', molecule=self.job.molecule, settings=s)
@@ -241,7 +255,7 @@ class MonteCarlo():
 
         """
         mol = mol_preopt.as_Molecule(-1)[0]
-        job = job_type(name=self.job.name, molecule=mol, settings=self.job.settings)
+        job = job_type(name=self.job.name, molecule=mol, settings=self.job.md_settings)
         results = job.run()
 
         try:  # Construct and return a MultiMolecule object

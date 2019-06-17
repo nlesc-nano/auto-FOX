@@ -280,64 +280,9 @@ def get_shape(item: Iterable) -> Tuple[int]:
     """
     if hasattr(item, 'shape'):  # Plan A: **item** is an np.ndarray derived object
         return item.shape
-    elif hasattr(item, '__len__'):  # Plan B: **item** has access to the __len__() magic method
+    elif hasattr(item, '__len__'):  # Plan B: **item** has access to the __len__ magic method
         return (len(item), )
     return (1, )  # Plan C: **item** has access to neither A nor B
-
-
-def flatten_dict(input_dict: dict,
-                 clip: Optional[int] = None) -> dict:
-    """Flatten a nested dictionary.
-
-    The keys of the to be returned dictionary consist are tuples with the old (nested) keys
-    of **input_dict**.
-
-    Examples
-    --------
-    .. code-block:: python
-
-        >>> print(input_dict)
-        {'a': {'b': {'c': True}}}
-
-        >>> output_dict = flatten_dict(input_dict)
-        >>> print(output_dict)
-        {('a', 'b', 'c'): True}
-
-    Parameters
-    ----------
-    input_dict : dict
-        A (nested) dicionary.
-
-    clip : int
-        The maximum length of the tuple keys.
-        The maximum length is enforced by concatenating the first
-        :math:`n` elements of a tuple key into a string (if necessary).
-
-    Returns
-    -------
-    |dict|_ [|tuple|_, object]:
-        A non-nested dicionary derived from **input_dict**.
-
-    """
-    def concatenate(key_ret, dict_):
-        for key, value in dict_.items():
-            key = key_ret + (key, )
-            if isinstance(value, dict):
-                concatenate(key, value)
-            elif clip is None:
-                ret[key] = value
-            else:
-                i = len(key) - clip + 1
-                try:
-                    key = (' '.join(key[:i]), ) + key[i:]
-                except TypeError:  # Try harder
-                    key = (' '.join(str(j) for j in key[:i]), ) + key[i:]
-                ret[key] = value
-
-    # Changes keys into tuples
-    ret = input_dict.__class__()
-    concatenate((), input_dict)
-    return ret
 
 
 def dict_to_pandas(input_dict: dict,
@@ -347,13 +292,41 @@ def dict_to_pandas(input_dict: dict,
 
     Keys are un-nested and used for generating multiindices (see meth:`flatten_dict`).
 
+    Examples
+    --------
+
+    .. code:: python
+
+        >>> name = 'param'
+        >>> print(input_dict)
+        epsilon:
+                Br Br:  1.0501
+                Cs Br:  0.4447
+                keys:   ['input', 'force_eval', 'mm', 'forcefield', 'nonbonded', 'lennard-jones']
+        sigma:
+              Br Br:    0.42
+              Cs Br:    0.38
+              keys:     ['input', 'force_eval', 'mm', 'forcefield', 'nonbonded', 'lennard-jones']
+              unit:     nm
+
+        >>> df = dict_to_pandas(input_dict, name=name)
+        >>> print(df)
+                                                                   param
+        epsilon Br Br                                             1.0501
+                Cs Br                                             0.4447
+                keys   [input, force_eval, mm, forcefield, nonbonded,...
+        sigma   Br Br                                               0.42
+                Cs Br                                               0.38
+                keys   [input, force_eval, mm, forcefield, nonbonded,...
+                unit                                                  nm
+
     Parameters
     ----------
     input_dict : dict
         A nested dictionary.
 
     name : |Hashable|_
-        The name of the to be returned series or dataframe column.
+        The name of the to be returned series or, alternatively, the dataframe column.
 
     object_type : str
         The object type of the to be returned item.
@@ -366,7 +339,10 @@ def dict_to_pandas(input_dict: dict,
 
     """
     # Construct a MultiIndex
-    flat_dict = flatten_dict(input_dict, clip=2)
+    if not isinstance(input_dict, Settings):
+        flat_dict = Settings(input_dict).flatten(flatten_list=False)
+    else:
+        flat_dict = input_dict.flatten(flatten_list=False)
     idx = pd.MultiIndex.from_tuples(flat_dict.keys())
 
     # Construct a DataFrame or Series
@@ -376,8 +352,8 @@ def dict_to_pandas(input_dict: dict,
     elif pd_type == 'dataframe':
         ret = pd.DataFrame(list(flat_dict.values()), index=idx, columns=[name])
     else:
-        raise ValueError("{} is not an accepted value for the keyword argument 'object_type'."
-                         "Accepted values are 'DataFrame' or 'Series'".format(str(object_type)))
+        raise ValueError("{} is not an accepted value for the keyword argument 'object_type'. "
+                         "Accepted values are 'DataFrame' and 'Series'".format(str(object_type)))
 
     # Sort and return
     ret.sort_index(inplace=True)
@@ -593,76 +569,6 @@ def slice_str(str_: str,
     return [str_[i:j] for i, j in zip(iter1, iter2)]
 
 
-def get_nested_value(iterable: Sequence,
-                     key_tup: Iterable[Hashable]) -> Any:
-    """Retrieve a value, associated with all keys in **key_tup**, from a nested iterable.
-
-    The following two expressions are equivalent:
-
-    .. code:: python
-
-        >>> get_nested_value(iterable, ('a', 'b', 3))
-        >>> iterable['a']['b'][3]
-
-    The function calls the **iterable**.__getitem__() method (recursivelly) untill all keys in
-    **key_tup** are exhausted. Works on any iterable container whose elements can be
-    accessed via their index or key (*e.g.* lists, tuples and dictionaries).
-
-    Parameters
-    ----------
-    iterable : object
-        A (nested) iterable container such as a list, tuple or dictionary.
-
-    key_tup : |Sequence|_ [|Hashable|_]
-        A sequence of nested keys and/or indices.
-
-    Returns
-    -------
-    object:
-        The value in **iterable** associated with all keys in **key**.
-
-    """
-    iter_slice = iterable
-    for i in key_tup:
-        iter_slice = iter_slice[i]
-    return iter_slice
-
-
-def set_nested_value(iterable: MutableSequence,
-                     key_tup: Sequence[Hashable],
-                     value: Any) -> None:
-    """Assign a value, associated with all keys and/or indices in **key_tup**,
-    to a nested iterable.
-
-    The following two expressions are equivalent:
-
-    .. code:: python
-
-        >>> set_nested_value(iterable, ('a', 'b', 3), True)
-        >>> iterable['a']['b'][3] = True
-
-    The function calls the **iterable**.__getitem__() method (recursivelly) untill all keys in
-    **key_tup** are exhausted. Works on any mutable iterable container whose elements can be
-    accessed via their index or key (*e.g.* lists and dictionaries).
-
-    Parameters
-    ----------
-    iterable : |MutableSequence|_
-        A mutable (nested) iterable container such as a list or dictionary.
-
-    key_tup : |Sequence|_ [|Hashable|_]
-        A sequence of nested keys and/or indices.
-
-    value : object
-        The to-be assigned value.
-
-    """
-    iter_slice = iterable
-    for i in key_tup[:-1]:
-        iter_slice = iter_slice[i]
-    iter_slice[key_tup[-1]] = value
-
-
 def get_atom_count(iterable: Iterable[Sequence[str]],
                    mol: 'FOX.MultiMolecule') -> List[int]:
     """Count the occurences of each atom/atom-pair (from **iterable**) in **mol**.
@@ -732,12 +638,12 @@ def get_nested_element(iterable: Iterable) -> Any:
         A (nested) non-iterable element extracted from **iterable**.
 
     """
-    item = iterable
+    ret = iterable
     while True:
         try:
-            item = next(iter(item))
+            ret = next(iter(ret))
         except TypeError:
-            return item
+            return ret
 
 
 def str_to_callable(string: str) -> Callable:

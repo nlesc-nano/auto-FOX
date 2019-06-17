@@ -88,7 +88,7 @@ schema_job = Schema({
 
 
 schema_param = Schema({
-    tuple: Or(float, np.float, int, np.integer, str, None,
+    tuple: Or(float, np.float, int, np.integer, str, None, list,
               error='param expects a (nested) dictionary of floats and/or integers')
 })
 

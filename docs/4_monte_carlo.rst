@@ -118,7 +118,8 @@ Arguments
  job.path                   .               The base path for storing the various molecular dynamics jobs
  job.folder                 MM_MD_workdir   The name of the to-be created directory for storing all molecular dynamics jobs
  job.keepfiles              False           Whether the raw MD results should be saved or deleted
- job.settings               input: ...      A dictionary of job settings or the filename of YAML_ file containing job settings
+ job.md_settings            -               A dictionary of MD job settings or the filename of YAML_ file containing job settings
+ job.preopt_setting         -               A dictionary of geometry preoptimization job settings. Suplemented by job.md_settings.
 
  hdf5_file                  ARMC.hdf5       The filename of the to-be created HDF5_ file with all ARMC results
 
@@ -166,9 +167,9 @@ auxiliary errors of all individual PES descriptors, :math:`R` (see :eq:`5`).
 
 
 An example is provided below where both radial and angular distribution
-functions (RDF and ADF, respectively) are are used as PES descriptors. 
-In this example the RDF is construced for all combinations of 
-cadmium, selenium and oxygen atoms (Cd, Se & O), 
+functions (RDF and ADF, respectively) are are used as PES descriptors.
+In this example the RDF is construced for all combinations of
+cadmium, selenium and oxygen atoms (Cd, Se & O),
 whereas the ADF is construced for all combinations of cadmium and selenium atoms
 (Cd & Se).
 
@@ -180,7 +181,7 @@ whereas the ADF is construced for all combinations of cadmium and selenium atoms
             arg: []
             kwarg:
                 atom_subset: [Cd, Se, O]
-                
+
         adf:
             func: FOX.MultiMolecule.init_adf
             arg: []
@@ -192,8 +193,8 @@ as type object, as long as the following requirements are fulfilled:
 
 * The name of the block must consist of a user-specified string
   (``"rdf"`` and ``"adf"`` in the example(s) above).
-* The ``"func"`` key must contain a string representation of thee requested 
-  function, method or class. 
+* The ``"func"`` key must contain a string representation of thee requested
+  function, method or class.
   Auto-FOX will internally convert the string into a callable object.
 * The supplied callable *must* be able to operate on NumPy arrays or
   instances of its :class:`.MultiMolecule` subclass.
@@ -203,7 +204,7 @@ as type object, as long as the following requirements are fulfilled:
   can be skipped if desired.
 
 
-An example of a custom, albit rather nonsensical, PES descriptor involving the 
+An example of a custom, albit rather nonsensical, PES descriptor involving the
 numpy.sum_ function is provided below:
 
 ::
@@ -223,7 +224,7 @@ This .yaml input, given a :class:`.MultiMolecule` instance ``mol``, is equivalen
     >>> func = np.sum
     >>> arg = []
     >>> kwarg = {'axis': 0}
-    
+
     >>> func(mol, *arg, **kwarg)
 
 

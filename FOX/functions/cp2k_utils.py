@@ -1,7 +1,6 @@
 """A module with miscellaneous functions related to CP2K."""
 
-from typing import (List, Tuple, Hashable)
-
+import numpy as np
 import pandas as pd
 
 from scm.plams import Settings
@@ -58,13 +57,16 @@ def set_subsys_kind(settings: Settings,
 
 
 def set_keys(settings: Settings,
-             param: pd.DataFrame) -> List[Tuple[Hashable]]:
-    r"""Find and return the keys in **settings** matching all parameters in **param**.
+             param: pd.DataFrame) -> None:
+    r"""Parse **param** and populate all appropiate blocks in **settings**.
 
-    Units can be specified under the *unit* key (see the CP2K_ documentation for more details).
-    A column of fstrings (``"unit"``) is added to the **param**,
-    simplifying the process of prepending values with a unit without altering the key.
+    Updates/creates three columns in **param**:
 
+        * ``"param"``: Contains the initial parameter value.
+        * ``"unit"``: Contains an fstring for ``"param"``, including the appropiate unit.
+        * ``"keys"``: A list keys pointing to the parameter block of interest.
+
+    See the CP2K_ documentation for more details regarding available units.
 
     .. _CP2K: https://manual.cp2k.org/trunk/units.html
 
@@ -73,33 +75,24 @@ def set_keys(settings: Settings,
     .. code:: python
 
         >>> print(param)
-                                      param
-        charge                Br         -1
-                              Cs          1
-        lennard-jones epsilon unit    kjmol
-                              Br Br  1.0501
-                              Cs Br  0.4447
-        lennard-jones sigma   unit       nm
-                              Br Br    0.42
-                              Cs Br    0.38
+                                                                   param
+        charge  Br                                                  -1.0
+                Cs                                                   1.0
+                keys         [input, force_eval, mm, forcefield, charge]
+        epsilon Cs Br                                             0.4447
+                keys   [input, force_eval, mm, forcefield, nonbonded,...
+                unit                                               kjmol
+        sigma   Cs Br                                               0.38
+                keys   [input, force_eval, mm, forcefield, nonbonded,...
+                unit                                                  nm
 
-        >>> key_list = set_keys(settings, param)
+        >>> set_keys(settings, param)
         >>> print(param)
-                                      param          unit
-        charge                Br    -1.0000          {:f}
-                              Cs     1.0000          {:f}
-        lennard-jones epsilon Br Br  1.0501  [kjmol] {:f}
-                              Cs Br  0.4447  [kjmol] {:f}
-        lennard-jones sigma   Br Br  0.4200     [nm] {:f}
-                              Cs Br  0.3800     [nm] {:f}
-
-        >>> print(key_list)
-        [('input', 'force_eval', 'mm', 'forcefield', 'charge', 0, 'charge'),
-         ('input', 'force_eval', 'mm', 'forcefield', 'charge', 1, 'charge'),
-         ('input', 'force_eval', 'mm', 'forcefield', 'nonbonded', 'lennard-jones', 0, 'epsilon'),
-         ('input', 'force_eval', 'mm', 'forcefield', 'nonbonded', 'lennard-jones', 1, 'epsilon'),
-         ('input', 'force_eval', 'mm', 'forcefield', 'nonbonded', 'lennard-jones', 0, 'sigma'),
-         ('input', 'force_eval', 'mm', 'forcefield', 'nonbonded', 'lennard-jones', 1, 'sigma')]
+                        param          unit                                               keys
+        charge  Br    -1.0000          {:f}  [input, force_eval, mm, forcefield, charge, 0,...
+                Cs     1.0000          {:f}  [input, force_eval, mm, forcefield, charge, 1,...
+        epsilon Cs Br  0.4447  [kjmol] {:f}  [input, force_eval, mm, forcefield, nonbonded,...
+        sigma   Cs Br  0.3800     [nm] {:f}  [input, force_eval, mm, forcefield, nonbonded,...
 
 
     Parameters
@@ -110,54 +103,93 @@ def set_keys(settings: Settings,
     settings : |plams.Settings|_
         CP2K Job settings.
 
-    Returns
-    -------
-    |list|_ [|tuple|_ [|str|_]]:
-        A list of (flattened) CP2K input-settings keys.
-
-
     """
-    # Create a new column in **param** with the quantity units
+    key_list = []
     param['unit'] = None
-    for key in param.index.levels[0]:
-        if 'unit' in param.loc[key].index:
-            unit = param.at[(key, 'unit'), 'param']
-            param.loc[[key], 'unit'] = '[{}]'.format(unit) + ' {:f}'
-            param.drop(index=(key, 'unit'), inplace=True)
+    param['max'] = np.inf
+    param['min'] = -np.inf
+
+    # Create and fill a column with units (fstrings) and key paths
+    for k in param.index.levels[0]:
+        # Idenify if units are specified
+        if 'unit' in param.loc[k].index:
+            unit = param.at[(k, 'unit'), 'param']
+            param.loc[[k], 'unit'] = '[{}]'.format(unit) + ' {:f}'
+            param.drop(index=(k, 'unit'), inplace=True)
         else:
-            param.loc[key, 'unit'] = '{:f}'
+            param.loc[k, 'unit'] = '{:f}'
+
+        # Identify and parse constraints
+        if 'constraints' in param.loc[k].index:
+            constraints = param.at[(k, 'constraints'), 'param']
+            param.drop(index=(k, 'constraints'), inplace=True)
+            _parse_constraints(constraints, param, k)
+
+        # Identify and parse the path
+        keys = param.at[(k, 'keys'), 'param']
+        key_list += [keys.copy() for _ in param.loc[k, 'param']][1:]
+        param.drop(index=(k, 'keys'), inplace=True)
+
+    param['keys'] = key_list
     param['param'] = param['param'].astype(float)
+    _populate_keys(settings, param)
 
-    return _get_key_list(settings, param)
+
+def _parse_constraints(constraints: list,
+                       param: pd.DataFrame,
+                       idx_key: str):
+    # Parse integers and floats
+    list1 = [i.split() for i in constraints]
+    for i in list1:
+        for j, k in enumerate(i):
+            try:
+                i[j] = float(k)
+            except ValueError:
+                pass
+
+    # Parse operators
+    operator_dict = {'<': 'min', '=<': 'min', '>': 'max', '>=': 'max'}
+    invert = {'max': 'min', 'min': 'max'}
+
+    # Set values in **param**
+    for i in list1:
+        for j, k in enumerate(i):
+            if k not in operator_dict:
+                continue
+
+            operator, value, at = operator_dict[k], i[j-1], i[j+1]
+            if isinstance(at, float):
+                at, value = value, at
+                operator = invert[operator]
+            if at not in param.loc[idx_key].index:
+                err = "atom '{}' is specified under 'constraints' yet is absent from '{}'"
+                raise KeyError(err.format(at, idx_key))
+            param.at[(idx_key, at), operator] = value
 
 
-def _get_key_list(settings: Settings,
-                  param: pd.DataFrame) -> List[Tuple[Hashable]]:
-    """Prepare the list of to-be returned keys for :func:`.set_keys`.
-
-    The returned list consists of tuples with a path to specific nested values.
+def _populate_keys(settings: Settings,
+                   param: pd.DataFrame) -> None:
+    """Populate the settings blocks specified in :func:`.set_keys`.
 
     Examples
     --------
     .. code:: python
 
         >>> print(param)
-                                      param          unit
-        charge                Br    -1.0000          {:f}
-                              Cs     1.0000          {:f}
-        lennard-jones epsilon Br Br  1.0501  [kjmol] {:f}
-                              Cs Br  0.4447  [kjmol] {:f}
-        lennard-jones sigma   Br Br  0.4200     [nm] {:f}
-                              Cs Br  0.3800     [nm] {:f}
+            param  unit                                         keys
+        Br   -1.0  {:f}  [input, force_eval, mm, forcefield, charge]
+        Cs    1.0  {:f}  [input, force_eval, mm, forcefield, charge]
+        Pb    2.0  {:f}  [input, force_eval, mm, forcefield, charge]
 
-        >>> key_list = _get_key_list(settings, param)
-        >>> print(key_list)
-        [('input', 'force_eval', 'mm', 'forcefield', 'charge', 0, 'charge'),
-         ('input', 'force_eval', 'mm', 'forcefield', 'charge', 1, 'charge'),
-         ('input', 'force_eval', 'mm', 'forcefield', 'nonbonded', 'lennard-jones', 0, 'epsilon'),
-         ('input', 'force_eval', 'mm', 'forcefield', 'nonbonded', 'lennard-jones', 1, 'epsilon'),
-         ('input', 'force_eval', 'mm', 'forcefield', 'nonbonded', 'lennard-jones', 0, 'sigma'),
-         ('input', 'force_eval', 'mm', 'forcefield', 'nonbonded', 'lennard-jones', 1, 'sigma')]
+        >>> _populate_keys(settings, param)
+        >>> print(settings.input.force_eval.mm.forcefield.charge)
+        [atom:  Br
+        charge:         -1.000000
+        , atom:         Cs
+        charge:         1.000000
+        , atom:         Pb
+        charge:         2.000000
+        ]
 
     Parameters
     ----------
@@ -167,48 +199,32 @@ def _get_key_list(settings: Settings,
     settings : |plams.Settings|_
         CP2K Job settings.
 
-    Returns
-    -------
-    |list|_ [|tuple|_ [|str|_]]:
-        A list of (flattened) keys.
-
     """
-    ret = []
-    forcefield = ('input', 'force_eval', 'mm', 'forcefield')
+    for i in param.index.levels[0]:
+        keys = param.loc[i, 'keys'].iloc[0]
+        settings.set_nested(keys, [])
 
-    for (key, at), (value, fstring) in param[['param', 'unit']].iterrows():
-        # Identify the keys in **settings**
-        if 'charge' in key:
-            super_key = key
-            s = settings.input.force_eval.mm.forcefield
-            atom = 'atom'
-        else:
-            super_key, key = key.split()
-            s = settings.input.force_eval.mm.forcefield.nonbonded
+    for (k, at), (keys, prm, fstring) in param[['keys', 'param', 'unit']].iterrows():
+        # User either 'atoms' or `atom' as key depending on the number of atoms
+        if len(at.split()) != 1:
             atom = 'atoms'
+        else:
+            atom = 'atom'
 
-        # Add a new super_key (*e.g.* lennard-jones)
-        if super_key not in s:
-            s[super_key] = []
-            i = 0
-
-        # Update an existing value if possible
-        new_block = True
-        for i, dict_ in enumerate(s[super_key], 1):
-            if at in dict_.values():
-                i -= 1
-                dict_[key] = fstring.format(value)
-                new_block = False
+        # Evaluate if **param** consists of intersecting or disjoint sets of input blocks
+        nested_value = settings.get_nested(keys)
+        idx = None
+        for i, j in enumerate(nested_value):
+            if atom in j and at == j[atom]:
+                idx = i
                 break
 
-        # Create a new value otherwise
-        if new_block:
-            s[super_key].append(Settings({atom: at, key: fstring.format(value)}))
-
-        # Update the list of to-be returned keys
-        if key == 'charge':
-            ret.append(forcefield + (super_key, i, key))
-        else:
-            ret.append(forcefield + ('nonbonded', super_key, i, key))
-
-    return ret
+        # Populate the blocks specified in the ``"keys"`` column
+        if idx is None:  # Disjoint set of input blocks
+            idx = len(nested_value)
+            dict_ = Settings({atom: at, k: fstring.format(prm)})
+            nested_value.append(dict_)
+            keys += [idx, k]
+        else:  # Intersecting set of input blocks
+            keys += [idx, k]
+            settings.set_nested(keys, fstring.format(prm))

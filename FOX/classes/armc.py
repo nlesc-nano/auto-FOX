@@ -73,7 +73,8 @@ class ARMC(MonteCarlo):
 
         # The self.job block
         ret.job.molecule = str(self.job.molecule.__class__)
-        ret.job.settings = str(self.job.settings.__class__)
+        ret.job.preopt_settings = str(self.job.preopt_settings.__class__)
+        ret.job.md_settings = str(self.job.md_settings.__class__)
         ret.job.psf = str(self.job.psf.__class__)
         ret.job.func = get_class_name(ret.job.func) + '()'
 

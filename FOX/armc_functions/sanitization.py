@@ -1,3 +1,5 @@
+"""A module for parsing and sanitizing ARMC settings."""
+
 import numpy as np
 
 from os.path import join
@@ -42,6 +44,8 @@ def init_armc_sanitization(dict_: dict) -> Settings:
 def validate(s: Settings) -> Settings:
     """Validate all settings in **s** using schema_.
 
+    The PLAMS Settings instance containing all input settings is flattened and then validated
+    with schemas defined by Auto-FOX.
     Preset schemas are stored in :mod:`.schemas`.
 
     .. _schema: https://github.com/keleshev/schema
@@ -58,7 +62,8 @@ def validate(s: Settings) -> Settings:
 
     """
     # Flatten the Settings instance
-    job_settings = s.job.pop('settings')
+    md_settings = s.job.pop('md_settings')
+    preopt_settings = s.job.pop('preopt_settings')
     pes_settings = s.pop('pes')
     s_flat = Settings()
     for k, v in s.items():
@@ -87,7 +92,9 @@ def validate(s: Settings) -> Settings:
         except AttributeError:
             s_ret[k] = v
 
-    s_ret.job.settings = job_settings
+    s_ret.job.md_settings = md_settings
+    s_ret.job.md_settings += get_template('md_cp2k_template.yaml')
+    s_ret.job.preopt_settings = preopt_settings
     s_ret.pes = pes_settings
     return s_ret
 
@@ -110,24 +117,45 @@ def reshape_settings(s: Settings) -> None:
     if s.move.charge_constraints is None:
         s.move.charge_constraints = Settings()
 
-    if s.param.prm_file is None:
-        s.job.settings.input.force_eval.mm.forcefield.parmtype = 'OFF'
-        del s.param.prm_file
-    else:
-        s.job.settings.input.force_eval.mm.forcefield.conn_file_name = s.param.pop('prm_file')
-
-    s.param = dict_to_pandas(s.param, 'param')
-    s.param['param old'] = np.nan
-    s.param['key'] = set_keys(s.job.settings, s.param)
-    s.param['count'] = get_atom_count(s.param.index, s.job.molecule)
-
     s.phi.phi = s.armc.pop('phi')
     s.phi.arg = []
     s.phi.kwarg = Settings()
     s.phi.func = np.add
 
+    _reshape_param(s)
+
     s.job.psf = generate_psf(s.pop('psf'), s.param, s.job)
-    set_subsys_kind(s.job.settings, s.job.psf['atoms'])
+    set_subsys_kind(s.job.md_settings, s.job.psf['atoms'])
+    if s.job.preopt_settings is not None:
+        s.job.preopt_settings = s.job.md_settings + s.job.preopt_settings
+        del s.job.preopt_settings.input.motion.md
+        s.job.preopt_settings['global'].run_type = 'geometry_optimization'
+
+
+def _reshape_param(s: Settings) -> None:
+    """Reshape and post-process the ``"param"`` block in the validated ARMC settings.
+
+    Parameters
+    ----------
+    s : |plams.Settings|_
+        A Settings instance containing all ARMC settings.
+
+    See Also
+    --------
+    :func:`.reshape_settings`:
+        General function for reshaping and post-processing validated ARMC settings.
+
+    """
+    if s.param.prm_file is None:
+        s.job.md_settings.input.force_eval.mm.forcefield.parmtype = 'OFF'
+        del s.param.prm_file
+    else:
+        s.job.md_settings.input.force_eval.mm.forcefield.conn_file_name = s.param.pop('prm_file')
+
+    s.param = dict_to_pandas(s.param, 'param')
+    s.param['param old'] = np.nan
+    set_keys(s.job.md_settings, s.param)
+    s.param['count'] = get_atom_count(s.param.index, s.job.molecule)
 
 
 def generate_psf(psf: Settings,
@@ -149,7 +177,7 @@ def generate_psf(psf: Settings,
     Returns
     -------
     |plams.Settings|_:
-        The updated psf block
+        The updated psf block.
 
     """
     psf_file = join(job.path, 'mol.psf')
@@ -163,8 +191,8 @@ def generate_psf(psf: Settings,
         psf_dict: PSFDict = PSFDict.from_multi_mol(mol)
         psf_dict.filename = psf_file
         psf_dict.update_atom_type(psf.str_file)
-        job.settings.input.force_eval.subsys.topology.conn_file_name = psf_file
-        job.settings.input.force_eval.subsys.topology.conn_file_format = 'PSF'
+        job.md_settings.input.force_eval.subsys.topology.conn_file_name = psf_file
+        job.md_settings.input.force_eval.subsys.topology.conn_file_format = 'PSF'
 
     for at, charge in param.loc['charge', 'param'].items():
         psf_dict.update_atom_charge(at, charge)
