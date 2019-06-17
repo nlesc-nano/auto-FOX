@@ -19,7 +19,7 @@ a :class:`.MultiMolecule` instance.
 
     >>> example_xyz_file = FOX.get_example_xyz()
     >>> mol = FOX.MultiMolecule.from_xyz(example_xyz_file)
-    
+
     >>> print(type(mol))
     <class 'FOX.classes.multi_mol.MultiMolecule'>
 
@@ -30,5 +30,6 @@ API
 .. autofunction:: FOX.io.read_xyz.read_multi_xyz
 
 .. automethod:: FOX.classes.multi_mol.MultiMolecule.from_xyz
+    :noindex:
 
 .. autofunction:: FOX.functions.utils.get_example_xyz

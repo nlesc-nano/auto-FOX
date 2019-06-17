@@ -46,7 +46,8 @@ The algorithm
     the auxiliary error (:math:`\Delta \varepsilon_{QM-MM}`) with respect to
     the previous set of accepted parameters, :math:`S_{k}`
     (see :eq:`1`). Given a PES descriptor, :math:`r`, consisting
-    of a matrix with :math:`N` elements, the auxiliary error is defined in :eq:`2`.
+    of a matrix with :math:`N` elements, the auxiliary error is defined
+    in :eq:`2`.
 
 .. math::
     :label: 2
@@ -97,50 +98,51 @@ The algorithm
 Arguments
 ---------
 
-========================== =============== ===========================================================================================================
- Parameter                  Default         Parameter description
-========================== =============== ===========================================================================================================
- param.prm_file             -               The path+filename of a CHARMM parameter file
- param.charge               -               A dictionary with atoms and matching atomic charges
- param.epsilon              -               A dictionary with atom-pairs and the matching Lennard-Jones :math:`\epsilon` parameter
- param.sigma                -               A dictionary with atom-pairs and the matching Lennard-Jones :math:`\sigma` parameter
+========================== ================== ===========================================================================================================
+ Parameter                  Default            Parameter description
+========================== ================== ===========================================================================================================
+ param.prm_file             -                  The path+filename of a CHARMM parameter file.
+ param.charge               -                  A dictionary with atoms and matching atomic charges.
+ param.epsilon              -                  A dictionary with atom-pairs and the matching Lennard-Jones :math:`\epsilon` parameter.
+ param.sigma                -                  A dictionary with atom-pairs and the matching Lennard-Jones :math:`\sigma` parameter.
 
- psf.str_file               -               The path+filename to a stream file; used for assigning atom types and charges to ligands
- psf.ligand_atoms           -               All atoms within a ligand, used for defining residues
+ psf.str_file               -                  The path+filename to a stream file; used for assigning atom types and charges to ligands.
+ psf.ligand_atoms           -                  All atoms within a ligand, used for defining residues.
 
- pes                        rdf: ...        A dictionary holding one or more functions for constructing PES descriptors
+ pes                        -                  A dictionary holding one or more functions for constructing PES descriptors.
 
- molecule                   -               A :class:`.MultiMolecule` instance or .xyz filename of a reference PES
+ molecule                   -                  A :class:`.MultiMolecule` instance or .xyz filename of a reference PES.
 
- job.logfile                armc.log        The path+filename for the to-be created `PLAMS logfile <https://www.scm.com/doc/plams/components/functions.html#logging>`_.
- job.func                   Cp2kJob         The job type, see Job_
- job.name                   armc            The base name of the various molecular dynamics jobs
- job.path                   .               The base path for storing the various molecular dynamics jobs
- job.folder                 MM_MD_workdir   The name of the to-be created directory for storing all molecular dynamics jobs
- job.keepfiles              False           Whether the raw MD results should be saved or deleted
- job.md_settings            -               A dictionary of MD job settings or the filename of YAML_ file containing job settings
- job.preopt_setting         -               A dictionary of geometry preoptimization job settings. Suplemented by job.md_settings.
+ job.logfile                armc.log           The path+filename for the to-be created `PLAMS logfile <https://www.scm.com/doc/plams/components/functions.html#logging>`_.
+ job.func                   scm.plams.Cp2kJob  The job type, see Job_.
+ job.name                   armc               The base name of the various molecular dynamics jobs.
+ job.path                   .                  The base path for storing the various molecular dynamics jobs.
+ job.folder                 MM_MD_workdir      The name of the to-be created directory for storing all molecular dynamics jobs.
+ job.keepfiles              False              Whether the raw MD results should be saved or deleted.
+ job.md_settings            -                  A dictionary with the MD job settings. Alternativelly,  the filename of YAML_ file can be supplied.
+ job.preopt_setting         -                  A dictionary of geometry preoptimization job settings. Suplemented by job.md_settings.
 
- hdf5_file                  ARMC.hdf5       The filename of the to-be created HDF5_ file with all ARMC results
+ hdf5_file                  ARMC.hdf5          The filename of the to-be created HDF5_ file with all ARMC results.
 
- armc.iter_len              50000           The total number of ARMC iterations :math:`\kappa \omega`
- armc.sub_iter_len          100             The length of each ARMC subiteration :math:`\omega`
- armc.gamma                 2.0             The constant :math:`\gamma`, see :eq:`4`
- armc.a_target              0.25            The target acceptance rate :math:`\alpha_{t}`, see :eq:`4`
- armc.phi                   1.0             The initial value of the variable :math:`\phi`, see :eq:`3` and :eq:`4`
+ armc.iter_len              50000              The total number of ARMC iterations :math:`\kappa \omega`.
+ armc.sub_iter_len          100                The length of each ARMC subiteration :math:`\omega`.
+ armc.gamma                 2.0                The constant :math:`\gamma`, see :eq:`4`.
+ armc.a_target              0.25               The target acceptance rate :math:`\alpha_{t}`, see :eq:`4`.
+ armc.phi                   1.0                The initial value of the variable :math:`\phi`, see :eq:`3` and :eq:`4`.
 
- move.range.start           0.005           Controls the minimum stepsize of Monte Carlo moves
- move.range.stop            0.1             Controls the maximum stepsize of Monte Carlo moves
- move.range.step            0.005           Controls the allowed stepsize values between the minima and maxima
- move.charge_constraints    -               Controls constraints applied to the atomic charges during Monte Carlo moves
-========================== =============== ===========================================================================================================
+ move.range.start           0.005              Controls the minimum stepsize of Monte Carlo moves.
+ move.range.stop            0.1                Controls the maximum stepsize of Monte Carlo moves.
+ move.range.step            0.005              Controls the allowed stepsize values between the minima and maxima.
+ move.charge_constraints    -                  Controls constraints applied to the atomic charges during Monte Carlo moves.
+========================== ================== ===========================================================================================================
 
 Once a the .yaml file with the ARMC settings has been sufficiently customized
 the parameter optimization can be started via the command prompt with:
 :code:`init_armc my_settings.yaml`
 
-PES descriptors
----------------
+
+The pes block
+-------------
 
 Potential energy surface (PES) descriptors can be descriped in the ``"pes"`` block.
 Provided below is an example where the radial dsitribution function (RDF) is
@@ -170,8 +172,8 @@ An example is provided below where both radial and angular distribution
 functions (RDF and ADF, respectively) are are used as PES descriptors.
 In this example the RDF is construced for all combinations of
 cadmium, selenium and oxygen atoms (Cd, Se & O),
-whereas the ADF is construced for all combinations of cadmium and selenium atoms
-(Cd & Se).
+whereas the ADF is construced for all combinations of cadmium and
+selenium atoms (Cd & Se).
 
 ::
 
@@ -203,7 +205,6 @@ as type object, as long as the following requirements are fulfilled:
   The ``"arg"`` and ``"kwarg"`` keys are entirely optional and
   can be skipped if desired.
 
-
 An example of a custom, albit rather nonsensical, PES descriptor involving the
 numpy.sum_ function is provided below:
 
@@ -219,13 +220,76 @@ This .yaml input, given a :class:`.MultiMolecule` instance ``mol``, is equivalen
 
 .. code:: python
 
-    >>> import numpy as np
+    >>> import numpy
 
-    >>> func = np.sum
+    >>> func = numpy.sum
     >>> arg = []
     >>> kwarg = {'axis': 0}
 
     >>> func(mol, *arg, **kwarg)
+
+
+The param block
+---------------
+
+::
+
+    param:
+        charge:
+            keys: [input, force_eval, mm, forcefield, charge]
+            constraints:
+                -  0 < Cs < 2
+                -  1 < Pb < 3
+            Cs: 1.000
+            Pb: 2.000
+        epsilon:
+            unit: kjmol
+            keys: [input, force_eval, mm, forcefield, nonbonded, lennard-jones]
+            Cs Cs: 0.1882
+            Cs Pb: 0.7227
+            Pb Pb: 2.7740
+        sigma:
+            unit: nm
+            keys: [input, force_eval, mm, forcefield, nonbonded, lennard-jones]
+            Cs Cs: 0.58
+            Cs Pb: 0.50
+            Pb Pb: 0.60
+
+The ``"param"`` key in the .yaml input contains all user-specified
+to-be optimized parameters.
+
+
+There are three critical (and two optional) components to the ``"param"``
+block:
+
+    * The key of each block (charge_, epsilon_ & sigma_).
+    * The ``"keys"`` sub-block, which points to the section path in the CP2K settings (*e.g.* `['input', 'force_eval', 'mm', 'forcefield', 'charge'] <https://manual.cp2k.org/trunk/CP2K_INPUT/FORCE_EVAL/MM/FORCEFIELD/CHARGE.html>`_).
+    * The sub-blocks containing either singular atoms_ or `atom pairs <https://manual.cp2k.org/trunk/CP2K_INPUT/FORCE_EVAL/MM/FORCEFIELD/NONBONDED/LENNARD-JONES.html#list_ATOMS>`_.
+
+Together, these three components point to the appropiate path of the
+forcefield parameter(s) of interest.
+As of the moment, all bonded and non-bonded potentials implemented in
+CP2K_ can be accessed via this section of the input file.
+For example, the following input is suitable if one wants to optimize a `torsion potential <https://manual.cp2k.org/trunk/CP2K_INPUT/FORCE_EVAL/MM/FORCEFIELD/TORSION.html#list_K>`_
+(starting from :math:`k = 10 \ kcal/mol`) for all C-C-C-C bonds:
+
+::
+
+    param:
+        k:
+            keys: [input, force_eval, mm, forcefield, torsion]
+            unit: kcalmol
+            C C C C: 10
+
+Besides the three above-mentioned mandatory components, one can
+(optionally) supply the unit_ of the parameter and/or constrain
+its value to a certain range.
+When supplying units, it is the responsibility of the user to ensure
+the units are supported by CP2K.
+Furthermore, parameter constraints are, as of the moment, limited to specifying
+minimum and/or maximum values (*e.g.* :code:`0 < Cs < 2`).
+Additional (more elaborate) constrainst are currently already available for
+atomic charges in the ``move.charge_constraints`` block (see below).
 
 
 Charge constraints
@@ -253,3 +317,10 @@ FOX.ARMC API
 .. _HDF5: https://www.h5py.org/
 .. _Job: https://www.scm.com/doc/plams/components/jobs.html#scm.plams.core.basejob.Job
 .. _numpy.sum: https://docs.scipy.org/doc/numpy/reference/generated/numpy.sum.html
+.. _CP2K: https://manual.cp2k.org/trunk/CP2K_INPUT/FORCE_EVAL/MM/FORCEFIELD.html
+
+.. _charge: https://manual.cp2k.org/trunk/CP2K_INPUT/FORCE_EVAL/MM/FORCEFIELD/CHARGE.html#list_CHARGE
+.. _epsilon: https://manual.cp2k.org/trunk/CP2K_INPUT/FORCE_EVAL/MM/FORCEFIELD/NONBONDED/LENNARD-JONES.html#list_EPSILON
+.. _sigma: https://manual.cp2k.org/trunk/CP2K_INPUT/FORCE_EVAL/MM/FORCEFIELD/NONBONDED/LENNARD-JONES.html#list_SIGMA
+.. _atoms: https://manual.cp2k.org/trunk/CP2K_INPUT/FORCE_EVAL/MM/FORCEFIELD/CHARGE.html#ATOM
+.. _unit: https://manual.cp2k.org/cp2k-6_1-branch/units.html

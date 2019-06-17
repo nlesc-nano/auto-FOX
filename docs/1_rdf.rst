@@ -41,11 +41,11 @@ oxygen (Cd_Cd, Cd_Se, Cd_O, Se_Se, Se_O and O_O).
 
     >>> example_xyz_file = get_example_xyz()
     >>> mol = MultiMolecule.from_xyz(example_xyz_file)
-    
+
     >>> rdf = mol.init_rdf(atom_subset=('Cd', 'Se', 'O'))
     >>> adf = mol.init_adf(atom_subset=('Cd', 'Se'))
-    >>> rdf.plot()
-    >>> adf.plot()
+    >>> rdf.plot(title='RDF')
+    >>> adf.plot(title='ADF')
 
 
 .. plot::
@@ -54,8 +54,8 @@ oxygen (Cd_Cd, Cd_Se, Cd_O, Se_Se, Se_O and O_O).
     mol = MultiMolecule.from_xyz(get_example_xyz())
     rdf = mol.init_rdf(atom_subset=('Cd', 'Se', 'O'))
     adf = mol.init_adf(atom_subset=('Cd', 'Se'))
-    rdf.plot()
-    adf.plot()
+    rdf.plot(title='RDF')
+    adf.plot(title='ADF')
 
 
 API
