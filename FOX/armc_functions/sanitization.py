@@ -69,7 +69,7 @@ def validate(s: Settings) -> Settings:
     for k, v in s.items():
         try:
             s_flat[k] = v.flatten(flatten_list=False)
-        except AttributeError:
+        except (AttributeError, TypeError):
             s_flat[k] = v
 
     # Validate the Settings instance
@@ -155,7 +155,6 @@ def _reshape_param(s: Settings) -> None:
     s.param = dict_to_pandas(s.param, 'param')
     s.param['param old'] = np.nan
     set_keys(s.job.md_settings, s.param)
-    s.param['count'] = get_atom_count(s.param.index, s.job.molecule)
 
 
 def generate_psf(psf: Settings,
@@ -196,5 +195,5 @@ def generate_psf(psf: Settings,
 
     for at, charge in param.loc['charge', 'param'].items():
         psf_dict.update_atom_charge(at, charge)
-
+    param['count'] = get_atom_count(param.index, psf_dict.atoms['atom type'])
     return psf_dict

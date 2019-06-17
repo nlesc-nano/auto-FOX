@@ -6,6 +6,25 @@ All notable changes to this project will be documented in this file.
 This project adheres to `Semantic Versioning <http://semver.org/>`_.
 
 
+0.4.2
+*****
+
+Added
+-----
+* Minimum and maximum allowed values can now be specified for all ARMC paramaters.
+* Added a commandline interface for generating and exporting plots & .csv files.
+* Added a function for translating strings to callable objects.
+
+Changed
+-------
+* Split the armc.job.settings block into .job.md_settings & .job.preopt_setting.
+* Removed the unused FrozenSettings class.
+* Further generalized the param section; a path of keys now has to be specified for each block.
+* Removed a couple of unused functions.
+* Cleaned up the ARMC input parsing; now utilizes `schema <https://pypi.org/project/schema/>`_.
+* Updated many docstrings with examples.
+
+
 0.4.1
 *****
 

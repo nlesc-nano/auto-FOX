@@ -609,15 +609,20 @@ def get_atom_count(iterable: Iterable[Sequence[str]],
         A list of atom(-pair) counts.
 
     """
+    if isinstance(mol, pd.Series):
+        at_list = pd.Series(mol.index, index=mol)
+    else:
+        at_list = mol.atoms
+
     def _get_atom_count(at):
-        at_list = at.split()
-        if len(at_list) == 2 and at_list[0] == at_list[1]:
-            at1, _ = [len(mol.atoms[i]) for i in at_list]
+        atoms = at.split()
+        if len(atoms) == 2 and atoms[0] == atoms[1]:
+            at1, _ = [len(at_list[i]) for i in atoms]
             return (at1**2 - at1) // 2
-        elif len(at_list) == 2:
-            return np.product([len(mol.atoms[i]) for i in at_list])
+        elif len(atoms) == 2:
+            return np.product([len(at_list[i]) for i in atoms])
         else:
-            return len(mol.atoms[at])
+            return len(at_list[at])
 
     return [_get_atom_count(at) for *_, at in iterable]
 

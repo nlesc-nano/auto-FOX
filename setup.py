@@ -61,9 +61,11 @@ setup(
         'Topic :: Scientific/Engineering :: Chemistry'
         'License :: OSI Approved :: GNU Lesser General Public License',
         'Natural Language :: English',
+        'Programming Language :: Python :: 3',
         'Programming Language :: Python :: 3.7'
     ],
     test_suite='tests',
+    python_requires = '>=3.7',
     install_requires=[
         'pyyaml>=5.1',
         'numpy',
@@ -84,7 +86,7 @@ setup(
         'pycodestyle'
     ],
     extras_require={
-        'doc': ['sphinx', 'sphinx_rtd_theme', 'matplotlib'],
+        'doc': ['sphinx', 'sphinx_rtd_theme', 'matplotlib', 'sphinx-autodoc-typehints'],
         'test': ['pytest', 'pytest-cov', 'pytest-mock', 'pycodestyle', 'matplotlib']
     }
 )
