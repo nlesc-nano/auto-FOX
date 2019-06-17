@@ -1,7 +1,9 @@
 param:
     charge:
         keys: [input, force_eval, mm, forcefield, charge]
-        constraints: [0 < Cs < 2, 1 < Pb < 3, -2 < Br < 0]
+        constraints: [ 0 < Cs < 2,
+                       1 < Pb < 3,
+                      -2 < Br < 0]
         Cs: 1.000
         Pb: 2.000
         Br: -1.000
