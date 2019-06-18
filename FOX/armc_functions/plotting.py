@@ -34,9 +34,11 @@ def plot_pes_descriptors(filename_in: str,
     --------
     .. code:: python
 
+        >>> import matplotlib.pyplot as plt
+
         >>> descriptor = 'rdf'
         >>> fig = plot_pes_descriptors('armc.hdf5', 'rdf.png', descriptor)
-        >>> fig.show()
+        >>> plt.show()
 
     .. image:: rdf.png
         :align: center
@@ -102,8 +104,10 @@ def plot_param(filename_in: str,
     --------
     .. code:: python
 
+        >>> import matplotlib.pyplot as plt
+
         >>> fig = plot_pes_descriptors('armc.hdf5', 'param.png')
-        >>> fig.show()
+        >>> plt.show()
 
     .. image:: param.png
         :align: center
@@ -167,9 +171,11 @@ def plot_dset(filename_in: str,
     --------
     .. code:: python
 
+        >>> import matplotlib.pyplot as plt
+
         >>> datasets = ('aux_error', 'acceptance')
         >>> fig = plot_pes_descriptors('armc.hdf5', 'dsets.png', datasets)
-        >>> fig.show()
+        >>> plt.show()
 
     .. image:: datasets.png
         :align: center

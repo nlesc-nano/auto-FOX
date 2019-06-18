@@ -287,17 +287,20 @@ class _MultiMolecule(np.ndarray):
         return self.copy(order='K', copy_attr=True)
 
     def _get_coords_str(self) -> str:
-        idx = pd.MultiIndex.from_tuples(enumerate(self.symbol))
-        if self.ndim == 3:
-            ret = 'Cartesian coordinates {:d}/{:d}:\n'.format(1, self.shape[0])
-            ret += str(pd.DataFrame(self[0], index=idx, columns=['x', 'y', 'z']))
-        elif self.ndim == 2:
-            ret = 'Cartesian coordinates:\n'
-            ret += str(pd.DataFrame(self, index=idx, columns=['x', 'y', 'z']))
-        elif self.ndim == 1:
-            idx = pd.MultiIndex.from_tuples([(0, '')])
-            ret = 'Cartesian coordinates:\n'
-            ret += str(pd.DataFrame(self[None, :], index=idx, columns=['x', 'y', 'z']))
+        try:
+            idx = pd.MultiIndex.from_tuples(enumerate(self.symbol))
+            if self.ndim == 3:
+                ret = 'Cartesian coordinates {:d}/{:d}:\n'.format(1, self.shape[0])
+                ret += str(pd.DataFrame(self[0], index=idx, columns=['x', 'y', 'z']))
+            elif self.ndim == 2:
+                ret = 'Cartesian coordinates:\n'
+                ret += str(pd.DataFrame(self, index=idx, columns=['x', 'y', 'z']))
+            elif self.ndim == 1:
+                idx = pd.MultiIndex.from_tuples([(0, '')])
+                ret = 'Cartesian coordinates:\n'
+                ret += str(pd.DataFrame(self[None, :], index=idx, columns=['x', 'y', 'z']))
+        except ValueError:
+            ret = 'Cartesian coordinates:\n' + super().__str__()
         else:
             ret = 'Cartesian coordinates:\n' + super().__str__()
         return ret
