@@ -51,8 +51,7 @@ class _MultiMolecule(np.ndarray):
                 bonds: Optional[np.ndarray] = None,
                 properties: Optional[Dict[str, Any]] = None) -> _MultiMolecule:
         """Create and return a new object."""
-        obj = np.asarray(coords).view(cls)
-        _MultiMolecule._sanitize_coords(obj)
+        obj = _MultiMolecule._sanitize_coords(coords).view(cls)
 
         # Set attributes
         obj.atoms = _MultiMolecule._sanitize_atoms(atoms)
@@ -70,18 +69,21 @@ class _MultiMolecule(np.ndarray):
         self.properties = getattr(obj, 'properties', None)
 
     @staticmethod
-    def _sanitize_coords(coords: Optional[Union[Sequence, np.ndarray]]) -> None:
+    def _sanitize_coords(coords: Optional[Union[Sequence, np.ndarray]]) -> np.ndarray:
         """Sanitize the 'coords' arguments in :meth:`_MultiMolecule.__new__`."""
-        if not isinstance(coords, abc.Collection):
+        if not isinstance(coords, abc.Sequence) or hasattr(coords, '__array__'):
             raise TypeError(_type_error.format('coords', coords.__class__.__name__))
+        ret = np.asarray(coords)
 
-        if not coords.ndim == 3 or coords.shape[2] != 3:
-            shape = '*'.join('{:d}'.format(i) for i in coords.shape)
+        if not ret.ndim == 3 or ret.shape[2] != 3:
+            shape = '*'.join('{:d}'.format(i) for i in ret.shape)
             print(_shape_warning.format('coords', shape))
 
-        i = get_nested_element(coords)
+        i = get_nested_element(ret)
         if not isinstance(i, (float, np.float)):
-            print(_dtype_warning.format('coords', i.__class__.__name__))
+            print(_dtype_warning.format('ret', i.__class__.__name__))
+
+        return ret
 
     @staticmethod
     def _sanitize_bonds(bonds: Optional[Union[Sequence, np.ndarray]]) -> np.ndarray:
