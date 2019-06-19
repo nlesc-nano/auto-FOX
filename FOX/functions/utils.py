@@ -24,7 +24,7 @@ def append_docstring(item: Callable) -> Callable:
     .. code:: python
 
         >>> def func1():
-        >>>     """'func1 docstring'"""
+        >>>     """'func1 docstring '"""
         >>>     pass
 
         >>> @append_docstring(func1)
@@ -33,9 +33,7 @@ def append_docstring(item: Callable) -> Callable:
         >>>     pass
 
         >>> help(func2)
-        'func2 docstring'
-
-        'func1 docstring'
+        'func2 docstring func1 docstring'
 
     Parameters
     ----------
@@ -50,7 +48,7 @@ def append_docstring(item: Callable) -> Callable:
     """
     def decorator(func):
         try:
-            func.__doc__ += '\n\n' + item.__doc__
+            func.__doc__ += item.__doc__
         except TypeError:
             pass
         return func

@@ -139,8 +139,8 @@ def _parse_constraints(constraints: list,
                        param: pd.DataFrame,
                        idx_key: str):
     # Parse integers and floats
-    list1 = [i.split() for i in constraints]
-    for i in list1:
+    constrain_list = [i.split() for i in constraints]
+    for i in constrain_list:
         for j, k in enumerate(i):
             try:
                 i[j] = float(k)
@@ -152,7 +152,7 @@ def _parse_constraints(constraints: list,
     invert = {'max': 'min', 'min': 'max'}
 
     # Set values in **param**
-    for i in list1:
+    for i in constrain_list:
         for j, k in enumerate(i):
             if k not in operator_dict:
                 continue

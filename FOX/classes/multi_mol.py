@@ -43,29 +43,30 @@ class MultiMolecule(_MultiMolecule):
 
     atoms : dict [str, list [int]]
         A dictionary with atomic symbols as keys and matching atomic indices as values.
-        Stored in the **MultiMolecule.atoms** attribute.
+        Stored in the :attr:`MultiMolecule.atoms` attribute.
 
     bonds : :math:`k*3` |np.ndarray|_ [|np.int64|_]
         A 2D array with indices of the atoms defining all :math:`k` bonds
         (columns 1 & 2) and their respective bond orders multiplied by 10 (column 3).
-        Stored in the **MultiMolecule.bonds** attribute.
+        Stored in the :attr:`MultiMolecule.bonds` attribute.
 
     properties : dict
-        A Settings object (subclass of dictionary) intended for storing
-        miscellaneous user-defined (meta-)data.
+        A Settings instance for storing miscellaneous user-defined (meta-)data.
         Is devoid of keys by default.
-        Stored in the **MultiMolecule.properties** attribute.
+        Stored in the :attr:`MultiMolecule.properties` attribute.
 
     Attributes
     ----------
     atoms : dict [str, list [int]]
-        See the **atoms** paramater.
+        A dictionary with atomic symbols as keys and matching atomic indices as values.
 
     bonds : :math:`k*3` |np.ndarray|_ [|np.int64|_]
-        See the **bonds** paramater.
+        A 2D array with indices of the atoms defining all :math:`k` bonds
+        (columns 1 & 2) and their respective bond orders multiplied by 10 (column 3).
 
     properties : |plams.Settings|_
-        See the **properties** paramater.
+        A Settings instance for storing miscellaneous user-defined (meta-)data.
+        Is devoid of keys by default.
 
     """
 
@@ -143,7 +144,7 @@ class MultiMolecule(_MultiMolecule):
         start : int
             Start of the interval.
 
-        stop int : int
+        stop : int
             End of the interval.
 
         p : float

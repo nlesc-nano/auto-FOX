@@ -9,7 +9,7 @@ from FOX import ARMC
 
 
 # Prepare the ARMC settings
-f = '/Users/basvanbeek/Documents/GitHub/auto-FOX/FOX/examples/private/armc_ivan_bulk.yaml'
+f = '/Users/bvanbeek/Documents/GitHub/auto-FOX/FOX/examples/private/armc_ivan_bulk.yaml'
 armc = ARMC.from_yaml(f)
 
 
@@ -23,4 +23,4 @@ try:
     remove(armc.hdf5_file)
 except FileNotFoundError:
     pass
-armc.init_armc()
+# armc.init_armc()

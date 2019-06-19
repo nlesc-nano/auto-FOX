@@ -10,7 +10,6 @@ import numpy as np
 from scm.plams import Settings
 from scm.plams.core.functions import (init, finish, config)
 
-from .psf_dict import PSFDict
 from .monte_carlo import MonteCarlo
 from ..io.hdf5_utils import (create_hdf5, to_hdf5, create_xyz_hdf5)
 from ..functions.utils import (get_template, get_class_name, get_func_name)
@@ -164,7 +163,7 @@ class ARMC(MonteCarlo):
             config.default_jobmanager.logfile = self.job.logfile
             config.log.file = 3
         if self.job.psf[0]:
-            PSFDict.write_psf(self.job.psf)
+            self.job.psf.write_psf()
 
         # Initialize the first MD calculation
         history_dict: dict = {}

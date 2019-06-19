@@ -21,7 +21,7 @@ from .classes import (
     MultiMolecule,
     ARMC,
     Molecule,
-    PSFDict
+    PSF
 )
 
 __version__ = __version__
@@ -42,5 +42,5 @@ __all__ = [
     'MultiMolecule',
     'ARMC',
     'Molecule',
-    'PSFDict'
+    'PSF'
 ]

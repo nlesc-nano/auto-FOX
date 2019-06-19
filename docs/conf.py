@@ -232,7 +232,7 @@ napoleon_use_admonition_for_examples = True
 # True to use the :ivar: role for instance variables.
 # False to use the .. attribute:: directive instead.
 #  Defaults to False.
-napoleon_use_ivar = True
+napoleon_use_ivar = False
 
 # A string of reStructuredText that will be included at the end of every source file that is read.
 # This is a possible place to add substitutions that should be available in every file (another being rst_prolog).
@@ -240,7 +240,7 @@ rst_epilog = """
 .. _FOX.MultiMolecule: 3_multimolecule.html#api
 .. _FOX.MonteCarlo: 4_monte_carlo.html#fox-montecarlo-api
 .. _FOX.ARMC: 4_monte_carlo.html#fox-armc-api
-.. _FOX.PSFDict: https://github.com/nlesc-nano/auto-FOX/blob/master/FOX/classes/psf_dict.py
+.. _FOX.PSF: https://github.com/nlesc-nano/auto-FOX/blob/master/FOX/classes/psf.py
 .. _plams.PeriodicTable: https://www.scm.com/doc/plams/components/utils.html#periodic-table
 .. _plams.Job: https://www.scm.com/doc/plams/components/jobs.html#job-api
 .. _plams.Settings: https://www.scm.com/doc/plams/components/settings.html
@@ -274,7 +274,7 @@ rst_epilog = """
 .. |FOX.ARMC| replace:: *FOX.ARMC*
 .. |FOX.MonteCarlo| replace:: *FOX.MonteCarlo*
 .. |FOX.MultiMolecule| replace:: *FOX.MultiMolecule*
-.. |FOX.PSFDict| replace:: *FOX.PSFDict*
+.. |FOX.PSF| replace:: *FOX.PSF*
 .. |plams.Job| replace:: *plams.Job*
 .. |plams.Molecule| replace:: *plams.Molecule*
 .. |plams.Settings| replace:: *plams.Settings*

@@ -40,7 +40,7 @@ _type_error: str = ("The '{}' argument expects a sequence. "
 
 
 class _MultiMolecule(np.ndarray):
-    """Private superclass of :class:`FOX.classes.multi_mol.MultiMolecule`.
+    """Private superclass of :class:`.MultiMolecule`.
 
     Handles all magic methods and @property decorated methods.
     """
@@ -70,8 +70,8 @@ class _MultiMolecule(np.ndarray):
 
     @staticmethod
     def _sanitize_coords(coords: Optional[Union[Sequence, np.ndarray]]) -> np.ndarray:
-        """Sanitize the 'coords' arguments in :meth:`_MultiMolecule.__new__`."""
-        if not isinstance(coords, abc.Sequence) or hasattr(coords, '__array__'):
+        """Sanitize the **coords** arguments in :meth:`_MultiMolecule.__new__`."""
+        if not isinstance(coords, abc.Sequence) and not hasattr(coords, '__array__'):
             raise TypeError(_type_error.format('coords', coords.__class__.__name__))
         ret = np.asarray(coords)
 
@@ -87,7 +87,7 @@ class _MultiMolecule(np.ndarray):
 
     @staticmethod
     def _sanitize_bonds(bonds: Optional[Union[Sequence, np.ndarray]]) -> np.ndarray:
-        """Sanitize the 'bonds' arguments in :meth:`_MultiMolecule.__new__`."""
+        """Sanitize the **bonds** arguments in :meth:`_MultiMolecule.__new__`."""
         if bonds is None:
             return np.empty((0, 3), dtype=int)
         elif not isinstance(bonds, abc.Collection):
@@ -100,7 +100,7 @@ class _MultiMolecule(np.ndarray):
 
     @staticmethod
     def _sanitize_atoms(atoms: Optional[Dict[str, List[int]]]) -> Dict[str, List[int]]:
-        """Sanitize the 'atoms' arguments in :meth:`_MultiMolecule.__new__`."""
+        """Sanitize the **atoms** arguments in :meth:`_MultiMolecule.__new__`."""
         type_error = "The 'atoms' argument expects a 'dict' object. A '{}' object was supplied"
 
         if atoms is None:
@@ -111,7 +111,7 @@ class _MultiMolecule(np.ndarray):
 
     @staticmethod
     def _sanitize_properties(properties: Optional[dict]) -> Settings:
-        """Sanitize the 'properties' arguments in :meth:`_MultiMolecule.__new__`."""
+        """Sanitize the **properties** arguments in :meth:`_MultiMolecule.__new__`."""
         type_error = "The 'properties' argument expects a 'dict' object. A '{}' object was supplied"
 
         if properties is None:
@@ -124,7 +124,8 @@ class _MultiMolecule(np.ndarray):
 
     @property
     def atom12(self) -> _MultiMolecule:
-        """Get or set the indices of the atoms for all bonds in **self.bonds** as 2D array."""
+        """Get or set the indices of the atoms for all bonds in
+        :attr:`.MultiMolecule.bonds` as 2D array."""
         return self.bonds[:, 0:2]
 
     @atom12.setter
@@ -133,7 +134,8 @@ class _MultiMolecule(np.ndarray):
 
     @property
     def atom1(self) -> _MultiMolecule:
-        """Get or set the indices of the first atoms in all bonds of **self.bonds** as 1D array."""
+        """Get or set the indices of the first atoms in all bonds of
+        :attr:`.MultiMolecule.bonds` as 1D array."""
         return self.bonds[:, 0]
 
     @atom1.setter
@@ -142,7 +144,8 @@ class _MultiMolecule(np.ndarray):
 
     @property
     def atom2(self) -> np.ndarray:
-        """Get or set the indices of the second atoms in all bonds of **self.bonds** as 1D array."""
+        """Get or set the indices of the second atoms in all bonds of
+        :attr:`.MultiMolecule.bonds` as 1D array."""
         return self.bonds[:, 1]
 
     @atom2.setter
@@ -151,7 +154,7 @@ class _MultiMolecule(np.ndarray):
 
     @property
     def order(self) -> np.ndarray:
-        """Get or set the bond orders for all bonds in **self.bonds** as 1D array."""
+        """Get or set the bond orders for all bonds in :attr:`.MultiMolecule.bonds` as 1D array."""
         return self.bonds[:, 2] / 10.0
 
     @order.setter
@@ -160,7 +163,7 @@ class _MultiMolecule(np.ndarray):
 
     @property
     def x(self) -> _MultiMolecule:
-        """Get or set the x coordinates for all atoms in **self** as 2D array."""
+        """Get or set the x coordinates for all atoms in instance as 2D array."""
         return self[:, :, 0]
 
     @x.setter
@@ -169,7 +172,7 @@ class _MultiMolecule(np.ndarray):
 
     @property
     def y(self) -> _MultiMolecule:
-        """Get or set the y coordinates for all atoms in **self** as 2D array."""
+        """Get or set the y coordinates for all atoms in this instance as 2D array."""
         return self[:, :, 1]
 
     @y.setter
@@ -178,7 +181,7 @@ class _MultiMolecule(np.ndarray):
 
     @property
     def z(self) -> _MultiMolecule:
-        """Get or set the z coordinates for all atoms in **self** as 2D array."""
+        """Get or set the z coordinates for all atoms in this instance as 2D array."""
         return self[:, :, 2]
 
     @z.setter
@@ -187,27 +190,27 @@ class _MultiMolecule(np.ndarray):
 
     @property
     def symbol(self) -> np.ndarray:
-        """Get the atomic symbols of all atoms in **self.atoms** as 1D array."""
+        """Get the atomic symbols of all atoms in :attr:`.MultiMolecule.atoms` as 1D array."""
         return self._get_atomic_property('symbol')
 
     @property
     def atnum(self) -> np.ndarray:
-        """Get the atomic numbers of all atoms in **self.atoms** as 1D array."""
+        """Get the atomic numbers of all atoms in :attr:`.MultiMolecule.atoms` as 1D array."""
         return self._get_atomic_property('atnum')
 
     @property
     def mass(self) -> np.ndarray:
-        """Get the atomic masses of all atoms in **self.atoms** as 1D array."""
+        """Get the atomic masses of all atoms in :attr:`.MultiMolecule.atoms` as 1D array."""
         return self._get_atomic_property('mass')
 
     @property
     def radius(self) -> np.ndarray:
-        """Get the atomic radii of all atoms in **self.atoms** as 1d array."""
+        """Get the atomic radii of all atoms in :attr:`.MultiMolecule.atoms` as 1d array."""
         return self._get_atomic_property('radius')
 
     @property
     def connectors(self) -> np.ndarray:
-        """Get the atomic connectors of all atoms in **self.atoms** as 1D array."""
+        """Get the atomic connectors of all atoms in :attr:`.MultiMolecule.atoms` as 1D array."""
         return self._get_atomic_property('connectors')
 
     def _get_atomic_property(self, prop: str = 'symbol') -> np.ndarray:

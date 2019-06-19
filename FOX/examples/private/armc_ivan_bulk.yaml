@@ -32,7 +32,7 @@ pes:
         kwarg:
             atom_subset: [Cs, Pb, Br]
 
-molecule: /Users/basvanbeek/Downloads/cspbbr3_bulk_ortho.xyz
+molecule: /Users/bvanbeek/Downloads/cspbbr3_bulk_ortho.xyz
 
 job:
     logfile: /Users/basvanbeek/Downloads/armc.log
