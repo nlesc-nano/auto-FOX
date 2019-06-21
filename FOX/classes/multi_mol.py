@@ -1272,8 +1272,8 @@ class MultiMolecule(_MultiMolecule):
         ADFs are calculated for all possible atom-pairs in **atom_subset** and returned as a
         dataframe.
 
-        Each angle, :math:`\phi_{ijk}`, is weighted by the weighting factor :math:`v`
-        according to:
+        Each angle, :math:`\phi_{ijk}`, is weighted by the distance according to the
+        weighting factor :math:`v`:
 
         .. math::
 
