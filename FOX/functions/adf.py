@@ -1,6 +1,6 @@
 """A module for constructing angular distribution functions."""
 
-from typing import (Sequence, Hashable)
+from typing import (Sequence, Hashable, Dict)
 
 import numpy as np
 import pandas as pd
@@ -22,14 +22,10 @@ def get_adf_df(atom_pairs: Sequence[Hashable]) -> pd.DataFrame:
         An empty dataframe.
 
     """
-    # Prepare the DataFrame arguments
-    shape = 181, len(atom_pairs)
-    index = np.arange(181)
-
     # Create and return the DataFrame
-    df = pd.DataFrame(np.empty(shape), index=index, columns=atom_pairs)
+    index = pd.RangeIndex(1, 181, name='phi  /  Degrees')
+    df = pd.DataFrame(0.0, index=index, columns=atom_pairs)
     df.columns.name = 'Atom pairs'
-    df.index.name = 'phi  /  Degrees'
     return df
 
 
@@ -60,8 +56,46 @@ def get_adf(ang_mat: np.ndarray,
     volume = (4/3) * np.pi * (0.5 * r_max)**3
     dens_mean = ang_mat.shape[1] / volume
 
-    dens = np.array([np.bincount(i.flatten(), minlength=181)[:181] for i in ang_int], dtype=float)
+    dens = np.array([np.bincount(i.ravel(), minlength=181)[1:181] for i in ang_int], dtype=float)
     dens /= np.product(ang_mat.shape[-2:])  # Correct for the number of reference atoms
     dens /= volume / 181  # Convert the particle count into a partical density
     dens /= dens_mean  # Normalize the particle density
     return np.average(dens, axis=0)
+
+
+def get_adf2(ang: np.ndarray,
+             atnum_ar: np.ndarray,
+             atnum_dict: Dict[int, int],
+             dist: np.ndarray) -> np.ndarray:
+    """Calculate and return the angular distribution function (ADF).
+
+    The ADF is based on the 4D angle matrix **ang_mat**.
+
+    Parameters
+    ----------
+    ang : :math:`m*n*k*l` |np.ndarray|_ [|np.float64|_]
+        A 4D angle matrix constructed from :math:`m` molecules and three sets of
+        :math:`n`, :math:`k` and :math:`l` atoms.
+
+    Returns
+    -------
+    :math:`181` |np.ndarray|_ [|np.float64|_]:
+        A 1D array with an angular distribution function spanning all values between 0 and 180
+        degrees.
+
+    """
+    ang_int = np.degrees(ang).astype(dtype=int)
+
+    ret = []
+    for k, v in atnum_dict.items():
+        j = atnum_ar == k
+        dist_flat = dist[j]
+        r_max = -np.log(dist_flat.min())
+        volume = (4/3) * np.pi * (0.5 * r_max)**3
+
+        denominator = (volume / 180) * len(dist_flat) / v
+        dens = np.array(np.bincount(ang_int[j], dist_flat, minlength=181)[1:181], dtype=float)
+        dens /= denominator
+        ret.append(dens)
+
+    return np.array(ret).T

@@ -10,16 +10,23 @@ from typing import (
 
 import numpy as np
 import pandas as pd
+from scipy.spatial import cKDTree
 from scipy.spatial.distance import cdist
 
-from scm.plams import (Atom, Bond)
+from scm.plams import (Atom, Bond, PeriodicTable)
 
 from .molecule_utils import Molecule
 from .multi_mol_magic import _MultiMolecule
 from ..io.read_kf import read_kf
 from ..io.read_xyz import read_multi_xyz
 from ..functions.rdf import (get_rdf, get_rdf_lowmem, get_rdf_df)
-from ..functions.adf import (get_adf, get_adf_df)
+from ..functions.adf import (get_adf, get_adf2, get_adf_df)
+
+try:
+    import dask
+    DASK: bool = True
+except ImportError:
+    DASK: bool = False
 
 __all__ = ['MultiMolecule']
 
@@ -69,6 +76,44 @@ class MultiMolecule(_MultiMolecule):
         Is devoid of keys by default.
 
     """
+
+    def delete_atoms(self, atom_subset: AtomSubset) -> MultiMolecule:
+        """Create a copy of this instance with all atoms in **atom_subset** removed.
+
+        Paramaters
+        ----------
+        atom_subset : |Sequence|_
+            Perform the calculation on a subset of atoms in this instance, as
+            determined by their atomic index or atomic symbol.
+            Include all :math:`n` atoms per molecule in this instance if ``None``.
+
+        Returns
+        -------
+        |FOX.MultiMolecule|_
+            A new :class:`.MultiMolecule` instance with all atoms in **atom_subset** removed.
+
+        Raises
+        ------
+        TypeError
+            Raised if **atom_subset** is ``None``.
+
+        """
+        if atom_subset is None:
+            raise TypeError("'None' is an invalid value for 'atom_subset'")
+
+        at_subset = np.array(self._get_atom_subset(atom_subset, as_sequence=True))
+        idx = np.arange(0, self.shape[1])[~at_subset]
+        ret = self[:, idx].copy()
+
+        symbols = self.symbol[idx]
+        ret.atoms = {}
+        for i, at in enumerate(symbols):
+            try:
+                ret.atoms[at].append(i)
+            except KeyError:
+                ret.atoms[at] = [i]
+
+        return ret
 
     def guess_bonds(self, atom_subset: AtomSubset = None) -> None:
         """Guess bonds within the molecules based on atom type and inter-atomic distances.
@@ -1218,6 +1263,97 @@ class MultiMolecule(_MultiMolecule):
             return {str_.format(*i): i for i in values}
 
     """############################  Angular Distribution Functions  ######################### """
+
+    def init_adf_v2(self, mol_subset: MolSubset = None,
+                    atom_subset: AtomSubset = None,
+                    r_max: float = 8.0) -> pd.DataFrame:
+        r"""Initialize the calculation of distance-weighted angular distribution functions (ADFs).
+
+        ADFs are calculated for all possible atom-pairs in **atom_subset** and returned as a
+        dataframe.
+
+        Each angle, :math:`\phi_{ijk}`, is weighted by the weighting factor :math:`v`
+        according to:
+
+        .. math::
+
+            v = \Biggl \lbrace
+            {
+                e^{-r_{ji}}, \quad r_{ji} \; \gt \; r_{jk}
+                \atop
+                e^{-r_{jk}}, \quad r_{ji} \; \lt \; r_{jk}
+            }
+
+        Parameters
+        ----------
+        mol_subset : slice
+            Perform the calculation on a subset of molecules in this instance, as
+            determined by their moleculair index.
+            Include all :math:`m` molecules in this instance if ``None``.
+
+        atom_subset : |Sequence|_
+            Perform the calculation on a subset of atoms in this instance, as
+            determined by their atomic index or atomic symbol.
+            Include all :math:`n` atoms per molecule in this instance if ``None``.
+
+        r_max : |float|_
+            The maximum inter-atomic distance (in Angstrom) for which angles are constructed.
+
+        Returns
+        -------
+        |pd.DataFrame|_
+            A dataframe of angular distribution functions, averaged over all conformations in
+            this instance.
+
+        """
+        m_subset = self._get_mol_subset(mol_subset)
+        at_subset = np.array(self._get_atom_subset(atom_subset, as_sequence=True))
+
+        get_atnum = PeriodicTable.get_atomic_number
+        atom_pairs = self.get_pair_dict(atom_subset or list(self.atoms), r=3)
+        atnum_dict = {}
+        for at1, at2, at3 in atom_pairs.values():
+            key = (get_atnum(at1) + get_atnum(at3)) * get_atnum(at2)
+            value = np.count_nonzero(self.atoms[at2])
+            atnum_dict[key] = value
+
+        df = get_adf_df(atom_pairs)
+        n = int((1 + r_max / 4.0)**3)
+
+        del_atom = np.arange(0, self.shape[1])[~at_subset]
+        mol = self.delete_atoms(del_atom)[m_subset]
+        atnum = mol.atnum
+
+        if DASK:
+            jobs = [dask.delayed(MultiMolecule._adf_inner)(m, n, r_max, mol, atnum_dict, atnum) for
+                    m in mol]
+            results = dask.compute(*jobs)
+        else:
+            results = [MultiMolecule._adf_inner(m, n, r_max, mol, atnum_dict, atnum) for m in mol]
+        df.loc[:, :] = np.array(results).mean(axis=0)
+        return df
+
+    @staticmethod
+    def _adf_inner(m, n, r_max, mol, atnum_dict, atnum) -> np.ndarray:
+        tree = cKDTree(m)
+        dist, idx = tree.query(m, n, distance_upper_bound=r_max, p=2)
+        dist[dist == np.inf] = 0.0
+        idx[idx == m.shape[0]] = 0
+
+        coords1 = m[idx]
+        coords2 = m[..., None, :]
+        coords3 = coords1
+
+        with np.errstate(divide='ignore', invalid='ignore'):
+            vec1 = ((coords1 - coords2) / dist[..., None])
+            vec3 = ((coords3 - coords2) / dist[..., None])
+            ang = np.arccos(np.einsum('jkl,jml->jkm', vec1, vec3))
+            dist = np.exp(-np.maximum(dist[..., None], dist[..., None, :]))
+
+        ang[np.isnan(ang)] = 0.0
+        atnum_ar = atnum[idx][..., None] + atnum[idx][..., None, :]
+        atnum_ar *= atnum[:, None, None]
+        return get_adf2(ang, atnum_ar, atnum_dict, dist)
 
     def init_adf(self, atom_subset: AtomSubset = None,
                  low_mem: bool = True) -> pd.DataFrame:

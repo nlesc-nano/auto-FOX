@@ -266,10 +266,7 @@ rst_epilog = """
 .. _MutableSequence: https://docs.python.org/3/library/collections.abc.html#collections.abc.MutableSequence
 .. _Hashable: https://docs.python.org/3/library/collections.abc.html#collections.abc.Hashable
 .. _Iterable: https://docs.python.org/3/library/collections.abc.html#collections.abc.Iterable
-.. _KeyError: https://docs.python.org/3/library/exceptions.html#KeyError
-.. _ValueError: https://docs.python.org/3/library/exceptions.html#ValueError
-.. _IndexError: https://docs.python.org/3/library/exceptions.html#IndexError
-.. _TypeError: https://docs.python.org/3/library/exceptions.html#TypeError
+.. _object: https://docs.python.org/3/library/functions.html#object
 
 .. |FOX.ARMC| replace:: *FOX.ARMC*
 .. |FOX.MonteCarlo| replace:: *FOX.MonteCarlo*
@@ -299,8 +296,5 @@ rst_epilog = """
 .. |MutableSequence| replace:: *MutableSequence*
 .. |Hashable| replace:: *Hashable*
 .. |Iterable| replace:: *Iterable*
-.. |KeyError| replace:: *KeyError*
-.. |ValueError| replace:: *ValueError*
-.. |IndexError| replace:: *IndexError*
-.. |TypeError| replace:: *TypeError*
+.. |object| replace:: *object*
 """

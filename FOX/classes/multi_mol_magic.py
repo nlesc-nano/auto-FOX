@@ -306,8 +306,6 @@ class _MultiMolecule(np.ndarray):
                 ret += str(pd.DataFrame(self[None, :], index=idx, columns=['x', 'y', 'z']))
         except ValueError:
             ret = 'Cartesian coordinates:\n' + super().__str__()
-        else:
-            ret = 'Cartesian coordinates:\n' + super().__str__()
         return ret
 
     def __str__(self) -> str:
@@ -335,4 +333,4 @@ class _MultiMolecule(np.ndarray):
 
     def __repr__(self) -> str:
         """Return the canonical string representation of this instance."""
-        return str(self)
+        return f'<FOX.MultiMolecule: shape {self.shape}, type "{self.dtype}">'

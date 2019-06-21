@@ -1,6 +1,6 @@
 """A module with functions related to manipulating atomic charges."""
 
-from typing import Callable
+from typing import (Callable, Tuple, Hashable, Optional, Collection)
 
 import numpy as np
 import pandas as pd
@@ -11,27 +11,24 @@ __all__ = ['update_charge', 'get_charge_constraints']
 
 
 def get_net_charge(df: pd.DataFrame,
-                   index_slice=None,
-                   charge: str = 'param',
-                   atom_count: str = 'count') -> float:
+                   index_slice: Optional[Collection] = None,
+                   key: Tuple[Hashable] = ('param', 'count')) -> float:
     """Calculate the total charge in **df**.
 
-    Returns the (summed) product of the **charge** and **atom_count** columns in **df**.
+    Returns the (summed) product of the ``"param"`` and ``"count"`` columns in **df**.
 
     Parameters
     ----------
     df : |pd.DataFrame|_
         A dataframe with atomic charges.
-        Charges should be stored in the *param* column and atom counts in the ``"count"`` column.
+        Charges should be stored in the ``"param"`` column and atom counts
+        in the ``"count"`` column (see **key**).
 
     index_slice : slice
         An object for slicing the index of **df**.
 
-    charge : |Hashable|_
-        The name of the column holding the atomic charges (per atom type).
-
-    atom_count : |Hashable|_
-        The name of the column holding the number of atoms (per atom type).
+    key : |Tuple|_ [|Hashable|_]
+        The name of the columns holding the atomic charges and number of atoms (per atom type).
 
     Returns
     -------
@@ -40,8 +37,8 @@ def get_net_charge(df: pd.DataFrame,
 
     """
     if index_slice is None:
-        return df.loc[:, [charge, atom_count]].product(axis=1).sum()
-    return df.loc[index_slice, [charge, atom_count]].product(axis=1).sum()
+        return df.loc[:, key].product(axis=1).sum()
+    return df.loc[index_slice, key].product(axis=1).sum()
 
 
 def update_charge(at: str,
@@ -108,7 +105,7 @@ def update_constrained_charge(at1: str,
                               constrain_dict: dict = {}) -> list:
     """Perform a constrained update of atomic charges.
 
-    Performs an inplace update of the ``"charge"`` column in **df**.
+    Performs an inplace update of the ``"param"`` column in **df**.
 
     Parameters
     ----------
@@ -158,7 +155,7 @@ def update_unconstrained_charge(net_charge: float,
 
     The total charge in **df** is kept equal to **net_charge**.
 
-    Performs an inplace update of the ``"charge"`` column in **df**.
+    Performs an inplace update of the ``"param"`` column in **df**.
 
     Parameters
     ----------
