@@ -69,14 +69,18 @@ def _get_bonds_array(bonds: Iterable[Sequence[str]]) -> np.ndarray:
     j_old = None
     for i in bonds:
         for j in i[1:]:
+
             if j is None:  # No bond
                 j_old = j
                 continue
+
             elif j == j_old:  # Double bond
                 del ret[-1]
                 ret.append((i[0], j, 20))
+
             else:  # Single bond
                 ret.append((i[0], j, 10))
+
             j_old = j
 
     return np.array(ret, dtype=int)

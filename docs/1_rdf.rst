@@ -16,8 +16,8 @@ constructing RDFs between all possible (user-defined) atom-pairs.
     \frac{V}{N_a*N_b} \sum_{i=1}^{N_a} \sum_{j=1}^{N_b} \left< *placeholder* \right>
 
 
-Given a trajectory, ``mol``, stored as a :class:`.MultiMolecule` instance, the RDF can
-be calculated with the following
+Given a trajectory, ``mol``, stored as a :class:`.MultiMolecule` instance, the RDF
+can be calculated with the following
 command: ``rdf = mol.init_rdf(atom_subset=None, low_mem=False)``.
 The resulting ``rdf`` is a Pandas_ dataframe, an object which is effectively a
 hybrid between a dictionary and a NumPy_ array.
@@ -41,11 +41,14 @@ oxygen (Cd_Cd, Cd_Se, Cd_O, Se_Se, Se_O and O_O).
 
     >>> example_xyz_file = get_example_xyz()
     >>> mol = MultiMolecule.from_xyz(example_xyz_file)
-    
+
     >>> rdf = mol.init_rdf(atom_subset=('Cd', 'Se', 'O'))
-    >>> adf = mol.init_adf(atom_subset=('Cd', 'Se'))
-    >>> rdf.plot()
-    >>> adf.plot()
+    >>> adf = mol.init_adf(r_max='inf', distance_weighted=False, atom_subset=('Cd', 'Se'))
+    >>> adf_weighted = mol.init_adf(r_max='inf', distance_weighted=True, atom_subset=('Cd', 'Se'))
+
+    >>> rdf.plot(title='RDF')
+    >>> adf.plot(title='ADF')
+    >>> adf_weighted.plot(title='Distance-weighted ADF')
 
 
 .. plot::
@@ -53,9 +56,11 @@ oxygen (Cd_Cd, Cd_Se, Cd_O, Se_Se, Se_O and O_O).
     from FOX import (MultiMolecule, get_example_xyz)
     mol = MultiMolecule.from_xyz(get_example_xyz())
     rdf = mol.init_rdf(atom_subset=('Cd', 'Se', 'O'))
-    adf = mol.init_adf(atom_subset=('Cd', 'Se'))
-    rdf.plot()
-    adf.plot()
+    adf = mol.init_adf(r_max='inf', distance_weighted=False, atom_subset=('Cd', 'Se'))
+    adf_weighted = mol.init_adf(r_max='inf', distance_weighted=True, atom_subset=('Cd', 'Se'))
+    rdf.plot(title='RDF')
+    adf.plot(title='ADF')
+    adf_weighted.plot(title='Distance-weighted ADF')
 
 
 API

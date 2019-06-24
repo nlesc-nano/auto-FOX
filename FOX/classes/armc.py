@@ -10,7 +10,6 @@ import numpy as np
 from scm.plams import Settings
 from scm.plams.core.functions import (init, finish, config)
 
-from .psf_dict import PSFDict
 from .monte_carlo import MonteCarlo
 from ..io.hdf5_utils import (create_hdf5, to_hdf5, create_xyz_hdf5)
 from ..functions.utils import (get_template, get_class_name, get_func_name)
@@ -20,17 +19,30 @@ __all__ = ['ARMC']
 
 
 class ARMC(MonteCarlo):
-    """The Addaptive Rate Monte Carlo class (:class:`.ARMC`).
+    r"""The Addaptive Rate Monte Carlo class (:class:`.ARMC`).
 
     A subclass of :class:`.MonteCarlo`.
 
     Attributes
     ----------
     armc : |plams.Settings|_
-        ARMC specific settings.
+        A PLAMS Settings instance with ARMC-specific settings.
+        Contains the following keys:
+
+        * ``"gamma"`` (|float|_): The constant :math:`\gamma`.
+        * ``"a_target"`` (|float|_): The target acceptance rate :math:`\alpha_{t}`.
+        * ``"iter_len"`` (|int|_): The total number of ARMC iterations :math:`\kappa \omega`.
+        * ``"sub_iter_len"`` (|int|_): The length of each ARMC subiteration :math:`\omega`.
 
     phi : |plams.Settings|_
-        Phi specific settings.
+        A PLAM Settings instance with :math:`\phi`-specific settings.
+        Contains the following keys:
+
+        * ``"phi"`` (|float|_): The variable :math:`\phi`.
+        * ``"arg"`` (|list|_): A list of arguments for :attr:`.ARMC.phi` [``"func"``].
+        * ``"func"`` (|type|_): The callable used for applying :math:`\phi` to the auxiliary error.
+        * ``"kwarg"`` (|dict|_): A dictionary with keyword arguments
+          for :attr:`.ARMC.phi` [``"func"``].
 
     """
 
@@ -164,7 +176,7 @@ class ARMC(MonteCarlo):
             config.default_jobmanager.logfile = self.job.logfile
             config.log.file = 3
         if self.job.psf[0]:
-            PSFDict.write_psf(self.job.psf)
+            self.job.psf.write_psf()
 
         # Initialize the first MD calculation
         history_dict: dict = {}

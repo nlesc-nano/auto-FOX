@@ -10,9 +10,10 @@ from typing import (
 
 import numpy as np
 import pandas as pd
+from scipy.spatial import cKDTree
 from scipy.spatial.distance import cdist
 
-from scm.plams import (Atom, Bond)
+from scm.plams import (Atom, Bond, PeriodicTable)
 
 from .molecule_utils import Molecule
 from .multi_mol_magic import _MultiMolecule
@@ -20,6 +21,12 @@ from ..io.read_kf import read_kf
 from ..io.read_xyz import read_multi_xyz
 from ..functions.rdf import (get_rdf, get_rdf_lowmem, get_rdf_df)
 from ..functions.adf import (get_adf, get_adf_df)
+
+try:
+    import dask
+    DASK: bool = True
+except ImportError:
+    DASK: bool = False
 
 __all__ = ['MultiMolecule']
 
@@ -43,31 +50,70 @@ class MultiMolecule(_MultiMolecule):
 
     atoms : dict [str, list [int]]
         A dictionary with atomic symbols as keys and matching atomic indices as values.
-        Stored in the **MultiMolecule.atoms** attribute.
+        Stored in the :attr:`MultiMolecule.atoms` attribute.
 
     bonds : :math:`k*3` |np.ndarray|_ [|np.int64|_]
         A 2D array with indices of the atoms defining all :math:`k` bonds
         (columns 1 & 2) and their respective bond orders multiplied by 10 (column 3).
-        Stored in the **MultiMolecule.bonds** attribute.
+        Stored in the :attr:`MultiMolecule.bonds` attribute.
 
     properties : dict
-        A Settings object (subclass of dictionary) intended for storing
-        miscellaneous user-defined (meta-)data.
+        A Settings instance for storing miscellaneous user-defined (meta-)data.
         Is devoid of keys by default.
-        Stored in the **MultiMolecule.properties** attribute.
+        Stored in the :attr:`MultiMolecule.properties` attribute.
 
     Attributes
     ----------
     atoms : dict [str, list [int]]
-        See the **atoms** paramater.
+        A dictionary with atomic symbols as keys and matching atomic indices as values.
 
     bonds : :math:`k*3` |np.ndarray|_ [|np.int64|_]
-        See the **bonds** paramater.
+        A 2D array with indices of the atoms defining all :math:`k` bonds
+        (columns 1 & 2) and their respective bond orders multiplied by 10 (column 3).
 
     properties : |plams.Settings|_
-        See the **properties** paramater.
+        A Settings instance for storing miscellaneous user-defined (meta-)data.
+        Is devoid of keys by default.
 
     """
+
+    def delete_atoms(self, atom_subset: AtomSubset) -> MultiMolecule:
+        """Create a copy of this instance with all atoms in **atom_subset** removed.
+
+        Parameters
+        ----------
+        atom_subset : |Sequence|_
+            Perform the calculation on a subset of atoms in this instance, as
+            determined by their atomic index or atomic symbol.
+            Include all :math:`n` atoms per molecule in this instance if ``None``.
+
+        Returns
+        -------
+        |FOX.MultiMolecule|_
+            A new :class:`.MultiMolecule` instance with all atoms in **atom_subset** removed.
+
+        Raises
+        ------
+        TypeError
+            Raised if **atom_subset** is ``None``.
+
+        """
+        if atom_subset is None:
+            raise TypeError("'None' is an invalid value for 'atom_subset'")
+
+        at_subset = np.array(self._get_atom_subset(atom_subset, as_sequence=True))
+        idx = np.arange(0, self.shape[1])[~at_subset]
+        ret = self[:, idx].copy()
+
+        symbols = self.symbol[idx]
+        ret.atoms = {}
+        for i, at in enumerate(symbols):
+            try:
+                ret.atoms[at].append(i)
+            except KeyError:
+                ret.atoms[at] = [i]
+
+        return ret
 
     def guess_bonds(self, atom_subset: AtomSubset = None) -> None:
         """Guess bonds within the molecules based on atom type and inter-atomic distances.
@@ -143,7 +189,7 @@ class MultiMolecule(_MultiMolecule):
         start : int
             Start of the interval.
 
-        stop int : int
+        stop : int
             End of the interval.
 
         p : float
@@ -1218,53 +1264,181 @@ class MultiMolecule(_MultiMolecule):
 
     """############################  Angular Distribution Functions  ######################### """
 
-    def init_adf(self, atom_subset: AtomSubset = None,
-                 low_mem: bool = True) -> pd.DataFrame:
-        """Initialize the calculation of angular distribution functions (ADFs).
+    def init_adf(self, mol_subset: MolSubset = None,
+                 atom_subset: AtomSubset = None,
+                 r_max: Union[float, str] = 8.0,
+                 distance_weighted: bool = True) -> pd.DataFrame:
+        r"""Initialize the calculation of distance-weighted angular distribution functions (ADFs).
 
         ADFs are calculated for all possible atom-pairs in **atom_subset** and returned as a
         dataframe.
 
+        Each angle, :math:`\phi_{ijk}`, is weighted by the distance according to the
+        weighting factor :math:`v`:
+
+        .. math::
+
+            v = \Biggl \lbrace
+            {
+                e^{-r_{ji}}, \quad r_{ji} \; \gt \; r_{jk}
+                \atop
+                e^{-r_{jk}}, \quad r_{ji} \; \lt \; r_{jk}
+            }
+
+        .. _DASK: https://dask.org/
+
         Parameters
         ----------
+        mol_subset : slice
+            Perform the calculation on a subset of molecules in this instance, as
+            determined by their moleculair index.
+            Include all :math:`m` molecules in this instance if ``None``.
+
         atom_subset : |Sequence|_
             Perform the calculation on a subset of atoms in this instance, as
             determined by their atomic index or atomic symbol.
             Include all :math:`n` atoms per molecule in this instance if ``None``.
 
-        low_mem : bool
-            If ``True``, use a slower but more memory efficient method for constructing the ADFs.
-            WARNING: Constructing ADFs is significantly more memory intensive
-            than ADFs and in most cases it is recommended to keep this argument at ``False``.
+        r_max : |float|_ or |str|_
+            The maximum inter-atomic distance (in Angstrom) for which angles are constructed.
+            The distance cuttoff can be disabled by settings this value to ``np.inf``, ``"np.inf"``
+            or ``"inf"``.
+
+        distance_weighted : |bool|_
+            Return the distance-weighted angular distribution function.
+            Every angle the to-be constructed angle matrix, :math:`\phi_{ijk}`, is weighted by the
+            distance according to the weighting factor :math:`v`:
+
+            .. math::
+
+                v = \Biggl \lbrace
+                {
+                    e^{-r_{ji}}, \quad r_{ji} \; \gt \; r_{jk}
+                    \atop
+                    e^{-r_{jk}}, \quad r_{ji} \; \lt \; r_{jk}
+                }
+
+        Notes
+        -----
+        Disabling the distance cuttoff is strongly recommended (*i.e.* it is faster) for large
+        values of **r_max**. As a rough guideline, ``r_max="inf"`` is roughly as fast as
+        ``r_max=15.0`` (though this is, of course, system dependant).
+
+        The ADF construction will be conducted in parralel if the DASK_ package is installed.
+        DASK can be installed, via anaconda, with the following command:
+        ``conda install -n FOX -y -c conda-forge dask``.
 
         Returns
         -------
-        |pd.DataFrame|_:
+        |pd.DataFrame|_
             A dataframe of angular distribution functions, averaged over all conformations in
             this instance.
 
         """
-        # If **atom_subset** is None: extract atomic symbols from they keys of **self.atoms**
-        at_subset = atom_subset or tuple(self.atoms.keys())
-        atom_pairs = self.get_pair_dict(at_subset, r=3)
+        # Identify the maximum to-be considered radius
+        if r_max in (np.inf, 'np.inf', 'inf'):
+            r_max = 0.0
+        n = int((1 + r_max / 4.0)**3)
 
-        # Construct an empty dataframe with appropiate dimensions, indices and keys
+        # Identify atom and molecule subsets
+        m_subset = self._get_mol_subset(mol_subset)
+        at_subset = np.array(self._get_atom_subset(atom_subset, as_sequence=True))
+
+        # Construct a dictionary with atom counts and unique atom-pair identifiers
+        get_atnum = PeriodicTable.get_atomic_number  # Callable alias
+        atom_pairs = self.get_pair_dict(atom_subset or list(self.atoms), r=3)
+        atnum_dict = {}
+        for at1, at2, at3 in atom_pairs.values():
+            key = (get_atnum(at1) + get_atnum(at3)) * get_atnum(at2)
+            value = np.count_nonzero(self.atoms[at2])
+            atnum_dict[key] = value
+
+        # Slice this MultiMolecule instance based on **atom_subset** and **mol_subset**
+        del_atom = np.arange(0, self.shape[1])[~at_subset]
+        mol = self.delete_atoms(del_atom)[m_subset]
+        atnum = mol.atnum
+
+        # Construct the angular distribution function
+        # Perform the task in parallel (with dask) if possible
+        if DASK and r_max:
+            func = dask.delayed(MultiMolecule._adf_inner_cdktree)
+            jobs = [func(m, n, r_max, atnum_dict, atnum, distance_weighted) for m in mol]
+            results = dask.compute(*jobs)
+        elif DASK and not r_max:
+            func = dask.delayed(MultiMolecule._adf_inner)
+            jobs = [func(m, atnum_dict, atnum, distance_weighted) for m in mol]
+            results = dask.compute(*jobs)
+        elif not DASK and r_max:
+            func = MultiMolecule._adf_inner_cdktree
+            results = [func(m, n, r_max, atnum_dict, atnum, distance_weighted) for m in mol]
+        elif not DASK and not r_max:
+            func = MultiMolecule._adf_inner
+            results = [func(m, atnum_dict, atnum, distance_weighted) for m in mol]
+
         df = get_adf_df(atom_pairs)
-
-        # Fill the dataframe with RDF's, averaged over all conformations in this instance
-        if low_mem:  # Slower low memory approach
-            for i in range(self.shape[0]):
-                for key, at in atom_pairs.items():
-                    a_mat, r_max = self.get_angle_mat(atom_subset=at, mol_subset=i, get_r_max=True)
-                    df[key] += get_adf(a_mat, r_max=r_max)
-            df /= self.shape[0]
-
-        else:  # Faster high memory approach
-            for key, at in atom_pairs.items():
-                a_mat, r_max = self.get_angle_mat(atom_subset=at, get_r_max=True)
-                df[key] = get_adf(a_mat, r_max=r_max)
-
+        df.loc[:, :] = np.array(results).mean(axis=0)
         return df
+
+    @staticmethod
+    def _adf_inner_cdktree(m: MultiMolecule,
+                           n: int,
+                           r_max: float,
+                           atnum_dict: Dict[int, int],
+                           atnum: np.ndarray,
+                           distance_weighted: bool) -> np.ndarray:
+        """Perform the loop of :meth:`.init_adf` with a distance cutoff."""
+        # Construct slices and a distance matrix
+        tree = cKDTree(m)
+        dist, idx = tree.query(m, n, distance_upper_bound=r_max, p=2)
+        dist[dist == np.inf] = 0.0
+        idx[idx == m.shape[0]] = 0
+
+        # Slice the Cartesian coordinates
+        coords1 = m[idx]
+        coords2 = m[..., None, :]
+        coords3 = coords1
+
+        # Construct (3D) angle- and distance-matrices
+        with np.errstate(divide='ignore', invalid='ignore'):
+            vec12 = ((coords1 - coords2) / dist[..., None])
+            vec32 = ((coords3 - coords2) / dist[..., None])
+            ang = np.arccos(np.einsum('jkl,jml->jkm', vec12, vec32))
+            dist = np.exp(-np.maximum(dist[..., None], dist[..., None, :]))
+        ang[np.isnan(ang)] = 0.0
+
+        # Create an array of (unique) atom-pair identifiers
+        atnum_ar = atnum[idx][..., None] + atnum[idx][..., None, :]
+        atnum_ar *= atnum[:, None, None]
+
+        # Construct and return the ADF
+        return get_adf(ang, dist, atnum_ar, atnum_dict, distance_weighted)
+
+    @staticmethod
+    def _adf_inner(m: MultiMolecule,
+                   atnum_dict: Dict[int, int],
+                   atnum: np.ndarray,
+                   distance_weighted: bool) -> np.ndarray:
+        """Perform the loop of :meth:`.init_adf` without a distance cutoff."""
+        # Construct a distance matrix
+        dist = cdist(m, m)
+
+        # Slice the Cartesian coordinates
+        coords1 = coords3 = m
+        coords2 = m[..., None, :]
+
+        # Construct (3D) angle- and distance-matrices
+        with np.errstate(divide='ignore', invalid='ignore'):
+            vec12 = ((coords1 - coords2) / dist[..., None])
+            vec32 = ((coords3 - coords2) / dist[..., None])
+            ang = np.arccos(np.einsum('jkl,jml->jkm', vec12, vec32))
+            dist = np.exp(-np.maximum(dist[..., None], dist[..., None, :]))
+        ang[np.isnan(ang)] = 0.0
+
+        # Create an array of (unique) atom-pair identifiers
+        atnum_ar = atnum[:, None, None] * (atnum[..., None] + atnum[..., None, :])
+
+        # Construct and return the ADF
+        return get_adf(ang, dist, atnum_ar, atnum_dict, distance_weighted)
 
     def get_angle_mat(self, mol_subset: MolSubset = 0,
                       atom_subset: Tuple[AtomSubset, AtomSubset, AtomSubset] = (None, None, None),

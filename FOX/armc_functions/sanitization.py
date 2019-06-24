@@ -6,7 +6,7 @@ from os.path import join
 
 from scm.plams import Settings
 
-from ..classes.psf_dict import PSFDict
+from ..classes.psf import PSF
 from ..functions.utils import (get_template, _get_move_range, dict_to_pandas, get_atom_count)
 from ..functions.cp2k_utils import (set_keys, set_subsys_kind)
 from ..armc_functions.schemas import (
@@ -125,7 +125,7 @@ def reshape_settings(s: Settings) -> None:
     _reshape_param(s)
 
     s.job.psf = generate_psf(s.pop('psf'), s.param, s.job)
-    set_subsys_kind(s.job.md_settings, s.job.psf['atoms'])
+    set_subsys_kind(s.job.md_settings, s.job.psf.atoms)
     if s.job.preopt_settings is not None:
         s.job.preopt_settings = s.job.md_settings + s.job.preopt_settings
         del s.job.preopt_settings.input.motion.md
@@ -175,7 +175,7 @@ def generate_psf(psf: Settings,
 
     Returns
     -------
-    |plams.Settings|_:
+    |FOX.PSF|_:
         The updated psf block.
 
     """
@@ -183,17 +183,17 @@ def generate_psf(psf: Settings,
     mol = job.molecule
 
     if all(i is None for i in psf.values()):
-        psf_dict: PSFDict = PSFDict.from_multi_mol(mol)
-        psf_dict.filename = np.array([False])
+        psf_ = PSF.from_multi_mol(mol)
+        psf_.filename = np.array([False])
     else:
         mol.guess_bonds(atom_subset=psf.ligand_atoms)
-        psf_dict: PSFDict = PSFDict.from_multi_mol(mol)
-        psf_dict.filename = psf_file
-        psf_dict.update_atom_type(psf.str_file)
+        psf_ = PSF.from_multi_mol(mol)
+        psf_.filename = psf_file
+        psf_.update_atom_type(psf.str_file)
         job.md_settings.input.force_eval.subsys.topology.conn_file_name = psf_file
         job.md_settings.input.force_eval.subsys.topology.conn_file_format = 'PSF'
 
     for at, charge in param.loc['charge', 'param'].items():
-        psf_dict.update_atom_charge(at, charge)
-    param['count'] = get_atom_count(param.index, psf_dict.atoms['atom type'])
-    return psf_dict
+        psf_.update_atom_charge(at, charge)
+    param['count'] = get_atom_count(param.index, psf_.atoms['atom type'])
+    return psf_

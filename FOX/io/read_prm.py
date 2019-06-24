@@ -153,16 +153,16 @@ def rename_atom_types(prm_dict: Dict[str, pd.DataFrame],
     --------
     .. code:: python
 
-        >>> 'H_old' in atom_dict['ATOMS'].index
+        >>> print('H_old' in atom_dict['ATOMS'].index)
         True
 
         >>> rename_dict = {'H_old': 'H_new'}
         >>> rename_atom_types(prm_dict, rename_dict)
 
-        >>> 'H_old' in atom_dict['ATOMS'].index
+        >>> print('H_old' in atom_dict['ATOMS'].index)
         False
 
-        >>> 'H_new' in atom_dict['ATOMS'].index
+        >>> print('H_new' in atom_dict['ATOMS'].index)
         True
 
     .. _prm: https://mackerell.umaryland.edu/charmm_ff.shtml
@@ -288,7 +288,7 @@ def _proccess_prm_df(prm_dict: Dict[str, pd.DataFrame]) -> Dict[str, pd.DataFram
         df.set_index([i for i in df.columns if isinstance(i, int)], inplace=True)
         df.index.set_names(['Atom {:d}'.format(i) for i in df.index.names], inplace=True)
         df.sort_index(inplace=True)
-        update_dtype(df, float_blacklist.setdefault(key, []))
+        _update_dtype(df, float_blacklist.setdefault(key, []))
     return prm_dict
 
 
@@ -311,8 +311,8 @@ def _reorder_column_dict(df):
     return ret
 
 
-def update_dtype(df: pd.DataFrame,
-                 float_blacklist: list = []) -> None:
+def _update_dtype(df: pd.DataFrame,
+                  float_blacklist: list = []) -> None:
     """Update the dtype of all columns in **df**.
 
     All columns will be turned into ``dtype("float64")`` unless a value error is raised,

@@ -1,15 +1,15 @@
-""" A module for testing pep8 compliance. """
-
-__all__ = []
+"""A module for testing pep8 compliance."""
 
 import os
 import textwrap
 
 import pycodestyle  # formerly known as pep8
 
+__all__: list = []
+
 
 def test_pep8_conformance():
-    """ Test that we conform to PEP-8. """
+    """Test that we conform to PEP-8."""
     check_paths = [
         'FOX',
         'tests',
@@ -24,6 +24,7 @@ def test_pep8_conformance():
         for i, path in enumerate(paths):
             paths[i] = os.path.join(package_root, path)
 
+    # Set max characters per line from 79 to 100
     style = pycodestyle.StyleGuide(max_line_length=100)
     style.options.exclude.extend(exclude_paths)
 

@@ -7,7 +7,7 @@
    :target: https://www.python.org
 
 #################################################
-Automated Forcefield Optimization Extension 0.4.2
+Automated Forcefield Optimization Extension 0.4.3
 #################################################
 
 **Auto-FOX** is a library for analyzing potential energy surfaces (PESs) and
@@ -101,6 +101,10 @@ Optional dependencies
 
   - PyPi:       ``pip install matplotlib``
 
+- Construction of the angular distribution function in parallel requires DASK_.
+
+  - Anaconda:   ``conda install -name FOX -y -c conda-forge dask``
+
 
 
 .. _1: https://auto-fox.readthedocs.io/en/latest/3_multimolecule.html
@@ -119,3 +123,4 @@ Optional dependencies
 .. _FOX.examples: https://github.com/nlesc-nano/auto-FOX/blob/master/FOX/examples/input.py
 .. _h5py: https://www.h5py.org/
 .. _FOX.monte_carlo: https://auto-fox.readthedocs.io/en/latest/4_monte_carlo.html
+.. _DASK: https://dask.org/

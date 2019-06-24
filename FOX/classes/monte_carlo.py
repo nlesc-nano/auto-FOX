@@ -29,7 +29,89 @@ def get_xyz_path(self):
 
 
 class MonteCarlo():
-    """The base :class:`.MonteCarlo` class."""
+    r"""The base :class:`.MonteCarlo` class.
+
+    .. _plams.init: https://www.scm.com/doc/plams/components/functions.html#scm.plams.core.functions.init  # noqa
+
+    Attributes
+    ----------
+    hdf5_file : |str|_
+        The path+filename of the .hdf5 file containing all Monte Carlo results.
+
+    param : |pd.DataFrame|_
+        A DataFrame containing all to-be optimized forcefield paramaters.
+        Paramater names are stored in the DataFrame index.
+        Contains the following columns:
+
+        * ``"param"`` (|np.float64|_): The current set of paramaters.
+        * ``"param_old"`` (|np.float64|_): The last set of accepted paramaters.
+        * ``"unit"`` (|object|_): To-be formatted strings containing all units.
+        * ``"max"`` (|np.float64|_): The maximum allowed value of each paramater.
+        * ``"min"`` (|np.float64|_): The minimum allowed value of each paramater.
+        * ``"keys"`` (|object|_): Tuples of keys pointing the parameters.
+        * ``"count"`` (|np.int64|_): The number of atoms or atom-pairs relevant for each parameter.
+
+    job : |plams.Settings|_
+        A PLAMS Settings instance with all molecular dynamics-related settings.
+        Contains the following keys:
+
+        * ``"psf"`` (|FOX.PSF|_): A :class:`.PSF` instance construced
+          from :attr:`MonteCarlo.job` [``"molecule"``].
+        * ``"func"`` (|type|_): A callable object constructed from a plams.Job_ subclass.
+        * ``"path"`` (|str|_): The path to the :attr:`.MonteCarlo.job` [``"folder"``] directory.
+          See the ``path`` argument in plams.init_ for more info.
+        * ``"name"`` (|str|_): The name of each PLAMS job.
+          See the ``name`` argument in plams.Job_ for more info.
+        * ``"folder"`` (|str|_): The name of the directory used for storing all PLAMS jobs.
+          See the ``folder`` argument in plams.init_ for more info.
+        * ``"logfile"`` (|str|_): The path+filename of the PLAMS logfile.
+        * ``"molecule"`` (|plams.Molecule|_): A PLAMS molecule.
+        * ``"keep_files"`` (|bool|_): Whether or not results of the PLAMS jobs should be saved or
+          deleted after each respective job is finished.
+        * ``"md_settings"`` (|plams.Settings|_): A settings instance with all molecular dynamics
+          settings.
+        * ``"rmsd_threshold"`` (|float|_): An RMSD threshold for the geometry (pre-)optimization.
+          Parameters are discarded if this threshold is exceeded.
+        * ``"preopt_settings"`` (|plams.Settings|_): A settings instance with all geometry
+          (pre-)optimization settings.
+
+    move : |plams.Settings|_
+        A PLAM Settings instance with settings related to moving paramaters.
+        Contains the following keys:
+
+        * ``"arg"`` (|list|_): A list of arguments for :attr:`.MonteCarlo.move` [``"func"``].
+        * ``"func"`` (|type|_): The callable for performing paramaters moves.
+        * ``"range"`` (|np.ndarray|_): An array of allowed moves.
+        * ``"kwarg"`` (|dict|_): A dictionary with keyword arguments
+          for :attr:`.MonteCarlo.move` [``"func"``].
+        * ``"charge_constraints"`` (|dict|_): A dictionary with optional constraints for updating
+          atomic charges.
+
+    pes : |plams.Settings|_
+        A PLAM Settings instance with settings related to constructing PES descriptors.
+        Using the RDF as example, this section has the following general structure:
+
+        ::
+
+            key:
+                func: FOX.MultiMolecule.init_rdf
+                arg: []
+                kwarg:
+                    atom_subset: [Cd, Se, O]
+
+        Contains the following keys:
+
+        * ``key`` (|str|_): One or more user-specified keys. The exact value of each key is
+          irrelevant and can be altered to ones desire.
+        * ``"ref"`` (|np.ndarray|_): An array-like object holding an (*ab-initio*) reference
+          PES descriptor.
+        * ``"arg"`` (|list|_): A list of arguments
+          for :attr:`.MonteCarlo.pes` [``key``][``"func"``].
+        * ``"func"`` (|type|_): A callable for constructing a specific PES descriptor.
+        * ``"kwarg"`` (|dict|_): A dictionary with keyword arguments
+          for :attr:`.MonteCarlo.pes` [``key``][``"func"``].
+
+    """
 
     def __init__(self, **kwarg: dict) -> None:
         """Initialize a :class:`MonteCarlo` instance."""
@@ -45,7 +127,7 @@ class MonteCarlo():
         # Settings for running the actual MD calculations
         self.job = Settings()
         self.job.molecule = None
-        self.job.psf = {}
+        self.job.psf = None
         self.job.func = Cp2kJob
         self.job.md_settings = {}
         self.job.preopt_settings = {}

@@ -3,11 +3,11 @@
 from .multi_mol import MultiMolecule
 from .armc import ARMC
 from .molecule_utils import Molecule
-from .psf_dict import PSFDict
+from .psf import PSF
 
 __all__ = [
     'MultiMolecule',
     'ARMC',
     'Molecule',
-    'PSFDict'
+    'PSF'
 ]

@@ -1,4 +1,4 @@
-""" A module for testing example input files in the FOX/examples directory. """
+"""A module for testing example input files in the FOX/examples directory."""
 
 __all__ = []
 
@@ -15,13 +15,14 @@ REF_DIR = 'tests/test_files'
 
 
 def test_input():
-    """ Test :mod:`FOX.examples.input`. """
+    """Test :mod:`FOX.examples.input`."""
+    rdf = rmsf = rmsd = None
+
     # Define the atoms of interest and the .xyz path + filename
     atoms = ('Cd', 'Se', 'O')
     example_xyz_filename = FOX.get_example_xyz()
 
     # Optional: start the timer
-    print('')
     start = time.time()
 
     # Read the .xyz file
@@ -29,17 +30,17 @@ def test_input():
 
     # Calculate the RDF, RSMF & RMSD
     rdf = mol.init_rdf(atom_subset=atoms)
+    adf = mol.init_adf(r_max=8.0, atom_subset=['Cd', 'Se'])
     rmsf = mol.init_rmsf(atom_subset=atoms)
     rmsd = mol.init_rmsd(atom_subset=atoms)
 
     # Optional: print the results and try to plot them in a graph (if Matplotlib is installed)
-    print('run time:', '%.2f' % (time.time() - start), 'sec')
-    try:
-        rdf.plot()
-        rmsf.plot()
-        rmsd.plot()
-    except Exception as ex:
-        print(ex)
+    for name, df in {'rdf ': rdf, 'adf ': adf, 'rmsf': rmsf, 'rmsd': rmsd}.items():
+        try:
+            df.plot(name)
+        except Exception as ex:
+            print(f'{name} - {ex.__class__.__name__}: {ex}')
+    print('run time: {:.2f} sec'.format(time.time() - start))
 
     ref_rdf = np.load(join(REF_DIR, 'rdf.npy'))
     ref_rmsf = np.load(join(REF_DIR, 'rmsf.npy'))
@@ -51,7 +52,7 @@ def test_input():
 
 
 def test_cp2k_md():
-    """ Test :mod:`FOX.examples.cp2k_md`. """
+    """Test :mod:`FOX.examples.cp2k_md`."""
     examples = join(FOX.__path__[0], 'examples')
     s = FOX.get_template('armc.yaml', path=examples)
     s.psf.str_file = join(examples, s.psf.str_file)
