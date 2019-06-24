@@ -3,7 +3,8 @@
 from __future__ import annotations
 
 from typing import (Dict, Optional)
-from dataclasses import (dataclass, field)
+from itertools import chain
+from dataclasses import dataclass
 
 import numpy as np
 import pandas as pd
@@ -13,6 +14,19 @@ from .frozen_settings import FrozenSettings
 from ..functions.utils import (serialize_array, read_str_file)
 
 __all__ = ['PSF']
+
+_SHAPE_DICT = FrozenSettings({
+    'filename': {'shape': 1},
+    'title': {'shape': 1},
+    'atoms': {'shape': 8},
+    'bonds': {'shape': 2, 'row_len': 4, 'header': '{:>10d} !NBOND: bonds'},
+    'angles': {'shape': 3, 'row_len': 3, 'header': '{:>10d} !NTHETA: angles'},
+    'dihedrals': {'shape': 4, 'row_len': 2, 'header': '{:>10d} !NPHI: dihedrals'},
+    'impropers': {'shape': 4, 'row_len': 2, 'header': '{:>10d} !NIMPHI: impropers'},
+    'donors': {'shape': 1, 'row_len': 8, 'header': '{:>10d} !NDON: donors'},
+    'acceptors': {'shape': 1, 'row_len': 8, 'header': '{:>10d} !NACC: acceptors'},
+    'no_nonbonded': {'shape': 2, 'row_len': 4, 'header': '{:>10d} !NNB'}
+})
 
 
 @dataclass
@@ -52,9 +66,6 @@ class PSF:
         An array holding the indices of all atom-pairs whose nonbonded
         interactions should be ignored.
 
-    _key_dict : |FrozenSettings|_
-        An imutable :class:`.FrozenSettings` instance holding array shapes, row lengths and headers.
-
     """
     filename: Optional[np.ndarray] = None
     title: Optional[np.ndarray] = None
@@ -66,21 +77,6 @@ class PSF:
     donors: Optional[np.ndarray] = None
     acceptors: Optional[np.ndarray] = None
     no_nonbonded: Optional[np.ndarray] = None
-    _key_dict: FrozenSettings = field(init=False)
-
-    def __post_init__(self) -> None:
-        self._key_dict = FrozenSettings({
-            'filename': {'shape': 1},
-            'title': {'shape': 1},
-            'atoms': {'shape': 8},
-            'bonds': {'shape': 2, 'row_len': 4, 'header': '{:>10d} !NBOND: bonds'},
-            'angles': {'shape': 3, 'row_len': 3, 'header': '{:>10d} !NTHETA: angles'},
-            'dihedrals': {'shape': 4, 'row_len': 2, 'header': '{:>10d} !NPHI: dihedrals'},
-            'impropers': {'shape': 4, 'row_len': 2, 'header': '{:>10d} !NIMPHI: impropers'},
-            'donors': {'shape': 1, 'row_len': 8, 'header': '{:>10d} !NDON: donors'},
-            'acceptors': {'shape': 1, 'row_len': 8, 'header': '{:>10d} !NACC: acceptors'},
-            'no_nonbonded': {'shape': 1, 'row_len': 4, 'header': '{:>10d} !NNB'}
-        })
 
     def set_filename(self, filename: str) -> None:
         """Set the filename of a .psf file.
@@ -158,7 +154,11 @@ class PSF:
                 ret[key] = value = []
 
                 # Read .psf blocks
-                j = next(f)
+                try:
+                    j = next(f)
+                except StopIteration:
+                    break
+
                 while j != '\n':
                     value.append(j.split())
                     try:
@@ -168,7 +168,8 @@ class PSF:
 
         return cls(**PSF._post_process_psf(ret))
 
-    def _post_process_psf(self, psf_dict: Dict[str, np.ndarray]) -> Dict[str, np.ndarray]:
+    @staticmethod
+    def _post_process_psf(psf_dict: Dict[str, np.ndarray]) -> Dict[str, np.ndarray]:
         """Post-process the output of :func:`.read_psf`, casting the values into appropiate
         objects:
 
@@ -190,8 +191,8 @@ class PSF:
         for key, value in psf_dict.items():  # Post-process the output
             # Cast into a flattened array of indices
             if key not in ('title', 'atoms'):
-                ar = np.array(value, dtype=int).ravel()
-                ar.shape = len(ar) // self._shape_dict[key].row_len, self._shape_dict[key].row_len
+                ar = np.fromiter(chain.from_iterable(value), dtype=int)
+                ar.shape = len(ar) // _SHAPE_DICT[key].shape, _SHAPE_DICT[key].shape
                 psf_dict[key] = ar
 
             # Cast the atoms block into a dataframe
@@ -235,8 +236,8 @@ class PSF:
         except TypeError:
             raise TypeError("The 'filename' argument is missing")
 
-        top = self._parse_top()
-        bottom = self._parse_bottom()
+        top = self._serialize_top()
+        bottom = self._serialize_bottom()
 
         # Write the .psf file
         with open(filename, 'w') as f:
@@ -312,11 +313,11 @@ class PSF:
 
         ret = ''
         for attr in sections:
-            if attr in ('title', 'atoms', '_key_dict'):
+            if attr in ('title', 'atoms'):
                 continue
 
-            header = self._key_dict[attr].header
-            row_len = self._key_dict[attr].row_len
+            header = _SHAPE_DICT[attr].header
+            row_len = _SHAPE_DICT[attr].row_len
             value = getattr(self, attr)
             if value is None:
                 ret += '\n\n' + header.format(0)
