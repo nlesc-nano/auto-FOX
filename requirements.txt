@@ -6,4 +6,4 @@ matplotlib
 numpy
 scipy
 pandas
-plams
+https://github.com/SCM-NV/PLAMS@Minor-changes
