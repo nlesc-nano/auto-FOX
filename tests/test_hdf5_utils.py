@@ -1,7 +1,5 @@
 """A module for testing functions in the :mod:`FOX.io.hdf5_utils` module."""
 
-__all__ = []
-
 from os import remove
 from os.path import join
 
@@ -13,6 +11,7 @@ from scm.plams import Settings
 import FOX
 from FOX.io.hdf5_utils import (create_hdf5, to_hdf5, from_hdf5, create_xyz_hdf5)
 
+__all__: list = []
 
 REF_DIR = 'tests/test_files'
 

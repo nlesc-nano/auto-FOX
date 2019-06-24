@@ -50,11 +50,11 @@ test_read_prm.py_
 
 A module for testing functions in the FOX.io.read_prm_ module.
 
-~~~~~~~~~~~~~~~~~
-test_read_psf.py_
-~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~
+test_psf.py_
+~~~~~~~~~~~~
 
-A module for testing functions in the FOX.io.read_psf_ module.
+A module for testing functions in the FOX.classes.psf_ module.
 
 ~~~~~~~~~~~~~~
 test_utils.py_
@@ -72,7 +72,7 @@ A module for testing functions in the FOX.functions.utils_ module.
 .. _test_read_kf.py: https://github.com/nlesc-nano/auto-FOX/blob/master/test/test_read_kf.py
 .. _test_read_pdb.py: https://github.com/nlesc-nano/auto-FOX/blob/master/test/test_read_pdb.py
 .. _test_read_prm.py: https://github.com/nlesc-nano/auto-FOX/blob/master/test/test_read_prm.py
-.. _test_read_psf.py: https://github.com/nlesc-nano/auto-FOX/blob/master/test/test_read_psf.py
+.. _test_psf.py: https://github.com/nlesc-nano/auto-FOX/blob/master/test/test_psf.py
 .. _test_utils.py: https://github.com/nlesc-nano/auto-FOX/blob/master/test/test_utils.py
 
 .. _FOX.functions.charge_utils: https://github.com/nlesc-nano/auto-FOX/blob/master/FOX/functions/charge_utils.py
@@ -83,5 +83,5 @@ A module for testing functions in the FOX.functions.utils_ module.
 .. _FOX.io.read_kf.py: https://github.com/nlesc-nano/auto-FOX/blob/master/FOX/io/read_kf.py
 .. _FOX.io.read_pdb.py: https://github.com/nlesc-nano/auto-FOX/blob/master/FOX/io/read_pdb.py
 .. _FOX.io.read_prm.py: https://github.com/nlesc-nano/auto-FOX/blob/master/FOX/io/read_prm.py
-.. _FOX.io.read_psf.py: https://github.com/nlesc-nano/auto-FOX/blob/master/FOX/io/read_psf.py
+.. _FOX.classes.psf.py: https://github.com/nlesc-nano/auto-FOX/blob/master/FOX/classes/psf.py
 .. _FOX.functions.utils: https://github.com/nlesc-nano/auto-FOX/blob/master/FOX/functions/utils.py

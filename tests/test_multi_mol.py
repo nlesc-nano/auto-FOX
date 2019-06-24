@@ -1,22 +1,20 @@
-""" A module for testing the :class:`FOX.MultiMolecule` class. """
-
-__all__ = []
+"""A module for testing the :class:`FOX.MultiMolecule` class."""
 
 from os import remove
 from os.path import join
 
-import pytest
 import numpy as np
 
 from FOX import (MultiMolecule, get_example_xyz, get_template)
 
+__all__: list = []
 
 MOL = MultiMolecule.from_xyz(get_example_xyz())
 REF_DIR = 'tests/test_files'
 
 
 def test_guess_bonds():
-    """ Test :meth:`FOX.MultiMolecule.guess_bonds`. """
+    """Test :meth:`FOX.MultiMolecule.guess_bonds`."""
     mol = MOL.copy()
 
     mol.guess_bonds(atom_subset=['H', 'C', 'O'])
@@ -25,7 +23,7 @@ def test_guess_bonds():
 
 
 def test_slice_mol():
-    """ Test :meth:`FOX.MultiMolecule.slice_mol`. """
+    """Test :meth:`FOX.MultiMolecule.slice_mol`."""
     mol = MOL.copy()
 
     mol.slice_mol(start=0, stop=None, step=1, inplace=True)
@@ -42,7 +40,7 @@ def test_slice_mol():
 
 
 def test_random_slice():
-    """ Test :meth:`FOX.MultiMolecule.random_slice`. """
+    """Test :meth:`FOX.MultiMolecule.random_slice`."""
     mol = MOL.copy()
 
     try:
@@ -58,7 +56,7 @@ def test_random_slice():
 
 
 def test_reset_origin():
-    """ Test :meth:`FOX.MultiMolecule.reset_origin`. """
+    """Test :meth:`FOX.MultiMolecule.reset_origin`."""
     mol = MOL.copy()
 
     mol.reset_origin()
@@ -72,7 +70,7 @@ def test_reset_origin():
 
 
 def test_sort():
-    """ Test :meth:`FOX.MultiMolecule.sort`. """
+    """Test :meth:`FOX.MultiMolecule.sort`."""
     mol = MOL.copy()
 
     mol.sort(sort_by='symbol')
@@ -92,7 +90,7 @@ def test_sort():
 
 
 def test_residue_argsort():
-    """ Test :meth:`FOX.MultiMolecule.residue_argsort`. """
+    """Test :meth:`FOX.MultiMolecule.residue_argsort`."""
     mol = MOL.copy()
 
     mol.guess_bonds(atom_subset=['H', 'C', 'O'])
@@ -102,7 +100,7 @@ def test_residue_argsort():
 
 
 def test_get_center_of_mass():
-    """ Test :meth:`FOX.MultiMolecule.sort`. """
+    """Test :meth:`FOX.MultiMolecule.sort`."""
     mol = MOL.copy()
 
     center_of_mass = mol.get_center_of_mass()
@@ -112,7 +110,7 @@ def test_get_center_of_mass():
 
 
 def test_get_bonds_per_atom():
-    """ Test :meth:`FOX.MultiMolecule.get_bonds_per_atom`. """
+    """Test :meth:`FOX.MultiMolecule.get_bonds_per_atom`."""
     mol = MOL.copy()
 
     mol.guess_bonds(atom_subset=['H', 'C', 'O'])
@@ -122,7 +120,7 @@ def test_get_bonds_per_atom():
 
 
 def test_rdf():
-    """ Test :meth:`FOX.MultiMolecule.init_rdf`. """
+    """Test :meth:`FOX.MultiMolecule.init_rdf`."""
     mol = MOL.copy()
 
     atoms = ('Cd', 'Se', 'O')
@@ -134,7 +132,7 @@ def test_rdf():
 
 
 def test_rmsf():
-    """ Test :meth:`FOX.MultiMolecule.init_rmsf`. """
+    """Test :meth:`FOX.MultiMolecule.init_rmsf`."""
     mol = MOL.copy()
 
     atoms = ('Cd', 'Se', 'O')
@@ -146,7 +144,7 @@ def test_rmsf():
 
 
 def test_rmsd():
-    """ Test :meth:`FOX.MultiMolecule.init_rmsd`. """
+    """Test :meth:`FOX.MultiMolecule.init_rmsd`."""
     mol = MOL.copy()
 
     atoms = ('Cd', 'Se', 'O')
@@ -156,7 +154,7 @@ def test_rmsd():
 
 
 def test_time_averaged_velocity():
-    """ Test :meth:`FOX.MultiMolecule.init_time_averaged_velocity`. """
+    """Test :meth:`FOX.MultiMolecule.init_time_averaged_velocity`."""
     mol = MOL.copy()
 
     atoms = ('Cd', 'Se', 'O')
@@ -168,7 +166,7 @@ def test_time_averaged_velocity():
 
 
 def test_average_velocity():
-    """ Test :meth:`FOX.MultiMolecule.init_average_velocity`. """
+    """Test :meth:`FOX.MultiMolecule.init_average_velocity`."""
     mol = MOL.copy()
 
     atoms = ('Cd', 'Se', 'O')
@@ -177,19 +175,23 @@ def test_average_velocity():
     np.testing.assert_allclose(v, ref)
 
 
-@pytest.mark.slow
 def test_adf():
-    """ Test :meth:`FOX.MultiMolecule.init_adf`. """
+    """Test :meth:`FOX.MultiMolecule.init_adf`."""
     mol = MOL.copy()
 
-    atoms = ('Cd', 'Se', 'O')
-    adf = mol.init_adf(atom_subset=atoms).values
-    ref = np.load(join(REF_DIR, 'adf.npy'))
-    np.testing.assert_allclose(adf, ref)
+    atoms = ('Cd', 'Se')
+
+    adf1 = mol.init_adf(atom_subset=atoms, distance_weighted=True).values
+    ref1 = np.load(join(REF_DIR, 'adf_weighted.npy'))
+    np.testing.assert_allclose(adf1, ref1)
+
+    adf2 = mol.init_adf(atom_subset=atoms, distance_weighted=False).values
+    ref2 = np.load(join(REF_DIR, 'adf.npy'))
+    np.testing.assert_allclose(adf2, ref2)
 
 
 def test_shell_search():
-    """ Test :meth:`FOX.MultiMolecule.init_shell_search`. """
+    """Test :meth:`FOX.MultiMolecule.init_shell_search`."""
     mol = MOL.copy()
 
     rmsf, idx_series, rdf = mol.init_shell_search()
@@ -206,7 +208,7 @@ def test_shell_search():
 
 
 def test_get_at_idx():
-    """ Test :meth:`FOX.MultiMolecule.get_at_idx`. """
+    """Test :meth:`FOX.MultiMolecule.get_at_idx`."""
     mol = MOL.copy()
 
     rmsf, idx_series, _ = mol.init_shell_search()
@@ -219,7 +221,7 @@ def test_get_at_idx():
 
 
 def test_as_mass_weighted():
-    """ Test :meth:`FOX.MultiMolecule.as_mass_weighted`. """
+    """Test :meth:`FOX.MultiMolecule.as_mass_weighted`."""
     mol = MOL.copy()
 
     mol_new = mol.as_mass_weighted()
@@ -228,7 +230,7 @@ def test_as_mass_weighted():
 
 
 def test_from_mass_weighted():
-    """ Test :meth:`FOX.MultiMolecule.from_mass_weighted`. """
+    """Test :meth:`FOX.MultiMolecule.from_mass_weighted`."""
     mol = MOL.copy()
 
     mol_new = mol.as_mass_weighted()
@@ -237,7 +239,7 @@ def test_from_mass_weighted():
 
 
 def test_as_Molecule():
-    """ Test :meth:`FOX.MultiMolecule.as_Molecule`. """
+    """Test :meth:`FOX.MultiMolecule.as_Molecule`."""
     mol = MOL.copy()
 
     mol_list = mol.as_Molecule()
@@ -246,7 +248,7 @@ def test_as_Molecule():
 
 
 def test_from_Molecule():
-    """ Test :meth:`FOX.MultiMolecule.from_Molecule`. """
+    """Test :meth:`FOX.MultiMolecule.from_Molecule`."""
     mol = MOL.copy()
 
     mol_list = mol.as_Molecule()
@@ -255,7 +257,7 @@ def test_from_Molecule():
 
 
 def test_as_xyz():
-    """ Test :meth:`FOX.MultiMolecule.as_xyz`. """
+    """Test :meth:`FOX.MultiMolecule.as_xyz`."""
     mol = MOL.copy()
 
     xyz = join(REF_DIR, 'mol.xyz')
@@ -266,7 +268,7 @@ def test_as_xyz():
 
 
 def test_from_xyz():
-    """ Test :meth:`FOX.MultiMolecule.from_xyz`. """
+    """Test :meth:`FOX.MultiMolecule.from_xyz`."""
     mol = MOL.copy()
 
     mol_new = MultiMolecule.from_xyz(get_example_xyz())
