@@ -19,6 +19,9 @@ Changed
 -------
 * Changed :class:`.PSF` into a dataclass_.
 
+.. _dataclass: https://docs.python.org/3/library/dataclasses.html
+.. _DASK: https://dask.org/
+
 
 0.4.2
 *****
@@ -36,7 +39,8 @@ Changed
 * Split the armc.job.settings block into .job.md_settings
   & .job.preopt_setting.
 * Removed the unused FrozenSettings class.
-* Further generalized the param section; a path of keys now has to be specified for each block.
+* Further generalized the param section; a path of keys now has
+  to be specified for each block.
 * Removed a couple of unused functions.
 * Cleaned up the ARMC input parsing; now utilizes `schema <https://pypi.org/project/schema/>`_.
 * Updated many docstrings with examples.
@@ -77,6 +81,8 @@ Changed
 * Implementation of type hints.
   Support for python versions prior to 3.7 has been dropped.
 * :class:`.ARMC` was moved to its own seperate modules.
+
+.. _PEP257: https://www.python.org/dev/peps/pep-0257/
 
 
 0.3.2
@@ -187,8 +193,3 @@ Added
 -----
 
 * Empty Python project directory structure.
-
-
-.. _PEP257: https://www.python.org/dev/peps/pep-0257/
-.. _dataclass: https://docs.python.org/3/library/dataclasses.html
-.. _DASK: https://dask.org/
