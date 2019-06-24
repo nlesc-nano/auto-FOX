@@ -93,8 +93,8 @@ def get_adf(ang: np.ndarray,
             with np.errstate(divide='ignore', invalid='ignore'):
                 weight = np.bincount(ang_int[j], dist_flat, minlength=181)[1:181] / at_count
                 dens *= weight
-                mult = area / np.nansum(dens)
-                dens *= mult
+                normalize = area / np.nansum(dens)
+                dens *= normalize
             dens[np.isnan(dens)] = 0.0
         ret.append(dens)
 
