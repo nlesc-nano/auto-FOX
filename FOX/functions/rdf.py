@@ -30,12 +30,9 @@ def get_rdf_df(atom_pairs: Sequence[Hashable],
         An empty dataframe to hold the RDF.
 
     """
-    # Prepare the DataFrame arguments
-    shape = 1 + int(r_max / dr), len(atom_pairs)
-    index = np.arange(0, r_max + dr, dr)
-
     # Create and return the DataFrame
-    df = pd.DataFrame(np.zeros(shape), index=index, columns=atom_pairs)
+    index = np.arange(0.0, r_max + dr, dr)
+    df = pd.DataFrame(0.0, index=index, columns=atom_pairs)
     df.columns.name = 'Atom pairs'
     df.index.name = 'r  /  Angstrom'
     return df

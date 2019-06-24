@@ -29,58 +29,43 @@ def get_adf_df(atom_pairs: Sequence[Hashable]) -> pd.DataFrame:
     return df
 
 
-def get_adf(ang_mat: np.ndarray,
-            r_max: float = 24.0) -> np.ndarray:
-    """Calculate and return the angular distribution function (ADF).
+def get_adf(ang: np.ndarray,
+            dist: np.ndarray,
+            atnum_ar: np.ndarray,
+            atnum_dict: Dict[int, int],
+            distance_weighted: bool = True) -> np.ndarray:
+    r"""Calculate and return the angular distribution function (ADF).
 
-    The ADF is based on the 4D angle matrix **ang_mat**.
-
-    Parameters
-    ----------
-    ang : :math:`m*n*k*l` |np.ndarray|_ [|np.float64|_]
-        A 4D angle matrix constructed from :math:`m` molecules and three sets of
-        :math:`n`, :math:`k` and :math:`l` atoms.
-
-    r_max : float
-        The diameter of the sphere used for converting particle counts into densities.
-
-    Returns
-    -------
-    :math:`181` |np.ndarray|_ [|np.float64|_]:
-        A 1D array with an angular distribution function spanning all values between 0 and 180
-        degrees.
-
-    """
-    ang_mat[np.isnan(ang_mat)] = 10
-    ang_int = np.array(np.degrees(ang_mat), dtype=int)
-    volume = (4/3) * np.pi * (0.5 * r_max)**3
-    dens_mean = ang_mat.shape[1] / volume
-
-    dens = np.array([np.bincount(i.ravel(), minlength=181)[1:181] for i in ang_int], dtype=float)
-    dens /= np.product(ang_mat.shape[-2:])  # Correct for the number of reference atoms
-    dens /= volume / 181  # Convert the particle count into a partical density
-    dens /= dens_mean  # Normalize the particle density
-    return np.average(dens, axis=0)
-
-
-def get_adf2(ang: np.ndarray,
-             atnum_ar: np.ndarray,
-             atnum_dict: Dict[int, int],
-             dist: np.ndarray) -> np.ndarray:
-    """Calculate and return the angular distribution function (ADF).
-
-    The ADF is based on the 4D angle matrix **ang_mat**.
+    The ADF is based on the 3D angle matrix **ang_mat**.
 
     Parameters
     ----------
-    ang : :math:`m*n*k*l` |np.ndarray|_ [|np.float64|_]
-        A 4D angle matrix constructed from :math:`m` molecules and three sets of
+    ang : :math:`n*k*l` |np.ndarray|_ [|np.float64|_]
+        A 3D angle matrix (radian) constructed from 1 molecule and three sets of
         :math:`n`, :math:`k` and :math:`l` atoms.
+
+    dist : :math:`n*k*l` |np.ndarray|_ [|np.float64|_]
+        A 3D distance matrix (Angstrom) containing all distances between three sets of
+        :math:`n`, :math:`k` and :math:`l` atoms.
+
+    distance_weighted : |bool|_
+        Return the distance-weighted angular distribution function.
+        Each angle, :math:`\phi_{ijk}`, is weighted by the distance according to the
+        weighting factor :math:`v`:
+
+        .. math::
+
+            v = \Biggl \lbrace
+            {
+                e^{-r_{ji}}, \quad r_{ji} \; \gt \; r_{jk}
+                \atop
+                e^{-r_{jk}}, \quad r_{ji} \; \lt \; r_{jk}
+            }
 
     Returns
     -------
-    :math:`181` |np.ndarray|_ [|np.float64|_]:
-        A 1D array with an angular distribution function spanning all values between 0 and 180
+    :math:`m*180` |np.ndarray|_ [|np.float64|_]:
+        A 2D array with an angular distribution function spanning all values between 0 and 180
         degrees.
 
     """
@@ -88,14 +73,29 @@ def get_adf2(ang: np.ndarray,
 
     ret = []
     for k, v in atnum_dict.items():
+        # Prepare slices
         j = atnum_ar == k
         dist_flat = dist[j]
+
+        # Calculate the average angle density
         r_max = -np.log(dist_flat.min())
         volume = (4/3) * np.pi * (0.5 * r_max)**3
+        dens_mean = v / volume
 
-        denominator = (volume / 180) * len(dist_flat) / v
-        dens = np.array(np.bincount(ang_int[j], dist_flat, minlength=181)[1:181], dtype=float)
-        dens /= denominator
+        # Calculate and normalize the density
+        denominator = dens_mean * (volume / 180) * len(dist_flat) / v
+        at_count = np.array(np.bincount(ang_int[j], minlength=181)[1:181], dtype=float)
+        dens = at_count / denominator
+
+        # Weight (and re-normalize) the density based on the distance matrix **dist**
+        if distance_weighted:
+            area = dens.sum()
+            with np.errstate(divide='ignore', invalid='ignore'):
+                weight = np.bincount(ang_int[j], dist_flat, minlength=181)[1:181] / at_count
+                dens *= weight
+                mult = area / np.nansum(dens)
+                dens *= mult
+            dens[np.isnan(dens)] = 0.0
         ret.append(dens)
 
     return np.array(ret).T
