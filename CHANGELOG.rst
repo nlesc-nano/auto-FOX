@@ -6,18 +6,35 @@ All notable changes to this project will be documented in this file.
 This project adheres to `Semantic Versioning <http://semver.org/>`_.
 
 
+0.4.3
+*****
+
+Added
+-----
+* Generation of angular distribution functions, :meth:`.MultiMolecule.init_adf`,
+  is now conducted in parallel if DASK_ is installed.
+* A distance cutoff can now be specified in :meth:`.MultiMolecule.init_adf`.
+
+Changed
+-------
+* Changed :class:`.PSF` into a dataclass_.
+
+
 0.4.2
 *****
 
 Added
 -----
-* Minimum and maximum allowed values can now be specified for all ARMC paramaters.
-* Added a commandline interface for generating and exporting plots & .csv files.
+* Minimum and maximum allowed values can now be specified for
+  all ARMC paramaters.
+* Added a commandline interface for generating and exporting
+  plots & .csv files.
 * Added a function for translating strings to callable objects.
 
 Changed
 -------
-* Split the armc.job.settings block into .job.md_settings & .job.preopt_setting.
+* Split the armc.job.settings block into .job.md_settings
+  & .job.preopt_setting.
 * Removed the unused FrozenSettings class.
 * Further generalized the param section; a path of keys now has to be specified for each block.
 * Removed a couple of unused functions.
@@ -173,3 +190,5 @@ Added
 
 
 .. _PEP257: https://www.python.org/dev/peps/pep-0257/
+.. _dataclass: https://docs.python.org/3/library/dataclasses.html
+.. _DASK: https://dask.org/
