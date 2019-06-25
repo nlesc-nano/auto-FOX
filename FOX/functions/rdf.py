@@ -74,11 +74,10 @@ def get_rdf(dist: np.ndarray,
     dist2.shape = dist_shape[0], dist_shape[1] * dist_shape[2]
 
     dens = np.array([np.bincount(i, minlength=idx_max)[:idx_max] for i in dist2], dtype=float)
-    dens /= dist_shape[1]
-    dens /= int_step
-    dens /= dens_mean[:, None]
+    denom = dist_shape[1] * int_step * dens_mean[:, None]
+    dens /= denom
     dens[:, 0] = 0.0
-    return np.average(dens, axis=0)
+    return dens.mean(axis=0)
 
 
 def get_rdf_lowmem(dist: np.ndarray,

@@ -101,10 +101,12 @@ class MultiMolecule(_MultiMolecule):
         if atom_subset is None:
             raise TypeError("'None' is an invalid value for 'atom_subset'")
 
+        # Delete atoms
         at_subset = np.array(self._get_atom_subset(atom_subset, as_sequence=True))
         idx = np.arange(0, self.shape[1])[~at_subset]
         ret = self[:, idx].copy()
 
+        # Update :attr:`.MultiMolecule.atoms`
         symbols = self.symbol[idx]
         ret.atoms = {}
         for i, at in enumerate(symbols):
@@ -281,7 +283,8 @@ class MultiMolecule(_MultiMolecule):
             return coords @ rotmat
 
     def sort(self, sort_by: Union[str, Sequence[int]] = 'symbol',
-             reverse: bool = False) -> None:
+             reverse: bool = False,
+             inplace: bool = True) -> Optional[MultiMolecule]:
         """Sort the atoms in this instance and **self.atoms**, performing in inplace update.
 
         Parameters
@@ -295,6 +298,14 @@ class MultiMolecule(_MultiMolecule):
 
         reverse : bool
             Sort in reversed order.
+
+        inplace : bool
+            Instead of returning the new coordinates, perform an inplace update of this instance.
+
+        Returns
+        -------
+        |None|_ or |FOX.MultiMolecule|_:
+            If **inplace** is ``True``, return a new :class:`MultiMolecule` instance.
 
         """
         # Create and, potentially, sort a list of indices
@@ -310,25 +321,37 @@ class MultiMolecule(_MultiMolecule):
         if reverse:
             idx_range.reverse()
 
+        # Inplace update or return a copy
+        if inplace:
+            mol = self
+        else:
+            mol = self.copy()
+
         # Sort this instance
-        self[:] = self[:, idx_range]
+        mol[:] = mol[:, idx_range]
 
         # Refill **self.atoms**
-        symbols = self.symbol[idx_range]
-        self.atoms = {}
+        symbols = mol.symbol[idx_range]
+        mol.atoms = {}
         for i, at in enumerate(symbols):
             try:
-                self.atoms[at].append(i)
+                mol.atoms[at].append(i)
             except KeyError:
-                self.atoms[at] = [i]
+                mol.atoms[at] = [i]
 
         # Sort **self.bonds**
-        if self.bonds is not None:
-            self.atom1 = idx_range[self.atom1]
-            self.atom2 = idx_range[self.atom2]
-            self.bonds[:, 0:2].sort(axis=1)
-            idx = self.bonds[:, 0:2].argsort(axis=0)[:, 0]
-            self.bonds = self.bonds[idx]
+        if mol.bonds is not None:
+            mol.atom1 = idx_range[mol.atom1]
+            mol.atom2 = idx_range[mol.atom2]
+            mol.bonds[:, 0:2].sort(axis=1)
+            idx = mol.bonds[:, 0:2].argsort(axis=0)[:, 0]
+            mol.bonds = mol.bonds[idx]
+
+        # Inplace update or return a copy
+        if inplace:
+            return None
+        else:
+            return mol
 
     def residue_argsort(self, concatenate: bool = True) -> Union[List[List[int]], np.ndarray]:
         """Return the indices that would sort this instance by residue number.
@@ -753,7 +776,7 @@ class MultiMolecule(_MultiMolecule):
 
         Returns
         -------
-        :math:`(m-1)*n` or :math:`(m-1)*n*3` |np.ndarray|_ [|np.float64|_]:
+        :math:`m*n` or :math:`m*n*3` |np.ndarray|_ [|np.float64|_]:
             A 2D or 3D array of atomic velocities, the number of dimensions depending on the
             value of **norm** (``True`` = 2D; ``False`` = 3D).
 
@@ -763,22 +786,13 @@ class MultiMolecule(_MultiMolecule):
         j = self._get_atom_subset(atom_subset)
 
         # Slice the XYZ array
-        xyz_slice = self[i, j]
-        dim1, dim2, dim3 = xyz_slice.shape
-        shape = (dim1 - 1) * dim2, dim3
-
-        # Reshape the XYZ array
-        A = xyz_slice[:-1].reshape(shape)
-        B = xyz_slice[1:].reshape(shape)
+        xyz = self[i][j]
 
         # Calculate and return the velocity
         if norm:
-            v = np.linalg.norm(A - B, axis=1)
-            v.shape = (dim1 - 1), dim2
+            return np.gradient(np.linalg.norm(xyz, axis=2), axis=0)
         else:
-            v = A - B
-            v.shape = (dim1 - 1), dim2, 3
-        return v
+            return np.gradient(xyz, axis=0)
 
     def get_rmsd(self, mol_subset: MolSubset = None,
                  atom_subset: AtomSubset = None) -> np.ndarray:
@@ -1273,18 +1287,6 @@ class MultiMolecule(_MultiMolecule):
         ADFs are calculated for all possible atom-pairs in **atom_subset** and returned as a
         dataframe.
 
-        Each angle, :math:`\phi_{ijk}`, is weighted by the distance according to the
-        weighting factor :math:`v`:
-
-        .. math::
-
-            v = \Biggl \lbrace
-            {
-                e^{-r_{ji}}, \quad r_{ji} \; \gt \; r_{jk}
-                \atop
-                e^{-r_{jk}}, \quad r_{ji} \; \lt \; r_{jk}
-            }
-
         .. _DASK: https://dask.org/
 
         Parameters
@@ -1307,32 +1309,34 @@ class MultiMolecule(_MultiMolecule):
         distance_weighted : |bool|_
             Return the distance-weighted angular distribution function.
             Every angle the to-be constructed angle matrix, :math:`\phi_{ijk}`, is weighted by the
-            distance according to the weighting factor :math:`v`:
+            distance according to the weighting factor :math:`v_{ijk}`:
 
             .. math::
 
-                v = \Biggl \lbrace
+                v_{ijk} = \Biggl \lbrace
                 {
                     e^{-r_{ji}}, \quad r_{ji} \; \gt \; r_{jk}
                     \atop
                     e^{-r_{jk}}, \quad r_{ji} \; \lt \; r_{jk}
                 }
 
-        Notes
-        -----
-        Disabling the distance cuttoff is strongly recommended (*i.e.* it is faster) for large
-        values of **r_max**. As a rough guideline, ``r_max="inf"`` is roughly as fast as
-        ``r_max=15.0`` (though this is, of course, system dependant).
-
-        The ADF construction will be conducted in parralel if the DASK_ package is installed.
-        DASK can be installed, via anaconda, with the following command:
-        ``conda install -n FOX -y -c conda-forge dask``.
-
         Returns
         -------
         |pd.DataFrame|_
             A dataframe of angular distribution functions, averaged over all conformations in
             this instance.
+
+        Note
+        ----
+        Disabling the distance cuttoff is strongly recommended (*i.e.* it is faster) for large
+        values of **r_max**. As a rough guideline, ``r_max="inf"`` is roughly as fast as
+        ``r_max=15.0`` (though this is, of course, system dependant).
+
+        Note
+        ----
+        The ADF construction will be conducted in parralel if the DASK_ package is installed.
+        DASK can be installed, via anaconda, with the following command:
+        ``conda install -n FOX -y -c conda-forge dask``.
 
         """
         # Identify the maximum to-be considered radius
@@ -1342,16 +1346,15 @@ class MultiMolecule(_MultiMolecule):
 
         # Identify atom and molecule subsets
         m_subset = self._get_mol_subset(mol_subset)
-        at_subset = np.array(self._get_atom_subset(atom_subset, as_sequence=True))
+        at_subset = np.asarray(self._get_atom_subset(atom_subset, as_sequence=True))
 
         # Construct a dictionary with atom counts and unique atom-pair identifiers
-        get_atnum = PeriodicTable.get_atomic_number  # Callable alias
         atom_pairs = self.get_pair_dict(atom_subset or list(self.atoms), r=3)
         atnum_dict = {}
+        get_atnum = PeriodicTable.get_atomic_number  # method alias
         for at1, at2, at3 in atom_pairs.values():
             key = (get_atnum(at1) + get_atnum(at3)) * get_atnum(at2)
-            value = np.count_nonzero(self.atoms[at2])
-            atnum_dict[key] = value
+            atnum_dict[key] = len(self.atoms[at2])
 
         # Slice this MultiMolecule instance based on **atom_subset** and **mol_subset**
         del_atom = np.arange(0, self.shape[1])[~at_subset]
@@ -1394,9 +1397,8 @@ class MultiMolecule(_MultiMolecule):
         idx[idx == m.shape[0]] = 0
 
         # Slice the Cartesian coordinates
-        coords1 = m[idx]
+        coords1 = coords3 = m[idx]
         coords2 = m[..., None, :]
-        coords3 = coords1
 
         # Construct (3D) angle- and distance-matrices
         with np.errstate(divide='ignore', invalid='ignore'):
@@ -1407,8 +1409,7 @@ class MultiMolecule(_MultiMolecule):
         ang[np.isnan(ang)] = 0.0
 
         # Create an array of (unique) atom-pair identifiers
-        atnum_ar = atnum[idx][..., None] + atnum[idx][..., None, :]
-        atnum_ar *= atnum[:, None, None]
+        atnum_ar = atnum[:, None, None] * (atnum[idx][..., None] + atnum[idx][..., None, :])
 
         # Construct and return the ADF
         return get_adf(ang, dist, atnum_ar, atnum_dict, distance_weighted)

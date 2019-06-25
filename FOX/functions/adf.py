@@ -87,15 +87,18 @@ def get_adf(ang: np.ndarray,
         at_count = np.array(np.bincount(ang_int[j], minlength=181)[1:181], dtype=float)
         dens = at_count / denominator
 
+        if not distance_weighted:
+            ret.append(dens)
+            continue
+
         # Weight (and re-normalize) the density based on the distance matrix **dist**
-        if distance_weighted:
-            area = dens.sum()
-            with np.errstate(divide='ignore', invalid='ignore'):
-                weight = np.bincount(ang_int[j], dist_flat, minlength=181)[1:181] / at_count
-                dens *= weight
-                normalize = area / np.nansum(dens)
-                dens *= normalize
-            dens[np.isnan(dens)] = 0.0
+        area = dens.sum()
+        with np.errstate(divide='ignore', invalid='ignore'):
+            weight = np.bincount(ang_int[j], dist_flat, minlength=181)[1:181] / at_count
+            dens *= weight
+            normalize = area / np.nansum(dens)
+            dens *= normalize
+        dens[np.isnan(dens)] = 0.0
         ret.append(dens)
 
     return np.array(ret).T
