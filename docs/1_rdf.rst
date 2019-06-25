@@ -43,8 +43,8 @@ oxygen (Cd_Cd, Cd_Se, Cd_O, Se_Se, Se_O and O_O).
     >>> mol = MultiMolecule.from_xyz(example_xyz_file)
 
     >>> rdf = mol.init_rdf(atom_subset=('Cd', 'Se', 'O'))
-    >>> adf = mol.init_adf(r_max='inf', distance_weighted=False, atom_subset=('Cd', 'Se'))
-    >>> adf_weighted = mol.init_adf(r_max='inf', distance_weighted=True, atom_subset=('Cd', 'Se'))
+    >>> adf = mol.init_adf(r_max=8, distance_weighted=False, atom_subset=('Cd', 'Se'))
+    >>> adf_weighted = mol.init_adf(r_max=8, distance_weighted=True, atom_subset=('Cd', 'Se'))
 
     >>> rdf.plot(title='RDF')
     >>> adf.plot(title='ADF')
@@ -56,8 +56,8 @@ oxygen (Cd_Cd, Cd_Se, Cd_O, Se_Se, Se_O and O_O).
     from FOX import (MultiMolecule, get_example_xyz)
     mol = MultiMolecule.from_xyz(get_example_xyz())
     rdf = mol.init_rdf(atom_subset=('Cd', 'Se', 'O'))
-    adf = mol.init_adf(r_max='inf', distance_weighted=False, atom_subset=('Cd', 'Se'))
-    adf_weighted = mol.init_adf(r_max='inf', distance_weighted=True, atom_subset=('Cd', 'Se'))
+    adf = mol.init_adf(r_max=8, distance_weighted=False, atom_subset=('Cd', 'Se'))
+    adf_weighted = mol.init_adf(r_max=8, distance_weighted=True, atom_subset=('Cd', 'Se'))
     rdf.plot(title='RDF')
     adf.plot(title='ADF')
     adf_weighted.plot(title='Distance-weighted ADF')
