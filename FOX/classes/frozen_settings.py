@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import (Any, Hashable)
+from typing import (Any, Hashable, Sequence)
 
 from scm.plams import Settings
 
@@ -58,21 +58,23 @@ class FrozenSettings(Settings):
         flat_dict = super().flatten()
         ret = 0
         for k, v in flat_dict.items():
-            ret ^= k + (v,)
+            ret ^= hash(k + (v,))
         return ret
 
-    def set_nested(self, unflatten_list=True) -> FrozenSettings:
+    def set_nested(self, key_tuple: Sequence[Hashable],
+                   value: Any,
+                   ignore_missing: bool = True) -> FrozenSettings:
         """Raise a :exc:`TypeError`, :class:`FrozenSettings` instances are immutable."""
         raise TypeError("'FrozenSettings' object does not support item assignment")
 
     @append_docstring(Settings.flatten)
     def flatten(self, flatten_list=True) -> FrozenSettings:
         """"""
-        ret = Settings.flatten(flatten_list)
+        ret = super().flatten(flatten_list)
         return FrozenSettings(ret)
 
     @append_docstring(Settings.unflatten)
     def unflatten(self, unflatten_list=True) -> FrozenSettings:
         """"""
-        ret = Settings.unflatten(unflatten_list)
+        ret = super().unflatten(unflatten_list)
         return FrozenSettings(ret)

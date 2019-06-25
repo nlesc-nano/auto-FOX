@@ -1,4 +1,4 @@
-"""A module for testing files in the :mod:`FOX.classes.psf.PSF` class."""
+"""A module for testing files in the :class:`FOX.classes.psf.PSF` class."""
 
 from os import remove
 from os.path import join
