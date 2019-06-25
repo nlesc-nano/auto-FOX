@@ -10,7 +10,9 @@ from typing import (
 
 import numpy as np
 import pandas as pd
+from scipy import (signal, constants)
 from scipy.spatial import cKDTree
+from scipy.fftpack import fft
 from scipy.spatial.distance import cdist
 
 from scm.plams import (Atom, Bond, PeriodicTable)
@@ -785,14 +787,14 @@ class MultiMolecule(_MultiMolecule):
         i = self._get_mol_subset(mol_subset)
         j = self._get_atom_subset(atom_subset)
 
-        # Slice the XYZ array
-        xyz = self[i][j]
+        # Slice the XYZ array and reset the origin
+        xyz = self[i, j]
+        xyz.reset_origin()
 
-        # Calculate and return the velocity
         if norm:
-            return np.gradient(np.linalg.norm(xyz, axis=2), axis=0)
+            return np.gradient(np.linalg.norm(xyz, axis=2), timestep, axis=0)
         else:
-            return np.gradient(xyz, axis=0)
+            return np.gradient(xyz, timestep, axis=0)
 
     def get_rmsd(self, mol_subset: MolSubset = None,
                  atom_subset: AtomSubset = None) -> np.ndarray:
@@ -1277,6 +1279,54 @@ class MultiMolecule(_MultiMolecule):
             return {str_.format(*i): i for i in values}
 
     """############################  Angular Distribution Functions  ######################### """
+
+    def init_power_spectrum(self, mol_subset: MolSubset = None,
+                            atom_subset: AtomSubset = None,
+                            freq_max: int = 4000) -> pd.DataFrame:
+        """Calculate and return the power spectrum associated with this instance.
+
+        Parameters
+        ----------
+        mol_subset : slice
+            Perform the calculation on a subset of molecules in this instance, as
+            determined by their moleculair index.
+            Include all :math:`m` molecules in this instance if ``None``.
+
+        atom_subset : |Sequence|_
+            Perform the calculation on a subset of atoms in this instance, as
+            determined by their atomic index or atomic symbol.
+            Include all :math:`n` atoms per molecule in this instance if ``None``.
+
+        freq_max : |int|_
+            The maximum to be returned wavenumber (cm**-1).
+
+        Returns
+        -------
+        |pd.DataFrame|_
+            A DataFrame containing the power spectrum for each set of atoms in
+            **atom_subset**.
+
+        """
+        # Get atomic velocities
+        v = self.get_velocity(1e-15, mol_subset=mol_subset, atom_subset=atom_subset)  # A / s
+
+        # Create the to-be returned DataFrame
+        freq_max = int(freq_max) + 1
+        idx = pd.RangeIndex(0, freq_max, name='Wavenumber / cm**-1')
+        df = pd.DataFrame(index=idx)
+
+        # Construct the velocity autocorrelation function
+        vacf = signal.fftconvolve(v, v[::-1], axes=0)[len(v)-1:]
+        dv = v - v.mean(axis=0)
+        vacf /= np.einsum('ij,ij->j', dv, dv)
+
+        # Construct power spectra intensities
+        n = int(1 / (constants.c * 1e-13))
+        power_complex = fft(vacf, n, axis=0) / len(vacf)
+        power_abs = np.abs(power_complex)
+        for at, idx in self.atoms.items():
+            slice_ = power_abs[:, idx]
+            df[at] = np.einsum('ij,ij->i', slice_, slice_)[:freq_max]
 
     def init_adf(self, mol_subset: MolSubset = None,
                  atom_subset: AtomSubset = None,
