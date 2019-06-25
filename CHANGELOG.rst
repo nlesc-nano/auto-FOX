@@ -6,13 +6,25 @@ All notable changes to this project will be documented in this file.
 This project adheres to `Semantic Versioning <http://semver.org/>`_.
 
 
+0.4.4
+*****
+
+Added
+-----
+
+* Added new methods for constructing the velocity autocorrelation function
+  (VACF), :meth:`.MultiMolecule.get_vacf`, and VACF-derived power spectra,
+  :meth:`.MultiMolecule.init_power_spectrum`.
+
+
 0.4.3
 *****
 
 Added
 -----
-* Generation of angular distribution functions, :meth:`.MultiMolecule.init_adf`,
-  is now conducted in parallel if DASK_ is installed.
+* Generation of angular distribution functions,
+  :meth:`.MultiMolecule.init_adf`, is now conducted in parallel
+  if DASK_ is installed.
 * A distance cutoff can now be specified in :meth:`.MultiMolecule.init_adf`.
 
 Changed

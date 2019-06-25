@@ -441,7 +441,7 @@ class MultiMolecule(_MultiMolecule):
             return np.zeros(len(j), dtype=int)
         return np.bincount(self.bonds[:, 0:2].flatten(), minlength=self.shape[1])[j]
 
-    """################################## Root Mean Squared ################################## """
+    """################################## Root Mean Squared ###################################"""
 
     def _get_time_averaged_prop(self, method: Callable,
                                 atom_subset: AtomSubset = None,
@@ -951,6 +951,7 @@ class MultiMolecule(_MultiMolecule):
 
         return columns, data
 
+    # TODO remove this method in favor of MultiMolecule._get_at_iterable()
     def _get_loop(self, atom_subset: AtomSubset) -> Tuple[bool, AtomSubset]:
         """Figure out if the supplied subset warrants a for loop or not.
 
@@ -990,7 +991,7 @@ class MultiMolecule(_MultiMolecule):
         err = "'{}' of type '{}' is an invalid argument for 'atom_subset'"
         raise TypeError(err.format(str(atom_subset), atom_subset.__class__.__name__))
 
-    """#############################  Determining shell structures  ######################### """
+    """#############################  Determining shell structures  ##########################"""
 
     def init_shell_search(self, mol_subset: MolSubset = None,
                           atom_subset: AtomSubset = None,
@@ -1150,7 +1151,7 @@ class MultiMolecule(_MultiMolecule):
                 ret[name.format(i+1)] = sorted(idx_series[idx].values.tolist())
         return ret
 
-    """#############################  Radial Distribution Functions  ######################### """
+    """#############################  Radial Distribution Functions  ##########################"""
 
     def init_rdf(self, atom_subset: AtomSubset = None,
                  dr: float = 0.05,
@@ -1278,7 +1279,7 @@ class MultiMolecule(_MultiMolecule):
             str_ = ''.join(' {}' for _ in values[0])[1:]
             return {str_.format(*i): i for i in values}
 
-    """############################  Angular Distribution Functions  ######################### """
+    """####################################  Power spectrum  ###################################"""
 
     def init_power_spectrum(self, mol_subset: MolSubset = None,
                             atom_subset: AtomSubset = None,
@@ -1307,26 +1308,132 @@ class MultiMolecule(_MultiMolecule):
             **atom_subset**.
 
         """
-        # Get atomic velocities
-        v = self.get_velocity(1e-15, mol_subset=mol_subset, atom_subset=atom_subset)  # A / s
+        # Construct the velocity autocorrelation function
+        vacf = self.get_vacf(mol_subset, atom_subset)
 
         # Create the to-be returned DataFrame
         freq_max = int(freq_max) + 1
         idx = pd.RangeIndex(0, freq_max, name='Wavenumber / cm**-1')
         df = pd.DataFrame(index=idx)
 
-        # Construct the velocity autocorrelation function
-        vacf = signal.fftconvolve(v, v[::-1], axes=0)[len(v)-1:]
-        dv = v - v.mean(axis=0)
-        vacf /= np.einsum('ij,ij->j', dv, dv)
-
         # Construct power spectra intensities
         n = int(1 / (constants.c * 1e-13))
         power_complex = fft(vacf, n, axis=0) / len(vacf)
         power_abs = np.abs(power_complex)
-        for at, idx in self.atoms.items():
+
+        iterable = self._get_at_iterable(atom_subset)
+        for at, idx in iterable:
             slice_ = power_abs[:, idx]
             df[at] = np.einsum('ij,ij->i', slice_, slice_)[:freq_max]
+
+        return df
+
+    def get_vacf(self, mol_subset: MolSubset = None,
+                 atom_subset: AtomSubset = None) -> np.ndarray:
+        """Calculate and return the velocity autocorrelation function (VACF).
+
+        Parameters
+        ----------
+        mol_subset : slice
+            Perform the calculation on a subset of molecules in this instance, as
+            determined by their moleculair index.
+            Include all :math:`m` molecules in this instance if ``None``.
+
+        atom_subset : |Sequence|_
+            Perform the calculation on a subset of atoms in this instance, as
+            determined by their atomic index or atomic symbol.
+            Include all :math:`n` atoms per molecule in this instance if ``None``.
+
+        Returns
+        -------
+        |pd.DataFrame|_
+            A DataFrame containing the power spectrum for each set of atoms in
+            **atom_subset**.
+
+        """
+        # Get atomic velocities
+        v = self.get_velocity(1e-15, mol_subset=mol_subset, atom_subset=atom_subset)  # A / s
+
+        # Construct the velocity autocorrelation function
+        vacf = signal.fftconvolve(v, v[::-1], axes=0)[len(v)-1:]
+        dv = v - v.mean(axis=0)
+        return vacf / np.einsum('ij,ij->j', dv, dv)
+
+    def _get_at_iterable(self, atom_subset: AtomSubset) -> Iterable[Tuple[Hashable, Any]]:
+        """Return an iterable that returns 2-tuples upon iteration.
+
+        The **atom_subset** argument is evaluated and converted into an iterable.
+        Upon iteration, this iterable yields 2-tuples consisting of:
+        1. A hashable intended for the column names of DataFrames.
+        2. An object for slicing arrays.
+
+        If **atom_subset** consists of one or more string (*i.e.*) atoms, then those while be used
+        as hashable. An enumeration scheme will be employed otherwise.
+
+        Examples
+        --------
+
+        .. code:: python
+
+            >>> import numpy as np
+            >>> from FOX import (MultiMolecule, get_example_xyz)
+
+            >>> np.set_printoptions(threshold=10)
+            >>> mol = MultiMolecule.from_xyz(get_example_xyz())
+
+            >>> atom_subset = ['C', 'H', 'O']
+            >>> atom_iter = mol._get_at_iterable(atom_subset)
+            >>> for at, idx in atom_iter:
+            >>>     print(at, np.array(idx))
+            C [123 127 131 ... 215 219 223]
+            H [124 128 132 ... 216 220 224]
+            O [125 126 129 ... 222 225 226]
+
+            >>> atom_subset = [(1, 2, 3), (4, 5, 6), (7, 8, 9)]
+            >>> atom_iter = mol._get_at_iterable(atom_subset)
+            >>> for at, idx in atom_iter:
+            >>>     print(at, np.array(idx))
+            0 [1 2 3]
+            1 [4 5 6]
+            2 [7 8 9]
+
+        Parameters
+        ----------
+        atom_subset : |Sequence|_
+            Perform the calculation on a subset of atoms in this instance, as
+            determined by their atomic index or atomic symbol.
+            Include all :math:`n` atoms per molecule in this instance if ``None``.
+
+        Returns
+        -------
+        |Iterable|_ [|tuple|_ [|Hashable|_, |int|_ or |Sequence|_ [|int|_]]]
+            A boolean and (nested) iterable consisting of integers.
+
+        Raises
+        ------
+        TypeError
+            Raised if **atom_subset** is of an invalid type.
+
+        """
+        if atom_subset is None:
+            return self.atoms.items()
+        elif isinstance(atom_subset, (range, slice)):
+            return enumerate((atom_subset))
+        elif isinstance(atom_subset, str):
+            return ((atom_subset, self.atoms[atom_subset]))
+        elif isinstance(atom_subset, int):
+            return False, enumerate(([atom_subset]))
+        elif isinstance(atom_subset[0], (int, np.integer)):
+            return enumerate((atom_subset))
+        elif isinstance(atom_subset[0], str):
+            return [(at, self.atoms[at]) for at in atom_subset]
+        elif isinstance(atom_subset[0][0], (int, np.integer)):
+            return enumerate(atom_subset)
+
+        err = "'{}' of type '{}' is an invalid argument for 'atom_subset'"
+        raise TypeError(err.format(str(atom_subset), atom_subset.__class__.__name__))
+
+    """############################  Angular Distribution Functions  ##########################"""
 
     def init_adf(self, mol_subset: MolSubset = None,
                  atom_subset: AtomSubset = None,
@@ -1667,7 +1774,7 @@ class MultiMolecule(_MultiMolecule):
         err = "'{}' of type '{}' is an invalid argument for 'mol_subset'"
         raise IndexError(err.format(str(mol_subset), mol_subset.__class__.__name__))
 
-    """#################################  Type conversion  ################################### """
+    """#################################  Type conversion  ####################################"""
 
     def _mol_to_file(self, filename: str,
                      outputformat: Optional[str] = None,
