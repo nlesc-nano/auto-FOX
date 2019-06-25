@@ -10,7 +10,9 @@ from typing import (
 
 import numpy as np
 import pandas as pd
+from scipy import (signal, constants)
 from scipy.spatial import cKDTree
+from scipy.fftpack import fft
 from scipy.spatial.distance import cdist
 
 from scm.plams import (Atom, Bond, PeriodicTable)
@@ -101,10 +103,12 @@ class MultiMolecule(_MultiMolecule):
         if atom_subset is None:
             raise TypeError("'None' is an invalid value for 'atom_subset'")
 
+        # Delete atoms
         at_subset = np.array(self._get_atom_subset(atom_subset, as_sequence=True))
         idx = np.arange(0, self.shape[1])[~at_subset]
         ret = self[:, idx].copy()
 
+        # Update :attr:`.MultiMolecule.atoms`
         symbols = self.symbol[idx]
         ret.atoms = {}
         for i, at in enumerate(symbols):
@@ -281,7 +285,8 @@ class MultiMolecule(_MultiMolecule):
             return coords @ rotmat
 
     def sort(self, sort_by: Union[str, Sequence[int]] = 'symbol',
-             reverse: bool = False) -> None:
+             reverse: bool = False,
+             inplace: bool = True) -> Optional[MultiMolecule]:
         """Sort the atoms in this instance and **self.atoms**, performing in inplace update.
 
         Parameters
@@ -295,6 +300,14 @@ class MultiMolecule(_MultiMolecule):
 
         reverse : bool
             Sort in reversed order.
+
+        inplace : bool
+            Instead of returning the new coordinates, perform an inplace update of this instance.
+
+        Returns
+        -------
+        |None|_ or |FOX.MultiMolecule|_:
+            If **inplace** is ``True``, return a new :class:`MultiMolecule` instance.
 
         """
         # Create and, potentially, sort a list of indices
@@ -310,25 +323,37 @@ class MultiMolecule(_MultiMolecule):
         if reverse:
             idx_range.reverse()
 
+        # Inplace update or return a copy
+        if inplace:
+            mol = self
+        else:
+            mol = self.copy()
+
         # Sort this instance
-        self[:] = self[:, idx_range]
+        mol[:] = mol[:, idx_range]
 
         # Refill **self.atoms**
-        symbols = self.symbol[idx_range]
-        self.atoms = {}
+        symbols = mol.symbol[idx_range]
+        mol.atoms = {}
         for i, at in enumerate(symbols):
             try:
-                self.atoms[at].append(i)
+                mol.atoms[at].append(i)
             except KeyError:
-                self.atoms[at] = [i]
+                mol.atoms[at] = [i]
 
         # Sort **self.bonds**
-        if self.bonds is not None:
-            self.atom1 = idx_range[self.atom1]
-            self.atom2 = idx_range[self.atom2]
-            self.bonds[:, 0:2].sort(axis=1)
-            idx = self.bonds[:, 0:2].argsort(axis=0)[:, 0]
-            self.bonds = self.bonds[idx]
+        if mol.bonds is not None:
+            mol.atom1 = idx_range[mol.atom1]
+            mol.atom2 = idx_range[mol.atom2]
+            mol.bonds[:, 0:2].sort(axis=1)
+            idx = mol.bonds[:, 0:2].argsort(axis=0)[:, 0]
+            mol.bonds = mol.bonds[idx]
+
+        # Inplace update or return a copy
+        if inplace:
+            return None
+        else:
+            return mol
 
     def residue_argsort(self, concatenate: bool = True) -> Union[List[List[int]], np.ndarray]:
         """Return the indices that would sort this instance by residue number.
@@ -416,7 +441,7 @@ class MultiMolecule(_MultiMolecule):
             return np.zeros(len(j), dtype=int)
         return np.bincount(self.bonds[:, 0:2].flatten(), minlength=self.shape[1])[j]
 
-    """################################## Root Mean Squared ################################## """
+    """################################## Root Mean Squared ###################################"""
 
     def _get_time_averaged_prop(self, method: Callable,
                                 atom_subset: AtomSubset = None,
@@ -753,7 +778,7 @@ class MultiMolecule(_MultiMolecule):
 
         Returns
         -------
-        :math:`(m-1)*n` or :math:`(m-1)*n*3` |np.ndarray|_ [|np.float64|_]:
+        :math:`m*n` or :math:`m*n*3` |np.ndarray|_ [|np.float64|_]:
             A 2D or 3D array of atomic velocities, the number of dimensions depending on the
             value of **norm** (``True`` = 2D; ``False`` = 3D).
 
@@ -762,23 +787,14 @@ class MultiMolecule(_MultiMolecule):
         i = self._get_mol_subset(mol_subset)
         j = self._get_atom_subset(atom_subset)
 
-        # Slice the XYZ array
-        xyz_slice = self[i, j]
-        dim1, dim2, dim3 = xyz_slice.shape
-        shape = (dim1 - 1) * dim2, dim3
+        # Slice the XYZ array and reset the origin
+        xyz = self[i, j]
+        xyz.reset_origin()
 
-        # Reshape the XYZ array
-        A = xyz_slice[:-1].reshape(shape)
-        B = xyz_slice[1:].reshape(shape)
-
-        # Calculate and return the velocity
         if norm:
-            v = np.linalg.norm(A - B, axis=1)
-            v.shape = (dim1 - 1), dim2
+            return np.gradient(np.linalg.norm(xyz, axis=2), timestep, axis=0)
         else:
-            v = A - B
-            v.shape = (dim1 - 1), dim2, 3
-        return v
+            return np.gradient(xyz, timestep, axis=0)
 
     def get_rmsd(self, mol_subset: MolSubset = None,
                  atom_subset: AtomSubset = None) -> np.ndarray:
@@ -935,6 +951,7 @@ class MultiMolecule(_MultiMolecule):
 
         return columns, data
 
+    # TODO remove this method in favor of MultiMolecule._get_at_iterable()
     def _get_loop(self, atom_subset: AtomSubset) -> Tuple[bool, AtomSubset]:
         """Figure out if the supplied subset warrants a for loop or not.
 
@@ -974,7 +991,7 @@ class MultiMolecule(_MultiMolecule):
         err = "'{}' of type '{}' is an invalid argument for 'atom_subset'"
         raise TypeError(err.format(str(atom_subset), atom_subset.__class__.__name__))
 
-    """#############################  Determining shell structures  ######################### """
+    """#############################  Determining shell structures  ##########################"""
 
     def init_shell_search(self, mol_subset: MolSubset = None,
                           atom_subset: AtomSubset = None,
@@ -1134,7 +1151,7 @@ class MultiMolecule(_MultiMolecule):
                 ret[name.format(i+1)] = sorted(idx_series[idx].values.tolist())
         return ret
 
-    """#############################  Radial Distribution Functions  ######################### """
+    """#############################  Radial Distribution Functions  ##########################"""
 
     def init_rdf(self, atom_subset: AtomSubset = None,
                  dr: float = 0.05,
@@ -1262,7 +1279,161 @@ class MultiMolecule(_MultiMolecule):
             str_ = ''.join(' {}' for _ in values[0])[1:]
             return {str_.format(*i): i for i in values}
 
-    """############################  Angular Distribution Functions  ######################### """
+    """####################################  Power spectrum  ###################################"""
+
+    def init_power_spectrum(self, mol_subset: MolSubset = None,
+                            atom_subset: AtomSubset = None,
+                            freq_max: int = 4000) -> pd.DataFrame:
+        """Calculate and return the power spectrum associated with this instance.
+
+        Parameters
+        ----------
+        mol_subset : slice
+            Perform the calculation on a subset of molecules in this instance, as
+            determined by their moleculair index.
+            Include all :math:`m` molecules in this instance if ``None``.
+
+        atom_subset : |Sequence|_
+            Perform the calculation on a subset of atoms in this instance, as
+            determined by their atomic index or atomic symbol.
+            Include all :math:`n` atoms per molecule in this instance if ``None``.
+
+        freq_max : |int|_
+            The maximum to be returned wavenumber (cm**-1).
+
+        Returns
+        -------
+        |pd.DataFrame|_
+            A DataFrame containing the power spectrum for each set of atoms in
+            **atom_subset**.
+
+        """
+        # Construct the velocity autocorrelation function
+        vacf = self.get_vacf(mol_subset, atom_subset)
+
+        # Create the to-be returned DataFrame
+        freq_max = int(freq_max) + 1
+        idx = pd.RangeIndex(0, freq_max, name='Wavenumber / cm**-1')
+        df = pd.DataFrame(index=idx)
+
+        # Construct power spectra intensities
+        n = int(1 / (constants.c * 1e-13))
+        power_complex = fft(vacf, n, axis=0) / len(vacf)
+        power_abs = np.abs(power_complex)
+
+        iterable = self._get_at_iterable(atom_subset)
+        for at, idx in iterable:
+            slice_ = power_abs[:, idx]
+            df[at] = np.einsum('ij,ij->i', slice_, slice_)[:freq_max]
+
+        return df
+
+    def get_vacf(self, mol_subset: MolSubset = None,
+                 atom_subset: AtomSubset = None) -> np.ndarray:
+        """Calculate and return the velocity autocorrelation function (VACF).
+
+        Parameters
+        ----------
+        mol_subset : slice
+            Perform the calculation on a subset of molecules in this instance, as
+            determined by their moleculair index.
+            Include all :math:`m` molecules in this instance if ``None``.
+
+        atom_subset : |Sequence|_
+            Perform the calculation on a subset of atoms in this instance, as
+            determined by their atomic index or atomic symbol.
+            Include all :math:`n` atoms per molecule in this instance if ``None``.
+
+        Returns
+        -------
+        |pd.DataFrame|_
+            A DataFrame containing the power spectrum for each set of atoms in
+            **atom_subset**.
+
+        """
+        # Get atomic velocities
+        v = self.get_velocity(1e-15, mol_subset=mol_subset, atom_subset=atom_subset)  # A / s
+
+        # Construct the velocity autocorrelation function
+        vacf = signal.fftconvolve(v, v[::-1], axes=0)[len(v)-1:]
+        dv = v - v.mean(axis=0)
+        return vacf / np.einsum('ij,ij->j', dv, dv)
+
+    def _get_at_iterable(self, atom_subset: AtomSubset) -> Iterable[Tuple[Hashable, Any]]:
+        """Return an iterable that returns 2-tuples upon iteration.
+
+        The **atom_subset** argument is evaluated and converted into an iterable.
+        Upon iteration, this iterable yields 2-tuples consisting of:
+        1. A hashable intended for the column names of DataFrames.
+        2. An object for slicing arrays.
+
+        If **atom_subset** consists of one or more string (*i.e.*) atoms, then those while be used
+        as hashable. An enumeration scheme will be employed otherwise.
+
+        Examples
+        --------
+
+        .. code:: python
+
+            >>> import numpy as np
+            >>> from FOX import (MultiMolecule, get_example_xyz)
+
+            >>> np.set_printoptions(threshold=10)
+            >>> mol = MultiMolecule.from_xyz(get_example_xyz())
+
+            >>> atom_subset = ['C', 'H', 'O']
+            >>> atom_iter = mol._get_at_iterable(atom_subset)
+            >>> for at, idx in atom_iter:
+            >>>     print(at, np.array(idx))
+            C [123 127 131 ... 215 219 223]
+            H [124 128 132 ... 216 220 224]
+            O [125 126 129 ... 222 225 226]
+
+            >>> atom_subset = [(1, 2, 3), (4, 5, 6), (7, 8, 9)]
+            >>> atom_iter = mol._get_at_iterable(atom_subset)
+            >>> for at, idx in atom_iter:
+            >>>     print(at, np.array(idx))
+            0 [1 2 3]
+            1 [4 5 6]
+            2 [7 8 9]
+
+        Parameters
+        ----------
+        atom_subset : |Sequence|_
+            Perform the calculation on a subset of atoms in this instance, as
+            determined by their atomic index or atomic symbol.
+            Include all :math:`n` atoms per molecule in this instance if ``None``.
+
+        Returns
+        -------
+        |Iterable|_ [|tuple|_ [|Hashable|_, |int|_ or |Sequence|_ [|int|_]]]
+            A boolean and (nested) iterable consisting of integers.
+
+        Raises
+        ------
+        TypeError
+            Raised if **atom_subset** is of an invalid type.
+
+        """
+        if atom_subset is None:
+            return self.atoms.items()
+        elif isinstance(atom_subset, (range, slice)):
+            return enumerate((atom_subset))
+        elif isinstance(atom_subset, str):
+            return ((atom_subset, self.atoms[atom_subset]))
+        elif isinstance(atom_subset, int):
+            return False, enumerate(([atom_subset]))
+        elif isinstance(atom_subset[0], (int, np.integer)):
+            return enumerate((atom_subset))
+        elif isinstance(atom_subset[0], str):
+            return [(at, self.atoms[at]) for at in atom_subset]
+        elif isinstance(atom_subset[0][0], (int, np.integer)):
+            return enumerate(atom_subset)
+
+        err = "'{}' of type '{}' is an invalid argument for 'atom_subset'"
+        raise TypeError(err.format(str(atom_subset), atom_subset.__class__.__name__))
+
+    """############################  Angular Distribution Functions  ##########################"""
 
     def init_adf(self, mol_subset: MolSubset = None,
                  atom_subset: AtomSubset = None,
@@ -1272,18 +1443,6 @@ class MultiMolecule(_MultiMolecule):
 
         ADFs are calculated for all possible atom-pairs in **atom_subset** and returned as a
         dataframe.
-
-        Each angle, :math:`\phi_{ijk}`, is weighted by the distance according to the
-        weighting factor :math:`v`:
-
-        .. math::
-
-            v = \Biggl \lbrace
-            {
-                e^{-r_{ji}}, \quad r_{ji} \; \gt \; r_{jk}
-                \atop
-                e^{-r_{jk}}, \quad r_{ji} \; \lt \; r_{jk}
-            }
 
         .. _DASK: https://dask.org/
 
@@ -1307,32 +1466,34 @@ class MultiMolecule(_MultiMolecule):
         distance_weighted : |bool|_
             Return the distance-weighted angular distribution function.
             Every angle the to-be constructed angle matrix, :math:`\phi_{ijk}`, is weighted by the
-            distance according to the weighting factor :math:`v`:
+            distance according to the weighting factor :math:`v_{ijk}`:
 
             .. math::
 
-                v = \Biggl \lbrace
+                v_{ijk} = \Biggl \lbrace
                 {
                     e^{-r_{ji}}, \quad r_{ji} \; \gt \; r_{jk}
                     \atop
                     e^{-r_{jk}}, \quad r_{ji} \; \lt \; r_{jk}
                 }
 
-        Notes
-        -----
-        Disabling the distance cuttoff is strongly recommended (*i.e.* it is faster) for large
-        values of **r_max**. As a rough guideline, ``r_max="inf"`` is roughly as fast as
-        ``r_max=15.0`` (though this is, of course, system dependant).
-
-        The ADF construction will be conducted in parralel if the DASK_ package is installed.
-        DASK can be installed, via anaconda, with the following command:
-        ``conda install -n FOX -y -c conda-forge dask``.
-
         Returns
         -------
         |pd.DataFrame|_
             A dataframe of angular distribution functions, averaged over all conformations in
             this instance.
+
+        Note
+        ----
+        Disabling the distance cuttoff is strongly recommended (*i.e.* it is faster) for large
+        values of **r_max**. As a rough guideline, ``r_max="inf"`` is roughly as fast as
+        ``r_max=15.0`` (though this is, of course, system dependant).
+
+        Note
+        ----
+        The ADF construction will be conducted in parralel if the DASK_ package is installed.
+        DASK can be installed, via anaconda, with the following command:
+        ``conda install -n FOX -y -c conda-forge dask``.
 
         """
         # Identify the maximum to-be considered radius
@@ -1342,16 +1503,15 @@ class MultiMolecule(_MultiMolecule):
 
         # Identify atom and molecule subsets
         m_subset = self._get_mol_subset(mol_subset)
-        at_subset = np.array(self._get_atom_subset(atom_subset, as_sequence=True))
+        at_subset = np.asarray(self._get_atom_subset(atom_subset, as_sequence=True))
 
         # Construct a dictionary with atom counts and unique atom-pair identifiers
-        get_atnum = PeriodicTable.get_atomic_number  # Callable alias
         atom_pairs = self.get_pair_dict(atom_subset or list(self.atoms), r=3)
         atnum_dict = {}
+        get_atnum = PeriodicTable.get_atomic_number  # method alias
         for at1, at2, at3 in atom_pairs.values():
             key = (get_atnum(at1) + get_atnum(at3)) * get_atnum(at2)
-            value = np.count_nonzero(self.atoms[at2])
-            atnum_dict[key] = value
+            atnum_dict[key] = len(self.atoms[at2])
 
         # Slice this MultiMolecule instance based on **atom_subset** and **mol_subset**
         del_atom = np.arange(0, self.shape[1])[~at_subset]
@@ -1394,9 +1554,8 @@ class MultiMolecule(_MultiMolecule):
         idx[idx == m.shape[0]] = 0
 
         # Slice the Cartesian coordinates
-        coords1 = m[idx]
+        coords1 = coords3 = m[idx]
         coords2 = m[..., None, :]
-        coords3 = coords1
 
         # Construct (3D) angle- and distance-matrices
         with np.errstate(divide='ignore', invalid='ignore'):
@@ -1407,8 +1566,7 @@ class MultiMolecule(_MultiMolecule):
         ang[np.isnan(ang)] = 0.0
 
         # Create an array of (unique) atom-pair identifiers
-        atnum_ar = atnum[idx][..., None] + atnum[idx][..., None, :]
-        atnum_ar *= atnum[:, None, None]
+        atnum_ar = atnum[:, None, None] * (atnum[idx][..., None] + atnum[idx][..., None, :])
 
         # Construct and return the ADF
         return get_adf(ang, dist, atnum_ar, atnum_dict, distance_weighted)
@@ -1616,7 +1774,7 @@ class MultiMolecule(_MultiMolecule):
         err = "'{}' of type '{}' is an invalid argument for 'mol_subset'"
         raise IndexError(err.format(str(mol_subset), mol_subset.__class__.__name__))
 
-    """#################################  Type conversion  ################################### """
+    """#################################  Type conversion  ####################################"""
 
     def _mol_to_file(self, filename: str,
                      outputformat: Optional[str] = None,

@@ -1,4 +1,4 @@
-"""A module for testing the :class:`FOX.Molecule` class."""
+"""A module for testing the :class:`FOX.classes.molecule_utils.Molecule` class."""
 
 from os.path import join
 
