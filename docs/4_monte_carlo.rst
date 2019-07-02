@@ -55,9 +55,9 @@ The algorithm
     \Delta \varepsilon_{QM-MM} =
         \frac{
         \sum_{i}^{N}
-        \left(
+        \left|
             r_{i}^{QM} - r_{i}^{MM}
-        \right )^2}
+        \right |^2}
         {\sum_{i}^{N} r_{i}^{QM} }
 
 

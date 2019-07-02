@@ -315,12 +315,8 @@ class ARMC(MonteCarlo):
         .. math::
 
             \Delta \varepsilon_{QM-MM} =
-            \sqrt {
-                \frac{1}{N}
-                \sum_{i}^{N}
-                \frac{ |r_{i}^{QM} - r_{i}^{MM}|^2 }
+                \frac{ \sum_{i}^{N} |r_{i}^{QM} - r_{i}^{MM}|^2 }
                 {r_{i}^{QM}}
-            }
 
         Parameters
         ----------
@@ -336,7 +332,7 @@ class ARMC(MonteCarlo):
         def norm_mean(mm_pes: np.ndarray, key: str) -> float:
             qm_pes = self.pes[key].ref
             A, B = np.asarray(qm_pes, dtype=float), np.asarray(mm_pes, dtype=float)
-            ret = np.abs(A - B)**2
+            ret = (A - B)**2
             return ret.sum() / A.sum()
 
         return np.array([norm_mean(mm_pes, key) for key, mm_pes in pes_dict.items()])
