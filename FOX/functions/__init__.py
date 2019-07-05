@@ -1,5 +1,10 @@
+"""
+FOX.functions
+=============
 
-"""Various functions implemented in **Auto-FOX**."""
+Various functions implemented in **Auto-FOX**.
+
+"""
 
 from .rdf import (get_rdf_lowmem, get_rdf)
 from .adf import get_adf

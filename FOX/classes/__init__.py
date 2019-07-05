@@ -1,4 +1,10 @@
-"""Various classes implemented in Auto-FOX."""
+"""
+FOX.classes
+===========
+
+Various classes implemented in Auto-FOX.
+
+"""
 
 from .multi_mol import MultiMolecule
 from .armc import ARMC
