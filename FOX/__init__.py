@@ -1,4 +1,15 @@
-"""A tool for parameterizing forcefields by reproducing radial distribution functions."""
+"""
+Auto-FOX
+========
+
+A library for analyzing potential energy surfaces (PESs) and
+using the resulting PES descriptors for constructing forcefield parameters.
+
+Documentation
+-------------
+https://auto-fox.readthedocs.io/en/latest/
+
+"""
 
 from .__version__ import __version__
 
