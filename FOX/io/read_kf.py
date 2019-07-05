@@ -1,4 +1,22 @@
-"""A module for potential energy surfaces from KF binary files."""
+"""
+FOX.io.read_kf
+=================
+
+A module for potential energy surfaces from KF binary files.
+
+Index
+-----
+.. currentmodule:: FOX.io.read_kf
+.. autosummary::
+    read_kf
+    _get_idx_dict
+
+API
+---
+.. autofunction:: FOX.io.read_kf.read_kf
+.. autofunction:: FOX.io.read_kf._get_idx_dict
+
+"""
 
 from typing import (Tuple, Dict, List)
 

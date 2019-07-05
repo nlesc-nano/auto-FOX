@@ -1,4 +1,23 @@
-"""A module for performing Monte Carlo-based forcefield parameter optimizations."""
+"""
+FOX.classes.monte_carlo
+=======================
+
+A module for performing Monte Carlo-based forcefield parameter optimizations.
+
+Index
+-----
+.. currentmodule:: FOX.classes.monte_carlo
+.. autosummary::
+    MonteCarlo
+
+API
+---
+.. autoclass:: FOX.classes.monte_carlo.MonteCarlo
+    :members:
+    :private-members:
+    :special-members:
+
+"""
 
 import os
 import shutil

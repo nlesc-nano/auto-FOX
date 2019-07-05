@@ -1,4 +1,23 @@
-"""A Module for setting up the magic methods and properties of the MultiMolecule class."""
+"""
+FOX.classes.multi_mol_magic
+===========================
+
+A Module for setting up the magic methods and properties of the :class:`.MultiMolecule` class.
+
+Index
+-----
+.. currentmodule:: FOX.classes.multi_mol_magic
+.. autosummary::
+    _MultiMolecule
+
+API
+---
+.. autoclass:: FOX.classes.multi_mol_magic._MultiMolecule
+    :members:
+    :private-members:
+    :special-members:
+
+"""
 
 from __future__ import annotations
 
@@ -333,4 +352,5 @@ class _MultiMolecule(np.ndarray):
 
     def __repr__(self) -> str:
         """Return the canonical string representation of this instance."""
-        return f'<FOX.MultiMolecule: shape {self.shape}, type "{self.dtype}">'
+        class_name = self.__class__.__name__
+        return f'<{class_name}: shape {self.shape}, type "{self.dtype}">'

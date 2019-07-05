@@ -1,4 +1,20 @@
-"""A module for exporting ARMC result to .csv files."""
+"""
+FOX.armc_functions.csv
+======================
+
+A module for exporting ARMC result to .csv files.
+
+Index
+-----
+.. currentmodule:: FOX.armc_functions.csv
+.. autosummary::
+    dset_to_csv
+
+API
+---
+.. autofunction:: FOX.armc_functions.csv.dset_to_csv
+
+"""
 
 from typing import Optional
 

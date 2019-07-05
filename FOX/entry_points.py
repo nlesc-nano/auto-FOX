@@ -1,5 +1,29 @@
 #!/usr/bin/env python
-"""Entry points for Auto-FOX."""
+"""
+FOX.entry_points
+================
+
+Entry points for Auto-FOX.
+
+Index
+-----
+.. currentmodule:: FOX.entry_points
+.. autosummary::
+    main_armc
+    main_plot_pes
+    main_plot_param
+    main_plot_dset
+    main_dset_to_csv
+
+API
+---
+.. autofunction:: FOX.entry_points.main_armc
+.. autofunction:: FOX.entry_points.main_plot_pes
+.. autofunction:: FOX.entry_points.main_plot_param
+.. autofunction:: FOX.entry_points.main_plot_dset
+.. autofunction:: FOX.entry_points.main_dset_to_csv
+
+"""
 
 import argparse
 from os.path import isfile

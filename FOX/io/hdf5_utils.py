@@ -1,4 +1,49 @@
-"""Functions for storing Monte Carlo results in hdf5 format."""
+"""
+FOX.io.hdf5_utils
+=================
+
+Functions for storing Monte Carlo results in hdf5 format.
+
+Index
+-----
+.. currentmodule:: FOX.io.hdf5_utils
+.. autosummary::
+    create_hdf5
+    create_xyz_hdf5
+    index_to_hdf5
+    _get_kwarg_dict
+    hdf5_availability
+    to_hdf5
+    _xyz_to_hdf5
+    from_hdf5
+    _get_dset
+    _get_xyz_dset
+    restart_from_hdf5
+    _get_filename_xyz
+    _attr_to_array
+    dset_to_series
+    dset_to_df
+
+
+API
+---
+.. autofunction:: FOX.io.hdf5_utils.create_hdf5
+.. autofunction:: FOX.io.hdf5_utils.create_xyz_hdf5
+.. autofunction:: FOX.io.hdf5_utils.index_to_hdf5
+.. autofunction:: FOX.io.hdf5_utils._get_kwarg_dict
+.. autofunction:: FOX.io.hdf5_utils.hdf5_availability
+.. autofunction:: FOX.io.hdf5_utils.to_hdf5
+.. autofunction:: FOX.io.hdf5_utils._xyz_to_hdf5
+.. autofunction:: FOX.io.hdf5_utils.from_hdf5
+.. autofunction:: FOX.io.hdf5_utils._get_dset
+.. autofunction:: FOX.io.hdf5_utils._get_xyz_dset
+.. autofunction:: FOX.io.hdf5_utils.restart_from_hdf5
+.. autofunction:: FOX.io.hdf5_utils._get_filename_xyz
+.. autofunction:: FOX.io.hdf5_utils._attr_to_array
+.. autofunction:: FOX.io.hdf5_utils.dset_to_series
+.. autofunction:: FOX.io.hdf5_utils.dset_to_df
+
+"""
 
 from __future__ import annotations
 

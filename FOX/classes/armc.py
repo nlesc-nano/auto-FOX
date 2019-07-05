@@ -1,4 +1,23 @@
-"""A module for performing Addaptive Rate Monte Carlo (ARMC) forcefield parameter optimizations."""
+"""
+FOX.classes.armc
+================
+
+A module for performing Addaptive Rate Monte Carlo (ARMC) forcefield parameter optimizations.
+
+Index
+-----
+.. currentmodule:: FOX.classes.monte_carlo
+.. autosummary::
+    ARMC
+
+API
+---
+.. autoclass:: FOX.classes.monte_carlo.ARMC
+    :members:
+    :private-members:
+    :special-members:
+
+"""
 
 from __future__ import annotations
 

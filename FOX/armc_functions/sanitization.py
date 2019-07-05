@@ -1,4 +1,28 @@
-"""A module for parsing and sanitizing ARMC settings."""
+"""
+FOX.armc_functions.sanitization
+===============================
+
+A module for parsing and sanitizing ARMC settings.
+
+Index
+-----
+.. currentmodule:: FOX.armc_functions.sanitization
+.. autosummary::
+    init_armc_sanitization
+    validate
+    reshape_settings
+    _reshape_param
+    generate_psf
+
+API
+---
+.. autofunction:: FOX.armc_functions.sanitization.init_armc_sanitization
+.. autofunction:: FOX.armc_functions.sanitization.validate
+.. autofunction:: FOX.armc_functions.sanitization.reshape_settings
+.. autofunction:: FOX.armc_functions.sanitization._reshape_param
+.. autofunction:: FOX.armc_functions.sanitization.generate_psf
+
+"""
 
 import numpy as np
 

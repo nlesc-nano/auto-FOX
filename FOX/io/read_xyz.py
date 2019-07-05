@@ -1,4 +1,32 @@
-"""A module for reading multi-xyz files."""
+"""
+FOX.io.read_xyz
+===============
+
+A module for reading multi-xyz files.
+
+Index
+-----
+.. currentmodule:: FOX.io.read_xyz
+.. autosummary::
+    XYZError
+    read_multi_xyz
+    get_comments
+    validate_xyz
+    _get_atom_count
+    _get_line_count
+    _get_idx_dict
+
+API
+---
+.. autoexception:: FOX.io.read_xyz.XYZError
+.. autofunction:: FOX.io.read_xyz.read_multi_xyz
+.. autofunction:: FOX.io.read_xyz.get_comments
+.. autofunction:: FOX.io.read_xyz.validate_xyz
+.. autofunction:: FOX.io.read_xyz._get_atom_count
+.. autofunction:: FOX.io.read_xyz._get_line_count
+.. autofunction:: FOX.io.read_xyz._get_idx_dict
+
+"""
 
 from itertools import islice
 

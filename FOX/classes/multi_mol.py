@@ -1,4 +1,23 @@
-"""A Module for the MultiMolecule class."""
+"""
+FOX.classes.multi_mol
+=====================
+
+A Module for the :class:`.MultiMolecule` class.
+
+Index
+-----
+.. currentmodule:: FOX.classes.multi_mol
+.. autosummary::
+    MultiMolecule
+
+API
+---
+.. autoclass:: FOX.classes.multi_mol.MultiMolecule
+    :members:
+    :private-members:
+    :special-members:
+
+"""
 
 from __future__ import annotations
 

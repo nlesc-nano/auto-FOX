@@ -1,4 +1,23 @@
-"""A module which adds the :class:`.FrozenSettings` class."""
+"""
+FOX.classes.frozen_settings
+===========================
+
+A module which adds the :class:`.FrozenSettings` class.
+
+Index
+-----
+.. currentmodule:: FOX.classes.frozen_settings
+.. autosummary::
+    FrozenSettings
+
+API
+---
+.. autoclass:: FOX.classes.frozen_settings.FrozenSettings
+    :members:
+    :private-members:
+    :special-members:
+
+"""
 
 from __future__ import annotations
 

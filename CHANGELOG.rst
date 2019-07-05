@@ -5,6 +5,18 @@ Change Log
 All notable changes to this project will be documented in this file.
 This project adheres to `Semantic Versioning <http://semver.org/>`_.
 
+0.4.5
+*****
+
+Changed
+-------
+
+* Updated all module-level docstrings.
+  Now includes an autosummarry_ and autodoc_ description of the module.
+
+.. _autosummarry: https://www.sphinx-doc.org/en/master/usage/extensions/autosummary.html
+.. _autodoc: https://www.sphinx-doc.org/en/master/usage/extensions/autodoc.html
+
 
 0.4.4
 *****

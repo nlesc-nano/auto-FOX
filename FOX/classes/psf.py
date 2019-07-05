@@ -1,4 +1,23 @@
-"""A class for reading protein structure (.psf) files."""
+"""
+FOX.classes.psf
+===============
+
+A class for reading protein structure (.psf) files.
+
+Index
+-----
+.. currentmodule:: FOX.classes.psf
+.. autosummary::
+    PSF
+
+API
+---
+.. autoclass:: FOX.classes.psf.PSF
+    :members:
+    :private-members:
+    :special-members:
+
+"""
 
 from __future__ import annotations
 
