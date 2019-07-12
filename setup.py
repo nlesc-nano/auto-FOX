@@ -76,7 +76,7 @@ setup(
     ],
     setup_requires=[
         'pytest-runner',
-        'sphinx',
+        'sphinx=1.8',
         'sphinx_rtd_theme',
         'recommonmark'
     ],
@@ -86,7 +86,7 @@ setup(
         'pycodestyle'
     ],
     extras_require={
-        'doc': ['sphinx', 'sphinx_rtd_theme', 'matplotlib', 'sphinx-autodoc-typehints'],
+        'doc': ['sphinx=1.8', 'sphinx_rtd_theme', 'matplotlib', 'sphinx-autodoc-typehints'],
         'test': ['pytest', 'pytest-cov', 'pytest-mock', 'pycodestyle', 'matplotlib']
     }
 )
