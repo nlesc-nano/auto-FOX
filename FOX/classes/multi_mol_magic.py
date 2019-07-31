@@ -21,12 +21,13 @@ API
 
 from __future__ import annotations
 
+import textwrap
+import reprlib
 import itertools
 from collections import abc
 from typing import (Dict, Optional, List, Any, Callable, Union, Sequence)
 
 import numpy as np
-import pandas as pd
 
 from scm.plams import PeriodicTable
 from scm.plams.core.errors import PTError
@@ -56,6 +57,73 @@ _dtype_warning: str = ("TypeWarning: The '{}' argument expects a sequence consis
 
 _type_error: str = ("The '{}' argument expects a sequence. "
                     "The following type was observed: '{}'")
+
+
+class MultiMolRepr(reprlib.Repr):
+    """A :class:`reprlib.Repr` subclass for creating :class:`.MultiMolecule` strings."""
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.maxdict = 6
+        self.maxndarray = 6
+        self.formatter = {'str': '{:}'.format, 'int': '{:4d}'.format, 'float': '{:8.4f}'.format}
+
+    def repr1(self, x: Any, level: int) -> str:
+        if isinstance(x, np.ndarray):
+            return self.repr_ndarray(x, level)
+        elif isinstance(x, dict):
+            return self.repr_dict(x, level)
+        else:
+            return super().repr1(x, level)
+
+    def repr_ndarray(self, obj: np.ndarray, level: int) -> str:
+        """Convert an array into a string"""
+        edgeitems = self.maxndarray // 2
+        with np.printoptions(threshold=1, edgeitems=edgeitems, formatter=self.formatter):
+            return np.ndarray.__str__(obj)
+
+    def _repr_dict(self, k: Any, v: Any, offset: int, level: int) -> str:
+        """Create key/value pairs for :meth:`MultiMolRepr.repr_dict`."""
+        key = self.repr1(k, level)
+        value = self.repr1(v, level)
+        return f'{key:{offset}}' + f': {value}'
+
+    def _repr_iterable(self, obj: abc.Iterable, level: int, left: str,
+                       right: str, maxiter: int, trail: str = '') -> str:
+        ar = np.array(obj)
+        if ar.ndim > 1 or ar.dtype == np.dtype(object):
+            return super()._repr_iterable(obj, level, left, right, maxiter, trail)
+
+        edgeitems = maxiter // 2
+        with np.printoptions(threshold=1, edgeitems=edgeitems, formatter=self.formatter):
+            ret = repr(ar).strip('array([').rstrip('])')
+            return left + ret + right
+
+    def repr_dict(self, obj: dict, level: int) -> str:
+        """Convert a dictionary into a string."""
+        n = len(obj)
+        if n == 0:
+            return '{}'
+        elif level <= 0:
+            return '{...}'
+
+        lvl = level - 1
+        offset = max(len(repr(k)) for k in obj)
+        pieces = [self._repr_dict(k, v, offset, lvl) for k, v in sorted(obj.items(), key=str)]
+        ret = '{'
+        ret += ',\n '.join(item for item in pieces[:self.maxdict])
+        if len(pieces) > self.maxdict:
+            ret += ",\n'...'"
+        ret += '}'
+
+        if level != self.maxlevel or type(obj) is dict:
+            return ret
+        else:
+            class_name = f'{obj.__class__.__name__}'
+            return f'{class_name}({ret})'
+
+
+ndrepr = MultiMolRepr()
 
 
 class _MultiMolecule(np.ndarray):
@@ -88,9 +156,19 @@ class _MultiMolecule(np.ndarray):
         self.properties = getattr(obj, 'properties', None)
 
     @staticmethod
+    def _is_array_like(value: Any) -> bool:
+        """Check if value is array-like."""
+        ret = (
+            isinstance(value, abc.Sequence) or
+            isinstance(value, range) or
+            hasattr(value, '__array__')
+        )
+        return ret
+
+    @staticmethod
     def _sanitize_coords(coords: Optional[Union[Sequence, np.ndarray]]) -> np.ndarray:
         """Sanitize the **coords** arguments in :meth:`_MultiMolecule.__new__`."""
-        if not isinstance(coords, abc.Sequence) and not hasattr(coords, '__array__'):
+        if not _MultiMolecule._is_array_like(coords):
             raise TypeError(_type_error.format('coords', coords.__class__.__name__))
         ret = np.asarray(coords)
 
@@ -310,47 +388,24 @@ class _MultiMolecule(np.ndarray):
         """Create a deep copy of this instance."""
         return self.copy(order='K', copy_attr=True)
 
-    def _get_coords_str(self) -> str:
-        try:
-            idx = pd.MultiIndex.from_tuples(enumerate(self.symbol))
-            if self.ndim == 3:
-                ret = 'Cartesian coordinates {:d}/{:d}:\n'.format(1, self.shape[0])
-                ret += str(pd.DataFrame(self[0], index=idx, columns=['x', 'y', 'z']))
-            elif self.ndim == 2:
-                ret = 'Cartesian coordinates:\n'
-                ret += str(pd.DataFrame(self, index=idx, columns=['x', 'y', 'z']))
-            elif self.ndim == 1:
-                idx = pd.MultiIndex.from_tuples([(0, '')])
-                ret = 'Cartesian coordinates:\n'
-                ret += str(pd.DataFrame(self[None, :], index=idx, columns=['x', 'y', 'z']))
-        except ValueError:
-            ret = 'Cartesian coordinates:\n' + super().__str__()
-        return ret
-
     def __str__(self) -> str:
         """Return a human-readable string constructed from this instance."""
-        ret = self._get_coords_str() + '\n'
+        def _str(k: str, v: Any) -> str:
+            key = str(k)
+            str_list = ndrepr.repr(v).split('\n')
+            joiner = '\n' + (3 + len(key)) * ' '
+            return f'{k} = ' + joiner.join(i for i in str_list)
 
-        formatter = {'int': '{:4d}'.format, 'float': '{:4.1f}'.format}
-        np.set_printoptions(threshold=10, formatter=formatter)
-
-        # Convert atomic symbols
-        ret += '\nAtomic symbols & indices:\n'
-        if self.atoms is not None:
-            for at, idx in self.atoms.items():
-                ret += '{}:\t{}\n'.format(at, str(np.array(idx)))
-        else:
-            ret += str(None) + '\n'
-
-        ret += '\nBonds:'
-        ret += '\nAtom1:\t{}'.format(self.atom1)
-        ret += '\nAtom2:\t{}'.format(self.atom2)
-        ret += '\nOrder:\t{}\n'.format(self.order)
-
-        ret += '\n{}'.format(str(Settings({'properties': self.properties})))
-        return ret
+        ret = f'{np.ndarray.__str__(self)},\n\n'
+        ret += ',\n\n'.join(_str(k, v) for k, v in vars(self).items())
+        ret_indent = textwrap.indent(ret, '    ')
+        return f'{self.__class__.__name__}(\n{ret_indent}\n)'
 
     def __repr__(self) -> str:
         """Return the canonical string representation of this instance."""
+<<<<<<< Updated upstream
         class_name = self.__class__.__name__
         return f'<{class_name}: shape {self.shape}, type "{self.dtype}">'
+=======
+        return f'{self.__class__.__name__}(..., shape={self.shape}, dtype={repr(self.dtype.name)})'
+>>>>>>> Stashed changes
