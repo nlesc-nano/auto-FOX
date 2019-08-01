@@ -29,6 +29,7 @@ from .io import (
 )
 
 from .classes import (
+    FrozenSettings,
     MultiMolecule,
     ARMC,
     Molecule,
@@ -50,6 +51,7 @@ __all__ = [
     'read_prm', 'write_prm', 'rename_atom_types',
     'create_hdf5', 'create_xyz_hdf5', 'to_hdf5', 'from_hdf5',
 
+    'FrozenSettings',
     'MultiMolecule',
     'ARMC',
     'Molecule',

@@ -26,7 +26,7 @@ from typing import (Any, Sequence, Union)
 
 from scm.plams import Settings
 
-from FOX.functions.utils import append_docstring
+from ..functions.utils import append_docstring
 
 __all__ = ['FrozenSettings']
 
