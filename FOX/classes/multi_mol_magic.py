@@ -22,7 +22,6 @@ API
 from __future__ import annotations
 
 import textwrap
-import reprlib
 import itertools
 from collections import abc
 from typing import (Dict, Optional, List, Any, Callable, Union, Sequence)
@@ -33,6 +32,7 @@ from scm.plams import PeriodicTable
 from scm.plams.core.errors import PTError
 from scm.plams.core.settings import Settings
 
+from .multi_mol_repr import MultiMolRepr
 from ..functions.utils import get_nested_element
 
 __all__: List[str] = []
@@ -59,81 +59,13 @@ _type_error: str = ("The '{}' argument expects a sequence. "
                     "The following type was observed: '{}'")
 
 
-class MultiMolRepr(reprlib.Repr):
-    """A :class:`reprlib.Repr` subclass for creating :class:`.MultiMolecule` strings."""
-
-    def __init__(self) -> None:
-        super().__init__()
-        self.maxdict = 6
-        self.maxndarray = 6
-        self.formatter = {'str': '{:}'.format, 'int': '{:4d}'.format, 'float': '{:8.4f}'.format}
-
-    def repr1(self, x: Any, level: int) -> str:
-        if isinstance(x, np.ndarray):
-            return self.repr_ndarray(x, level)
-        elif isinstance(x, dict):
-            return self.repr_dict(x, level)
-        else:
-            return super().repr1(x, level)
-
-    def repr_ndarray(self, obj: np.ndarray, level: int) -> str:
-        """Convert an array into a string"""
-        edgeitems = self.maxndarray // 2
-        with np.printoptions(threshold=1, edgeitems=edgeitems, formatter=self.formatter):
-            return np.ndarray.__str__(obj)
-
-    def _repr_dict(self, k: Any, v: Any, offset: int, level: int) -> str:
-        """Create key/value pairs for :meth:`MultiMolRepr.repr_dict`."""
-        key = self.repr1(k, level)
-        value = self.repr1(v, level)
-        return f'{key:{offset}}' + f': {value}'
-
-    def _repr_iterable(self, obj: abc.Iterable, level: int, left: str,
-                       right: str, maxiter: int, trail: str = '') -> str:
-        ar = np.array(obj)
-        if ar.ndim > 1 or ar.dtype == np.dtype(object):
-            return super()._repr_iterable(obj, level, left, right, maxiter, trail)
-
-        edgeitems = maxiter // 2
-        with np.printoptions(threshold=1, edgeitems=edgeitems, formatter=self.formatter):
-            ret = repr(ar).strip('array([').rstrip('])')
-            return left + ret + right
-
-    def repr_dict(self, obj: dict, level: int) -> str:
-        """Convert a dictionary into a string."""
-        n = len(obj)
-        if n == 0:
-            return '{}'
-        elif level <= 0:
-            return '{...}'
-
-        lvl = level - 1
-        offset = max(len(repr(k)) for k in obj)
-        pieces = [self._repr_dict(k, v, offset, lvl) for k, v in sorted(obj.items(), key=str)]
-        ret = '{'
-        ret += ',\n '.join(item for item in pieces[:self.maxdict])
-        if len(pieces) > self.maxdict:
-            ret += ",\n'...'"
-        ret += '}'
-
-        if level != self.maxlevel or type(obj) is dict:
-            return ret
-        else:
-            class_name = f'{obj.__class__.__name__}'
-            return f'{class_name}({ret})'
-
-
-ndrepr = MultiMolRepr()
-
-
 class _MultiMolecule(np.ndarray):
     """Private superclass of :class:`.MultiMolecule`.
 
     Handles all magic methods and @property decorated methods.
     """
 
-    def __new__(cls,
-                coords: np.ndarray,
+    def __new__(cls, coords: np.ndarray,
                 atoms: Optional[Dict[str, List[int]]] = None,
                 bonds: Optional[np.ndarray] = None,
                 properties: Optional[Dict[str, Any]] = None) -> _MultiMolecule:
@@ -144,6 +76,7 @@ class _MultiMolecule(np.ndarray):
         obj.atoms = _MultiMolecule._sanitize_atoms(atoms)
         obj.bonds = _MultiMolecule._sanitize_bonds(bonds)
         obj.properties = _MultiMolecule._sanitize_properties(properties)
+        obj._ndrepr = MultiMolRepr()
         return obj
 
     def __array_finalize__(self, obj: _MultiMolecule) -> None:
@@ -154,6 +87,7 @@ class _MultiMolecule(np.ndarray):
         self.atoms = getattr(obj, 'atoms', None)
         self.bonds = getattr(obj, 'bonds', None)
         self.properties = getattr(obj, 'properties', None)
+        self._ndrepr = getattr(obj, '_ndrepr', None)
 
     @staticmethod
     def _is_array_like(value: Any) -> bool:
@@ -392,20 +326,15 @@ class _MultiMolecule(np.ndarray):
         """Return a human-readable string constructed from this instance."""
         def _str(k: str, v: Any) -> str:
             key = str(k)
-            str_list = ndrepr.repr(v).split('\n')
+            str_list = self._ndrepr.repr(v).split('\n')
             joiner = '\n' + (3 + len(key)) * ' '
             return f'{k} = ' + joiner.join(i for i in str_list)
 
-        ret = f'{np.ndarray.__str__(self)},\n\n'
-        ret += ',\n\n'.join(_str(k, v) for k, v in vars(self).items())
+        ret = f'{self._ndrepr.repr(self)},\n\n'
+        ret += ',\n\n'.join(_str(k, v) for k, v in vars(self).items() if k[0] != '_')
         ret_indent = textwrap.indent(ret, '    ')
         return f'{self.__class__.__name__}(\n{ret_indent}\n)'
 
     def __repr__(self) -> str:
         """Return the canonical string representation of this instance."""
-<<<<<<< Updated upstream
-        class_name = self.__class__.__name__
-        return f'<{class_name}: shape {self.shape}, type "{self.dtype}">'
-=======
         return f'{self.__class__.__name__}(..., shape={self.shape}, dtype={repr(self.dtype.name)})'
->>>>>>> Stashed changes
