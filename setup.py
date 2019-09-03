@@ -65,7 +65,7 @@ setup(
         'Programming Language :: Python :: 3.7'
     ],
     test_suite='tests',
-    python_requires = '>=3.7',
+    python_requires='>=3.7',
     install_requires=[
         'pyyaml>=5.1',
         'numpy',
@@ -75,10 +75,7 @@ setup(
         'plams@git+https://github.com/SCM-NV/PLAMS@Minor-changes'
     ],
     setup_requires=[
-        'pytest-runner',
-        'sphinx=1.8',
-        'sphinx_rtd_theme',
-        'recommonmark'
+        'pytest-runner'
     ],
     tests_require=[
         'pytest',
@@ -86,7 +83,7 @@ setup(
         'pycodestyle'
     ],
     extras_require={
-        'doc': ['sphinx=1.8', 'sphinx_rtd_theme', 'matplotlib', 'sphinx-autodoc-typehints'],
+        'doc': ['sphinx>=2.0', 'sphinx_rtd_theme', 'matplotlib', 'sphinx-autodoc-typehints'],
         'test': ['pytest', 'pytest-cov', 'pytest-mock', 'pycodestyle', 'matplotlib']
     }
 )
