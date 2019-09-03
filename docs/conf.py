@@ -234,6 +234,10 @@ napoleon_use_admonition_for_examples = True
 #  Defaults to False.
 napoleon_use_ivar = False
 
+# Output is processed with HTML4 writer.
+# Default is False.
+html4_writer = True
+
 # A string of reStructuredText that will be included at the end of every source file that is read.
 # This is a possible place to add substitutions that should be available in every file (another being rst_prolog).
 rst_epilog = """

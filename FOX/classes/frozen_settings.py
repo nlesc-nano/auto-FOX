@@ -57,7 +57,7 @@ class FrozenSettings(Settings):
                 value = [FrozenSettings(i) if isinstance(i, dict) else i for i in value]
                 Settings.__setitem__(self, key, value)
 
-        # Cache the hash if this instance in self._hash
+        # Cache the hash of this instance in self._hash
         dict.__setattr__(self, '_hash', 0)
         self.__hash__()
 
@@ -109,7 +109,6 @@ class FrozenSettings(Settings):
                 Settings.__setitem__(ret, key, copy_func(value))
 
         # Reconstruct the hash and store it in the cache
-        dict.__setattr__(ret, '_hash', 0)
         ret.__hash__()
         return ret
 

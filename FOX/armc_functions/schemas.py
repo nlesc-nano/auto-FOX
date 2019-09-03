@@ -44,17 +44,17 @@ API
 
 """
 
-import numpy as np
-from collections import abc
 from schema import (And, Optional, Or, Schema, Use)
+from collections import abc
 
-from ..classes.multi_mol import MultiMolecule
+import numpy as np
+
 from ..functions.utils import str_to_callable
 from ..functions.charge_utils import get_charge_constraints
 
 __all__ = [
     'get_pes_schema', 'schema_armc', 'schema_move', 'schema_job', 'schema_param',
-    'schema_hdf5', 'schema_molecule', 'schema_psf'
+    'schema_hdf5', 'schema_psf'
 ]
 
 
@@ -142,12 +142,6 @@ schema_param: Schema = Schema({
 
 #: Schema for validating the ``"hdf5"`` block.
 schema_hdf5: Schema = Schema(str, error='hdf5_file expects a string')
-
-#: Schema for validating the ``"molecule"`` block.
-schema_molecule: Schema = Schema(Or(
-    MultiMolecule, And(str, Use(MultiMolecule.from_xyz)),
-    error='molecule expects a FOX.MultiMolecule instance or a string with an .xyz filename'
-))
 
 #: Schema for validating the ``"psf"`` block.
 schema_psf: Schema = Schema({
