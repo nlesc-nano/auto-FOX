@@ -111,7 +111,7 @@ Arguments
 
  pes                        -                  A dictionary holding one or more functions for constructing PES descriptors.
 
- molecule                   -                  A :class:`.MultiMolecule` instance or .xyz filename of a reference PES.
+ molecule                   -                  A list of one or more :class:`.MultiMolecule` instances or .xyz filenames of a reference PES.
 
  job.logfile                armc.log           The path+filename for the to-be created `PLAMS logfile <https://www.scm.com/doc/plams/components/functions.html#logging>`_.
  job.func                   scm.plams.Cp2kJob  The job type, see Job_.
@@ -290,6 +290,19 @@ Furthermore, parameter constraints are, as of the moment, limited to specifying
 minimum and/or maximum values (*e.g.* :code:`0 < Cs < 2`).
 Additional (more elaborate) constrainst are currently already available for
 atomic charges in the ``move.charge_constraints`` block (see below).
+
+
+State averaged ARMC
+-------------------
+
+
+::
+
+    molecule:
+        - /path/to/md1.xyz
+        - /path/to/md2.xyz
+        - /path/to/md3.xyz
+
 
 
 Charge constraints

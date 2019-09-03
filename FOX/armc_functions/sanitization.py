@@ -152,9 +152,12 @@ def validate_mol(mol: Union[MultiMolecule, str, Iterable]) -> Tuple[MultiMolecul
     def _validate(item: Union[MultiMolecule, str, abc.Iterable]) -> tuple:
         """Validate the object type of **item**."""
         if isinstance(item, MultiMolecule):
+            item.round(3)
             return (item,)
         elif isinstance(item, str):
-            return (MultiMolecule.from_xyz(item),)
+            ret = MultiMolecule.from_xyz(item)
+            ret.round(3)
+            return (ret,)
         elif not isinstance(item, abc.Iterable):
             raise TypeError(err.format(item.__class__.__name__))
         return ()
@@ -186,7 +189,7 @@ def reshape_settings(s: Settings) -> None:
     s.job.molecule = s.pop('molecule')
 
     for v in s.pes.values():
-        v.ref = v.func(s.job.molecule, *v.arg, **v.kwarg)
+        v.ref = tuple(v.func(mol, *v.arg, **v.kwarg) for mol in s.job.molecule)
 
     s.move.range = _get_move_range(**s.move.range)
     if s.move.charge_constraints is None:
@@ -255,7 +258,8 @@ def generate_psf(psf: Settings,
 
     """
     psf_file = join(job.path, 'mol.psf')
-    mol = job.molecule
+    mol_list = job.molecule
+    mol = mol_list[0]
 
     if all(i is None for i in psf.values()):
         psf_ = PSF.from_multi_mol(mol)

@@ -5,8 +5,15 @@ Change Log
 All notable changes to this project will be documented in this file.
 This project adheres to `Semantic Versioning <http://semver.org/>`_.
 
-0.4.5
+0.5.0
 *****
+
+Added
+-----
+
+* Added the option for state-averaged ARMC parameter optimizations;
+  *i.e.* simultaneously optimizing a single parameter set based on the
+  auxiliary error of multiple MD trajectories.
 
 Changed
 -------

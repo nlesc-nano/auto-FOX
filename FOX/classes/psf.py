@@ -21,7 +21,8 @@ API
 
 from __future__ import annotations
 
-from typing import (Dict, Optional)
+import textwrap
+from typing import (Dict, Optional, Any)
 from itertools import chain
 from dataclasses import dataclass
 
@@ -96,6 +97,23 @@ class PSF:
     donors: Optional[np.ndarray] = None
     acceptors: Optional[np.ndarray] = None
     no_nonbonded: Optional[np.ndarray] = None
+
+    def __str__(self) -> str:
+        """Return the canonical string representation of this instance."""
+        def _str(k: str, v: Any) -> str:
+            v_list = repr(v).split('\n')
+            joiner = '\n' + (3 + width) * ' '
+            _v = joiner.join(i for i in v_list)
+            return f'{k:{width}} = {_v}'
+
+        indent = 4 * ' '
+        width = max(len(repr(k)) for k in vars(self))
+        ret = ',\n'.join(_str(k, v) for k, v in vars(self).items())
+        return f'{self.__class__.__name__}(\n{textwrap.indent(ret, indent)}\n)'
+
+    def __repr__(self) -> str:
+        """Return the canonical string representation of this instance."""
+        return str(self)
 
     def set_filename(self, filename: str) -> None:
         """Set the filename of a .psf file.

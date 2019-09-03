@@ -21,6 +21,7 @@ API
 
 from __future__ import annotations
 
+import copy as pycopy
 import textwrap
 import itertools
 from collections import abc
@@ -281,8 +282,7 @@ class _MultiMolecule(np.ndarray):
 
     """##################################  Magic methods  #################################### """
 
-    def copy(self, order: str = 'C',
-             copy_attr: bool = True) -> _MultiMolecule:
+    def copy(self, order: str = 'C', deep: bool = True) -> _MultiMolecule:
         """Create a copy of this instance.
 
         .. _np.ndarray.copy: https://docs.scipy.org/doc/numpy/reference/generated/numpy.ndarray.copy.html  # noqa
@@ -303,24 +303,25 @@ class _MultiMolecule(np.ndarray):
 
         """
         ret = super().copy(order)
-        if not copy_attr:
+        if not deep:
             return ret
 
         # Copy attributes
+        copy_func = pycopy.deepcopy if deep else pycopy.copy
         for key, value in vars(self).items():
             try:
                 setattr(ret, key, value.copy())
             except AttributeError:
-                setattr(ret, key, None)
+                setattr(ret, key, copy_func(value))
         return ret
 
     def __copy__(self) -> _MultiMolecule:
         """Create copy of this instance."""
-        return self.copy(order='K', copy_attr=False)
+        return self.copy(order='K', deep=False)
 
     def __deepcopy__(self, memo: None) -> _MultiMolecule:
         """Create a deep copy of this instance."""
-        return self.copy(order='K', copy_attr=True)
+        return self.copy(order='K', deep=True)
 
     def __str__(self) -> str:
         """Return a human-readable string constructed from this instance."""

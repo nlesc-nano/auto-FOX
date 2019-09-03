@@ -98,6 +98,26 @@ class MultiMolecule(_MultiMolecule):
 
     """
 
+    def round(self, decimals: int = 0, inplace: bool = True) -> Optional[MultiMolecule]:
+        """Round the Cartesian coordinates of this instance to a given number of decimals.
+
+        Paramaters
+        ----------
+        decimals : int
+            The number of decimals per element.
+
+        inplace : bool
+            Instead of returning the new coordinates, perform an inplace update of this instance.
+
+        """
+        if inplace:
+            self[:] = super().round(decimals)
+            return None
+        else:
+            ret = self.copy()
+            ret[:] = super().round(decimals)
+            return ret
+
     def delete_atoms(self, atom_subset: AtomSubset) -> MultiMolecule:
         """Create a copy of this instance with all atoms in **atom_subset** removed.
 

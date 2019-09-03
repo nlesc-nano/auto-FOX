@@ -21,9 +21,10 @@ API
 
 from __future__ import annotations
 
+import textwrap
+from typing import (Tuple, Dict, Any, Optional, Iterable)
 from os.path import (isfile, split)
 
-from typing import (Tuple, Dict, Any, Optional)
 import numpy as np
 
 from scm.plams import Settings
@@ -102,7 +103,7 @@ class ARMC(MonteCarlo):
             value.func = get_func_name(value.func) + '()'
 
         # The self.job block
-        ret.job.molecule = str(self.job.molecule.__class__)
+        ret.job.molecule = str([mol.__class__ for mol in self.job.molecule])
         ret.job.preopt_settings = str(self.job.preopt_settings.__class__)
         ret.job.md_settings = str(self.job.md_settings.__class__)
         ret.job.psf = str(self.job.psf.__class__)
@@ -137,7 +138,8 @@ class ARMC(MonteCarlo):
             except KeyError:
                 ret.param[key1] = {key2: value}
 
-        return _str(ret)
+        indent = 4 * ' '
+        return f'{self.__class__.__name__}(\n{textwrap.indent(_str(ret)[1:], indent)}\n)'
 
     @staticmethod
     def from_yaml(filename: str) -> ARMC:
@@ -176,7 +178,7 @@ class ARMC(MonteCarlo):
 
         """
         s = init_armc_sanitization(armc_dict)
-        s.job.molecule = s.job.molecule.as_Molecule(0)[0]
+        s.job.molecule = tuple(mol.as_Molecule(0)[0] for mol in s.job.molecule)
         return cls(**s)
 
     def _create_history_dict(self) -> Tuple[Dict[Tuple[float], np.ndarray], Tuple[float]]:
@@ -199,7 +201,7 @@ class ARMC(MonteCarlo):
 
         history_dict[key_new] = self.get_aux_error(pes_new)
         self.param['param_old'] = self.param['param']
-        return history_dict
+        return history_dict, key_new
 
     def init_armc(self) -> None:
         """Initialize the Addaptive Rate Monte Carlo procedure."""
@@ -211,13 +213,12 @@ class ARMC(MonteCarlo):
 
         # Initialize; configure PLAMS global variables
         init(path=self.job.path, folder=self.job.folder)
-        config.default_jobmanager.settings.hashing = None
         if self.job.logfile:
             config.default_jobmanager.logfile = self.job.logfile
             config.log.file = 3
 
         # Create a .psf file if specified
-        if self.job.psf[0]:  # TODO: too vague
+        if self.job.psf.filename:
             self.job.psf.write_psf()
 
         # Initialize the first MD calculation
@@ -260,7 +261,7 @@ class ARMC(MonteCarlo):
             key_new = self.move_param()
 
             # Step 2: Check if the move has been performed already; calculate PES descriptors if not
-            pes_new, mol = self.get_pes_descriptors(history_dict, key_new)
+            pes_new, mol_list = self.get_pes_descriptors(history_dict, key_new)
 
             # Step 3: Evaluate the auxiliary error; accept if the new parameter set lowers the error
             aux_new = self.get_aux_error(pes_new)
@@ -279,13 +280,13 @@ class ARMC(MonteCarlo):
                 self.param['param'] = self.param['param_old']
 
             # Step 5: Export the results to HDF5
-            hdf5_kwarg = self._get_hdf5_dict(mol, accept, aux_new, pes_new)
+            hdf5_kwarg = self._get_hdf5_dict(mol_list, accept, aux_new, pes_new)
             to_hdf5(self.hdf5_file, hdf5_kwarg, kappa, omega)
 
         self.update_phi(acceptance)
         return key_new
 
-    def _get_hdf5_dict(self, mol: Optional['FOX.MultiMolecule'],
+    def _get_hdf5_dict(self, mol_list: Iterable[Optional['FOX.MultiMolecule']],
                        accept: bool,
                        aux_new: np.ndarray,
                        pes_new: Dict[str, np.ndarray]) -> Dict[str, Any]:
@@ -293,8 +294,8 @@ class ARMC(MonteCarlo):
 
         Parameters
         ----------
-        mol : |FOX.MultiMolecule|_
-            Optional: A :class:`.MultiMolecule` instance.
+        mol_list : |List|_ [|FOX.MultiMolecule|_]
+            An iterable consisting of :class:`.MultiMolecule` instances (or ``None``).
 
         accept : bool
             Whether or not the latest set of parameters was accepted.
@@ -314,16 +315,21 @@ class ARMC(MonteCarlo):
         param_key = 'param' if accept else 'param_old'
         hdf5_kwarg = {
             'param': self.param['param'],
-            'xyz': mol if mol is not None else np.nan,
+            'xyz': mol_list if not None else np.nan,
             'phi': self.phi.phi,
             'acceptance': accept,
             'aux_error': aux_new,
             'aux_error_mod': np.append(self.param[param_key].values, self.phi.phi)
         }
-        hdf5_kwarg.update(pes_new)
+
+        for i, dct in enumerate(pes_new):
+            for k, v in dct.items():
+                k += f'.{i}'
+                hdf5_kwarg[k] = v
+
         return hdf5_kwarg
 
-    def get_aux_error(self, pes_dict: Dict[str, np.ndarray]) -> np.ndarray:
+    def get_aux_error(self, pes_list: Iterable[Dict[str, np.ndarray]]) -> np.ndarray:
         r"""Return the auxiliary error :math:`\Delta \varepsilon_{QM-MM}`.
 
         The auxiliary error is constructed using the PES descriptors in **values**
@@ -339,22 +345,27 @@ class ARMC(MonteCarlo):
 
         Parameters
         ----------
-        pes_dict : dict [str, |np.ndarray|_ [|np.float64|_]]
-            A dictionary with *n* PES descriptors.
+        pes_list : |list|_ [|dict|_ [str, |np.ndarray|_ [|np.float64|_]]]
+            An iterable consisting of :math:`m` dictionaries with :math:`n` PES descriptors each.
 
         Returns
         -------
-        :math:`n` |np.ndarray|_ [|np.float64|_]:
-            An array with *n* auxilary errors
+        :math:`m*n` |np.ndarray|_ [|np.float64|_]:
+            An array with :math:`m*n` auxilary errors
 
         """
-        def norm_mean(mm_pes: np.ndarray, key: str) -> float:
-            qm_pes = self.pes[key].ref
+        def norm_mean(key: str, mm_pes: np.ndarray, i: int) -> float:
+            qm_pes = self.pes[key].ref[i]
             A, B = np.asarray(qm_pes, dtype=float), np.asarray(mm_pes, dtype=float)
             ret = (A - B)**2
             return ret.sum() / A.sum()
 
-        return np.array([norm_mean(mm_pes, key) for key, mm_pes in pes_dict.items()])
+        ret = np.array([
+            norm_mean(k, v, i) for i, dct in enumerate(pes_list) for k, v in dct.items()
+        ])
+
+        ret.shape = len(pes_list), len(ret) // len(pes_list)
+        return ret
 
     def apply_phi(self, aux_error: np.ndarray) -> np.ndarray:
         r"""Apply :math:`\phi` to all auxiliary errors :math:`\Delta \varepsilon_{QM-MM}`.
@@ -424,14 +435,15 @@ class ARMC(MonteCarlo):
         raise NotImplementedError
 
 
-def _str(dict_: dict,
-         indent1: str = '') -> str:
+def _str(dict_: dict, indent1: str = '') -> str:
     ret = ''
     indent2 = 3
+
     try:
         indent2 += max(len(i) for i in dict_.keys())
     except ValueError:
         pass
+
     for key, value in sorted(dict_.items()):
         if indent1 == '':
             ret += '\n'

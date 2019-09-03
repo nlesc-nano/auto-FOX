@@ -57,9 +57,8 @@ class FrozenSettings(Settings):
                 value = [FrozenSettings(i) if isinstance(i, dict) else i for i in value]
                 Settings.__setitem__(self, key, value)
 
-        # Cache the hash of this instance in self._hash
+        # Create an attribute for caching the hash of this instance
         dict.__setattr__(self, '_hash', 0)
-        self.__hash__()
 
     def __missing__(self, key: Immutable) -> FrozenSettings:
         """Return a new (empty) :class:`FrozenSettings` instance."""
@@ -69,8 +68,7 @@ class FrozenSettings(Settings):
         """Raise a :exc:`TypeError`, :class:`FrozenSettings` instances are immutable."""
         raise TypeError(f"'{self.__class__.__name__}' object does not support item deletion")
 
-    def __setitem__(self, key: Immutable,
-                    value: Any) -> None:
+    def __setitem__(self, key: Immutable, value: Any) -> None:
         """Raise a :exc:`TypeError`, :class:`FrozenSettings` instances are immutable."""
         raise TypeError(f"'{self.__class__.__name__}' object does not support item assignment")
 
@@ -78,11 +76,11 @@ class FrozenSettings(Settings):
         """Return the hash of this instance.
 
         The cached hash is automatically pulled from :attr:`FrozenSettings._hash` if available
-        and is otherwise reconstructed, cached and returned.
+        and is otherwise constructed, cached and returned.
 
         """
         # Retrieve the cached hash from self._hash
-        ret = dict.__getattribute__(self, '_hash')
+        ret = self._hash
         if ret:
             return ret
 
@@ -96,6 +94,10 @@ class FrozenSettings(Settings):
         dict.__setattr__(self, '_hash', ret)
         return ret
 
+    def clear_hash(self) -> None:
+        """Clear the :attr:`FrozenSettings._hash` attribute, setting it to ``0``."""
+        dict.__setattr__(self, '_hash', 0)
+
     def copy(self, deep: bool = False) -> FrozenSettings:
         """Create a copy of this instance."""
         ret = FrozenSettings()
@@ -103,20 +105,15 @@ class FrozenSettings(Settings):
 
         # Copy items
         for key, value in self.items():
-            if isinstance(value, dict):
-                Settings.__setitem__(ret, key, value.copy())
-            else:
-                Settings.__setitem__(ret, key, copy_func(value))
+            Settings.__setitem__(ret, key, copy_func(value))
 
-        # Reconstruct the hash and store it in the cache
-        ret.__hash__()
         return ret
 
     def __copy__(self) -> FrozenSettings:
         """Create a shallow copy of this instance"""
         return self.copy(deep=False)
 
-    def __deepcopy__(self) -> FrozenSettings:
+    def __deepcopy__(self, memo=None) -> FrozenSettings:
         """Create a deep copy of this instance"""
         return self.copy(deep=True)
 

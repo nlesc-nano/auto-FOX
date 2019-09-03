@@ -38,6 +38,14 @@ try:
 except ImportError:
     pass
 
+try:
+    import h5py
+    H5PY_ERROR = ''
+except ImportError:
+    H5PY_ERROR = ("Use of the FOX.{} function requires the 'h5py' package."
+                  "\n'h5py' can be installed via anaconda with the following command:"
+                  "\n\tconda install --name FOX -y -c conda-forge h5py")
+
 __all__: list = []
 
 
@@ -105,12 +113,27 @@ def main_plot_pes(args: Optional[list] = None) -> None:
     if not datasets:
         raise ValueError('The "--datasets" argument expects one or more PES descriptor names')
 
+    with h5py.File(input_, 'r', libver='latest') as f:
+        datasets_ = []
+        for key in datasets:
+            if key in f.keys():
+                datasets_.append(key)
+            else:
+                i = 0
+                while i >= 0:
+                    try:
+                        assert f'{key}.{i}' in f.keys()
+                        datasets_.append(f'{key}.{i}')
+                        i += 1
+                    except AssertionError:
+                        i = -1
+
     if output is None:
-        for dset in datasets:
+        for dset in datasets_:
             fig = plot_pes_descriptors(input_, dset, dset + '.png', iteration=iteration)
             plt.show(block=True)
     else:
-        for i, dset in enumerate(datasets):
+        for i, dset in enumerate(datasets_):
             fig = plot_pes_descriptors(input_, dset, str(i) + '_' + output, iteration=iteration)
             plt.show(block=True)
 
