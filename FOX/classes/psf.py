@@ -87,7 +87,7 @@ class PSF:
         interactions should be ignored.
 
     """
-    filename: Optional[np.ndarray] = None
+    _filename: Optional[np.ndarray] = None
     title: Optional[np.ndarray] = None
     atoms: Optional[pd.DataFrame] = None
     bonds: Optional[np.ndarray] = None
@@ -114,6 +114,23 @@ class PSF:
     def __repr__(self) -> str:
         """Return the canonical string representation of this instance."""
         return str(self)
+
+    def __eq__(self, value: Any) -> bool:
+        """Check if this instance is equivalent to **value**."""
+        # Check if the object classes are identical
+        if self.__class__ is not value.__class__:
+            return False
+
+        # Check if the object attribute values are identical
+        try:
+            for k, v1 in vars(self).items():
+                v2 = getattr(value, k)
+                assert (v1 == v2).all()
+        except (AttributeError, AssertionError):
+            # An attribute is missing or not equivalent
+            return False
+
+        return True
 
     def set_filename(self, filename: str) -> None:
         """Set the filename of a .psf file.
