@@ -14,6 +14,8 @@ Added
 * Added the option for state-averaged ARMC parameter optimizations;
   *i.e.* simultaneously optimizing a single parameter set based on the
   auxiliary error of multiple MD trajectories.
+* [reprlib](https://docs.python.org/3/library/reprlib.html) is now used
+  in ``MultiMolecule.__str__()``.
 
 Changed
 -------
