@@ -1,1 +1,7 @@
-"""Various functions related to ARMC."""
+"""
+FOX.armc_functions
+==================
+
+Various functions related to ARMC.
+
+"""

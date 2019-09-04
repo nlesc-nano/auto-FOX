@@ -4,11 +4,10 @@ from scm.plams import Settings
 
 from FOX.classes.frozen_settings import FrozenSettings
 
-__all__: list = []
-
 _s = Settings()
 _s.a.b.c.d = True
 REF = FrozenSettings(_s)
+HASH = hash(REF)
 
 
 def test_missing():
@@ -36,6 +35,13 @@ def test_setitem():
         pass
     else:
         raise AssertionError
+
+
+def test_hash():
+    """Test :meth:`.FrozenSettings.__hash__`."""
+    copy = REF.copy()
+    assert hash(copy) == HASH
+    assert HASH == copy._hash
 
 
 def test_copy():

@@ -1,7 +1,5 @@
 """A module for testing example input files in the FOX/examples directory."""
 
-__all__ = []
-
 import time
 from os.path import join
 
@@ -9,7 +7,6 @@ import numpy as np
 import pandas as pd
 
 import FOX
-
 
 REF_DIR = 'tests/test_files'
 
@@ -65,7 +62,7 @@ def test_cp2k_md():
         'angles': np.load(join(REF_DIR, 'angles.npy')),
         'dihedrals': np.load(join(REF_DIR, 'dihedrals.npy')),
         'impropers': np.load(join(REF_DIR, 'impropers.npy')),
-        }
+    }
 
     np.testing.assert_allclose(armc.job.psf.bonds, psf['bonds'])
     np.testing.assert_allclose(armc.job.psf.angles, psf['angles'])

@@ -1,4 +1,4 @@
-""" A module for testing files in the :mod:`FOX.io.read_pdb` module. """
+"""A module for testing files in the :mod:`FOX.io.read_pdb` module."""
 
 from os.path import join
 
@@ -6,8 +6,6 @@ import pandas as pd
 import numpy as np
 
 from FOX.io.read_pdb import read_pdb
-
-__all__: list = []
 
 REF_DIR = 'tests/test_files'
 

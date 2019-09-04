@@ -1,4 +1,15 @@
-"""A tool for parameterizing forcefields by reproducing radial distribution functions."""
+"""
+Auto-FOX
+========
+
+A library for analyzing potential energy surfaces (PESs) and
+using the resulting PES descriptors for constructing forcefield parameters.
+
+Documentation
+-------------
+https://auto-fox.readthedocs.io/en/latest/
+
+"""
 
 from .__version__ import __version__
 
@@ -18,6 +29,7 @@ from .io import (
 )
 
 from .classes import (
+    FrozenSettings,
     MultiMolecule,
     ARMC,
     Molecule,
@@ -39,6 +51,7 @@ __all__ = [
     'read_prm', 'write_prm', 'rename_atom_types',
     'create_hdf5', 'create_xyz_hdf5', 'to_hdf5', 'from_hdf5',
 
+    'FrozenSettings',
     'MultiMolecule',
     'ARMC',
     'Molecule',

@@ -24,13 +24,13 @@ def append_docstring(item: Callable) -> Callable:
     .. code:: python
 
         >>> def func1():
-        >>>     """'func1 docstring '"""
-        >>>     pass
+        ...     """'func1 docstring '"""
+        ...     pass
 
         >>> @append_docstring(func1)
         >>> def func2():
-        >>>     """'func2 docstring'"""
-        >>>     pass
+        ...     """'func2 docstring'"""
+        ...     pass
 
         >>> help(func2)
         'func2 docstring func1 docstring'
@@ -67,7 +67,7 @@ def assert_error(error_msg: str = '') -> Callable:
 
         >>> @assert_error('An error was raised by {}')
         >>> def my_custom_func():
-        >>>     print(True)
+        ...     print(True)
 
         >>> my_custom_func()
         ModuleNotFoundError: An error was raised by my_custom_func

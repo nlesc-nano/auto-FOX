@@ -1,4 +1,24 @@
-"""A module with functions for analyzing ARMC results."""
+"""
+FOX.armc_functions.plotting
+===========================
+
+A module with functions for analyzing ARMC results.
+
+Index
+-----
+.. currentmodule:: FOX.armc_functions.plotting
+.. autosummary::
+    plot_pes_descriptors
+    plot_param
+    plot_dset
+
+API
+---
+.. autofunction:: FOX.armc_functions.plotting.plot_pes_descriptors
+.. autofunction:: FOX.armc_functions.plotting.plot_param
+.. autofunction:: FOX.armc_functions.plotting.plot_dset
+
+"""
 
 from typing import (Optional, Iterable, Union, Hashable)
 

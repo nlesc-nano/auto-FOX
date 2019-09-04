@@ -5,8 +5,6 @@ import textwrap
 
 import pycodestyle  # formerly known as pep8
 
-__all__: list = []
-
 
 def test_pep8_conformance():
     """Test that we conform to PEP-8."""

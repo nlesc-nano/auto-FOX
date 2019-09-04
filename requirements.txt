@@ -1,9 +1,8 @@
-
-sphinx>=1.4
+sphinx=1.8
 sphinx-autodoc-typehints
 sphinx_rtd_theme
 matplotlib
 numpy
 scipy
 pandas
-git+https://github.com/SCM-NV/PLAMS@Minor-changes
+plams@git+https://github.com/SCM-NV/PLAMS@Minor-changes

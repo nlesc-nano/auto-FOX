@@ -1,4 +1,23 @@
-"""A Module for the MultiMolecule class."""
+"""
+FOX.classes.multi_mol
+=====================
+
+A Module for the :class:`.MultiMolecule` class.
+
+Index
+-----
+.. currentmodule:: FOX.classes.multi_mol
+.. autosummary::
+    MultiMolecule
+
+API
+---
+.. autoclass:: FOX.classes.multi_mol.MultiMolecule
+    :members:
+    :private-members:
+    :special-members:
+
+"""
 
 from __future__ import annotations
 
@@ -78,6 +97,26 @@ class MultiMolecule(_MultiMolecule):
         Is devoid of keys by default.
 
     """
+
+    def round(self, decimals: int = 0, inplace: bool = True) -> Optional[MultiMolecule]:
+        """Round the Cartesian coordinates of this instance to a given number of decimals.
+
+        Paramaters
+        ----------
+        decimals : int
+            The number of decimals per element.
+
+        inplace : bool
+            Instead of returning the new coordinates, perform an inplace update of this instance.
+
+        """
+        if inplace:
+            self[:] = super().round(decimals)
+            return None
+        else:
+            ret = self.copy()
+            ret[:] = super().round(decimals)
+            return ret
 
     def delete_atoms(self, atom_subset: AtomSubset) -> MultiMolecule:
         """Create a copy of this instance with all atoms in **atom_subset** removed.

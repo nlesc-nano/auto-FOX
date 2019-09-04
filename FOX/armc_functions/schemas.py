@@ -1,20 +1,65 @@
-"""Various templates for validating ARMC inputs."""
+"""
+FOX.armc_functions.sanitization
+===============================
+
+Various templates for validating ARMC inputs.
+
+Index
+-----
+.. currentmodule:: FOX.armc_functions.schemas
+.. autosummary::
+    get_pes_schema
+    schema_armc
+    schema_move
+    schema_job
+    schema_param
+    schema_hdf5
+    schema_molecule
+    schema_psf
+
+API
+---
+.. autofunction:: FOX.armc_functions.schemas.get_pes_schema
+
+.. autodata:: FOX.armc_functions.schemas.schema_armc
+    :annotation: = schema.Schemas
+
+.. autodata:: FOX.armc_functions.schemas.schema_move
+    :annotation: = schema.Schemas
+
+.. autodata:: FOX.armc_functions.schemas.schema_job
+    :annotation: = schema.Schemas
+
+.. autodata:: FOX.armc_functions.schemas.schema_param
+    :annotation: = schema.Schemas
+
+.. autodata:: FOX.armc_functions.schemas.schema_hdf5
+    :annotation: = schema.Schemas
+
+.. autodata:: FOX.armc_functions.schemas.schema_molecule
+    :annotation: = schema.Schemas
+
+.. autodata:: FOX.armc_functions.schemas.schema_psf
+    :annotation: = schema.Schemas
+
+"""
+
+from schema import (And, Optional, Or, Schema, Use)
+from collections import abc
 
 import numpy as np
-from collections import abc
-from schema import (And, Optional, Or, Schema, Use)
 
-from ..classes.multi_mol import MultiMolecule
 from ..functions.utils import str_to_callable
 from ..functions.charge_utils import get_charge_constraints
 
 __all__ = [
     'get_pes_schema', 'schema_armc', 'schema_move', 'schema_job', 'schema_param',
-    'schema_hdf5', 'schema_molecule', 'schema_psf'
+    'schema_hdf5', 'schema_psf'
 ]
 
 
 def get_pes_schema(key: str) -> Schema:
+    """Return a :class:`schema.Schema` instance for validating a PES block (see **key**)."""
     err = 'pes.{}.func expects a callable or string-representation of a callable'
     schema_pes = Schema({
         'func': Or(abc.Callable, And(str, Use(str_to_callable)),
@@ -32,7 +77,8 @@ def get_pes_schema(key: str) -> Schema:
 _float = Or(int, np.integer, float, np.float)
 _int = Or(int, np.integer)
 
-schema_armc = Schema({
+#: Schema for validating the ``"armc"`` block.
+schema_armc: Schema = Schema({
     ('a_target',): And(_float, Use(float), lambda x: 0 < x <= 1,
                        error='armc.a_target expects a float between 0.0 and 1.0'),
 
@@ -47,7 +93,8 @@ schema_armc = Schema({
                            error='armc.sub_iter_len expects an integer smaller than armc.iter_len')
 })
 
-schema_move = Schema({
+#: Schema for validating the ``"move"`` block.
+schema_move: Schema = Schema({
     ('charge_constraints',): Or(None, And(str, get_charge_constraints),
                                 error='move.charge_constrain expects a string or None'),
 
@@ -69,7 +116,8 @@ schema_move = Schema({
                            error='move.range.stop expects a float larger than 0.0'),
 })
 
-schema_job = Schema({
+#: Schema for validating the ``"job"`` block.
+schema_job: Schema = Schema({
     ('folder',): And(str, error='job.folder expects a string'),
 
     ('func',): Or(abc.Callable, And(str, Use(str_to_callable)),
@@ -86,20 +134,17 @@ schema_job = Schema({
     ('rmsd_threshold',): And(_float, Use(float), error='job.rmsd_threshold expects a float')
 })
 
-
-schema_param = Schema({
+#: Schema for validating the ``"param"`` block.
+schema_param: Schema = Schema({
     tuple: Or(float, np.float, int, np.integer, str, None, list,
               error='param expects a (nested) dictionary of floats and/or integers')
 })
 
-schema_hdf5 = Schema(str, error='hdf5_file expects a string')
+#: Schema for validating the ``"hdf5"`` block.
+schema_hdf5: Schema = Schema(str, error='hdf5_file expects a string')
 
-schema_molecule = Schema(Or(
-    MultiMolecule, And(str, Use(MultiMolecule.from_xyz)),
-    error='molecule expects a FOX.MultiMolecule instance or a string with an .xyz filename'
-))
-
-schema_psf = Schema({
+#: Schema for validating the ``"psf"`` block.
+schema_psf: Schema = Schema({
     ('str_file',): Or(None, And(str), error='psf.str_file expects a string'),
 
     ('ligand_atoms',): Or(None, And(abc.Sequence, lambda x: all([isinstance(i, str) for i in x])),

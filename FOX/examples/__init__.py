@@ -1,1 +1,7 @@
-""" Input file examples. """
+"""
+FOX.examples
+============
+
+Input file examples.
+
+"""

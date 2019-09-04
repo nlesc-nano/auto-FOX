@@ -8,8 +8,6 @@ import pandas as pd
 
 from FOX.classes.psf import PSF
 
-__all__: list = []
-
 REF_DIR = 'tests/test_files/psf'
 
 

@@ -1,8 +1,28 @@
-"""A class for reading protein structure (.psf) files."""
+"""
+FOX.classes.psf
+===============
+
+A class for reading protein structure (.psf) files.
+
+Index
+-----
+.. currentmodule:: FOX.classes.psf
+.. autosummary::
+    PSF
+
+API
+---
+.. autoclass:: FOX.classes.psf.PSF
+    :members:
+    :private-members:
+    :special-members:
+
+"""
 
 from __future__ import annotations
 
-from typing import (Dict, Optional)
+import textwrap
+from typing import (Dict, Optional, Any)
 from itertools import chain
 from dataclasses import dataclass
 
@@ -77,6 +97,38 @@ class PSF:
     donors: Optional[np.ndarray] = None
     acceptors: Optional[np.ndarray] = None
     no_nonbonded: Optional[np.ndarray] = None
+
+    def __str__(self) -> str:
+        """Return the canonical string representation of this instance."""
+        def _str(k: str, v: Any) -> str:
+            v_list = repr(v).split('\n')
+            joiner = '\n' + (3 + width) * ' '
+            _v = joiner.join(i for i in v_list)
+            return f'{k:{width}} = {_v}'
+
+        indent = 4 * ' '
+        width = max(len(repr(k)) for k in vars(self))
+        ret = ',\n'.join(_str(k, v) for k, v in vars(self).items())
+        return f'{self.__class__.__name__}(\n{textwrap.indent(ret, indent)}\n)'
+
+    def __repr__(self) -> str:
+        """Return the canonical string representation of this instance."""
+        return str(self)
+
+    def __eq__(self, value: Any) -> bool:
+        """Check if this instance is equivalent to **value**."""
+        if self.__class__ is not value.__class__:
+            return False
+
+        # Check if the object attribute values are identical
+        try:
+            for k, v1 in vars(self).items():
+                v2 = getattr(value, k)
+                assert (v1 == v2).all()
+        except (AttributeError, AssertionError):
+            return False  # An attribute is missing or not equivalent
+
+        return True
 
     def set_filename(self, filename: str) -> None:
         """Set the filename of a .psf file.

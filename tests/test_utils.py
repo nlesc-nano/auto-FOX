@@ -12,8 +12,6 @@ from FOX.functions.utils import (
     dict_to_pandas
 )
 
-__all__: list = []
-
 REF_DIR = 'tests/test_files'
 
 
@@ -50,10 +48,15 @@ def test_template_to_df():
     idx = np.array(['charge', 'epsilon', 'sigma'], dtype=object)
     np.testing.assert_array_equal(idx, df.index.values)
 
-    columns = np.array([
+    ref = np.array([
         'CG2O3', 'Cd', 'Cd Cd', 'Cd OG2D2', 'Cd Se', 'OG2D2', 'Se', 'Se OG2D2', 'Se Se'
     ], dtype=object)
-    np.testing.assert_array_equal(columns, df.columns.values)
+    ref.sort()
+
+    columns = np.array(df.columns)
+    columns.sort()
+
+    np.testing.assert_array_equal(ref, columns)
 
 
 def test_serialize_array():

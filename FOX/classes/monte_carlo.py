@@ -1,15 +1,33 @@
-"""A module for performing Monte Carlo-based forcefield parameter optimizations."""
+"""
+FOX.classes.monte_carlo
+=======================
+
+A module for performing Monte Carlo-based forcefield parameter optimizations.
+
+Index
+-----
+.. currentmodule:: FOX.classes.monte_carlo
+.. autosummary::
+    MonteCarlo
+
+API
+---
+.. autoclass:: FOX.classes.monte_carlo.MonteCarlo
+    :members:
+    :private-members:
+    :special-members:
+
+"""
 
 import os
 import shutil
 from os.path import join
 
-from typing import (Tuple, List, Dict, Optional, Union, Callable)
+from typing import (Tuple, List, Dict, Optional, Union, Callable, Iterable)
 import numpy as np
 import pandas as pd
 
-from scm.plams import Settings
-from scm.plams.core.functions import add_to_class
+from scm.plams import Settings, MultiJob, add_to_class
 from scm.plams.interfaces.thirdparty.cp2k import (Cp2kJob, Cp2kResults)
 
 from .multi_mol import MultiMolecule
@@ -65,7 +83,8 @@ class MonteCarlo():
         * ``"folder"`` (|str|_): The name of the directory used for storing all PLAMS jobs.
           See the ``folder`` argument in plams.init_ for more info.
         * ``"logfile"`` (|str|_): The path+filename of the PLAMS logfile.
-        * ``"molecule"`` (|plams.Molecule|_): A PLAMS molecule.
+        * ``"molecule"`` (|tuple|_ [|plams.Molecule|_]): An iterable consisting of
+          PLAMS molecule(s).
         * ``"keep_files"`` (|bool|_): Whether or not results of the PLAMS jobs should be saved or
           deleted after each respective job is finished.
         * ``"md_settings"`` (|plams.Settings|_): A settings instance with all molecular dynamics
@@ -103,8 +122,8 @@ class MonteCarlo():
 
         * ``key`` (|str|_): One or more user-specified keys. The exact value of each key is
           irrelevant and can be altered to ones desire.
-        * ``"ref"`` (|np.ndarray|_): An array-like object holding an (*ab-initio*) reference
-          PES descriptor.
+        * ``"ref"`` (|tuple|_ [|np.ndarray|_]): An iterable consisting of array-like objects
+          holding (*ab-initio*) reference PES descriptor(s).
         * ``"arg"`` (|list|_): A list of arguments
           for :attr:`.MonteCarlo.pes` [``key``][``"func"``].
         * ``"func"`` (|type|_): A callable for constructing a specific PES descriptor.
@@ -120,13 +139,13 @@ class MonteCarlo():
 
         # Settings for generating PES descriptors and assigns of reference PES descriptors
         self.pes = Settings()
-        self.pes.rdf.ref = None
+        self.pes.rdf.ref = (None,)
         self.pes.rdf.func = MultiMolecule.init_rdf
         self.pes.rdf.kwarg = {'atom_subset': None}
 
         # Settings for running the actual MD calculations
         self.job = Settings()
-        self.job.molecule = None
+        self.job.molecule = (None,)
         self.job.psf = None
         self.job.func = Cp2kJob
         self.job.md_settings = {}
@@ -244,7 +263,7 @@ class MonteCarlo():
 
         return tuple(self.param['param'].values)
 
-    def run_md(self) -> Tuple[Optional[MultiMolecule], Tuple[str]]:
+    def run_md(self) -> Tuple[Optional[List[MultiMolecule]], List[str]]:
         """Run a geometry optimization followed by a molecular dynamics (MD) job.
 
         Returns a new :class:`.MultiMolecule` instance constructed from the MD trajectory and the
@@ -256,37 +275,35 @@ class MonteCarlo():
         Returns
         -------
         |FOX.MultiMolecule|_ and |tuple|_ [|str|_]:
-            A :class:`.MultiMolecule` instance constructed from the MD trajectory &
-            a tuple with the paths to the PLAMS results directories.
-            The :class:`.MultiMolecule` is replaced with ``None`` if the job crashes.
+            A list of :class:`.MultiMolecule` instance(s) constructed from the MD trajectory &
+            a list of paths to the PLAMS results directories.
+            The :class:`.MultiMolecule` list is replaced with ``None`` if the job crashes.
 
         """
         job_type = self.job.func
 
         # Prepare preoptimization settings
         if self.job.preopt_settings is not None:
-            mol_preopt, path1 = self._md_preopt(job_type)
-            preopt_accept = self._evaluate_rmsd(mol_preopt, self.job.rmsd_threshold)
+            preopt_mol_list, path_list = self._md_preopt(job_type)
+            preopt_accept = self._evaluate_rmsd(preopt_mol_list, self.job.rmsd_threshold)
             if not preopt_accept:
                 # The RMSD is too large; don't bother with the actual MD simulation
-                mol_preopt = None
+                preopt_mol_list = mol_list = None
 
             # Run an MD calculation
-            if mol_preopt is not None:
-                mol, path2 = self._md(job_type, mol_preopt)
-                path = (path1, path2)
-            else:
-                mol = None
-                path = (path1,)
+            if preopt_mol_list is not None:
+                mol_list, _path_list = self._md(job_type, preopt_mol_list)
+                path_list += _path_list
 
         else:  # preoptimization is disabled
-            mol, path1 = self._md(job_type, mol_preopt)
-            path = (path1,)
+            mol_list, path_list = self._md(job_type, preopt_mol_list)
 
-        return mol, path
+        return mol_list, path_list
 
-    def _md_preopt(self, job_type: Callable) -> Tuple[Optional[MultiMolecule], str]:
-        """ Peform a geometry optimization.
+    def _md_preopt(self, job_type: Callable) -> Tuple[List[Optional[MultiMolecule]], List[str]]:
+        """Peform a geometry optimization.
+
+        Optimizations are performed on all molecules in :attr:`MonteCarlo.job`[``"molecule"``].
 
         Parameters
         ----------
@@ -297,26 +314,35 @@ class MonteCarlo():
         Returns
         -------
         |FOX.MultiMolecule|_ and |str|_
-            A :class:`.MultiMolecule` instance constructed from the geometry optimization &
-            the path to the PLAMS results directory.
-            The :class:`.MultiMolecule` is replaced with ``None`` if the job crashes.
+            A list of :class:`.MultiMolecule` instance constructed from the geometry optimization &
+            a list of paths to the PLAMS results directory.
+            The :class:`.MultiMolecule` list is replaced with ``None`` if the job crashes.
 
         """
         s = self.job.preopt_settings
+        mol_list, path_list = [], []
+        jobs = [job_type(name=self.job.name + '_pre_opt', molecule=mol, settings=s)
+                for mol in self.job.molecule]
 
         # Preoptimize
-        job = job_type(name=self.job.name + '_pre_opt', molecule=self.job.molecule, settings=s)
-        results = job.run()
+        for job in jobs:
+            results = job.run()
+            try:  # Construct and return a MultiMolecule object
+                mol = MultiMolecule.from_xyz(results.get_xyz_path())
+                mol.round(3)
+            except TypeError:  # The geometry optimization crashed
+                return None, path_list
 
-        try:  # Construct and return a MultiMolecule object
-            mol = MultiMolecule.from_xyz(results.get_xyz_path())
-        except TypeError:  # The geometry optimization crashed
-            mol = None
-        return mol, job.path
+            mol_list.append(mol)
+            path_list.append(job.path)
+
+        return mol_list, path_list
 
     def _md(self, job_type: Callable,
-            mol_preopt: MultiMolecule) -> Tuple[Optional[MultiMolecule], str]:
-        """ Peform a molecular dynamics simulation (MD).
+            mol_preopt: Iterable[MultiMolecule]) -> Tuple[Optional[List[MultiMolecule]], List[str]]:
+        """Peform a molecular dynamics simulation (MD).
+
+        Simulations are performed on all molecules in **mol_preopt**.
 
         Parameters
         ----------
@@ -324,30 +350,39 @@ class MonteCarlo():
             The job type of the MD simulation.
             Expects a subclass of plams.Job.
 
-        mol_preopt : |FOX.MultiMolecule|_
-            A :class:`.MultiMolecule` instance constructed from a geometry pre-optimization
-            (see :meth:`_md_preopt`).
+        mol_preopt : |list|_ [|FOX.MultiMolecule|_]
+            An iterable consisting of :class:`.MultiMolecule` instance(s) constructed from
+            geometry pre-optimization(s) (see :meth:`._md_preopt`).
 
         Returns
         -------
-        |FOX.MultiMolecule|_ and |str|_
-            A :class:`.MultiMolecule` instance constructed from the MD simulation &
-            the path to the PLAMS results directory.
-            The :class:`.MultiMolecule` is replaced with ``None`` if the job crashes.
+        |list|_ [|FOX.MultiMolecule|_] and |list|_ [|str|_]
+            A list of :class:`.MultiMolecule` instance(s) constructed from the MD simulation &
+            a list of paths to the PLAMS results directory.
+            The :class:`.MultiMolecule` list is replaced with ``None`` if the job crashes.
 
         """
-        mol = mol_preopt.as_Molecule(-1)[0]
-        job = job_type(name=self.job.name, molecule=mol, settings=self.job.md_settings)
-        results = job.run()
+        input_mol_list = [mol.as_Molecule(-1)[0] for mol in mol_preopt]
+        mol_list, path_list = [], []
+        jobs = [job_type(name=self.job.name, molecule=mol, settings=self.job.md_settings)
+                for mol in input_mol_list]
 
-        try:  # Construct and return a MultiMolecule object
-            mol = MultiMolecule.from_xyz(results.get_xyz_path())
-        except TypeError:  # The MD simulation crashed
-            mol = None
-        return mol, job.path
+        # Run MD
+        for job in jobs:
+            results = job.run()
+            try:  # Construct and return a MultiMolecule object
+                mol = MultiMolecule.from_xyz(results.get_xyz_path())
+                mol.round(3)
+            except TypeError:  # The MD simulation crashed
+                return None, path_list
+
+            mol_list.append(mol)
+            path_list.append(job.path)
+
+        return mol_list, path_list
 
     @staticmethod
-    def _evaluate_rmsd(mol_preopt: Optional[MultiMolecule],
+    def _evaluate_rmsd(mol_preopt: Optional[Iterable[MultiMolecule]],
                        threshold: Optional[float] = None) -> bool:
         """Evaluate the RMSD of the geometry optimization (see :meth:`_md_preopt`).
 
@@ -371,19 +406,21 @@ class MonteCarlo():
             ``False`` if th RMSD is larger than **threshold**, ``True`` if it is not.
 
         """
+        threshold_ = threshold or np.inf
         if mol_preopt is None:
             return False
-        threshold = threshold or np.inf
-        mol_subset = slice(0, None, len(mol_preopt) - 1)
-        rmsd = mol_preopt.get_rmsd(mol_subset)
-        if rmsd[1] > threshold:
-            return False
+
+        for mol in mol_preopt:
+            mol_subset = slice(0, None, len(mol) - 1)
+            rmsd = mol.get_rmsd(mol_subset)
+            if rmsd[1] > threshold_:
+                return False
+
         return True
 
-    def get_pes_descriptors(self,
-                            history_dict: Dict[Tuple[float], np.ndarray],
+    def get_pes_descriptors(self, history_dict: Dict[Tuple[float], np.ndarray],
                             key: Tuple[float]
-                            ) -> Tuple[Dict[str, np.ndarray], Optional[MultiMolecule]]:
+                            ) -> Tuple[List[Dict[str, np.ndarray]], Optional[List[MultiMolecule]]]:
         """Check if a **key** is already present in **history_dict**.
 
         If ``True``, return the matching list of PES descriptors;
@@ -408,18 +445,20 @@ class MonteCarlo():
 
         """
         # Generate PES descriptors
-        mol, path = self.run_md()
-        if mol is None:  # The MD simulation crashed
-            ret = {key: np.inf for key, value in self.pes.items()}
+        mol_list, path_list = self.run_md()
+        if mol_list is None:  # The MD simulation crashed
+            mol_count = len(next(iter(self.pes)).ref)
+            ret = [{key: np.inf for key, value in self.pes}] * mol_count
         else:
-            ret = {key: value.func(mol, *value.arg, **value.kwarg) for
-                   key, value in self.pes.items()}
+            ret = [{key: value.func(mol, *value.arg, **value.kwarg) for
+                    key, value in self.pes.items()} for mol in mol_list]
 
         # Delete the output directory and return
         if not self.job.keep_files:
-            for i in path:
+            for i in path_list:
                 shutil.rmtree(i)
-        return ret, mol
+
+        return ret, mol_list
 
     @staticmethod
     def get_move_range(start: float = 0.005,

@@ -1,4 +1,23 @@
-"""A module which expands on the Molecule class of PLAMS."""
+"""
+FOX.classes.molecule_utils
+==========================
+
+A module which expands on the Molecule class of PLAMS.
+
+Index
+-----
+.. currentmodule:: FOX.classes.molecule_utils
+.. autosummary::
+    Molecule
+
+API
+---
+.. autoclass:: FOX.classes.molecule_utils.Molecule
+    :members:
+    :private-members:
+    :special-members:
+
+"""
 
 from typing import (Union, Tuple, List)
 
@@ -19,14 +38,14 @@ class Molecule(_Molecule):
 
     The herein implemted subclass is suplemented with a number of additional methods.
 
-    .. _plams.Molecule: https://www.scm.com/doc/plams/components/mol_api.html  # noqa
+    .. _plams.Molecule: https://www.scm.com/doc/plams/components/mol_api.html
     """
 
     @append_docstring(_Molecule.__getitem__)
     def __getitem__(self, key: Union[int, np.integer, Tuple[int]]) -> Union[Atom, Bond]:
         """Modified `Molecule.__getitem__ <https://www.scm.com/doc/plams/components/mol_api.html#scm.plams.mol.molecule.Molecule.__getitem__>`_ method.  # noqa
 
-        Atoms can now be sliced with instances of both ``int`` and ``np.integer``.
+        Atoms can now be sliced with instances of both :class:`int` and :class:`numpy.integer`.
 
         """
         if isinstance(key, (int, np.integer)):
@@ -47,13 +66,14 @@ class Molecule(_Molecule):
         Separates the molecule into connected component as based on its bonds.
         Returns aforementioned components as a nested list of atomic indices.
 
+        .. _Molecule.separate: https://www.scm.com/doc/plams/components/mol_api.html#scm.plams.mol.molecule.Molecule.separate  # noqa
+
         Returns
         -------
         |list|_ [|list|_ [|int|_]]:
             A nested list of atomic indices, each sublist representing a set of unconnected
             moleculair fragments.
 
-        .. _Molecule.separate: https://www.scm.com/doc/plams/components/mol_api.html#scm.plams.mol.molecule.Molecule.separate  # noqa
         """
         # Mark atoms
         for i, at in enumerate(self.atoms):
@@ -80,7 +100,7 @@ class Molecule(_Molecule):
         return indices
 
     def fix_bond_orders(self) -> None:
-        """Attempt to fix bond orders and (formal) atomic charges in **self**."""
+        """Attempt to fix bond orders and (formal) atomic charges in this instance."""
         # Set default atomic charges
         for at in self.atoms:
             if not at.properties.charge:
@@ -112,7 +132,7 @@ class Molecule(_Molecule):
             at.id = i
 
     def get_angles(self) -> np.ndarray:
-        """Return an array with the atomic indices defining all angles in **self**.
+        """Return an array with the atomic indices defining all angles in this instance.
 
         Returns
         -------
@@ -132,10 +152,22 @@ class Molecule(_Molecule):
                 for at3 in at_other[i:]:
                     angle.append((at1.id, at2.id, at3.id))
 
-        return np.array(angle, dtype=int) + 1
+        if not angle:  # If no angles are found
+            return np.array([], dtype=int)
+
+        ret = np.array(angle, dtype=int) + 1
+
+        # Sort horizontally
+        for i, (j, k, m) in enumerate(ret):
+            if j > m:
+                ret[i] = (m, k, j)
+
+        # Sort and return vertically
+        idx = np.argsort(ret, axis=0)[:, 0]
+        return ret[idx]
 
     def get_dihedrals(self) -> np.ndarray:
-        """Return an array with the atomic indices defining all proper dihedrals in **self**.
+        """Return an array with the atomic indices defining all proper dihedrals in this instance.
 
         Returns
         -------
@@ -161,10 +193,22 @@ class Molecule(_Molecule):
                     if at4 != at2:
                         dihed.append((at1.id, at2.id, at3.id, at4.id))
 
-        return np.array(dihed, dtype=int) + 1
+        if not dihed:  # If no dihedrals are found
+            return np.array([], dtype=int)
+
+        ret = np.array(dihed, dtype=int) + 1
+
+        # Sort horizontally
+        for i, (j, k, m, n) in enumerate(ret):
+            if j > n:
+                ret[i] = (n, m, k, j)
+
+        # Sort and return vertically
+        idx = np.argsort(ret, axis=0)[:, 0]
+        return ret[idx]
 
     def get_impropers(self) -> np.ndarray:
-        """Return an array with the atomic indices defining all improper dihedrals in **self**.
+        """Return an array with the atomic indices defining all improper dihedrals in this instance.
 
         Returns
         -------

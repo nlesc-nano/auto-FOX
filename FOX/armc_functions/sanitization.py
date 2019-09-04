@@ -1,17 +1,44 @@
-"""A module for parsing and sanitizing ARMC settings."""
+"""
+FOX.armc_functions.sanitization
+===============================
+
+A module for parsing and sanitizing ARMC settings.
+
+Index
+-----
+.. currentmodule:: FOX.armc_functions.sanitization
+.. autosummary::
+    init_armc_sanitization
+    validate
+    reshape_settings
+    _reshape_param
+    generate_psf
+
+API
+---
+.. autofunction:: FOX.armc_functions.sanitization.init_armc_sanitization
+.. autofunction:: FOX.armc_functions.sanitization.validate
+.. autofunction:: FOX.armc_functions.sanitization.reshape_settings
+.. autofunction:: FOX.armc_functions.sanitization._reshape_param
+.. autofunction:: FOX.armc_functions.sanitization.generate_psf
+
+"""
+
+from typing import Union, Iterable, Tuple
+from os.path import join
+from collections import abc
 
 import numpy as np
-
-from os.path import join
 
 from scm.plams import Settings
 
 from ..classes.psf import PSF
+from ..classes.multi_mol import MultiMolecule
 from ..functions.utils import (get_template, _get_move_range, dict_to_pandas, get_atom_count)
 from ..functions.cp2k_utils import (set_keys, set_subsys_kind)
 from ..armc_functions.schemas import (
     get_pes_schema, schema_armc, schema_move, schema_job, schema_param,
-    schema_hdf5, schema_molecule, schema_psf
+    schema_hdf5, schema_psf
 )
 
 __all__ = ['init_armc_sanitization']
@@ -79,7 +106,7 @@ def validate(s: Settings) -> Settings:
     s_flat.armc = schema_armc.validate(s_flat.armc)
     s_flat.move = schema_move.validate(s_flat.move)
     s_flat.param = schema_param.validate(s_flat.param)
-    s_flat.molecule = schema_molecule.validate(s_flat.molecule)
+    s_flat.molecule = validate_mol(s_flat.molecule)
     for k, v in pes_settings.items():
         schema_pes = get_pes_schema(k)
         pes_settings[k] = schema_pes.validate(v)
@@ -99,6 +126,57 @@ def validate(s: Settings) -> Settings:
     return s_ret
 
 
+def validate_mol(mol: Union[MultiMolecule, str, Iterable]) -> Tuple[MultiMolecule]:
+    """Validate the ``"molecule"`` block and return a tuple of MultiMolecule instance(s).
+
+    Parameters
+    ----------
+    mol : |str|_, |FOX.MultiMolecule|_ or |tuple|_ [|str|_, |FOX.MultiMolecule|_]
+        The path+filename of one or more .xyz file(s) or :class:`.MultiMolecule` instance(s).
+        Multiple instances can be supplied by wrapping them in an iterable (*e.g.* a :class:`tuple`)
+
+    Returns
+    -------
+    |tuple|_ [|FOX.MultiMolecule|_]
+        A tuple consisting of one or more :class:`.MultiMolecule` instances.
+
+    Raises
+    ------
+    TypeError
+        Raised if **mol** (or one of its elements) is of an invalid object type.
+
+    """
+    err = ("molecule expects one or more FOX.MultiMolecule instance(s) or .xyz filename(s); "
+           "observed type: '{}'")
+
+    def _validate(item: Union[MultiMolecule, str, abc.Iterable]) -> tuple:
+        """Validate the object type of **item**."""
+        if isinstance(item, MultiMolecule):
+            item.round(3)
+            return (item,)
+        elif isinstance(item, str):
+            ret = MultiMolecule.from_xyz(item)
+            ret.round(3)
+            return (ret,)
+        elif not isinstance(item, abc.Iterable):
+            raise TypeError(err.format(item.__class__.__name__))
+        return ()
+
+    # Validate **mol**
+    ret = _validate(mol)
+    if ret:
+        return ret
+
+    # **mol** is an iterable, validate its elements
+    for i in mol:
+        ret += _validate(i)
+
+    # The to-be returned value is somehow an empty tuple; raise a TypeError
+    if not ret:
+        raise TypeError(err.format(None))
+    return ret
+
+
 def reshape_settings(s: Settings) -> None:
     """Reshape and post-process the validated ARMC settings.
 
@@ -111,7 +189,7 @@ def reshape_settings(s: Settings) -> None:
     s.job.molecule = s.pop('molecule')
 
     for v in s.pes.values():
-        v.ref = v.func(s.job.molecule, *v.arg, **v.kwarg)
+        v.ref = tuple(v.func(mol, *v.arg, **v.kwarg) for mol in s.job.molecule)
 
     s.move.range = _get_move_range(**s.move.range)
     if s.move.charge_constraints is None:
@@ -180,7 +258,8 @@ def generate_psf(psf: Settings,
 
     """
     psf_file = join(job.path, 'mol.psf')
-    mol = job.molecule
+    mol_list = job.molecule
+    mol = mol_list[0]
 
     if all(i is None for i in psf.values()):
         psf_ = PSF.from_multi_mol(mol)

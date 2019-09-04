@@ -1,18 +1,39 @@
-"""A Module for setting up the magic methods and properties of the MultiMolecule class."""
+"""
+FOX.classes.multi_mol_magic
+===========================
+
+A Module for setting up the magic methods and properties of the :class:`.MultiMolecule` class.
+
+Index
+-----
+.. currentmodule:: FOX.classes.multi_mol_magic
+.. autosummary::
+    _MultiMolecule
+
+API
+---
+.. autoclass:: FOX.classes.multi_mol_magic._MultiMolecule
+    :members:
+    :private-members:
+    :special-members:
+
+"""
 
 from __future__ import annotations
 
+import copy as pycopy
+import textwrap
 import itertools
 from collections import abc
 from typing import (Dict, Optional, List, Any, Callable, Union, Sequence)
 
 import numpy as np
-import pandas as pd
 
 from scm.plams import PeriodicTable
 from scm.plams.core.errors import PTError
 from scm.plams.core.settings import Settings
 
+from .multi_mol_repr import MultiMolRepr
 from ..functions.utils import get_nested_element
 
 __all__: List[str] = []
@@ -45,8 +66,7 @@ class _MultiMolecule(np.ndarray):
     Handles all magic methods and @property decorated methods.
     """
 
-    def __new__(cls,
-                coords: np.ndarray,
+    def __new__(cls, coords: np.ndarray,
                 atoms: Optional[Dict[str, List[int]]] = None,
                 bonds: Optional[np.ndarray] = None,
                 properties: Optional[Dict[str, Any]] = None) -> _MultiMolecule:
@@ -57,6 +77,7 @@ class _MultiMolecule(np.ndarray):
         obj.atoms = _MultiMolecule._sanitize_atoms(atoms)
         obj.bonds = _MultiMolecule._sanitize_bonds(bonds)
         obj.properties = _MultiMolecule._sanitize_properties(properties)
+        obj._ndrepr = MultiMolRepr()
         return obj
 
     def __array_finalize__(self, obj: _MultiMolecule) -> None:
@@ -67,11 +88,22 @@ class _MultiMolecule(np.ndarray):
         self.atoms = getattr(obj, 'atoms', None)
         self.bonds = getattr(obj, 'bonds', None)
         self.properties = getattr(obj, 'properties', None)
+        self._ndrepr = getattr(obj, '_ndrepr', None)
+
+    @staticmethod
+    def _is_array_like(value: Any) -> bool:
+        """Check if value is array-like."""
+        ret = (
+            isinstance(value, abc.Sequence) or
+            isinstance(value, range) or
+            hasattr(value, '__array__')
+        )
+        return ret
 
     @staticmethod
     def _sanitize_coords(coords: Optional[Union[Sequence, np.ndarray]]) -> np.ndarray:
         """Sanitize the **coords** arguments in :meth:`_MultiMolecule.__new__`."""
-        if not isinstance(coords, abc.Sequence) and not hasattr(coords, '__array__'):
+        if not _MultiMolecule._is_array_like(coords):
             raise TypeError(_type_error.format('coords', coords.__class__.__name__))
         ret = np.asarray(coords)
 
@@ -250,8 +282,7 @@ class _MultiMolecule(np.ndarray):
 
     """##################################  Magic methods  #################################### """
 
-    def copy(self, order: str = 'C',
-             copy_attr: bool = True) -> _MultiMolecule:
+    def copy(self, order: str = 'C', deep: bool = True) -> _MultiMolecule:
         """Create a copy of this instance.
 
         .. _np.ndarray.copy: https://docs.scipy.org/doc/numpy/reference/generated/numpy.ndarray.copy.html  # noqa
@@ -272,65 +303,39 @@ class _MultiMolecule(np.ndarray):
 
         """
         ret = super().copy(order)
-        if not copy_attr:
+        if not deep:
             return ret
 
         # Copy attributes
+        copy_func = pycopy.deepcopy if deep else pycopy.copy
         for key, value in vars(self).items():
             try:
                 setattr(ret, key, value.copy())
             except AttributeError:
-                setattr(ret, key, None)
+                setattr(ret, key, copy_func(value))
         return ret
 
     def __copy__(self) -> _MultiMolecule:
         """Create copy of this instance."""
-        return self.copy(order='K', copy_attr=False)
+        return self.copy(order='K', deep=False)
 
     def __deepcopy__(self, memo: None) -> _MultiMolecule:
         """Create a deep copy of this instance."""
-        return self.copy(order='K', copy_attr=True)
-
-    def _get_coords_str(self) -> str:
-        try:
-            idx = pd.MultiIndex.from_tuples(enumerate(self.symbol))
-            if self.ndim == 3:
-                ret = 'Cartesian coordinates {:d}/{:d}:\n'.format(1, self.shape[0])
-                ret += str(pd.DataFrame(self[0], index=idx, columns=['x', 'y', 'z']))
-            elif self.ndim == 2:
-                ret = 'Cartesian coordinates:\n'
-                ret += str(pd.DataFrame(self, index=idx, columns=['x', 'y', 'z']))
-            elif self.ndim == 1:
-                idx = pd.MultiIndex.from_tuples([(0, '')])
-                ret = 'Cartesian coordinates:\n'
-                ret += str(pd.DataFrame(self[None, :], index=idx, columns=['x', 'y', 'z']))
-        except ValueError:
-            ret = 'Cartesian coordinates:\n' + super().__str__()
-        return ret
+        return self.copy(order='K', deep=True)
 
     def __str__(self) -> str:
         """Return a human-readable string constructed from this instance."""
-        ret = self._get_coords_str() + '\n'
+        def _str(k: str, v: Any) -> str:
+            key = str(k)
+            str_list = self._ndrepr.repr(v).split('\n')
+            joiner = '\n' + (3 + len(key)) * ' '
+            return f'{k} = ' + joiner.join(i for i in str_list)
 
-        formatter = {'int': '{:4d}'.format, 'float': '{:4.1f}'.format}
-        np.set_printoptions(threshold=10, formatter=formatter)
-
-        # Convert atomic symbols
-        ret += '\nAtomic symbols & indices:\n'
-        if self.atoms is not None:
-            for at, idx in self.atoms.items():
-                ret += '{}:\t{}\n'.format(at, str(np.array(idx)))
-        else:
-            ret += str(None) + '\n'
-
-        ret += '\nBonds:'
-        ret += '\nAtom1:\t{}'.format(self.atom1)
-        ret += '\nAtom2:\t{}'.format(self.atom2)
-        ret += '\nOrder:\t{}\n'.format(self.order)
-
-        ret += '\n{}'.format(str(Settings({'properties': self.properties})))
-        return ret
+        ret = f'{self._ndrepr.repr(self)},\n\n'
+        ret += ',\n\n'.join(_str(k, v) for k, v in vars(self).items() if k[0] != '_')
+        ret_indent = textwrap.indent(ret, '    ')
+        return f'{self.__class__.__name__}(\n{ret_indent}\n)'
 
     def __repr__(self) -> str:
         """Return the canonical string representation of this instance."""
-        return f'<FOX.MultiMolecule: shape {self.shape}, type "{self.dtype}">'
+        return f'{self.__class__.__name__}(..., shape={self.shape}, dtype={repr(self.dtype.name)})'

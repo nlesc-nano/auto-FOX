@@ -1,4 +1,37 @@
-"""A module for reading CHARMM .prm files."""
+"""
+FOX.io.read_prm
+=================
+
+A module for reading CHARMM .prm files.
+
+Index
+-----
+.. currentmodule:: FOX.io.read_prm
+.. autosummary::
+    write_prm
+    read_prm
+    read_blocks
+    rename_atom_types
+    _get_empty_line
+    _get_nonbonded
+    _proccess_prm_df
+    _reorder_column_dict
+    _update_dtype
+
+API
+---
+.. autofunction:: FOX.io.read_prm.write_prm
+.. autofunction:: FOX.io.read_prm.read_prm
+.. autofunction:: FOX.io.read_prm.read_blocks
+.. autofunction:: FOX.io.read_prm.rename_atom_types
+.. autofunction:: FOX.io.read_prm._get_empty_line
+.. autofunction:: FOX.io.read_prm._get_nonbonded
+.. autofunction:: FOX.io.read_prm._proccess_prm_df
+.. autofunction:: FOX.io.read_prm._reorder_column_dict
+.. autofunction:: FOX.io.read_prm._update_dtype
+
+"""
+
 
 from typing import (Dict, Tuple, Union, TextIO)
 

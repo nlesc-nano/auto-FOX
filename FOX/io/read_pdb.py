@@ -1,4 +1,25 @@
-"""A module for reading protein DataBank (.pdb) files."""
+"""
+FOX.io.read_pdb
+=================
+
+A module for reading protein DataBank (.pdb) files.
+
+Index
+-----
+.. currentmodule:: FOX.io.read_pdb
+.. autosummary::
+    read_pdb
+    _get_bonds_array
+    _get_atoms_df
+
+API
+---
+.. autofunction:: FOX.io.read_pdb.read_pdb
+.. autofunction:: FOX.io.read_pdb._get_bonds_array
+.. autofunction:: FOX.io.read_pdb._get_atoms_df
+
+"""
+
 
 from typing import (Tuple, List, Iterable, Sequence)
 

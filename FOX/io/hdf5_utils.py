@@ -1,4 +1,49 @@
-"""Functions for storing Monte Carlo results in hdf5 format."""
+"""
+FOX.io.hdf5_utils
+=================
+
+Functions for storing Monte Carlo results in hdf5 format.
+
+Index
+-----
+.. currentmodule:: FOX.io.hdf5_utils
+.. autosummary::
+    create_hdf5
+    create_xyz_hdf5
+    index_to_hdf5
+    _get_kwarg_dict
+    hdf5_availability
+    to_hdf5
+    _xyz_to_hdf5
+    from_hdf5
+    _get_dset
+    _get_xyz_dset
+    restart_from_hdf5
+    _get_filename_xyz
+    _attr_to_array
+    dset_to_series
+    dset_to_df
+
+
+API
+---
+.. autofunction:: FOX.io.hdf5_utils.create_hdf5
+.. autofunction:: FOX.io.hdf5_utils.create_xyz_hdf5
+.. autofunction:: FOX.io.hdf5_utils.index_to_hdf5
+.. autofunction:: FOX.io.hdf5_utils._get_kwarg_dict
+.. autofunction:: FOX.io.hdf5_utils.hdf5_availability
+.. autofunction:: FOX.io.hdf5_utils.to_hdf5
+.. autofunction:: FOX.io.hdf5_utils._xyz_to_hdf5
+.. autofunction:: FOX.io.hdf5_utils.from_hdf5
+.. autofunction:: FOX.io.hdf5_utils._get_dset
+.. autofunction:: FOX.io.hdf5_utils._get_xyz_dset
+.. autofunction:: FOX.io.hdf5_utils.restart_from_hdf5
+.. autofunction:: FOX.io.hdf5_utils._get_filename_xyz
+.. autofunction:: FOX.io.hdf5_utils._attr_to_array
+.. autofunction:: FOX.io.hdf5_utils.dset_to_series
+.. autofunction:: FOX.io.hdf5_utils.dset_to_df
+
+"""
 
 from __future__ import annotations
 
@@ -32,8 +77,7 @@ except ImportError:
 
 
 @assert_error(H5PY_ERROR)
-def create_hdf5(filename: str,
-                armc: 'FOX.ARMC') -> None:
+def create_hdf5(filename: str, armc: 'FOX.ARMC') -> None:
     r"""Create a hdf5 file to hold all addaptive rate Mone Carlo results (:class:`FOX.ARMC`).
 
     Datasets are created to hold a number of results following results over the course of the
@@ -71,23 +115,24 @@ def create_hdf5(filename: str,
     # Store the *index*, *column* and *name* attributes of dataframes/series in the hdf5 file
     kappa = armc.armc.iter_len // armc.armc.sub_iter_len
     idx = armc.param['param'].index.append(pd.MultiIndex.from_tuples([('phi', '')]))
+    aux_error_idx = [f'{k}.{i}' for k, v in armc.pes.items() for i, _ in enumerate(v.ref)]
     pd_dict = {
         'param': armc.param['param'],
         'phi': pd.Series(np.nan, index=np.arange(kappa), name='phi'),
-        'aux_error': pd.Series(np.nan, index=list(armc.pes), name='aux_error'),
+        'aux_error': pd.Series(np.nan, index=aux_error_idx, name='aux_error'),
         'aux_error_mod': pd.Series(np.nan, index=idx, name='aux_error_mod')
     }
 
-    for key, value in armc.pes.items():
-        pd_dict[key] = value.ref
-        pd_dict[key + '.ref'] = value.ref
+    for _key, value in armc.pes.items():
+        for i, ref in enumerate(value.ref):
+            key = f'{_key}.{i}'
+            pd_dict[key] = ref
+            pd_dict[key + '.ref'] = ref
     index_to_hdf5(filename, pd_dict)
 
 
 @assert_error(H5PY_ERROR)
-def create_xyz_hdf5(filename: str,
-                    mol: Molecule,
-                    iter_len: int) -> None:
+def create_xyz_hdf5(filename: str, mol_list: Iterable[Molecule], iter_len: int) -> None:
     """Create the ``"xyz"`` dataset for :func:`create_hdf5` in the hdf5 file ``filename+".xyz"``.
 
     The ``"xyz"`` dataset is to contain Cartesian coordinates collected over the course of the
@@ -99,19 +144,23 @@ def create_xyz_hdf5(filename: str,
         The path+filename of the hdf5 file.
         **filename** will be appended with ``".xyz"``.
 
-    mol : |plams.Molecule|_
-        A PLAMS Molecule.
+    mol_list : |list|_ [|plams.Molecule|_]
+        An iterable consisting of PLAMS Molecule(s).
 
     iter_len: int
         The length of an ARMC sub-iterations.
 
     """
     # Prepare hdf5 dataset arguments
-    xyz = Settings()
-    xyz.shape = (iter_len, 0, len(mol), 3)
-    xyz.dtype = float
-    xyz.maxshape = (iter_len, None, len(mol), 3)
-    xyz.fillvalue = np.nan
+    kwarg_list = []
+    for mol in mol_list:
+        kwarg = {
+            'shape': (iter_len, 0, len(mol), 3),
+            'dtype': float,
+            'maxshape': (iter_len, None, len(mol), 3),
+            'fillvalue': np.nan
+        }
+        kwarg_list.append(kwarg)
 
     # Remove previous hdf5 xyz files
     filename_xyz = _get_filename_xyz(filename)
@@ -120,13 +169,14 @@ def create_xyz_hdf5(filename: str,
 
     # Create a new hdf5 xyz files
     with h5py.File(filename_xyz, 'w-', libver='latest') as f:
-        f.create_dataset(name='xyz', compression='gzip', **xyz)
-        f['xyz'].attrs['atoms'] = np.array([at.symbol for at in mol], dtype='S')
+        for i, kwargs in enumerate(kwarg_list):
+            key = f'xyz.{i}'
+            f.create_dataset(name=key, compression='gzip', **kwargs)
+            f[key].attrs['atoms'] = np.array([at.symbol for at in mol], dtype='S')
 
 
 @assert_error(H5PY_ERROR)
-def index_to_hdf5(filename: str,
-                  pd_dict: Dict[str, NDFrame]) -> None:
+def index_to_hdf5(filename: str, pd_dict: Dict[str, NDFrame]) -> None:
     """Store the ``index`` and ``columns`` / ``name`` attributes of **pd_dict** in hdf5 format.
 
     Attributes are exported for all dataframes/series in **pd_dict** and skipped otherwise.
@@ -206,20 +256,28 @@ def _get_kwarg_dict(armc: 'FOX.ARMC') -> Settings:
     ret = Settings()
     ret.phi.shape = (shape[0], )
     ret.phi.dtype = float
+
     ret.param.shape = shape + (len(armc.param), )
     ret.param.dtype = float
+
     ret.acceptance.shape = shape
     ret.acceptance.dtype = bool
-    ret.aux_error.shape = shape + (len(armc.pes), )
+
+    ret.aux_error.shape = shape + (len(armc.job.molecule), len(armc.pes))
     ret.aux_error.dtype = float
     ret.aux_error_mod.shape = shape + (1 + len(armc.param), )
     ret.aux_error_mod.dtype = float
-    for key, value in armc.pes.items():
-        ret[key].shape = shape + get_shape(value.ref)
-        ret[key].dtype = float
-        ret[key + '.ref'].shape = get_shape(value.ref)
-        ret[key + '.ref'].dtype = float
-        ret[key + '.ref'].data = value.ref
+
+    for _key, value in armc.pes.items():
+        for i, ref in enumerate(value.ref):
+            key = f'{_key}.{i}'
+
+            ret[key].shape = shape + get_shape(ref)
+            ret[key].dtype = float
+
+            ret[key + '.ref'].shape = get_shape(ref)
+            ret[key + '.ref'].dtype = float
+            ret[key + '.ref'].data = ref
 
     return ret
 
@@ -321,7 +379,7 @@ def to_hdf5(filename: str,
 @assert_error(H5PY_ERROR)
 def _xyz_to_hdf5(filename: str,
                  omega: int,
-                 mol: Union['FOX.MultiMolecule', float, np.float]) -> None:
+                 mol_list: Union[Iterable['FOX.MultiMolecule'], float, np.float]) -> None:
     r"""Export **mol** to the hdf5 file **filename**.
 
     Parameters
@@ -329,23 +387,33 @@ def _xyz_to_hdf5(filename: str,
     filename : str
         The path+filename of the hdf5 file.
 
-    mol : |FOX.MultiMolecule|_ or |float|_
-        A to-be exported :class:`MultiMolecule` instance or float (*e.g.* ``np.nan``).
+    mol_list : |list|_ [|FOX.MultiMolecule|_] or |float|_
+        All to-be exported :class:`MultiMolecule` instance(s) or float (*e.g.* ``np.nan``).
 
     omega : int
         The sub-iteration, :math:`\omega`, in the inner loop of :meth:`.ARMC.init_armc`.
 
     """
     with h5py.File(filename, 'a', libver='latest') as f:
-        if isinstance(mol, (float, np.float)):
-            f['xyz'][omega] = mol
-        else:
+        if isinstance(mol_list, (float, np.float)):
+            i = 0
+            while True:
+                try:
+                    f[f'xyz.{i}'][omega] = mol_list
+                    i += 1
+                except KeyError:
+                    return None
+
+        for i, mol in enumerate(mol_list):
             shape = mol.shape
+            key = f'xyz.{i}'
             try:
-                f['xyz'][omega, 0:shape[0]] = mol
+                f[key][omega, 0:shape[0]] = mol
             except ValueError:  # Resize and try again
-                f['xyz'].resize(shape + (f['xyz'].shape[0],))
-                f['xyz'][omega] = mol
+                f[key].resize(shape + (f[key].shape[0],))
+                f[key][omega] = mol
+
+    return None
 
 
 """#################################### Reading .hdf5 files ####################################"""
@@ -426,6 +494,9 @@ def _get_dset(f: H5pyFile,
     """
     if key == 'phi':
         return dset_to_series(f, key).T
+
+    if key == 'aux_error':
+        return _aux_err_to_df(f, key)
 
     elif 'columns' in f[key].attrs.keys():
         return dset_to_df(f, key)
@@ -555,8 +626,7 @@ def _attr_to_array(index: Union[str, pd.Index]) -> np.ndarray:
 
 
 @assert_error(H5PY_ERROR)
-def dset_to_series(f: H5pyFile,
-                   key: Hashable) -> Union[pd.Series, pd.DataFrame]:
+def dset_to_series(f: H5pyFile, key: Hashable) -> Union[pd.Series, pd.DataFrame]:
     """Take a h5py dataset and convert it into a Pandas Series (if 1D) or Pandas DataFrame (if 2D).
 
     Parameters
@@ -593,8 +663,7 @@ def dset_to_series(f: H5pyFile,
 
 
 @assert_error(H5PY_ERROR)
-def dset_to_df(f: H5pyFile,
-               key: Hashable) -> Union[pd.DataFrame, List[pd.DataFrame]]:
+def dset_to_df(f: H5pyFile, key: Hashable) -> Union[pd.DataFrame, List[pd.DataFrame]]:
     """Take a h5py dataset and create a DataFrame (if 2D) or list of DataFrames (if 3D).
 
     Parameters
@@ -621,3 +690,29 @@ def dset_to_df(f: H5pyFile,
         return pd.DataFrame(data, index=index, columns=columns)
     else:
         return [pd.DataFrame(i, index=index, columns=columns) for i in data]
+
+
+@assert_error(H5PY_ERROR)
+def _aux_err_to_df(f: H5pyFile, key: Hashable) -> Union[pd.DataFrame, List[pd.DataFrame]]:
+    """Take a h5py dataset and create a DataFrame (if 2D) or list of DataFrames (if 3D).
+
+    Parameters
+    ----------
+    f : |h5py.File|_
+        An opened hdf5 file.
+
+    key : str
+        The dataset name.
+
+    Returns
+    -------
+    |pd.DataFrame|_ or |list|_ [|pd.DataFrame|_]:
+        A Pandas DataFrame retrieved from **key** in **f**.
+
+    """
+    columns = array_to_index(f[key].attrs['index'][:])
+    data = f[key][:]
+    data.shape = np.product(data.shape[:-2], dtype=int), -1
+    ret = pd.DataFrame(data, columns=columns)
+    ret.index.name = f[key].attrs['name'][0].decode()
+    return ret
