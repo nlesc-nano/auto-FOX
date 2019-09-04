@@ -7,8 +7,6 @@ import numpy as np
 
 from FOX import (MultiMolecule, get_example_xyz, get_template)
 
-__all__: list = []
-
 MOL = MultiMolecule.from_xyz(get_example_xyz())
 REF_DIR = 'tests/test_files'
 

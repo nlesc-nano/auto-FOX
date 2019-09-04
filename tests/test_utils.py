@@ -12,8 +12,6 @@ from FOX.functions.utils import (
     dict_to_pandas
 )
 
-__all__: list = []
-
 REF_DIR = 'tests/test_files'
 
 

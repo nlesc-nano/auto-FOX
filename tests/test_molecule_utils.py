@@ -6,8 +6,6 @@ import numpy as np
 
 from FOX import (MultiMolecule, get_example_xyz)
 
-__all__: list = []
-
 MOL = MultiMolecule.from_xyz(get_example_xyz())
 MOL.guess_bonds(atom_subset=['C', 'O', 'H'])
 PLAMS_MOL = MOL.as_Molecule(0)[0]
@@ -52,7 +50,7 @@ def test_get_angles():
     mol = PLAMS_MOL.copy()
 
     angles = mol.get_angles()
-    ref = np.load(join(REF_DIR, 'angles.npy'))
+    ref = np.load(join(REF_DIR, 'angles2.npy'))
     np.testing.assert_allclose(angles, ref)
 
 
@@ -70,5 +68,5 @@ def test_get_impropers():
     mol = PLAMS_MOL.copy()
 
     impropers = mol.get_impropers()
-    ref = np.load(join(REF_DIR, 'impropers.npy'))
+    ref = np.load(join(REF_DIR, 'impropers2.npy'))
     np.testing.assert_allclose(impropers, ref)

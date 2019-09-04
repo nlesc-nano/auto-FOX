@@ -8,8 +8,6 @@ import numpy as np
 
 from FOX.io.read_prm import (read_prm, write_prm, rename_atom_types, _update_dtype)
 
-__all__: list = []
-
 REF_DIR = 'tests/test_files'
 
 

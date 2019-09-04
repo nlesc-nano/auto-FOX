@@ -6,8 +6,6 @@ import numpy as np
 
 from FOX.io.read_kf import read_kf
 
-__all__: list = []
-
 REF_DIR = 'tests/test_files'
 
 

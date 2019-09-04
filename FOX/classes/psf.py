@@ -87,7 +87,7 @@ class PSF:
         interactions should be ignored.
 
     """
-    _filename: Optional[np.ndarray] = None
+    filename: Optional[np.ndarray] = None
     title: Optional[np.ndarray] = None
     atoms: Optional[pd.DataFrame] = None
     bonds: Optional[np.ndarray] = None

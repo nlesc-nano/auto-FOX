@@ -1,7 +1,5 @@
 """ A module for testing files in the :mod:`FOX.functions.charge_utils` module. """
 
-__all__ = []
-
 from os.path import join
 
 import numpy as np
