@@ -117,7 +117,6 @@ class PSF:
 
     def __eq__(self, value: Any) -> bool:
         """Check if this instance is equivalent to **value**."""
-        # Check if the object classes are identical
         if self.__class__ is not value.__class__:
             return False
 
@@ -127,8 +126,7 @@ class PSF:
                 v2 = getattr(value, k)
                 assert (v1 == v2).all()
         except (AttributeError, AssertionError):
-            # An attribute is missing or not equivalent
-            return False
+            return False  # An attribute is missing or not equivalent
 
         return True
 

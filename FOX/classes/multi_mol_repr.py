@@ -42,6 +42,7 @@ class MultiMolRepr(reprlib.Repr):
                 setattr(self, k, v)
 
     def __str__(self) -> str:
+        """Return a string representation of this instance."""
         attr_dict = vars(self)
         width = max(len(k) for k in attr_dict)
         iterator = sorted(attr_dict.items(), key=str)
@@ -51,9 +52,11 @@ class MultiMolRepr(reprlib.Repr):
         return f'{self.__class__.__name__}(\n{_ret}\n)'
 
     def __repr__(self) -> str:
+        """Return a string representation of this instance."""
         return self.__str__()
 
     def __hash__(self) -> int:
+        """Return the hash of this instance."""
         ret = 0
         for k, v in vars(self).items():
             if k == '_ndformatter':
@@ -62,10 +65,19 @@ class MultiMolRepr(reprlib.Repr):
         return ret
 
     def __eq__(self, value: Any) -> bool:
-        try:
-            return hash(self) == hash(value)
-        except Exception:
+        """Check if this instance is equivalent to **value**."""
+        if self.__class__ is not value.__class__:
             return False
+
+        # Check if the object attribute values are identical
+        try:
+            for k, v1 in vars(self).items():
+                v2 = getattr(value, k)
+                assert v1 == v2
+        except (AttributeError, AssertionError):
+            return False  # An attribute is missing or not equivalent
+
+        return True
 
     def repr1(self, x: Any, level: int) -> str:
         if isinstance(x, np.ndarray):
