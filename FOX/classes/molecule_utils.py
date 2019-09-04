@@ -152,7 +152,19 @@ class Molecule(_Molecule):
                 for at3 in at_other[i:]:
                     angle.append((at1.id, at2.id, at3.id))
 
-        return np.array(angle, dtype=int) + 1
+        if not angle:  # If no angles are found
+            return np.array([], dtype=int)
+
+        ret = np.array(angle, dtype=int) + 1
+
+        # Sort horizontally
+        for i, (j, k, m) in enumerate(ret):
+            if j > m:
+                ret[i] = (m, k, j)
+
+        # Sort and return vertically
+        idx = np.argsort(ret, axis=0)[:, 0]
+        return ret[idx]
 
     def get_dihedrals(self) -> np.ndarray:
         """Return an array with the atomic indices defining all proper dihedrals in this instance.
@@ -181,7 +193,19 @@ class Molecule(_Molecule):
                     if at4 != at2:
                         dihed.append((at1.id, at2.id, at3.id, at4.id))
 
-        return np.array(dihed, dtype=int) + 1
+        if not dihed:  # If no dihedrals are found
+            return np.array([], dtype=int)
+
+        ret = np.array(dihed, dtype=int) + 1
+
+        # Sort horizontally
+        for i, (j, k, m, n) in enumerate(ret):
+            if j > n:
+                ret[i] = (n, m, k, j)
+
+        # Sort and return vertically
+        idx = np.argsort(ret, axis=0)[:, 0]
+        return ret[idx]
 
     def get_impropers(self) -> np.ndarray:
         """Return an array with the atomic indices defining all improper dihedrals in this instance.
