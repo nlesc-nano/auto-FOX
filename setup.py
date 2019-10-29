@@ -72,7 +72,7 @@ setup(
         'scipy',
         'pandas',
         'schema',
-        'plams@git+https://github.com/SCM-NV/PLAMS@Master'
+        'plams@git+https://github.com/SCM-NV/PLAMS@master'
     ],
     setup_requires=[
         'pytest-runner'
