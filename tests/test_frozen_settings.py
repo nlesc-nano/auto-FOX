@@ -1,6 +1,7 @@
 """A module for testing the :class:`FOX.classes.frozen_settings.FrozenSettings` class."""
 
 from scm.plams import Settings
+from assertionlib import assertion
 
 from FOX.classes.frozen_settings import FrozenSettings
 
@@ -13,64 +14,49 @@ HASH = hash(REF)
 def test_missing():
     """Test :meth:`.FrozenSettings.__missing__`."""
     item = REF.b
-    assert item == FrozenSettings()
-    assert 'b' not in REF
+    assertion.eq(item, FrozenSettings())
+    assertion.contains(REF, 'b', invert=True)
 
 
 def test_delitem():
     """Test :meth:`.FrozenSettings.__delitem__`."""
-    try:
-        del REF['a']
-    except TypeError:
-        pass
-    else:
-        raise AssertionError
+    assertion.assert_(REF.__delitem__, 'a', exception=TypeError)
 
 
 def test_setitem():
     """Test :meth:`.FrozenSettings.__setitem__`."""
-    try:
-        REF['b'] = True
-    except TypeError:
-        pass
-    else:
-        raise AssertionError
+    assertion.assert_(REF.__setitem__, 'a', exception=TypeError)
 
 
 def test_hash():
     """Test :meth:`.FrozenSettings.__hash__`."""
     copy = REF.copy()
-    assert hash(copy) == HASH
-    assert HASH == copy._hash
+    assertion.eq(hash(copy), HASH)
+    assertion.eq(HASH, copy._hash)
 
 
 def test_copy():
     """Test :meth:`.FrozenSettings.__copy__`."""
     copy = REF.copy()
-    assert id(copy) != id(REF)
-    assert copy == REF
+    assertion.is_not(copy, REF)
+    assertion.eq(copy, REF)
 
 
 def test_setnested():
     """Test :meth:`.FrozenSettings.set_nested`."""
     key_tuple = ('b', 'c', 'd')
     value = True
-    try:
-        REF.set_nested(key_tuple, value)
-    except TypeError:
-        pass
-    else:
-        raise AssertionError
+    assertion.assert_(REF.set_nested, key_tuple, value, exception=TypeError)
 
 
 def test_flatten():
     """Test :meth:`.FrozenSettings.flatten`."""
     ref_flat = REF.flatten()
-    assert ref_flat[('a', 'b', 'c', 'd')] is True
+    assertion.is_(ref_flat[('a', 'b', 'c', 'd')], True)
 
 
 def test_unflatten():
     """Test :meth:`.FrozenSettings.unflatten`."""
     ref_flat = REF.flatten()
     ref_unflat = ref_flat.unflatten()
-    assert ref_unflat == REF
+    assertion.eq(ref_unflat, REF)

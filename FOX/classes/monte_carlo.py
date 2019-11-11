@@ -19,16 +19,19 @@ API
 
 """
 
-import os
 import shutil
-from os.path import join
+import functools
+from collections import abc
+from typing import (
+    Tuple, List, Dict, Optional, Union, Iterable, Hashable, Iterator, Any, Mapping, Type, Callable
+)
 
-from typing import (Tuple, List, Dict, Optional, Union, Callable, Iterable)
 import numpy as np
 import pandas as pd
 
-from scm.plams import Settings, MultiJob, add_to_class
-from scm.plams.interfaces.thirdparty.cp2k import (Cp2kJob, Cp2kResults)
+from scm.plams import Molecule, Settings, Cp2kJob, Cp2kResults, add_to_class
+from scm.plams.core.basejob import Job
+from assertionlib.dataclass import AbstractDataClass
 
 from .multi_mol import MultiMolecule
 from ..functions.utils import _get_move_range
@@ -46,7 +49,7 @@ def get_xyz_path(self):
     raise FileNotFoundError('No .xyz files found in ' + self.job.path)
 
 
-class MonteCarlo():
+class MonteCarlo(AbstractDataClass, abc.Mapping):
     r"""The base :class:`.MonteCarlo` class.
 
     .. _plams.init: https://www.scm.com/doc/plams/components/functions.html#scm.plams.core.functions.init  # noqa
@@ -132,63 +135,133 @@ class MonteCarlo():
 
     """
 
-    def __init__(self, **kwarg: dict) -> None:
-        """Initialize a :class:`MonteCarlo` instance."""
-        # Set the inital forcefield parameters
-        self.param = None
+    @property
+    def molecule(self) -> Tuple[MultiMolecule, ...]:
+        """Get **value** or set **value** as a tuple of MultiMolecule instances."""
+        return self._molecule
 
-        # Settings for generating PES descriptors and assigns of reference PES descriptors
-        self.pes = Settings()
-        self.pes.rdf.ref = (None,)
-        self.pes.rdf.func = MultiMolecule.init_rdf
-        self.pes.rdf.kwarg = {'atom_subset': None}
+    @molecule.setter
+    def molecule(self, value: Union[MultiMolecule, Iterable[MultiMolecule]]) -> None:
+        self._molecule = (value,) if isinstance(value, Molecule) else tuple(value)
+
+    @property
+    def md_settings(self) -> Settings:
+        """Get **value** or set **value** as a |plams.Settings| instance."""
+        return self._md_settings
+
+    @md_settings.setter
+    def md_settings(self, value: Optional[Mapping]) -> None:
+        self._md_settings = Settings(value)
+
+    @property
+    def preopt_settings(self) -> Settings:
+        """Get **value** or set **value** as a |plams.Settings| instance."""
+        return self._preopt_settings
+
+    @preopt_settings.setter
+    def preopt_settings(self, value: Optional[Mapping]) -> None:
+        self._preopt_settings = Settings() if value is None else Settings(value)
+
+    @property
+    def job_name(self) -> str:
+        """Get the (lowered) name of :attr:`MonteCarlo.job_type`."""
+        return self.job_type.__name__.lower()
+
+    def __init__(self, molecule: Union[Molecule, Iterable[Molecule]],
+                 md_settings: Mapping,
+                 preopt_settings: Optional[Mapping] = None,
+                 param: Mapping = None,
+                 job_type: Type[Job] = Cp2kJob,
+                 hdf5_file: str = 'ARMC.hdf5',
+                 apply_move: Callable[[float, float], float] = np.multiply,
+                 charge_constraints: Optional[Mapping] = None,
+                 **kwargs: Callable[[np.ndarray], np.ndarray]) -> None:
+        """Initialize a :class:`MonteCarlo` instance."""
+        super().__init__()
+
+        # Set the inital forcefield parameters
+        self.param: pd.DataFrame = param
 
         # Settings for running the actual MD calculations
-        self.job = Settings()
-        self.job.molecule = (None,)
-        self.job.psf = None
-        self.job.func = Cp2kJob
-        self.job.md_settings = {}
-        self.job.preopt_settings = {}
-        self.job.name = self.job.func.__name__.lower()
-        self.job.path = os.getcwd()
-        self.job.folder = 'MM_MD_workdir'
-        self.job.keep_files = False
+        self.molecule: Tuple[MultiMolecule, ...] = molecule
+        self.job_type: Type[Job] = job_type
+        self.md_settings: Settings = md_settings
+        self.preopt_settings: Settings = preopt_settings
 
         # HDF5 settings
-        self.hdf5_file = join(self.job.path, 'ARMC.hdf5')
+        self.hdf5_file: str = hdf5_file
 
         # Settings for generating Monte Carlo moves
-        self.move = Settings()
-        self.move.func = np.multiply
-        self.move.kwarg = {}
-        self.move.charge_constraints = {}
-        self.move.range = self.get_move_range()
+        self.apply_move: Callable[[float, float], float] = apply_move
+        self.charge_constraints: dict = charge_constraints
 
-    def __repr__(self) -> str:
-        """Return a string containing a printable representation of this instance."""
-        return repr(Settings(vars(self)))
+        self.move_range = self.get_move_range()
+        self.history_dict = {}
+        self.pes: Dict[str, Callable[[np.ndarray], np.ndarray]] = {}
 
-    def as_dict(self, as_Settings: bool = False) -> Union[dict, Settings]:
-        """Create a dictionary out of a :class:`.MonteCarlo` instance.
+        # Assign functions for creating PES-descriptors
+        for k, v in kwargs.items():
+            if not callable(v):
+                raise TypeError(f"The parameter '{k}' is not a callable object; "
+                                f"observed type: '{v.__class__.__name__}'")
+            self.add_pes_evaluator(k, v)
+
+    def __setitem__(self, key: Hashable, value: Any) -> None: self.history_dict[key] = value
+
+    def __getitem__(self, key: Hashable) -> Any: return self.history_dict[key]
+
+    def __iter__(self) -> Iterator[Hashable]: return iter(self.history_dict)
+
+    def __len__(self) -> int: return len(self.history_dict)
+
+    def __contains__(self, key: Hashable) -> bool: return key in self.history_dict
+
+    def keys(self): return self.history_dict.keys()
+
+    def items(self): return self.history_dict.items()
+
+    def values(self): return self.history_dict.values()
+
+    def add_pes_evaluator(self, name: str, func: Callable, *args: Any, **kwargs: Any) -> None:
+        r"""Add a callable to this instance for constructing PES-descriptors.
+
+        Examples
+        --------
+        .. code:: python
+
+            >>> from FOX import MonteCarlo, MultiMolecule
+
+            >>> mc = MonteCarlo(...)
+            >>> mol = MultiMolecule.from_xyz(...)
+
+            # Prepare arguments
+            >>> name = 'rdf'
+            >>> func = FOX.MultiMolecule.init_rdf
+            >>> atom_subset = ['Cd', 'Se', 'O']  # Keyword argument for func
+
+            # Add the PES-descriptor constructor
+            >>> mc.add_pes_evaluator(name, func, atom_subset=atom_subset)
 
         Parameters
         ----------
-        as_Settings : bool
-            Return as a Settings instance rather than a dictionary.
+        name : str
+            The name under which the PES-descriptor will be stored (*e.g.* ``"RDF"``).
 
-        Returns
-        -------
-        |dict|_ or |plams.Settings|_:
-            A (nested) dictionary constructed from **self**.
+        func : Callable
+            The callable for constructing the PES-descriptor.
+            The callable should take an array-like object as input and
+            return a new array-like object as output.
+
+        \*args/\**kwargs : :data:`Any<typing.Any>`
+            Further positional and/or keyword arguments for **func**.
 
         """
-        if as_Settings:
-            return Settings(dir(self))
-        else:
-            return {k: (v.as_dict() if isinstance(v, Settings) else v) for k, v in dir(self)}
+        partial = functools.partial(func, *args, **kwargs)
+        partial.__doc__ = func.__doc__
+        partial.reference = tuple(partial(mol) for mol in self.molecule)
+        self.pes[name] = partial
 
-    def move_param(self) -> Tuple[float]:
+    def move(self) -> Tuple[float]:
         """Update a random parameter in **self.param** by a random value from **self.move.range**.
 
         Performs in inplace update of the ``'param'`` column in **self.param**.
@@ -212,7 +285,7 @@ class MonteCarlo():
             Name: param, dtype: float64
 
             >>> for _ in range(1000):  # Perform 1000 random moves
-            >>>     armc.move_param()
+            >>>     armc.move()
 
             >>> print(armc.param['param'])
             charge   Br      -0.597709
@@ -236,22 +309,17 @@ class MonteCarlo():
 
         # Prepare arguments a move
         idx, x1 = next(param.loc[:, 'param'].sample().items())
-        x2 = np.random.choice(self.move.range, 1)[0]
-        value = self.move.func(x1, x2, *self.move.arg, **self.move.kwarg)
+        x2 = np.random.choice(self.move_range, 1)[0]
+        value = self.apply_move(x1, x2)
 
         # Ensure that the moved value does not exceed the user-specified minimum and maximum
-        if value < self.param.at[idx, 'min']:
-            v_min = self.param.at[idx, 'min']
-            value += v_min - value
-        elif value > self.param.at[idx, 'max']:
-            v_max = self.param.at[idx, 'max']
-            value += v_max - value
+        value = self.clip_move(idx, value)
 
         # Constrain the atomic charges
         if 'charge' in idx:
             at = idx[1]
             with pd.option_context('mode.chained_assignment', None):
-                update_charge(at, value, param.loc['charge'], self.move.charge_constraints)
+                update_charge(at, value, param.loc['charge'], self.charge_constraints)
             for k, v, fstring in param.loc['charge', ['keys', 'param', 'unit']].values:
                 self.job.md_settings.set_nested(k, fstring.format(v))
                 self.job.preopt_settings.set_nested(k, fstring.format(v))
@@ -262,6 +330,16 @@ class MonteCarlo():
             self.job.preopt_settings.set_nested(k, fstring.format(v))
 
         return tuple(self.param['param'].values)
+
+    def clip_move(self, idx: Hashable, value: float) -> float:
+        """Ensure that **value** falls within a user-specified range."""
+        prm_min = self.param.at[idx, 'min']
+        if value < prm_min:
+            return value + (prm_min - value)
+
+        prm_max = self.param.at[idx, 'max']
+        if value > prm_max:
+            return value + (prm_max - value)
 
     def run_md(self) -> Tuple[Optional[List[MultiMolecule]], List[str]]:
         """Run a geometry optimization followed by a molecular dynamics (MD) job.
@@ -280,106 +358,86 @@ class MonteCarlo():
             The :class:`.MultiMolecule` list is replaced with ``None`` if the job crashes.
 
         """
-        job_type = self.job.func
-
         # Prepare preoptimization settings
         if self.job.preopt_settings is not None:
-            preopt_mol_list, path_list = self._md_preopt(job_type)
+            preopt_mol_list = self._md_preopt()
             preopt_accept = self._evaluate_rmsd(preopt_mol_list, self.job.rmsd_threshold)
-            if not preopt_accept:
-                # The RMSD is too large; don't bother with the actual MD simulation
-                preopt_mol_list = mol_list = None
 
             # Run an MD calculation
-            if preopt_mol_list is not None:
-                mol_list, _path_list = self._md(job_type, preopt_mol_list)
-                path_list += _path_list
+            if preopt_accept and preopt_mol_list is not None:
+                return self._md(preopt_mol_list)
+            return None
 
         else:  # preoptimization is disabled
-            mol_list, path_list = self._md(job_type, preopt_mol_list)
+            return self._md()
 
-        return mol_list, path_list
-
-    def _md_preopt(self, job_type: Callable) -> Tuple[List[Optional[MultiMolecule]], List[str]]:
+    def _md_preopt(self) -> List[Optional[MultiMolecule]]:
         """Peform a geometry optimization.
 
         Optimizations are performed on all molecules in :attr:`MonteCarlo.job`[``"molecule"``].
 
-        Parameters
-        ----------
-        job_type : |type|_
-            The job type of the geometry optimization.
-            Expects a subclass of plams.Job.
-
         Returns
         -------
         |FOX.MultiMolecule|_ and |str|_
-            A list of :class:`.MultiMolecule` instance constructed from the geometry optimization &
-            a list of paths to the PLAMS results directory.
+            A list of :class:`.MultiMolecule` instance constructed from the geometry optimization.
             The :class:`.MultiMolecule` list is replaced with ``None`` if the job crashes.
 
         """
         s = self.job.preopt_settings
-        mol_list, path_list = [], []
-        jobs = [job_type(name=self.job.name + '_pre_opt', molecule=mol, settings=s)
-                for mol in self.job.molecule]
+        name = self.job_name
+        job_type = self.job_type
+        job_list = [job_type(name=name, molecule=mol, settings=s) for mol in self.molecule]
 
         # Preoptimize
-        for job in jobs:
+        mol_list = []
+        for job in job_list:
             results = job.run()
             try:  # Construct and return a MultiMolecule object
                 mol = MultiMolecule.from_xyz(results.get_xyz_path())
                 mol.round(3)
             except TypeError:  # The geometry optimization crashed
-                return None, path_list
+                return None
 
             mol_list.append(mol)
-            path_list.append(job.path)
+        return mol_list
 
-        return mol_list, path_list
-
-    def _md(self, job_type: Callable,
-            mol_preopt: Iterable[MultiMolecule]) -> Tuple[Optional[List[MultiMolecule]], List[str]]:
+    def _md(self, mol_preopt: Optional[Iterable[MultiMolecule]] = None
+            ) -> Optional[List[MultiMolecule]]:
         """Peform a molecular dynamics simulation (MD).
 
         Simulations are performed on all molecules in **mol_preopt**.
 
         Parameters
         ----------
-        job_type : |type|_
-            The job type of the MD simulation.
-            Expects a subclass of plams.Job.
-
         mol_preopt : |list|_ [|FOX.MultiMolecule|_]
             An iterable consisting of :class:`.MultiMolecule` instance(s) constructed from
             geometry pre-optimization(s) (see :meth:`._md_preopt`).
 
         Returns
         -------
-        |list|_ [|FOX.MultiMolecule|_] and |list|_ [|str|_]
-            A list of :class:`.MultiMolecule` instance(s) constructed from the MD simulation &
-            a list of paths to the PLAMS results directory.
+        |list|_ [|FOX.MultiMolecule|_]
+            A list of :class:`.MultiMolecule` instance(s) constructed from the MD simulation.
             The :class:`.MultiMolecule` list is replaced with ``None`` if the job crashes.
 
         """
-        input_mol_list = [mol.as_Molecule(-1)[0] for mol in mol_preopt]
-        mol_list, path_list = [], []
-        jobs = [job_type(name=self.job.name, molecule=mol, settings=self.job.md_settings)
-                for mol in input_mol_list]
+        s = self.job.md_settings
+        name = self.job_name
+        job_type = self.job_type
+        mol_generator = (mol.as_Molecule(-1)[0] for mol in mol_preopt)
+        jobs = [job_type(name=name, molecule=mol, settings=s) for mol in mol_generator]
 
         # Run MD
+        mol_list = []
         for job in jobs:
             results = job.run()
             try:  # Construct and return a MultiMolecule object
                 mol = MultiMolecule.from_xyz(results.get_xyz_path())
                 mol.round(3)
             except TypeError:  # The MD simulation crashed
-                return None, path_list
+                return None
 
             mol_list.append(mol)
-            path_list.append(job.path)
-
-        return mol_list, path_list
+        return mol_list
 
     @staticmethod
     def _evaluate_rmsd(mol_preopt: Optional[Iterable[MultiMolecule]],
@@ -418,8 +476,7 @@ class MonteCarlo():
 
         return True
 
-    def get_pes_descriptors(self, history_dict: Dict[Tuple[float], np.ndarray],
-                            key: Tuple[float]
+    def get_pes_descriptors(self, key: Tuple[float]
                             ) -> Tuple[List[Dict[str, np.ndarray]], Optional[List[MultiMolecule]]]:
         """Check if a **key** is already present in **history_dict**.
 
@@ -430,9 +487,6 @@ class MonteCarlo():
 
         Parameters
         ----------
-        history_dict : |dict|_ [|tuple|_ [|float|_], |np.ndarray|_ [|np.float64|_]]
-            A dictionary with results from previous iteractions.
-
         key : tuple [float]
             A key in **history_dict**.
 
@@ -445,15 +499,15 @@ class MonteCarlo():
 
         """
         # Generate PES descriptors
-        mol_list, path_list = self.run_md()
+        mol_list = self.run_md()
         if mol_list is None:  # The MD simulation crashed
             mol_count = len(next(iter(self.pes)).ref)
             ret = [{key: np.inf for key, value in self.pes}] * mol_count
         else:
-            ret = [{key: value.func(mol, *value.arg, **value.kwarg) for
-                    key, value in self.pes.items()} for mol in mol_list]
+            ret = [{key: func(mol) for key, func in self.pes.items()} for mol in mol_list]
 
         # Delete the output directory and return
+        path_list = None
         if not self.job.keep_files:
             for i in path_list:
                 shutil.rmtree(i)
@@ -461,13 +515,11 @@ class MonteCarlo():
         return ret, mol_list
 
     @staticmethod
-    def get_move_range(start: float = 0.005,
-                       stop: float = 0.1,
-                       step: float = 0.005) -> np.ndarray:
+    def get_move_range(start: float = 0.005, stop: float = 0.1, step: float = 0.005) -> np.ndarray:
         """Generate an with array of all allowed moves.
 
         The move range spans a range of 1.0 +- **stop** and moves are thus intended to
-        applied in a multiplicative manner (see :meth:`MonteCarlo.move_param`).
+        applied in a multiplicative manner (see :meth:`MonteCarlo.move`).
 
         Examples
         --------
