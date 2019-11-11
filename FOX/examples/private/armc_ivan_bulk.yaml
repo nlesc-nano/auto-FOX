@@ -32,13 +32,13 @@ pes:
         kwarg:
             atom_subset: [Cs, Pb, Br]
 
-molecule: [/Users/basvanbeek/Downloads/cspbbr3_bulk_ortho.xyz, /Users/basvanbeek/Downloads/cspbbr3_bulk_orth2.xyz]
+molecule: /Users/bvanbeek/Downloads/cspbbr3_bulk_ortho.xyz
 
 job:
-    logfile: /Users/basvanbeek/Downloads/armc.log
+    logfile: /Users/bvanbeek/Downloads/armc.log
     func: scm.plams.Cp2kJob
     name: armc
-    path: /Users/basvanbeek/Downloads
+    path: /Users/bvanbeek/Downloads
     folder: MM_MD_workdir
     keep_files: True
     rmsd_threshold: 10.0
@@ -75,7 +75,7 @@ job:
                         pressure: 1.01
                         timecon: 1250
 
-hdf5_file: /Users/basvanbeek/Downloads/armc.hdf5
+hdf5_file: /Users/bvanbeek/Downloads/armc.hdf5
 
 armc:
     iter_len: 20000

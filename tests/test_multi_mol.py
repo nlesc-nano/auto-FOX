@@ -5,10 +5,12 @@ from os.path import join
 
 import numpy as np
 
+from assertionlib import assertion
+
 from FOX import (MultiMolecule, get_example_xyz, get_template)
 
 MOL = MultiMolecule.from_xyz(get_example_xyz())
-REF_DIR = 'tests/test_files'
+REF_DIR = join('tests', 'test_files')
 
 
 def test_delete_atoms():
@@ -17,7 +19,7 @@ def test_delete_atoms():
 
     atoms = ('H', 'C', 'O')
     mol_new = mol.delete_atoms(atom_subset=atoms)
-    assert mol_new.shape == (4905, 104, 3)
+    assertion.eq(mol_new.shape, (4905, 104, 3))
     ref = np.load(join(REF_DIR, 'delete_atoms.npy'))
     np.testing.assert_array_equal(mol_new.symbol, ref)
 
@@ -32,37 +34,16 @@ def test_guess_bonds():
     np.testing.assert_allclose(mol.bonds, ref)
 
 
-def test_slice_mol():
-    """Test :meth:`.MultiMolecule.slice_mol`."""
-    mol = MOL.copy()
-
-    mol.slice_mol(start=0, stop=None, step=1, inplace=True)
-    np.testing.assert_allclose(mol, MOL)
-
-    mol_new = mol.slice_mol(start=1000, stop=None, step=1)
-    np.testing.assert_allclose(mol_new, mol[1000:])
-
-    mol_new = mol.slice_mol(start=0, stop=1000, step=1)
-    np.testing.assert_allclose(mol_new, mol[0:1000])
-
-    mol_new = mol.slice_mol(start=0, stop=None, step=10)
-    np.testing.assert_allclose(mol_new, mol[0::10])
-
-
 def test_random_slice():
     """Test :meth:`.MultiMolecule.random_slice`."""
     mol = MOL.copy()
 
-    try:
-        mol.random_slice(start=0, stop=None, p=1.0, inplace=True)
-    except ValueError:
-        pass
-    else:
-        raise AssertionError
+    assertion.assert_(mol.random_slice, start=0, stop=None, p=1.0,
+                      inplace=True, exception=ValueError)
 
     mol_new = mol.random_slice(start=0, stop=None, p=0.5)
-    assert mol_new.shape[1:2] == mol.shape[1:2]
-    assert mol_new.shape[0] == mol.shape[0] // 2
+    assertion.eq(mol_new.shape[1:2], mol.shape[1:2])
+    assertion.eq(mol_new.shape[0], mol.shape[0] // 2)
 
 
 def test_reset_origin():
@@ -70,13 +51,13 @@ def test_reset_origin():
     mol = MOL.copy()
 
     mol.reset_origin()
-    assert mol.mean(axis=1).sum() <= 10**-8
+    assertion.allclose(mol.mean(axis=1).sum(), 0.0)
 
     mol_new = mol.reset_origin(mol_subset=1000, inplace=False)
-    assert mol_new[0:1000].mean(axis=1).sum() <= 10**-8
+    assertion.allclose(mol_new[0:1000].mean(axis=1).sum(), 0.0)
 
     mol_new = mol.reset_origin(atom_subset=slice(0, 100), inplace=False)
-    assert mol_new[:, 0:100].mean(axis=1).sum() <= 10**-8
+    assertion.allclose(mol_new[:, 0:100].mean(axis=1).sum(), 0.0)
 
 
 def test_sort():
@@ -117,7 +98,7 @@ def test_get_center_of_mass():
     center_of_mass = mol.get_center_of_mass()
     mol -= center_of_mass[:, None, :]
     center_of_mass = mol.get_center_of_mass()
-    assert np.abs(center_of_mass.mean()) <= 10**-8
+    assertion.allclose(np.abs(center_of_mass.mean()), 0.0)
 
 
 def test_get_bonds_per_atom():
@@ -247,7 +228,7 @@ def test_get_at_idx():
     dict_ = mol.get_at_idx(rmsf, idx_series, dist_dict)
     ref = get_template('idx_series.yaml', path=REF_DIR)
     for key in dict_:
-        assert dict_[key] == ref[key]
+        assertion.eq(dict_[key], ref[key])
 
 
 def test_as_mass_weighted():
@@ -265,7 +246,7 @@ def test_from_mass_weighted():
 
     mol_new = mol.as_mass_weighted()
     mol_new.from_mass_weighted()
-    assert np.abs((mol_new - mol).mean()) < 10**-8
+    assertion.allclose(np.abs((mol_new - mol).mean()), 0.0)
 
 
 def test_as_Molecule():

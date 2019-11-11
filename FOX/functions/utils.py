@@ -1,7 +1,7 @@
 """A module with miscellaneous functions."""
 
 from typing import (
-    Iterable, Tuple, Callable, Hashable, Sequence, MutableSequence, Optional, List, Any
+    Iterable, Tuple, Callable, Hashable, Sequence, Optional, List, Any, TypeVar, Dict
 )
 from os.path import join, isfile
 from functools import wraps
@@ -14,6 +14,8 @@ import pandas as pd
 from scm.plams import (Settings, add_to_class)
 
 __all__ = ['get_template', 'template_to_df', 'get_example_xyz']
+
+T = TypeVar('T')
 
 
 def append_docstring(item: Callable) -> Callable:
@@ -528,9 +530,7 @@ def get_class_name(item: Callable) -> str:
     return '{}.{}'.format(item_module, item_class)
 
 
-def slice_str(str_: str,
-              intervals: list,
-              strip_spaces: bool = True) -> list:
+def slice_str(str_: str, intervals: List[Optional[int]], strip_spaces: bool = True) -> list:
     """Slice a string, **str_**, at intervals specified in **intervals**.
 
     Examples
@@ -716,15 +716,57 @@ def str_to_callable(string: str) -> Callable:
             return eval(string)
         except NameError:  # Non-builtin function or class
             package, func = string.split('.')
-            exec('from {} import {}'.format(package, func))
+            exec(f'from {package} import {func}')
             return eval(func)
 
     else:
         try:  # Non-builtin function or class
             package, func = string.rsplit('.', 1)
-            exec('from {} import {}'.format(package, func))
+            exec(f'from {package} import {func}')
             return eval(func)
         except ImportError:  # Non-builtin method
             package, class_, method = string.rsplit('.', 2)
-            exec('from {} import {}'.format(package, class_))
+            exec(f'from {package} import {class_}')
             return eval('.'.join([class_, method]))
+
+
+def group_by_values(iterable: Iterable[Tuple[Any, Hashable]]) -> Dict[Hashable, List[Any]]:
+    """Take an iterable, yielding 2-tuples, and group all first elements by the second.
+
+    Exameple
+    --------
+    .. code:: python
+
+        >>> from typing import Iterator
+
+        >>> str_list: list = ['a', 'a', 'a', 'a', 'a', 'b', 'b', 'b']
+        >>> iterable: Iterator = enumerate(str_list)
+        >>> new_dict: dict = group_by_values(iterable)
+
+        >>> print(new_dict)
+        {'a': [1, 2, 3, 4, 5], 'b': [6, 7, 8]}
+
+    Parameter
+    ---------
+    iterable : :class:`Iterable<collections.abc.Iterable>`
+        An iterable yielding 2 elements upon iteration
+        (*e.g.* :meth:`dict.items` or :func:`enumerate`).
+        The second element must be a :class:`Hashable<collections.abc.Hashable>` and will be used
+        as key in the to-be returned dictionary.
+
+    Returns
+    -------
+    :class:`dict` [:class:`Hashable<collections.abc.Hashable>`,
+    :class:`list` [:data:`Any<typing.Any>`]]
+        A grouped dictionary.
+
+    """
+    ret: Dict[Hashable, List[Any]] = {}
+    list_append: Dict[Hashable, list.append] = {}
+    for value, key in iterable:
+        try:
+            list_append[key](value)
+        except KeyError:
+            ret[key] = [value]
+            list_append[key] = ret[key].append
+    return ret

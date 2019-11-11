@@ -209,6 +209,8 @@ def reshape_settings(s: Settings) -> None:
         del s.job.preopt_settings.input.motion.md
         s.job.preopt_settings['global'].run_type = 'geometry_optimization'
 
+    import pdb; pdb.set_trace()
+
 
 def _reshape_param(s: Settings) -> None:
     """Reshape and post-process the ``"param"`` block in the validated ARMC settings.

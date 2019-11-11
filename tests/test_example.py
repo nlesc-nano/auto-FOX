@@ -6,9 +6,11 @@ from os.path import join
 import numpy as np
 import pandas as pd
 
+from assertionlib import assertion
+
 import FOX
 
-REF_DIR = 'tests/test_files'
+REF_DIR = join('tests', 'test_files')
 
 
 def test_input():
@@ -36,7 +38,7 @@ def test_input():
         try:
             df.plot(name)
         except Exception as ex:
-            print(f'{name} - {ex.__class__.__name__}: {ex}')
+            print(f'{name} - {repr(ex)}')
     print('run time: {:.2f} sec'.format(time.time() - start))
 
     ref_rdf = np.load(join(REF_DIR, 'rdf.npy'))
@@ -74,11 +76,11 @@ def test_cp2k_md():
         else:
             np.testing.assert_array_equal(value, psf['atoms'][key])
 
-    assert armc.phi.phi == 1.0
-    assert armc.phi.kwarg == {}
-    assert armc.phi.func == np.add
+    assertion.eq(armc.phi.phi, 1.0)
+    assertion.eq(armc.phi.kwarg, {})
+    assertion.eq(armc.phi.func, np.add)
 
-    assert armc.armc.a_target == 0.25
-    assert armc.armc.gamma == 2.0
-    assert armc.armc.iter_len == 50000
-    assert armc.armc.sub_iter_len == 100
+    assertion.eq(armc.a_target, 0.25)
+    assertion.eq(armc.gamma, 2.0)
+    assertion.eq(armc.iter_len, 50000)
+    assertion.eq(armc.sub_iter_len, 100)
