@@ -50,7 +50,7 @@ def append_docstring(item: Callable) -> Callable:
         try:
             func.__doc__ += item.__doc__
         except TypeError:
-            pass
+            func.__doc__ = item.__doc__
         return func
     return decorator
 
