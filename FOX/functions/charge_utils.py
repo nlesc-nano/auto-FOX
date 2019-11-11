@@ -1,6 +1,6 @@
 """A module with functions related to manipulating atomic charges."""
 
-from typing import (Callable, Tuple, Hashable, Optional, Collection)
+from typing import Callable, Tuple, Hashable, Optional, Collection
 
 import numpy as np
 import pandas as pd

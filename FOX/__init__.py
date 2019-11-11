@@ -31,9 +31,7 @@ from .io import (
 from .classes import (
     FrozenSettings,
     MultiMolecule,
-    ARMC,
-    Molecule,
-    PSF
+    ARMC, run_armc,
 )
 
 __version__ = __version__
@@ -53,7 +51,5 @@ __all__ = [
 
     'FrozenSettings',
     'MultiMolecule',
-    'ARMC',
-    'Molecule',
-    'PSF'
+    'ARMC', 'run_armc',
 ]

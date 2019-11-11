@@ -5,12 +5,12 @@ from os import remove
 from scm.plams import add_to_class
 from scm.plams import Cp2kJob
 
-from FOX import ARMC
+from FOX import ARMC, run_armc
 
 
 # Prepare the ARMC settings
-f = '/Users/bvanbeek/Documents/GitHub/auto-FOX/FOX/examples/private/armc_ivan_bulk.yaml'
-armc = ARMC.from_yaml(f)
+f = '/Users/basvanbeek/Documents/GitHub/auto-FOX/FOX/examples/private/armc_ivan.yaml'
+armc, job_kwargs = ARMC.from_yaml(f)
 
 
 @add_to_class(Cp2kJob)
@@ -23,4 +23,7 @@ try:
     remove(armc.hdf5_file)
 except FileNotFoundError:
     pass
-armc.init_armc()
+
+
+# import pdb; pdb.set_trace()
+run_armc(armc, **job_kwargs)

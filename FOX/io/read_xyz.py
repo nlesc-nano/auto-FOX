@@ -44,7 +44,7 @@ class XYZError(OSError):
 
 def read_multi_xyz(filename: str,
                    return_comment: bool = True) -> Tuple[np.ndarray, Dict[str, List[int]]]:
-    """Read a (multi) .xyz file.
+    r"""Read a (multi) .xyz file.
 
     Parameters
     ----------

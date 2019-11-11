@@ -125,4 +125,3 @@ try:
     from CAT.frozen_settings import FrozenSettings, _frozen_settings
 except ImportError:
     _frozen_settings = FrozenSettings()
-

@@ -7,7 +7,7 @@ import numpy as np
 
 from assertionlib import assertion
 
-from FOX import (MultiMolecule, get_example_xyz, get_template)
+from FOX import MultiMolecule, get_example_xyz, get_template
 
 MOL = MultiMolecule.from_xyz(get_example_xyz())
 REF_DIR = join('tests', 'test_files')

@@ -142,7 +142,8 @@ class MonteCarlo(AbstractDataClass, abc.Mapping):
 
     @molecule.setter
     def molecule(self, value: Union[MultiMolecule, Iterable[MultiMolecule]]) -> None:
-        self._molecule = (value,) if isinstance(value, Molecule) else tuple(value)
+        self._molecule = (value,) if isinstance(value, MultiMolecule) else tuple(value)
+        self._plams_molecule = tuple(mol.as_Molecule(0)[0] for mol in self._molecule)
 
     @property
     def md_settings(self) -> Settings:
@@ -160,22 +161,41 @@ class MonteCarlo(AbstractDataClass, abc.Mapping):
 
     @preopt_settings.setter
     def preopt_settings(self, value: Optional[Mapping]) -> None:
-        self._preopt_settings = Settings() if value is None else Settings(value)
+        self._preopt_settings = value if value is None else Settings(value)
+
+    @property
+    def move_range(self) -> np.ndarray:
+        """Get **value** or set **value** as a |np.ndarray|_."""
+        return self._move_range
+
+    @move_range.setter
+    def move_range(self, value: Optional[Iterable[float]]) -> np.ndarray:
+        if value is None:
+            self._move_range = _get_move_range()
+        else:
+            try:
+                self._move_range = np.array(value, dtype=float, ndmin=1, copy=False)
+            except TypeError:
+                self._move_range = np.fromiter(value, dtype=float)
 
     @property
     def job_name(self) -> str:
         """Get the (lowered) name of :attr:`MonteCarlo.job_type`."""
         return self.job_type.__name__.lower()
 
-    def __init__(self, molecule: Union[Molecule, Iterable[Molecule]],
+    _PRIVATE_ATTR = frozenset('_plams_molecule')
+
+    def __init__(self, molecule: Union[MultiMolecule, Iterable[MultiMolecule]],
+                 param: pd.DataFrame,
                  md_settings: Mapping,
                  preopt_settings: Optional[Mapping] = None,
-                 param: Mapping = None,
+                 rmsd_threshold: float = 5.0,
                  job_type: Type[Job] = Cp2kJob,
                  hdf5_file: str = 'ARMC.hdf5',
                  apply_move: Callable[[float, float], float] = np.multiply,
+                 move_range: Optional[np.ndarray] = None,
                  charge_constraints: Optional[Mapping] = None,
-                 **kwargs: Callable[[np.ndarray], np.ndarray]) -> None:
+                 keep_files: bool = False) -> None:
         """Initialize a :class:`MonteCarlo` instance."""
         super().__init__()
 
@@ -183,10 +203,13 @@ class MonteCarlo(AbstractDataClass, abc.Mapping):
         self.param: pd.DataFrame = param
 
         # Settings for running the actual MD calculations
+        self._plams_molecule: Tuple[Molecule, ...] = None  # set by self.molecule
         self.molecule: Tuple[MultiMolecule, ...] = molecule
         self.job_type: Type[Job] = job_type
         self.md_settings: Settings = md_settings
-        self.preopt_settings: Settings = preopt_settings
+        self.preopt_settings: Optional[Settings] = preopt_settings
+        self.rmsd_threshold: float = rmsd_threshold
+        self.keep_files: bool = keep_files
 
         # HDF5 settings
         self.hdf5_file: str = hdf5_file
@@ -194,17 +217,17 @@ class MonteCarlo(AbstractDataClass, abc.Mapping):
         # Settings for generating Monte Carlo moves
         self.apply_move: Callable[[float, float], float] = apply_move
         self.charge_constraints: dict = charge_constraints
+        self.move_range = move_range
 
-        self.move_range = self.get_move_range()
+        # Internally set attributes
         self.history_dict = {}
         self.pes: Dict[str, Callable[[np.ndarray], np.ndarray]] = {}
+        self.job_cache: List[Job] = []
 
-        # Assign functions for creating PES-descriptors
-        for k, v in kwargs.items():
-            if not callable(v):
-                raise TypeError(f"The parameter '{k}' is not a callable object; "
-                                f"observed type: '{v.__class__.__name__}'")
-            self.add_pes_evaluator(k, v)
+    @AbstractDataClass.inherit_annotations()
+    def _str_iterator(self):
+        iterator = ((k.strip('_'), v) for k, v in super()._str_iterator())
+        return sorted(iterator)
 
     def __setitem__(self, key: Hashable, value: Any) -> None: self.history_dict[key] = value
 
@@ -310,10 +333,10 @@ class MonteCarlo(AbstractDataClass, abc.Mapping):
         # Prepare arguments a move
         idx, x1 = next(param.loc[:, 'param'].sample().items())
         x2 = np.random.choice(self.move_range, 1)[0]
-        value = self.apply_move(x1, x2)
+        _value = self.apply_move(x1, x2)
 
         # Ensure that the moved value does not exceed the user-specified minimum and maximum
-        value = self.clip_move(idx, value)
+        value = self.clip_move(idx, _value)
 
         # Constrain the atomic charges
         if 'charge' in idx:
@@ -321,13 +344,13 @@ class MonteCarlo(AbstractDataClass, abc.Mapping):
             with pd.option_context('mode.chained_assignment', None):
                 update_charge(at, value, param.loc['charge'], self.charge_constraints)
             for k, v, fstring in param.loc['charge', ['keys', 'param', 'unit']].values:
-                self.job.md_settings.set_nested(k, fstring.format(v))
-                self.job.preopt_settings.set_nested(k, fstring.format(v))
+                self.md_settings.set_nested(k, fstring.format(v))
+                self.preopt_settings.set_nested(k, fstring.format(v))
         else:
             param.at[idx, 'param'] = value
             k, v, fstring = param.loc[idx, ['keys', 'param', 'unit']]
-            self.job.md_settings.set_nested(k, fstring.format(v))
-            self.job.preopt_settings.set_nested(k, fstring.format(v))
+            self.md_settings.set_nested(k, fstring.format(v))
+            self.preopt_settings.set_nested(k, fstring.format(v))
 
         return tuple(self.param['param'].values)
 
@@ -383,14 +406,15 @@ class MonteCarlo(AbstractDataClass, abc.Mapping):
             The :class:`.MultiMolecule` list is replaced with ``None`` if the job crashes.
 
         """
-        s = self.job.preopt_settings
+        s = self.preopt_settings
         name = self.job_name
         job_type = self.job_type
-        job_list = [job_type(name=name, molecule=mol, settings=s) for mol in self.molecule]
+        job_list = [job_type(name=name, molecule=mol, settings=s) for mol in self._plams_molecule]
 
         # Preoptimize
         mol_list = []
         for job in job_list:
+            self.job_cache.append(job)
             results = job.run()
             try:  # Construct and return a MultiMolecule object
                 mol = MultiMolecule.from_xyz(results.get_xyz_path())
@@ -420,7 +444,7 @@ class MonteCarlo(AbstractDataClass, abc.Mapping):
             The :class:`.MultiMolecule` list is replaced with ``None`` if the job crashes.
 
         """
-        s = self.job.md_settings
+        s = self.md_settings
         name = self.job_name
         job_type = self.job_type
         mol_generator = (mol.as_Molecule(-1)[0] for mol in mol_preopt)
@@ -429,6 +453,7 @@ class MonteCarlo(AbstractDataClass, abc.Mapping):
         # Run MD
         mol_list = []
         for job in jobs:
+            self.job_cache.append(job)
             results = job.run()
             try:  # Construct and return a MultiMolecule object
                 mol = MultiMolecule.from_xyz(results.get_xyz_path())
@@ -507,46 +532,9 @@ class MonteCarlo(AbstractDataClass, abc.Mapping):
             ret = [{key: func(mol) for key, func in self.pes.items()} for mol in mol_list]
 
         # Delete the output directory and return
-        path_list = None
-        if not self.job.keep_files:
-            for i in path_list:
-                shutil.rmtree(i)
+        if not self.keep_files:
+            for job in self.job_cache:
+                shutil.rmtree(job.path)
+        self.job_cache = []
 
         return ret, mol_list
-
-    @staticmethod
-    def get_move_range(start: float = 0.005, stop: float = 0.1, step: float = 0.005) -> np.ndarray:
-        """Generate an with array of all allowed moves.
-
-        The move range spans a range of 1.0 +- **stop** and moves are thus intended to
-        applied in a multiplicative manner (see :meth:`MonteCarlo.move`).
-
-        Examples
-        --------
-        .. code:: python
-
-            >>> move_range = ARMC.get_move_range(start=0.005, stop=0.1, step=0.005)
-            >>> print(move_range)
-            [0.9   0.905 0.91  0.915 0.92  0.925 0.93  0.935 0.94  0.945
-             0.95  0.955 0.96  0.965 0.97  0.975 0.98  0.985 0.99  0.995
-             1.005 1.01  1.015 1.02  1.025 1.03  1.035 1.04  1.045 1.05
-             1.055 1.06  1.065 1.07  1.075 1.08  1.085 1.09  1.095 1.1  ]
-
-        Parameters
-        ----------
-        start : float
-            Start of the interval. The interval includes this value.
-
-        stop : float
-            End of the interval. The interval includes this value.
-
-        step : float
-            Spacing between values.
-
-        Returns
-        -------
-        |np.ndarray|_ [|np.int64|_]:
-            An array with allowed moves.
-
-        """
-        return _get_move_range(start, stop, step)

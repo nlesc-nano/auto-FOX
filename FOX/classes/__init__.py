@@ -8,14 +8,10 @@ Various classes implemented in Auto-FOX.
 
 from .frozen_settings import FrozenSettings
 from .multi_mol import MultiMolecule
-from .armc import ARMC
-from .molecule_utils import Molecule
-from .psf import PSF
+from .armc import ARMC, run_armc
 
 __all__ = [
     'FrozenSettings'
     'MultiMolecule',
-    'ARMC',
-    'Molecule',
-    'PSF'
+    'ARMC', 'run_armc',
 ]

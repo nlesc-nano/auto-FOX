@@ -31,7 +31,7 @@ from typing import Optional
 
 from .classes.armc import ARMC
 from .armc_functions.csv import dset_to_csv
-from .armc_functions.plotting import (plot_pes_descriptors, plot_param, plot_dset)
+from .armc_functions.plotting import plot_pes_descriptors, plot_param, plot_dset
 
 try:
     import matplotlib.pyplot as plt

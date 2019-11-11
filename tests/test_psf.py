@@ -1,84 +1,87 @@
-"""A module for testing files in the :class:`FOX.classes.psf.PSF` class."""
+"""Tests for :class:`FOX.io.read_psf.PSFContainer`."""
 
-from os import remove
+import os
 from os.path import join
+from tempfile import TemporaryFile
+from itertools import zip_longest
 
 import numpy as np
-import pandas as pd
 
-from FOX.classes.psf import PSF
+from scm.plams import readpdb, Molecule
+from assertionlib import assertion
 
-REF_DIR = 'tests/test_files/psf'
+from FOX.io.read_psf import PSFContainer
 
-
-def test_read_psf():
-    """ Test :meth:`FOX.classes.psf.PSF.read_psf`. """
-    psf_dict = PSF.read_psf(join(REF_DIR, 'mol.psf'))
-
-    ref_atoms = pd.read_csv(join(REF_DIR, 'atoms.csv'), float_precision='high', index_col=0)
-    ref_dict = {
-        'bonds': np.load(join(REF_DIR, 'bonds.npy')),
-        'angles': np.load(join(REF_DIR, 'angles.npy')),
-        'dihedrals': np.load(join(REF_DIR, 'dihedrals.npy')),
-        'impropers': np.load(join(REF_DIR, 'impropers.npy')),
-        'donors': np.load(join(REF_DIR, 'donors.npy')),
-        'acceptors': np.load(join(REF_DIR, 'acceptors.npy')),
-        'no_nonbonded': np.load(join(REF_DIR, 'no_nonbonded.npy')),
-    }
-
-    assert (
-        psf_dict.title ==
-        np.array(['PSF file generated with Auto-FOX:', 'https://github.com/nlesc-nano/auto-FOX'])
-    ).all()
-
-    for key, value in psf_dict.atoms.items():
-        i, j = value, ref_atoms[key]
-        try:
-            np.testing.assert_allclose(i, j)
-        except TypeError:
-            np.testing.assert_array_equal(i, j)
-
-    np.testing.assert_array_equal(psf_dict.atoms.index, ref_atoms.index)
-    np.testing.assert_array_equal(psf_dict.atoms.columns, ref_atoms.columns)
-
-    for key, value in ref_dict.items():
-        i, j = value, getattr(psf_dict, key)
-        np.testing.assert_array_equal(i, j)
+PATH: str = join('tests', 'test_files', 'psf')
+PSF: PSFContainer = PSFContainer.read(join(PATH, 'mol.psf'))
+MOL: Molecule = readpdb(join(PATH, 'mol.pdb'))
 
 
-def test_write_psf():
-    """ Test :meth:`FOX.classes.psf.PSF.write_psf`. """
-    psf_dict = PSF.read_psf(join(REF_DIR, 'mol.psf'))
-    psf_dict.write_psf(join(REF_DIR, 'mol_test.psf'))
-    psf_dict = PSF.read_psf(join(REF_DIR, 'mol_test.psf'))
-    remove(join(REF_DIR, 'mol_test.psf'))
+def test_write() -> None:
+    """Tests for :meth:`PSFContainer.write`."""
+    filename1 = join(PATH, 'mol.psf')
+    filename2 = join(PATH, 'tmp.psf')
 
-    ref_atoms = pd.read_csv(join(REF_DIR, 'atoms.csv'), float_precision='high', index_col=0)
-    ref_dict = {
-        'bonds': np.load(join(REF_DIR, 'bonds.npy')),
-        'angles': np.load(join(REF_DIR, 'angles.npy')),
-        'dihedrals': np.load(join(REF_DIR, 'dihedrals.npy')),
-        'impropers': np.load(join(REF_DIR, 'impropers.npy')),
-        'donors': np.load(join(REF_DIR, 'donors.npy')),
-        'acceptors': np.load(join(REF_DIR, 'acceptors.npy')),
-        'no_nonbonded': np.load(join(REF_DIR, 'no_nonbonded.npy')),
-    }
+    try:
+        PSF.write(filename2)
+        with open(filename1) as f1, open(filename2) as f2:
+            for i, j in zip_longest(f1, f2):
+                assertion.eq(i, j)
+    finally:
+        if os.path.isfile(filename2):
+            os.remove(filename2)
 
-    assert (
-        psf_dict.title ==
-        np.array(['PSF file generated with Auto-FOX:', 'https://github.com/nlesc-nano/auto-FOX'])
-    ).all()
+    with open(filename1, 'rb') as f1, TemporaryFile() as f2:
+        PSF.write(f2, encoding='utf-8')
+        f2.seek(0)
+        for i, j in zip_longest(f1, f2):
+            assertion.eq(i, j)
 
-    for key, value in psf_dict.atoms.items():
-        i, j = value, ref_atoms[key]
-        try:
-            np.testing.assert_allclose(i, j)
-        except TypeError:
-            np.testing.assert_array_equal(i, j)
 
-    np.testing.assert_array_equal(psf_dict.atoms.index, ref_atoms.index)
-    np.testing.assert_array_equal(psf_dict.atoms.columns, ref_atoms.columns)
+def test_update_atom_charge() -> None:
+    """Tests for :meth:`PSFContainer.update_atom_charge`."""
+    psf = PSF.copy()
+    psf.update_atom_charge('C2O3', -5.0)
+    condition = psf.atom_type == 'C2O3'
 
-    for key, value in ref_dict.items():
-        i, j = value, getattr(psf_dict, key)
-        np.testing.assert_array_equal(i, j)
+    assert (psf.charge[condition] == -5.0).all()
+    assertion.assert_(psf.update_atom_charge, 'C2O3', 'bob', exception=ValueError)
+
+
+def test_update_atom_type() -> None:
+    """Tests for :meth:`PSFContainer.update_atom_type`."""
+    psf = PSF.copy()
+    psf.update_atom_type('C2O3', 'C8')
+    assertion.contains(psf.atom_type.values, 'C8')
+
+
+def test_generate_bonds() -> None:
+    """Tests for :meth:`PSFContainer.generate_bonds`."""
+    psf = PSF.copy()
+    ref = np.load(join(PATH, 'generate_bonds.npy'))
+    psf.generate_bonds(MOL)
+    np.testing.assert_array_equal(ref, psf.bonds)
+
+
+def test_generate_angles() -> None:
+    """Tests for :meth:`PSFContainer.generate_angles`."""
+    psf = PSF.copy()
+    ref = np.load(join(PATH, 'generate_angles.npy'))
+    psf.generate_angles(MOL)
+    np.testing.assert_array_equal(ref, psf.angles)
+
+
+def test_generate_dihedrals() -> None:
+    """Tests for :meth:`PSFContainer.generate_dihedrals`."""
+    psf = PSF.copy()
+    ref = np.load(join(PATH, 'generate_dihedrals.npy'))
+    psf.generate_dihedrals(MOL)
+    np.testing.assert_array_equal(ref, psf.dihedrals)
+
+
+def test_generate_impropers() -> None:
+    """Tests for :meth:`PSFContainer.generate_impropers`."""
+    psf = PSF.copy()
+    ref = np.load(join(PATH, 'generate_impropers.npy'))
+    psf.generate_impropers(MOL)
+    np.testing.assert_array_equal(ref, psf.impropers)

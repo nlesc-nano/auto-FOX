@@ -1,72 +1,44 @@
-"""A module for testing the :class:`FOX.classes.molecule_utils.Molecule` class."""
+"""A module for testing :mod:`FOX.functions.molecule_utils`."""
 
 from os.path import join
 
 import numpy as np
 
-from FOX import (MultiMolecule, get_example_xyz)
+from scm.plams import Molecule
 
-MOL = MultiMolecule.from_xyz(get_example_xyz())
-MOL.guess_bonds(atom_subset=['C', 'O', 'H'])
-PLAMS_MOL = MOL.as_Molecule(0)[0]
-REF_DIR = join('tests', 'test_files')
+from FOX.functions.molecule_utils import get_bonds, get_angles, get_dihedrals, get_impropers
 
-
-def test_set_atoms_id():
-    """Test :meth:`.Molecule.set_atoms_id`."""
-    mol = PLAMS_MOL.copy()
-
-    mol.set_atoms_id()
-    for i, at in enumerate(mol.atoms, 1):
-        assert at.id == i
-
-    mol.set_atoms_id(start=10)
-    for i, at in enumerate(mol.atoms, 10):
-        assert at.id == i
+PATH: str = join('tests', 'test_files')
+MOL: Molecule = readpdb(join(PATH, 'hexanoic_acid.pdb'))
 
 
-def test_separate_mod():
-    """Test :meth:`.Molecule.separate_mod`."""
-    mol = PLAMS_MOL.copy()
-
-    idx = mol.separate_mod()
-    j = np.array([len(i) for i in idx])
-    ref = np.load(join(REF_DIR, 'separate_mod.npy'))
-    np.testing.assert_allclose(j, ref)
+def test_get_bonds() -> None:
+    """Tests for :func:`nanoCAT.ff.mol_topology.get_bonds`."""
+    mol = MOL.copy()
+    bonds_ref = np.load(join(PATH, 'get_bonds.npy'))
+    bonds = get_bonds(mol)
+    np.testing.assert_array_equal(bonds, bonds_ref)
 
 
-def test_fix_bond_orders():
-    """Test :meth:`.Molecule.fix_bond_orders`."""
-    mol = PLAMS_MOL.copy()
-
-    mol.fix_bond_orders()
-    charge = np.array([at.properties.charge for at in mol])
-    ref = np.load(join(REF_DIR, 'fix_bond_orders.npy'))
-    np.testing.assert_allclose(charge, ref)
+def test_get_angles() -> None:
+    """Tests for :func:`nanoCAT.ff.mol_topology.get_angles`."""
+    mol = MOL.copy()
+    angles_ref = np.load(join(PATH, 'get_angles.npy'))
+    angles = get_angles(mol)
+    np.testing.assert_array_equal(angles, angles_ref)
 
 
-def test_get_angles():
-    """Test :meth:`.Molecule.get_angles`."""
-    mol = PLAMS_MOL.copy()
-
-    angles = mol.get_angles()
-    ref = np.load(join(REF_DIR, 'angles2.npy'))
-    np.testing.assert_allclose(angles, ref)
-
-
-def test_get_dihedrals():
-    """Test :meth:`.Molecule.get_dihedrals`."""
-    mol = PLAMS_MOL.copy()
-
-    dihedrals = mol.get_dihedrals()
-    ref = np.load(join(REF_DIR, 'dihedrals.npy'))
-    np.testing.assert_allclose(dihedrals, ref)
+def test_get_dihedrals() -> None:
+    """Tests for :func:`nanoCAT.ff.mol_topology.get_dihedrals`."""
+    mol = MOL.copy()
+    dihedrals_ref = np.load(join(PATH, 'get_dihedrals.npy'))
+    dihedrals = get_dihedrals(mol)
+    np.testing.assert_array_equal(dihedrals, dihedrals_ref)
 
 
-def test_get_impropers():
-    """Test :meth:`.Molecule.get_impropers`."""
-    mol = PLAMS_MOL.copy()
-
-    impropers = mol.get_impropers()
-    ref = np.load(join(REF_DIR, 'impropers2.npy'))
-    np.testing.assert_allclose(impropers, ref)
+def test_get_impropers() -> None:
+    """Tests for :func:`nanoCAT.ff.mol_topology.get_impropers`."""
+    mol = MOL.copy()
+    impropers_ref = np.load(join(PATH, 'get_impropers.npy'))
+    impropers = get_impropers(mol)
+    np.testing.assert_array_equal(impropers, impropers_ref)

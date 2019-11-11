@@ -19,14 +19,14 @@ param:
 pes:
     rdf:
         func: FOX.MultiMolecule.init_rdf
-        kwarg:
+        kwargs:
             atom_subset: [Cd, Se, O]
 
-molecule: /Users/bvanbeek/Documents/GitHub/auto-FOX/FOX/data/Cd68Se55_26COO_MD_trajec.xyz
+molecule: /Users/basvanbeek/Documents/GitHub/auto-FOX/FOX/data/Cd68Se55_26COO_MD_trajec.xyz
 
 job:
-    logfile: /Users/bvanbeek/Downloads/armc.log
-    func: scm.plams.Cp2kJob
+    logfile: /Users/basvanbeek/Downloads/armc.log
+    job_type: scm.plams.Cp2kJob
     name: armc
     path: /Users/basvanbeek/Downloads
     folder: MM_MD_workdir

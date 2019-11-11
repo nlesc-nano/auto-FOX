@@ -149,8 +149,7 @@ def get_template(name: str,
         return yaml.load(f, Loader=yaml.FullLoader)
 
 
-def template_to_df(name: str,
-                   path: Optional[str] = None) -> pd.DataFrame:
+def template_to_df(name: str, path: Optional[str] = None) -> pd.DataFrame:
     """Grab a .yaml template and turn it into a pandas dataframe.
 
     Parameters
@@ -177,8 +176,7 @@ def template_to_df(name: str,
         return pd.DataFrame(values, index=idx, columns=['charge'])
 
 
-def serialize_array(array: np.ndarray,
-                    items_per_row: int = 4) -> str:
+def serialize_array(array: np.ndarray, items_per_row: int = 4) -> str:
     """Serialize an array into a single string.
 
     Newlines are placed for every **items_per_row** rows in **array**.
@@ -249,7 +247,6 @@ def get_shape(item: Iterable) -> Tuple[int]:
 
     Examples
     --------
-
     .. code:: python
 
         >>> item = np.random.rand(10, 10, 10)
@@ -285,8 +282,7 @@ def get_shape(item: Iterable) -> Tuple[int]:
     return (1, )  # Plan C: **item** has access to neither A nor B
 
 
-def dict_to_pandas(input_dict: dict,
-                   name: Hashable = 0,
+def dict_to_pandas(input_dict: dict, name: Hashable = 0,
                    object_type: str = 'pd.DataFrame') -> pd.DataFrame:
     """Turn a nested dictionary into a pandas series or dataframe.
 
@@ -294,7 +290,6 @@ def dict_to_pandas(input_dict: dict,
 
     Examples
     --------
-
     .. code:: python
 
         >>> name = 'param'
@@ -365,7 +360,6 @@ def array_to_index(ar: np.ndarray) -> pd.Index:
 
     Examples
     --------
-
     .. code:: python
 
         >>> ar = np.arange(10)
@@ -411,8 +405,7 @@ def get_example_xyz(name: str = 'Cd68Se55_26COO_MD_trajec.xyz') -> str:
     return resource_filename('FOX', join('data', name))
 
 
-def _get_move_range(start: float = 0.005,
-                    stop: float = 0.1,
+def _get_move_range(start: float = 0.005, stop: float = 0.1,
                     step: float = 0.005) -> np.ndarray:
     """Generate an with array of all allowed moves.
 
@@ -567,8 +560,7 @@ def slice_str(str_: str, intervals: List[Optional[int]], strip_spaces: bool = Tr
     return [str_[i:j] for i, j in zip(iter1, iter2)]
 
 
-def get_atom_count(iterable: Iterable[Sequence[str]],
-                   mol: 'FOX.MultiMolecule') -> List[int]:
+def get_atom_count(iterable: Iterable[Sequence[str]], mol: 'FOX.MultiMolecule') -> List[int]:
     """Count the occurences of each atom/atom-pair (from **iterable**) in **mol**.
 
     Duplicate values are removed if when evaluating atom pairs when atom-pairs consist of
@@ -576,7 +568,6 @@ def get_atom_count(iterable: Iterable[Sequence[str]],
 
     Examples
     --------
-
     .. code:: python
 
         >>> Cd_count = len(mol.atoms['Cd'])

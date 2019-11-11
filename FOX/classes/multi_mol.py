@@ -22,27 +22,25 @@ API
 from __future__ import annotations
 
 from collections import abc
-from itertools import (chain, combinations_with_replacement, zip_longest, islice)
-from typing import (
-    Sequence, Optional, Union, List, Hashable, Callable, Iterable, Dict, Tuple, Any
-)
+from itertools import chain, combinations_with_replacement, zip_longest, islice
+from typing import Sequence, Optional, Union, List, Hashable, Callable, Iterable, Dict, Tuple, Any
 
 import numpy as np
 import pandas as pd
-from scipy import (signal, constants)
+from scipy import signal, constants
 from scipy.spatial import cKDTree
 from scipy.fftpack import fft
 from scipy.spatial.distance import cdist
 
-from scm.plams import (Atom, Bond, PeriodicTable)
+from scm.plams import Molecule, Atom, Bond, PeriodicTable
 
-from .molecule_utils import Molecule
 from .multi_mol_magic import _MultiMolecule
 from ..io.read_kf import read_kf
 from ..io.read_xyz import read_multi_xyz
-from ..functions.rdf import (get_rdf, get_rdf_lowmem, get_rdf_df)
-from ..functions.adf import (get_adf, get_adf_df)
+from ..functions.rdf import get_rdf, get_rdf_lowmem, get_rdf_df
+from ..functions.adf import get_adf, get_adf_df
 from ..functions.utils import group_by_values
+from ..functions.molecule_utils import fix_bond_orders
 
 try:
     import dask
@@ -173,7 +171,7 @@ class MultiMolecule(_MultiMolecule):
         # Guess bonds
         mol = self.as_Molecule(mol_subset=0, atom_subset=atom_subset)[0]
         mol.guess_bonds()
-        mol.fix_bond_orders()
+        fix_bond_orders(mol)
         self.bonds = MultiMolecule.from_Molecule(mol, subset='bonds').bonds
 
         # Update indices in **self.bonds** to account for **atom_subset**
@@ -448,8 +446,8 @@ class MultiMolecule(_MultiMolecule):
 
     def _get_time_averaged_prop(self, method: Callable,
                                 atom_subset: AtomSubset = None,
-                                kwarg: Dict[str, Any] = {}) -> pd.DataFrame:
-        """A method for constructing time-averaged properties.
+                                **kwargs: Any) -> pd.DataFrame:
+        r"""A method for constructing time-averaged properties.
 
         Parameters
         ----------
@@ -461,7 +459,7 @@ class MultiMolecule(_MultiMolecule):
             determined by their atomic index or atomic symbol.
             Include all :math:`n` atoms per molecule in this instance if ``None``.
 
-        kwarg : dict [str, object]
+        \**kwargs : object
             Keyword arguments that will be supplied to **method**.
 
         Returns
@@ -475,9 +473,9 @@ class MultiMolecule(_MultiMolecule):
 
         # Get the time-averaged property
         if loop:
-            data = [method(atom_subset=at, **kwarg) for at in at_subset]
+            data = [method(atom_subset=at, **kwargs) for at in at_subset]
         else:
-            data = method(atom_subset=at_subset, **kwarg)
+            data = method(atom_subset=at_subset, **kwargs)
 
         # Construct and return the dataframe
         idx = pd.RangeIndex(0, self.shape[1], name='Abritrary atomic index')
@@ -487,8 +485,8 @@ class MultiMolecule(_MultiMolecule):
 
     def _get_average_prop(self, method: Callable,
                           atom_subset: AtomSubset = None,
-                          kwarg: Dict[str, Any] = {}) -> pd.DataFrame:
-        """A method for constructing properties averaged over atomic subsets.
+                          **kwargs: Any) -> pd.DataFrame:
+        r"""A method for constructing properties averaged over atomic subsets.
 
         Parameters
         ----------
@@ -501,7 +499,7 @@ class MultiMolecule(_MultiMolecule):
             determined by their atomic index or atomic symbol.
             Include all :math:`n` atoms per molecule in this instance if ``None``.
 
-        kwarg : dict [str, object]
+        \**kwargs : object
             Keyword arguments that will be supplied to **method**.
 
         Returns
@@ -515,9 +513,9 @@ class MultiMolecule(_MultiMolecule):
 
         # Calculate and averaged property
         if loop:
-            data = np.array([method(atom_subset=at, **kwarg) for at in at_subset]).T
+            data = np.array([method(atom_subset=at, **kwargs) for at in at_subset]).T
         else:
-            data = method(atom_subset=atom_subset, **kwarg).T
+            data = method(atom_subset=atom_subset, **kwargs).T
 
         # Construct and return the dataframe
         column_range = self._get_rmsd_columns(loop, atom_subset)
@@ -1374,7 +1372,6 @@ class MultiMolecule(_MultiMolecule):
 
         Examples
         --------
-
         .. code:: python
 
             >>> import numpy as np

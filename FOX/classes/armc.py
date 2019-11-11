@@ -21,18 +21,35 @@ API
 
 from __future__ import annotations
 
-from typing import Tuple, Dict, Any, Optional, Iterable
+import os
+from typing import Tuple, Dict, Any, Optional, Iterable, Callable
 
 import numpy as np
 
 from scm.plams import init, finish, config
 
 from .monte_carlo import MonteCarlo
-from ..io.hdf5_utils import (create_hdf5, to_hdf5, create_xyz_hdf5)
+from ..io.hdf5_utils import create_hdf5, to_hdf5, create_xyz_hdf5
 from ..functions.utils import get_template
 from ..armc_functions.sanitization import init_armc_sanitization
 
-__all__ = ['ARMC']
+__all__ = ['ARMC', 'run_armc']
+
+
+def run_armc(armc: ARMC, path: Optional[str] = None, folder: Optional[str] = None,
+             logfile: Optional[str] = None, psf: Optional['PSFContainer'] = None) -> None:
+    """A wrapper arround :class:`ARMC` for handling the JobManager."""
+    init(path=path, folder=folder)
+    if logfile is not None:
+        config.default_jobmanager.logfile = logfile
+        config.log.file = 3
+
+    # Create a .psf file if specified
+    if psf is not None:
+        psf.write_psf()
+
+    armc()
+    finish()
 
 
 class ARMC(MonteCarlo):
@@ -40,68 +57,82 @@ class ARMC(MonteCarlo):
 
     A subclass of :class:`.MonteCarlo`.
 
-    Attributes
+    Parameters
     ----------
-    armc : |plams.Settings|_
-        A PLAMS Settings instance with ARMC-specific settings.
-        Contains the following keys:
+    iter_len : int
+        The total number of ARMC iterations :math:`\kappa \omega`.
 
-        * ``"gamma"`` (|float|_): The constant :math:`\gamma`.
-        * ``"a_target"`` (|float|_): The target acceptance rate :math:`\alpha_{t}`.
-        * ``"iter_len"`` (|int|_): The total number of ARMC iterations :math:`\kappa \omega`.
-        * ``"sub_iter_len"`` (|int|_): The length of each ARMC subiteration :math:`\omega`.
+    sub_iter_len : int
+        The length of each ARMC subiteration :math:`\omega`.
 
-    phi : |plams.Settings|_
-        A PLAM Settings instance with :math:`\phi`-specific settings.
-        Contains the following keys:
+    gamma : float
+        The constant :math:`\gamma`.
 
-        * ``"phi"`` (|float|_): The variable :math:`\phi`.
-        * ``"arg"`` (|list|_): A list of arguments for :attr:`.ARMC.phi` [``"func"``].
-        * ``"func"`` (|type|_): The callable used for applying :math:`\phi` to the auxiliary error.
-        * ``"kwarg"`` (|dict|_): A dictionary with keyword arguments
-          for :attr:`.ARMC.phi` [``"func"``].
+    a_target : float
+        The target acceptance rate :math:`\alpha_{t}`.
+
+    phi : float
+        The variable :math:`\phi`.
+
+    apply_phi : |Callable|_
+        The callable used for applying :math:`\phi` to the auxiliary error.
+        The callable should be able to take 2 floats as argument and return a new float.
+
+    \**kwargs : |Any|_
+        Keyword arguments for the :class:`MonteCarlo` superclass.
 
     """
 
     @property
     def super_iter_len(self) -> int:
-        return self.armc.iter_len // self.armc.sub_iter_len
+        """Get :attr:`ARMC.iter_len` ``//`` :attr:`ARMC.sub_iter_len`."""
+        return self.iter_len // self.sub_iter_len
 
-    def __init__(self, iter_len=50000, sub_iter_len=100, gamma=200, a_target=0.25,
-                 phi=1.0, apply_phi=np.add, **kwarg) -> None:
+    def __init__(self, iter_len: int = 50000, sub_iter_len: int = 100, gamma: int = 200,
+                 a_target: float = 0.25, phi: float = 1.0,
+                 apply_phi: Callable[[float, float], float] = np.add, **kwarg) -> None:
         """Initialize a :class:`ARMC` instance."""
         super().__init__(**kwarg)
 
         # Settings specific to addaptive rate Monte Carlo (ARMC)
-        self.iter_len = iter_len
-        self.sub_iter_len = sub_iter_len
-        self.gamma = gamma
-        self.a_target = a_target
+        self.iter_len: int = iter_len
+        self.sub_iter_len: int = sub_iter_len
+        self.gamma: int = gamma
+        self.a_target: float = a_target
 
         # Settings specific to handling the phi parameter in ARMC
-        self.phi = phi
-        self.apply_phi = apply_phi
+        self.phi: float = phi
+        self.apply_phi: Callable[[float, float], float] = apply_phi
 
-    def _get_first_key(self) -> Tuple[Tuple[float, ...], ...]:
-        """Create a the ``history_dict`` variable and its first key.
+    @classmethod
+    def from_yaml(cls, filename: str) -> Tuple[ARMC, dict]:
+        """Create a :class:`.ARMC` instance from a .yaml file.
 
-        The to-be returned key servers as the starting argument for :meth:`.do_inner`,
-        the latter method relying on both producing and requiring a key as argument.
+        Parameters
+        ----------
+        filename : str
+            The path+filename of a .yaml file containing all :class:`ARMC` settings.
 
         Returns
         -------
-        |dict|_ [|tuple|_ [|float|_], |np.ndarray|_ [|np.float64|_]] and |tuple|_ [|float|_]
-            Returns two items:
-            * A dictionary with parameters as keys and a list of PES descriptors as values.
-            * A tuple with the latest set of forcefield parameters.
+        |FOX.ARMC|_ and |dict|_
+            A new :class:`ARMC` instance and
+            a dictionary with keyword arguments for :func:`.run_armc`.
 
         """
-        key = tuple(self.param['param'].values)
-        pes, _ = self.get_pes_descriptors(key)
+        # Load the .yaml file
+        if os.path.isfile(filename):
+            path, filename = os.path.split(filename)
+        else:
+            path = None
+        yaml_dict = get_template(filename, path=path)
 
-        self[key] = self.get_aux_error(pes)
-        self.param['param_old'] = self.param['param']
-        return key
+        # Parse and sanitize the .yaml file
+        s, pes_kwarg, job_kwarg = init_armc_sanitization(yaml_dict)
+        self = cls.from_dict(s)
+        for name, options in pes_kwarg.items():
+            self.add_pes_evaluator(name, options.func, *options.args, **options.kwargs)
+        return self, job_kwarg
 
     def __call__(self) -> None:
         """Initialize the Addaptive Rate Monte Carlo procedure."""
@@ -170,6 +201,27 @@ class ARMC(MonteCarlo):
         hdf5_kwarg = self._hdf5_kwarg(mol_list, accept, aux_new, pes_new)
         to_hdf5(self.hdf5_file, hdf5_kwarg, kappa, omega)
         return key_new
+
+    def _get_first_key(self) -> Tuple[Tuple[float, ...], ...]:
+        """Create a the ``history_dict`` variable and its first key.
+
+        The to-be returned key servers as the starting argument for :meth:`.do_inner`,
+        the latter method relying on both producing and requiring a key as argument.
+
+        Returns
+        -------
+        |dict|_ [|tuple|_ [|float|_], |np.ndarray|_ [|np.float64|_]] and |tuple|_ [|float|_]
+            Returns two items:
+            * A dictionary with parameters as keys and a list of PES descriptors as values.
+            * A tuple with the latest set of forcefield parameters.
+
+        """
+        key = tuple(self.param['param'].values)
+        pes, _ = self.get_pes_descriptors(key)
+
+        self[key] = self.get_aux_error(pes)
+        self.param['param_old'] = self.param['param']
+        return key
 
     def _hdf5_kwarg(self, mol_list: Iterable[Optional['FOX.MultiMolecule']],
                     accept: bool, aux_new: np.ndarray,
@@ -293,18 +345,3 @@ class ARMC(MonteCarlo):
 
         """
         raise NotImplementedError
-
-
-def run_armc(armc: ARMC, path: Optional[str] = None, folder: Optional[str] = None,
-             logfile: Optional[str] = None, psf: Optional['PSFContainer'] = None) -> None:
-    init(path=path, folder=folder)
-    if logfile is not None:
-        config.default_jobmanager.logfile = logfile
-        config.log.file = 3
-
-    # Create a .psf file if specified
-    if psf:
-        psf.write_psf()
-
-    armc()
-    finish()

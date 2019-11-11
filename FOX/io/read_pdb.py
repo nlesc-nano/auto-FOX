@@ -21,7 +21,7 @@ API
 """
 
 
-from typing import (Tuple, List, Iterable, Sequence)
+from typing import Tuple, List, Iterable, Sequence
 
 import pandas as pd
 import numpy as np

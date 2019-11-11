@@ -24,21 +24,22 @@ API
 
 """
 
-from typing import Union, Iterable, Tuple
+import functools
+from typing import Union, Iterable, Tuple, Sequence
 from os.path import join
 from collections import abc
 
 import numpy as np
+import pandas as pd
 
 from scm.plams import Settings
 
-from ..classes.psf import PSF
+from ..io.read_psf import psf_from_multimol
 from ..classes.multi_mol import MultiMolecule
-from ..functions.utils import (get_template, _get_move_range, dict_to_pandas, get_atom_count)
-from ..functions.cp2k_utils import (set_keys, set_subsys_kind)
+from ..functions.utils import get_template, dict_to_pandas, get_atom_count, _get_move_range
+from ..functions.cp2k_utils import set_keys, set_subsys_kind
 from ..armc_functions.schemas import (
-    get_pes_schema, schema_armc, schema_move, schema_job, schema_param,
-    schema_hdf5, schema_psf
+    get_pes_schema, schema_armc, schema_move, schema_job, schema_param, schema_hdf5, schema_psf
 )
 
 __all__ = ['init_armc_sanitization']
@@ -64,8 +65,8 @@ def init_armc_sanitization(dict_: dict) -> Settings:
 
     # Validate, post-process and return
     s_ret = validate(s)
-    reshape_settings(s_ret)
-    return s_ret
+    s_ret, pes, job = reshape_settings(s_ret)
+    return s_ret, pes, job
 
 
 def validate(s: Settings) -> Settings:
@@ -186,30 +187,41 @@ def reshape_settings(s: Settings) -> None:
         A Settings instance containing all ARMC settings.
 
     """
-    s.job.molecule = s.pop('molecule')
-
-    for v in s.pes.values():
-        v.ref = tuple(v.func(mol, *v.arg, **v.kwarg) for mol in s.job.molecule)
-
-    s.move.range = _get_move_range(**s.move.range)
-    if s.move.charge_constraints is None:
-        s.move.charge_constraints = Settings()
-
-    s.phi.phi = s.armc.pop('phi')
-    s.phi.arg = []
-    s.phi.kwarg = Settings()
-    s.phi.func = np.add
-
+    # MonteCarlo() parameters
     _reshape_param(s)
+    s.job_type = functools.partial(s.job.pop('job_type'), s.job.pop('name'))
+    s.md_settings = s.job.pop('md_settings')
+    s.preopt_settings = s.job.pop('preopt_settings')
+    s.apply_move = functools.partial(s.move.func, *s.move.args, **s.move.kwargs)
+    s.charge_constraints = s.move.charge_constraints
+    s.move_range = _get_move_range(**s.move.range)
+    s.keep_files = s.job.pop('keep_files')
+    s.rmsd_threshold = s.job.pop('rmsd_threshold')
 
-    s.job.psf = generate_psf(s.pop('psf'), s.param, s.job)
-    set_subsys_kind(s.job.md_settings, s.job.psf.atoms)
-    if s.job.preopt_settings is not None:
-        s.job.preopt_settings = s.job.md_settings + s.job.preopt_settings
-        del s.job.preopt_settings.input.motion.md
-        s.job.preopt_settings['global'].run_type = 'geometry_optimization'
+    # ARMC() parameters
+    s.a_target = s.armc.a_target
+    s.gamma = s.armc.gamma
+    s.iter_len = s.armc.iter_len
+    s.sub_iter_len = s.armc.sub_iter_len
+    s.phi = s.armc.phi
+    s.apply_phi = np.add
 
-    import pdb; pdb.set_trace()
+    # Delete leftovers
+    del s.armc
+    del s.move
+
+    # Pop
+    pes = s.pop('pes')
+    job = s.pop('job')
+    job.psf = generate_psf(job.path, s.molecule, s.md_settings, s.pop('psf'), s.param)
+
+    set_subsys_kind(s.md_settings, job.psf.atoms)
+    if s.preopt_settings is not None:
+        s.preopt_settings = s.md_settings + s.preopt_settings
+        del s.preopt_settings.input.motion.md
+        s.preopt_settings['global'].run_type = 'geometry_optimization'
+
+    return s, pes, job
 
 
 def _reshape_param(s: Settings) -> None:
@@ -237,9 +249,8 @@ def _reshape_param(s: Settings) -> None:
     set_keys(s.job.md_settings, s.param)
 
 
-def generate_psf(psf: Settings,
-                 param: Settings,
-                 job: Settings) -> Settings:
+def generate_psf(path: str, mol_list: Sequence[MultiMolecule],
+                 md_settings: Settings, psf: Settings, param: pd.DataFrame) -> Settings:
     """Generate the job.psf block.
 
     Parameters
@@ -259,20 +270,19 @@ def generate_psf(psf: Settings,
         The updated psf block.
 
     """
-    psf_file = join(job.path, 'mol.psf')
-    mol_list = job.molecule
+    psf_file = join(path, 'mol.psf')
     mol = mol_list[0]
 
     if all(i is None for i in psf.values()):
-        psf_ = PSF.from_multi_mol(mol)
+        psf_ = psf_from_multimol(mol)
         psf_.filename = np.array([False])
     else:
         mol.guess_bonds(atom_subset=psf.ligand_atoms)
-        psf_ = PSF.from_multi_mol(mol)
+        psf_ = psf_from_multimol(mol)
         psf_.filename = psf_file
         psf_.update_atom_type(psf.str_file)
-        job.md_settings.input.force_eval.subsys.topology.conn_file_name = psf_file
-        job.md_settings.input.force_eval.subsys.topology.conn_file_format = 'PSF'
+        md_settings.input.force_eval.subsys.topology.conn_file_name = psf_file
+        md_settings.input.force_eval.subsys.topology.conn_file_format = 'PSF'
 
     for at, charge in param.loc['charge', 'param'].items():
         psf_.update_atom_charge(at, charge)
