@@ -1,6 +1,6 @@
 """A module with functions related to manipulating atomic charges."""
 
-from typing import Callable, Tuple, Hashable, Optional, Collection
+from typing import Callable, Hashable, Optional, Collection, Mapping, Container, List
 
 import numpy as np
 import pandas as pd
@@ -10,9 +10,8 @@ from scm.plams import Settings
 __all__ = ['update_charge', 'get_charge_constraints']
 
 
-def get_net_charge(df: pd.DataFrame,
-                   index_slice: Optional[Collection] = None,
-                   key: Tuple[Hashable] = ('param', 'count')) -> float:
+def get_net_charge(df: pd.DataFrame, index_slice: Optional[Collection] = None,
+                   key: Hashable = ('param', 'count')) -> float:
     """Calculate the total charge in **df**.
 
     Returns the (summed) product of the ``"param"`` and ``"count"`` columns in **df**.
@@ -41,10 +40,8 @@ def get_net_charge(df: pd.DataFrame,
     return df.loc[index_slice, key].product(axis=1).sum()
 
 
-def update_charge(at: str,
-                  charge: float,
-                  df: pd.DataFrame,
-                  constrain_dict: dict = {}) -> None:
+def update_charge(at: str, charge: float, df: pd.DataFrame,
+                  constrain_dict: Optional[Mapping] = None) -> None:
     """Set the atomic charge of **at** equal to **charge**.
 
     The atomic charges in **df** are furthermore exposed to the following constraints:
@@ -81,28 +78,19 @@ def update_charge(at: str,
         A dictionary with charge constrains.
 
     """
+    constrain_dict = constrain_dict or {}
     net_charge = get_net_charge(df)
     df.at[at, 'param'] = charge
 
     if at in constrain_dict or not constrain_dict:
         exclude = update_constrained_charge(at, df, constrain_dict)
-        update_unconstrained_charge(net_charge, df, exclude)
     else:
         exclude = [at]
-        update_unconstrained_charge(net_charge, df, exclude)
-        condition = [at in exclude for at in df.index]
-        charge = net_charge - get_net_charge(df, condition)
-        q = find_q(df, charge, constrain_dict)
-
-        key, value = next(iter(constrain_dict.items()))
-        func = invert_ufunc(value['func'])
-        df.at[key, 'param'] = func(q, value['arg'])
-        update_constrained_charge(key, df, constrain_dict)
+    update_unconstrained_charge(net_charge, df, exclude)
 
 
-def update_constrained_charge(at1: str,
-                              df: pd.DataFrame,
-                              constrain_dict: dict = {}) -> list:
+def update_constrained_charge(at1: str, df: pd.DataFrame,
+                              constrain_dict: Optional[Mapping] = None) -> List[str]:
     """Perform a constrained update of atomic charges.
 
     Performs an inplace update of the ``"param"`` column in **df**.
@@ -128,6 +116,7 @@ def update_constrained_charge(at1: str,
     exclude = [at1]
     if not constrain_dict:
         return exclude
+    exclude_append = exclude.append
 
     func1 = invert_ufunc(constrain_dict[at1]['func'])
     i = constrain_dict[at1]['arg']
@@ -136,7 +125,7 @@ def update_constrained_charge(at1: str,
     for at2, values in constrain_dict.items():
         if at2 == at1:
             continue
-        exclude.append(at2)
+        exclude_append(at2)
 
         # Unpack values
         func2 = values['func']
@@ -148,9 +137,8 @@ def update_constrained_charge(at1: str,
     return exclude
 
 
-def update_unconstrained_charge(net_charge: float,
-                                df: pd.DataFrame,
-                                exclude: list = []) -> None:
+def update_unconstrained_charge(net_charge: float, df: pd.DataFrame,
+                                exclude: Optional[Container] = None) -> None:
     """Perform an unconstrained update of atomic charges.
 
     The total charge in **df** is kept equal to **net_charge**.
@@ -169,17 +157,18 @@ def update_unconstrained_charge(net_charge: float,
         A list of atom types whose atomic charges should not be updated.
 
     """
+    exclude = exclude or ()
+
     include = np.array([i not in exclude for i in df.index])
     if not include.any():
         return
+
     i = net_charge - get_net_charge(df, np.invert(include))
     i /= get_net_charge(df, include)
     df.loc[include, 'param'] *= i
 
 
-def find_q(df: pd.DataFrame,
-           Q: float = 0.0,
-           constrain_dict: dict = {}) -> float:
+def find_q(df: pd.DataFrame, Q: float = 0.0, constrain_dict: Optional[Mapping] = None) -> float:
     r"""Calculate the atomic charge :math:`q` given the total charge :math:`Q`.
 
     Atom subsets are denoted by :math:`m` & :math:`n`, with :math:`a` & :math:`b`
@@ -209,15 +198,16 @@ def find_q(df: pd.DataFrame,
         A list of atom types with updated atomic charges.
 
     """
+    constrain_dict = constrain_dict or {}
     A = Q
     B = 0.0
 
     for key, value in constrain_dict.items():
         at_count = df.at[key, 'count']
-        if value['func'] == np.add:
+        if value['func'] is np.add:
             A += at_count * value.arg
             B += at_count
-        elif value['func'] == np.multiply:
+        elif value['func'] is np.multiply:
             B += at_count * value.arg
     return A / B
 
@@ -355,6 +345,6 @@ def invert_ufunc(ufunc: Callable) -> Callable:
 
     try:
         return invert_dict[ufunc]
-    except KeyError:
-        raise KeyError("'{}' is not a supported ufunc. Supported ufuncs consist of: "
-                       "'add' & 'multiply'".format(ufunc.__name__))
+    except KeyError as ex:
+        err = "'{}' is not a supported ufunc. Supported ufuncs consist of: 'add' & 'multiply'"
+        raise ValueError(err.format(ufunc.__name__)).with_traceback(ex.__traceback__)

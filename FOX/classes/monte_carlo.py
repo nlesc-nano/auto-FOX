@@ -21,6 +21,7 @@ API
 
 import shutil
 import functools
+from functools import partial
 from collections import abc
 from typing import (
     Tuple, List, Dict, Optional, Union, Iterable, Hashable, Iterator, Any, Mapping, Type, Callable
@@ -181,7 +182,10 @@ class MonteCarlo(AbstractDataClass, abc.Mapping):
     @property
     def job_name(self) -> str:
         """Get the (lowered) name of :attr:`MonteCarlo.job_type`."""
-        return self.job_type.__name__.lower()
+        try:
+            return self.job_type.__name__.lower()
+        except AttributeError:  # A functools.partial object
+            return self.job_type.func.__name__.lower()
 
     _PRIVATE_ATTR = frozenset('_plams_molecule')
 
@@ -327,6 +331,11 @@ class MonteCarlo(AbstractDataClass, abc.Mapping):
             A tuple with the (new) values in the ``'param'`` column of **self.param**.
 
         """
+        def _update_settings(k: Tuple[str, ...], v: float, fstring: str) -> None:
+            self.md_settings.set_nested(k, fstring.format(v))
+            if self.preopt_settings is not None:
+                self.preopt_settings.set_nested(k, fstring.format(v))
+
         # Unpack arguments
         param = self.param
 
@@ -339,30 +348,32 @@ class MonteCarlo(AbstractDataClass, abc.Mapping):
         value = self.clip_move(idx, _value)
 
         # Constrain the atomic charges
+        columns = ['keys', 'param', 'unit']
         if 'charge' in idx:
             at = idx[1]
             with pd.option_context('mode.chained_assignment', None):
                 update_charge(at, value, param.loc['charge'], self.charge_constraints)
-            for k, v, fstring in param.loc['charge', ['keys', 'param', 'unit']].values:
-                self.md_settings.set_nested(k, fstring.format(v))
-                self.preopt_settings.set_nested(k, fstring.format(v))
+            for k, v, fstring in param.loc['charge', columns].values:
+                _update_settings(k, v, fstring)
+            print(f'{at}: {value}', param.loc['charge', ['param', 'count']].product(axis=1).sum())
         else:
             param.at[idx, 'param'] = value
-            k, v, fstring = param.loc[idx, ['keys', 'param', 'unit']]
-            self.md_settings.set_nested(k, fstring.format(v))
-            self.preopt_settings.set_nested(k, fstring.format(v))
+            k, v, fstring = param.loc[idx, columns]
+            _update_settings(k, v, fstring)
 
         return tuple(self.param['param'].values)
 
     def clip_move(self, idx: Hashable, value: float) -> float:
         """Ensure that **value** falls within a user-specified range."""
         prm_min = self.param.at[idx, 'min']
+        prm_max = self.param.at[idx, 'max']
+
         if value < prm_min:
             return value + (prm_min - value)
-
-        prm_max = self.param.at[idx, 'max']
-        if value > prm_max:
+        elif value > prm_max:
             return value + (prm_max - value)
+        else:
+            return value
 
     def run_md(self) -> Tuple[Optional[List[MultiMolecule]], List[str]]:
         """Run a geometry optimization followed by a molecular dynamics (MD) job.
@@ -382,9 +393,9 @@ class MonteCarlo(AbstractDataClass, abc.Mapping):
 
         """
         # Prepare preoptimization settings
-        if self.job.preopt_settings is not None:
+        if self.preopt_settings is not None:
             preopt_mol_list = self._md_preopt()
-            preopt_accept = self._evaluate_rmsd(preopt_mol_list, self.job.rmsd_threshold)
+            preopt_accept = self._evaluate_rmsd(preopt_mol_list, self.rmsd_threshold)
 
             # Run an MD calculation
             if preopt_accept and preopt_mol_list is not None:
@@ -392,7 +403,7 @@ class MonteCarlo(AbstractDataClass, abc.Mapping):
             return None
 
         else:  # preoptimization is disabled
-            return self._md()
+            return self._md(self.molecule)
 
     def _md_preopt(self) -> List[Optional[MultiMolecule]]:
         """Peform a geometry optimization.
@@ -425,8 +436,7 @@ class MonteCarlo(AbstractDataClass, abc.Mapping):
             mol_list.append(mol)
         return mol_list
 
-    def _md(self, mol_preopt: Optional[Iterable[MultiMolecule]] = None
-            ) -> Optional[List[MultiMolecule]]:
+    def _md(self, mol_preopt: Iterable[MultiMolecule]) -> Optional[List[MultiMolecule]]:
         """Peform a molecular dynamics simulation (MD).
 
         Simulations are performed on all molecules in **mol_preopt**.
@@ -439,9 +449,9 @@ class MonteCarlo(AbstractDataClass, abc.Mapping):
 
         Returns
         -------
-        |list|_ [|FOX.MultiMolecule|_]
+        |list|_ [|FOX.MultiMolecule|_], optional
             A list of :class:`.MultiMolecule` instance(s) constructed from the MD simulation.
-            The :class:`.MultiMolecule` list is replaced with ``None`` if the job crashes.
+            Return ``None`` if the job crashes.
 
         """
         s = self.md_settings
@@ -526,8 +536,8 @@ class MonteCarlo(AbstractDataClass, abc.Mapping):
         # Generate PES descriptors
         mol_list = self.run_md()
         if mol_list is None:  # The MD simulation crashed
-            mol_count = len(next(iter(self.pes)).ref)
-            ret = [{key: np.inf for key, value in self.pes}] * mol_count
+            mol_count = len(self.molecule)
+            ret = [{key: np.inf for key in self.pes}] * mol_count
         else:
             ret = [{key: func(mol) for key, func in self.pes.items()} for mol in mol_list]
 

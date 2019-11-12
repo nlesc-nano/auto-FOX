@@ -23,6 +23,7 @@ from __future__ import annotations
 
 import os
 from typing import Tuple, Dict, Any, Optional, Iterable, Callable
+from contextlib import AbstractContextManager
 
 import numpy as np
 
@@ -36,20 +37,31 @@ from ..armc_functions.sanitization import init_armc_sanitization
 __all__ = ['ARMC', 'run_armc']
 
 
+class Init(AbstractContextManager):
+    def __init__(self, path=None, folder=None) -> None:
+        self.path = path
+        self.folder = folder
+
+    def __enter__(self) -> None:
+        init(self.path, self.folder)
+
+    def __exit__(self, exc_type, exc_value, traceback) -> None:
+        finish()
+
+
 def run_armc(armc: ARMC, path: Optional[str] = None, folder: Optional[str] = None,
              logfile: Optional[str] = None, psf: Optional['PSFContainer'] = None) -> None:
     """A wrapper arround :class:`ARMC` for handling the JobManager."""
-    init(path=path, folder=folder)
-    if logfile is not None:
-        config.default_jobmanager.logfile = logfile
-        config.log.file = 3
+    with Init(path=path, folder=folder):
+        if logfile is not None:
+            config.default_jobmanager.logfile = logfile
+            config.log.file = 3
 
-    # Create a .psf file if specified
-    if psf is not None:
-        psf.write_psf()
+        # Create a .psf file if specified
+        if psf is not None:
+            psf.write(None)
 
-    armc()
-    finish()
+        armc()
 
 
 class ARMC(MonteCarlo):
@@ -189,11 +201,11 @@ class ARMC(MonteCarlo):
         # Step 4: Update the auxiliary error history, apply phi & update job settings
         acceptance[omega] = accept
         if accept:
-            self[key_new] = self.apply_phi(aux_new)
+            self[key_new] = self.apply_phi(aux_new, self.phi)
             self.param['param_old'] = self.param['param']
         else:
             self[key_new] = aux_new
-            self[key_old] = self.apply_phi(aux_old)
+            self[key_old] = self.apply_phi(aux_old, self.phi)
             self.param['param'] = self.param['param_old']
             key_new = key_old
 

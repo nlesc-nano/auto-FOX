@@ -377,8 +377,7 @@ def to_hdf5(filename: str,
 
 
 @assert_error(H5PY_ERROR)
-def _xyz_to_hdf5(filename: str,
-                 omega: int,
+def _xyz_to_hdf5(filename: str, omega: int,
                  mol_list: Union[Iterable['FOX.MultiMolecule'], float, np.float]) -> None:
     r"""Export **mol** to the hdf5 file **filename**.
 
