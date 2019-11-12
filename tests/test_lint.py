@@ -1,32 +1,29 @@
-"""A module for testing pep8 compliance."""
+"""Test for PEP8 compliance."""
 
+from typing import Tuple
 import os
 import textwrap
 
 import pycodestyle  # formerly known as pep8
 
+INCLUDE_PATHS: Tuple[str, ...] = ('FOX', 'tests')
+EXCLUDE_PATHS: Tuple[str, ...] = ()
 
-def test_pep8_conformance():
-    """Test that we conform to PEP-8."""
-    check_paths = [
-        'FOX',
-        'tests',
-    ]
-    exclude_paths = []
 
-    print("PEP8 check of directories: {}\n".format(', '.join(check_paths)))
+def test_pep8_conformance() -> None:
+    """Test for PEP8 compliance."""
+    print(f"PEP8 check of directories:\n{', '.join(INCLUDE_PATHS)}")
 
     # Get paths wrt package root
-    package_root = os.path.dirname(os.path.dirname(__file__))
-    for paths in (check_paths, exclude_paths):
-        for i, path in enumerate(paths):
-            paths[i] = os.path.join(package_root, path)
+    root = os.path.dirname(os.path.dirname(__file__))
+    include = [os.path.join(root, path) for path in INCLUDE_PATHS]
+    exclude = [os.path.join(root, path) for path in EXCLUDE_PATHS]
 
-    # Set max characters per line from 79 to 100
+    # Increase the maximum amount of characters per line from 79 to 100
     style = pycodestyle.StyleGuide(max_line_length=100)
-    style.options.exclude.extend(exclude_paths)
+    style.options.exclude.extend(exclude)
 
-    success = style.check_files(check_paths).total_errors == 0
+    success = style.check_files(include).total_errors == 0
 
     if not success:
         print(textwrap.dedent("""

@@ -19,6 +19,8 @@ API
 
 """
 
+from typing import List
+
 import numpy as np
 
 from scm.plams import Molecule
@@ -47,6 +49,47 @@ def fix_bond_orders(mol: Molecule) -> None:
                 at1.properties.charge += at1_saturation
             if at2_saturation != 0:
                 at2.properties.charge += at2_saturation
+
+
+def separate_mod(mol: Molecule) -> List[List[int]]:
+    """Modified version of the PLAMS Molecule.separate_ method.
+
+    Separates the molecule into connected component as based on its bonds.
+    Returns aforementioned components as a nested list of atomic indices.
+
+    .. _Molecule.separate: https://www.scm.com/doc/plams/components/mol_api.html#scm.plams.mol.molecule.Molecule.separate
+
+    Returns
+    -------
+    |list|_ [|list|_ [|int|_]]:
+        A nested list of atomic indices, each sublist representing a set of unconnected
+        moleculair fragments.
+
+    """  # noqa
+    # Mark atoms
+    for i, at in enumerate(mol.atoms):
+        at.id = i
+        at._visited = False
+
+    # Loop through atoms
+    def dfs(at1, m):
+        at1._visited = True
+        m.append(at1.id)
+        for bond in at1.bonds:
+            at2 = bond.other_end(at1)
+            if not at2._visited:
+                dfs(at2, m)
+
+    # Create a nested list of atomic indices
+    indices = []
+    indices_append = indices.append
+    for at in mol.atoms:
+        if not at._visited:
+            m = []
+            dfs(at, m)
+            indices_append(m)
+
+    return indices
 
 
 def get_bonds(mol: Molecule) -> np.ndarray:

@@ -34,7 +34,7 @@ import pandas as pd
 
 from scm.plams import Settings
 
-from ..io.read_psf import psf_from_multimol
+from ..io.read_psf import PSFContainer
 from ..classes.multi_mol import MultiMolecule
 from ..functions.utils import get_template, dict_to_pandas, get_atom_count, _get_move_range
 from ..functions.cp2k_utils import set_keys, set_subsys_kind
@@ -213,7 +213,7 @@ def reshape_settings(s: Settings) -> None:
     # Pop
     pes = s.pop('pes')
     job = s.pop('job')
-    job.psf = generate_psf(job.path, s.molecule, s.md_settings, s.pop('psf'), s.param)
+    job.psf = generate_psf(job.path, s.molecule[0], s.md_settings, s.pop('psf'), s.param)
 
     set_subsys_kind(s.md_settings, job.psf.atoms)
     if s.preopt_settings is not None:
@@ -249,8 +249,8 @@ def _reshape_param(s: Settings) -> None:
     set_keys(s.job.md_settings, s.param)
 
 
-def generate_psf(path: str, mol_list: Sequence[MultiMolecule],
-                 md_settings: Settings, psf: Settings, param: pd.DataFrame) -> Settings:
+def generate_psf(path: str, mol: MultiMolecule, md_settings: Settings,
+                 psf_s: Settings, param: pd.DataFrame) -> Optional[PSFContainer]:
     """Generate the job.psf block.
 
     Parameters
@@ -270,21 +270,30 @@ def generate_psf(path: str, mol_list: Sequence[MultiMolecule],
         The updated psf block.
 
     """
-    psf_file = join(path, 'mol.psf')
-    mol = mol_list[0]
+    # Create a vali
+    not_None = all(i is not None for i in psf_s.values())
+    if not_None:
+        mol.guess_bonds(atom_subset=psf_s.ligand_atoms)
+    plams_mol = mol.as_Molecule(0)[0]
 
-    if all(i is None for i in psf.values()):
-        psf_ = psf_from_multimol(mol)
-        psf_.filename = np.array([False])
-    else:
-        mol.guess_bonds(atom_subset=psf.ligand_atoms)
-        psf_ = psf_from_multimol(mol)
-        psf_.filename = psf_file
-        psf_.update_atom_type(psf.str_file)
+    # Initialize and populate the psf instance
+    psf = PSFContainer()
+    psf.generate_bonds(plams_mol)
+    psf.generate_angles(plams_mol)
+    psf.generate_dihedrals(plams_mol)
+    psf.generate_impropers(plams_mol)
+    psf.generate_atoms(plams_mol)
+
+    if not_None:
+        psf.filename = psf_file = join(path, 'mol.psf')
+        psf.update_atom_type(psf.str_file)
         md_settings.input.force_eval.subsys.topology.conn_file_name = psf_file
         md_settings.input.force_eval.subsys.topology.conn_file_format = 'PSF'
 
+    # Update atomic charges
     for at, charge in param.loc['charge', 'param'].items():
-        psf_.update_atom_charge(at, charge)
-    param['count'] = get_atom_count(param.index, psf_.atoms['atom type'])
-    return psf_
+        psf.update_atom_charge(at, charge)
+
+    # Calculate the number of pairs
+    param['count'] = get_atom_count(param.index, psf.atom_type)
+    return psf if not_None else None

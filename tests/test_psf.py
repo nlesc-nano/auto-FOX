@@ -7,14 +7,15 @@ from itertools import zip_longest
 
 import numpy as np
 
-from scm.plams import readpdb, Molecule
+from scm.plams import Molecule
 from assertionlib import assertion
 
 from FOX.io.read_psf import PSFContainer
 
 PATH: str = join('tests', 'test_files', 'psf')
 PSF: PSFContainer = PSFContainer.read(join(PATH, 'mol.psf'))
-MOL: Molecule = readpdb(join(PATH, 'mol.pdb'))
+MOL: Molecule = Molecule(join(PATH, 'mol.pdb'))
+MOL.guess_bonds()
 
 
 def test_write() -> None:

@@ -40,7 +40,7 @@ from ..io.read_xyz import read_multi_xyz
 from ..functions.rdf import get_rdf, get_rdf_lowmem, get_rdf_df
 from ..functions.adf import get_adf, get_adf_df
 from ..functions.utils import group_by_values
-from ..functions.molecule_utils import fix_bond_orders
+from ..functions.molecule_utils import fix_bond_orders, separate_mod
 
 try:
     import dask
@@ -100,7 +100,7 @@ class MultiMolecule(_MultiMolecule):
     def round(self, decimals: int = 0, inplace: bool = True) -> Optional[MultiMolecule]:
         """Round the Cartesian coordinates of this instance to a given number of decimals.
 
-        Paramaters
+        Parameters
         ----------
         decimals : int
             The number of decimals per element.
@@ -375,7 +375,7 @@ class MultiMolecule(_MultiMolecule):
         """
         # Define residues
         plams_mol = self.as_Molecule(mol_subset=0)[0]
-        frags = plams_mol.separate_mod()
+        frags = separate_mod(plams_mol)
         symbol = self.symbol
 
         # Sort the residues
@@ -558,8 +558,8 @@ class MultiMolecule(_MultiMolecule):
             A dataframe holding :math:`m-1` velocities averaged over one or more atom subsets.
 
         """
-        kwarg = {'mol_subset': mol_subset, 'timestep': timestep, 'rms': rms}
-        df = self._get_average_prop(self.get_average_velocity, atom_subset, kwarg)
+        kwargs = {'mol_subset': mol_subset, 'timestep': timestep, 'rms': rms}
+        df = self._get_average_prop(self.get_average_velocity, atom_subset, **kwargs)
         df.index.name = 'Time / fs'
         return df
 
@@ -596,8 +596,8 @@ class MultiMolecule(_MultiMolecule):
             A dataframe holding :math:`m-1` time-averaged velocities.
 
         """
-        kwarg = {'mol_subset': mol_subset, 'timestep': timestep, 'rms': rms}
-        return self._get_time_averaged_prop(self.get_time_averaged_velocity, atom_subset, kwarg)
+        kwargs = {'mol_subset': mol_subset, 'timestep': timestep, 'rms': rms}
+        return self._get_time_averaged_prop(self.get_time_averaged_velocity, atom_subset, **kwargs)
 
     def init_rmsd(self, mol_subset: MolSubset = None,
                   atom_subset: AtomSubset = None,
@@ -632,8 +632,8 @@ class MultiMolecule(_MultiMolecule):
         """
         if reset_origin:
             self.reset_origin()
-        kwarg = {'mol_subset': mol_subset}
-        df = self._get_average_prop(self.get_rmsd, atom_subset, kwarg)
+        kwargs = {'mol_subset': mol_subset}
+        df = self._get_average_prop(self.get_rmsd, atom_subset, **kwargs)
         df.index.name = 'XYZ frame number'
         return df
 
@@ -670,8 +670,8 @@ class MultiMolecule(_MultiMolecule):
         """
         if reset_origin:
             self.reset_origin()
-        kwarg = {'mol_subset': mol_subset}
-        return self._get_time_averaged_prop(self.get_rmsf, atom_subset, kwarg)
+        kwargs = {'mol_subset': mol_subset}
+        return self._get_time_averaged_prop(self.get_rmsf, atom_subset, **kwargs)
 
     def get_average_velocity(self, timestep: float = 1.0,
                              rms: bool = False,
@@ -1057,8 +1057,8 @@ class MultiMolecule(_MultiMolecule):
 
         # Cast the modified RMSF results in a dataframe
         index = np.arange(0, self.shape[1])
-        kwarg = {'loop': True, 'atom_subset': at_subset}
-        columns, data = mol_cp._get_rmsf_columns(dist_mean, index, **kwarg)
+        kwargs = {'loop': True, 'atom_subset': at_subset}
+        columns, data = mol_cp._get_rmsf_columns(dist_mean, index, **kwargs)
         rmsf = pd.DataFrame(data, columns=columns, index=index)
         rmsf.columns.name = 'Distance from origin\n  /  Ångström'
         rmsf.index.name = 'Arbitrary atomic index'
@@ -1194,21 +1194,21 @@ class MultiMolecule(_MultiMolecule):
 
         # Construct an empty dataframe with appropiate dimensions, indices and keys
         df = get_rdf_df(atom_pairs, dr, r_max)
-        kwarg = {'dr': dr, 'r_max': r_max}
+        kwargs = {'dr': dr, 'r_max': r_max}
 
         # Fill the dataframe with RDF's, averaged over all conformations in this instance
         if low_mem:  # Slower low memory approach
             for i in range(self.shape[0]):
                 for key, at in atom_pairs.items():
                     dist_mat = self.get_dist_mat(mol_subset=i, atom_subset=at)
-                    df[key] += get_rdf_lowmem(dist_mat, **kwarg)
+                    df[key] += get_rdf_lowmem(dist_mat, **kwargs)
             df.loc[0.0] = 0.0
             df /= self.shape[0]
 
         else:  # Faster high memory approach
             for key, at in atom_pairs.items():
                 dist_mat = self.get_dist_mat(atom_subset=at)
-                df[key] = get_rdf(dist_mat, **kwarg)
+                df[key] = get_rdf(dist_mat, **kwargs)
 
         return df
 
