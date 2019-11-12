@@ -34,6 +34,7 @@ from assertionlib.dataclass import AbstractDataClass
 
 from .file_container import AbstractFileContainer
 from ..classes.frozen_settings import FrozenSettings
+from ..functions.utils import read_str_file
 from ..functions.molecule_utils import get_bonds, get_angles, get_dihedrals, get_impropers
 
 __all__ = ['PSFContainer']
@@ -301,8 +302,8 @@ class PSFContainer(AbstractDataClass, AbstractFileContainer):
         if value is not None:
             self._set_nd_array('_title', value, 1, str)
         else:
-            self._title = np.array(['PSF file generated with Nano-CAT',
-                                    'https://github.com/nlesc-nano/nano-CAT'])
+            self._title = np.array(['PSF file generated with Auto-FOX',
+                                    'https://github.com/nlesc-nano/Auto-FOX'])
 
     @property
     def atoms(self) -> pd.DataFrame:
@@ -854,3 +855,26 @@ try:
     from nanoCAT.ff.psf import PSFContainer
 except ImportError:
     pass
+
+
+def overlay_str_file(psf: PSFContainer, filename: str) -> None:
+    """Update all ligand atom types and atomic charges in :attr:`PSF.atoms`.
+
+    Performs an inplace update of the ``"charge"`` and ``"atom type"`` columns
+    in :attr:`PSFContainer.atoms`.
+
+    Parameters
+    ----------
+    psf : |FOX.PSFContainer|
+        A :class:`PSFContainer` instance.
+
+    filename : str
+        The path+filename of a .str file containing ligand charges and atom types.
+
+    """
+    at_type, charge = read_str_file(filename)
+    id_range = range(2, 1 + max(psf.residue_id))
+    for i in id_range:
+        j = psf.residue_id == i
+        psf.atoms.loc[j, 'atom type'] = at_type
+        psf.atoms.loc[j, 'charge'] = charge

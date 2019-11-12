@@ -30,14 +30,14 @@ psf:
 pes:
     rdf:
         func: FOX.MultiMolecule.init_rdf
-        kwarg:
+        kwargs:
             atom_subset: [Cd, Se, O]
 
 molecule: mol.xyz
 
 job:
     logfile: armc.log
-    func: scm.plams.Cp2kJob
+    job_type: scm.plams.Cp2kJob
     name: armc
     path: .
     folder: MM_MD_workdir

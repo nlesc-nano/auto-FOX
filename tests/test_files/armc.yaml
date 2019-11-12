@@ -1,10 +1,11 @@
 param:
+    prm_file: tests/test_files/ligand.prm
     charge:
         keys: [input, force_eval, mm, forcefield, charge]
         Cd: 0.9768
         Se: -0.9768
         OG2D2: -0.4704
-        C_1: 0.4524
+        CG2O3: 0.4524
     epsilon:
         unit: kjmol
         keys: [input, force_eval, mm, forcefield, nonbonded, lennard-jones]
@@ -22,13 +23,17 @@ param:
         Cd OG2D2: 0.2471
         Se OG2D2: 0.3526
 
+psf:
+    str_file: tests/test_files/ligand.str
+    ligand_atoms: [C, O, H]
+
 pes:
     rdf:
         func: FOX.MultiMolecule.init_rdf
         kwargs:
             atom_subset: [Cd, Se, O]
 
-molecule: /Users/bvanbeek/Documents/GitHub/auto-FOX/tests/test_files/Cd68Se55_26COO_MD_trajec.xyz
+molecule: tests/test_files/Cd68Se55_26COO_MD_trajec.xyz
 
 job:
     logfile: armc.log

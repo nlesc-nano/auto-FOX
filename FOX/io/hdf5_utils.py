@@ -113,9 +113,9 @@ def create_hdf5(filename: str, armc: 'FOX.ARMC') -> None:
         f.attrs['sub-iteration'] = -1
 
     # Store the *index*, *column* and *name* attributes of dataframes/series in the hdf5 file
-    kappa = armc.armc.iter_len // armc.armc.sub_iter_len
+    kappa = armc.iter_len // armc.sub_iter_len
     idx = armc.param['param'].index.append(pd.MultiIndex.from_tuples([('phi', '')]))
-    aux_error_idx = [f'{k}.{i}' for k, v in armc.pes.items() for i, _ in enumerate(v.ref)]
+    aux_error_idx = [f'{k}.{i}' for k, func in armc.pes.items() for i, _ in enumerate(func.ref)]
     pd_dict = {
         'param': armc.param['param'],
         'phi': pd.Series(np.nan, index=np.arange(kappa), name='phi'),
@@ -123,9 +123,9 @@ def create_hdf5(filename: str, armc: 'FOX.ARMC') -> None:
         'aux_error_mod': pd.Series(np.nan, index=idx, name='aux_error_mod')
     }
 
-    for _key, value in armc.pes.items():
-        for i, ref in enumerate(value.ref):
-            key = f'{_key}.{i}'
+    for name, func in armc.pes.items():
+        for i, ref in enumerate(func.ref):
+            key = f'{name}.{i}'
             pd_dict[key] = ref
             pd_dict[key + '.ref'] = ref
     index_to_hdf5(filename, pd_dict)
@@ -251,7 +251,7 @@ def _get_kwarg_dict(armc: 'FOX.ARMC') -> Settings:
         A Settings instance with keyword arguments for h5py.Group.create_dataset_.
 
     """
-    shape = armc.armc.iter_len // armc.armc.sub_iter_len, armc.armc.sub_iter_len
+    shape = armc.iter_len // armc.sub_iter_len, armc.sub_iter_len
 
     ret = Settings()
     ret.phi.shape = (shape[0], )
@@ -263,7 +263,7 @@ def _get_kwarg_dict(armc: 'FOX.ARMC') -> Settings:
     ret.acceptance.shape = shape
     ret.acceptance.dtype = bool
 
-    ret.aux_error.shape = shape + (len(armc.job.molecule), len(armc.pes))
+    ret.aux_error.shape = shape + (len(armc.molecule), len(armc.pes))
     ret.aux_error.dtype = float
     ret.aux_error_mod.shape = shape + (1 + len(armc.param), )
     ret.aux_error_mod.dtype = float
@@ -350,10 +350,10 @@ def to_hdf5(filename: str,
         A dictionary with dataset names as keys and matching array-like objects as values.
 
     kappa : int
-        The super-iteration, :math:`\kappa`, in the outer loop of :meth:`.ARMC.init_armc`.
+        The super-iteration, :math:`\kappa`, in the outer loop of :meth:`.ARMC.__call__`.
 
     omega : int
-        The sub-iteration, :math:`\omega`, in the inner loop of :meth:`.ARMC.init_armc`.
+        The sub-iteration, :math:`\omega`, in the inner loop of :meth:`.ARMC.__call__`.
 
     """
     # Check if the hdf5 file is already opened. If opened: wait for 5 sec and try again.
@@ -391,7 +391,7 @@ def _xyz_to_hdf5(filename: str,
         All to-be exported :class:`MultiMolecule` instance(s) or float (*e.g.* ``np.nan``).
 
     omega : int
-        The sub-iteration, :math:`\omega`, in the inner loop of :meth:`.ARMC.init_armc`.
+        The sub-iteration, :math:`\omega`, in the inner loop of :meth:`.ARMC.__call__`.
 
     """
     with h5py.File(filename, 'a', libver='latest') as f:

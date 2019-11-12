@@ -9,7 +9,6 @@ from scm.plams import Molecule
 from FOX.functions.molecule_utils import get_bonds, get_angles, get_dihedrals, get_impropers
 
 PATH: str = join('tests', 'test_files')
-PATH = '/Users/bvanbeek/Documents/GitHub/auto-FOX/tests/test_files'
 MOL: Molecule = Molecule(join(PATH, 'hexanoic_acid.pdb'))
 MOL.guess_bonds()
 

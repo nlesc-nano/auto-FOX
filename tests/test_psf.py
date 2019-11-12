@@ -14,8 +14,9 @@ from FOX.io.read_psf import PSFContainer
 
 PATH: str = join('tests', 'test_files', 'psf')
 PSF: PSFContainer = PSFContainer.read(join(PATH, 'mol.psf'))
+
 MOL: Molecule = Molecule(join(PATH, 'mol.pdb'))
-MOL.guess_bonds()
+MOL.guess_bonds(atom_subset=[at for at in MOL if at.symbol in ('C', 'O', 'H')])
 
 
 def test_write() -> None:

@@ -281,7 +281,7 @@ class MonteCarlo(AbstractDataClass, abc.Mapping):
         """
         partial = functools.partial(func, *args, **kwargs)
         partial.__doc__ = func.__doc__
-        partial.reference = tuple(partial(mol) for mol in self.molecule)
+        partial.ref = tuple(partial(mol) for mol in self.molecule)
         self.pes[name] = partial
 
     def move(self) -> Tuple[float]:

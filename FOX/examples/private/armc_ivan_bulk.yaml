@@ -29,14 +29,14 @@ param:
 pes:
     rdf:
         func: FOX.MultiMolecule.init_rdf
-        kwarg:
+        kwargs:
             atom_subset: [Cs, Pb, Br]
 
 molecule: /Users/bvanbeek/Downloads/cspbbr3_bulk_ortho.xyz
 
 job:
     logfile: /Users/bvanbeek/Downloads/armc.log
-    func: scm.plams.Cp2kJob
+    job_type: scm.plams.Cp2kJob
     name: armc
     path: /Users/bvanbeek/Downloads
     folder: MM_MD_workdir

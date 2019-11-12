@@ -29,7 +29,7 @@ import argparse
 from os.path import isfile
 from typing import Optional
 
-from .classes.armc import ARMC
+from .classes.armc import ARMC, run_armc
 from .armc_functions.csv import dset_to_csv
 from .armc_functions.plotting import plot_pes_descriptors, plot_param, plot_dset
 
@@ -68,8 +68,8 @@ def main_armc(args: Optional[list] = None) -> None:
     if not isfile(filename):
         raise FileNotFoundError("[Errno 2] No such file: '{}'".format(filename))
 
-    armc = ARMC.from_yaml(filename)
-    armc.init_armc()
+    armc, kwargs = ARMC.from_yaml(filename)
+    run_armc(armc, **kwargs)
 
 
 def main_plot_pes(args: Optional[list] = None) -> None:
@@ -115,15 +115,16 @@ def main_plot_pes(args: Optional[list] = None) -> None:
 
     with h5py.File(input_, 'r', libver='latest') as f:
         datasets_ = []
+        datasets_append = datasets_.append
         for key in datasets:
             if key in f.keys():
-                datasets_.append(key)
+                datasets_append(key)
             else:
                 i = 0
                 while i >= 0:
                     try:
                         assert f'{key}.{i}' in f.keys()
-                        datasets_.append(f'{key}.{i}')
+                        datasets_append(f'{key}.{i}')
                         i += 1
                     except AssertionError:
                         i = -1
