@@ -1,6 +1,7 @@
 """A module with functions related to manipulating atomic charges."""
 
-from typing import Callable, Hashable, Optional, Collection, Mapping, Container, List
+import functools
+from typing import Callable, Hashable, Optional, Collection, Mapping, Container, List, Dict
 
 import numpy as np
 import pandas as pd
@@ -10,8 +11,8 @@ from scm.plams import Settings
 __all__ = ['update_charge', 'get_charge_constraints']
 
 
-def get_net_charge(df: pd.DataFrame, index_slice: Optional[Collection] = None,
-                   key: Hashable = ('param', 'count')) -> float:
+def get_net_charge(df: pd.DataFrame, index: Optional[Collection] = None,
+                   columns: Hashable = ('param', 'count')) -> float:
     """Calculate the total charge in **df**.
 
     Returns the (summed) product of the ``"param"`` and ``"count"`` columns in **df**.
@@ -23,10 +24,10 @@ def get_net_charge(df: pd.DataFrame, index_slice: Optional[Collection] = None,
         Charges should be stored in the ``"param"`` column and atom counts
         in the ``"count"`` column (see **key**).
 
-    index_slice : slice
+    index : slice
         An object for slicing the index of **df**.
 
-    key : |Tuple|_ [|Hashable|_]
+    columns : |Tuple|_ [|Hashable|_]
         The name of the columns holding the atomic charges and number of atoms (per atom type).
 
     Returns
@@ -35,13 +36,13 @@ def get_net_charge(df: pd.DataFrame, index_slice: Optional[Collection] = None,
         The total charge in **df**.
 
     """
-    if index_slice is None:
-        return df.loc[:, key].product(axis=1).sum()
-    return df.loc[index_slice, key].product(axis=1).sum()
+    if index is None:
+        return df.loc[:, columns].product(axis=1).sum()
+    return df.loc[index, columns].product(axis=1).sum()
 
 
-def update_charge(at: str, charge: float, df: pd.DataFrame,
-                  constrain_dict: Optional[Mapping] = None) -> None:
+def update_charge(atom: str, value: float, df: pd.DataFrame,
+                  constrain_dict: Optional[Mapping] = None, constrain_tot: bool = True) -> None:
     """Set the atomic charge of **at** equal to **charge**.
 
     The atomic charges in **df** are furthermore exposed to the following constraints:
@@ -64,7 +65,7 @@ def update_charge(at: str, charge: float, df: pd.DataFrame,
 
     Parameters
     ----------
-    at : str
+    atom : str
         An atom type such as ``"Se"``, ``"Cd"`` or ``"OG2D2"``.
 
     charge : float
@@ -78,19 +79,20 @@ def update_charge(at: str, charge: float, df: pd.DataFrame,
         A dictionary with charge constrains.
 
     """
-    constrain_dict = constrain_dict or {}
-    net_charge = get_net_charge(df)
-    df.at[at, 'param'] = charge
+    value_summed = get_net_charge(df)
+    df.at[atom, 'param'] = value
 
-    if at in constrain_dict or not constrain_dict:
-        exclude = update_constrained_charge(at, df, constrain_dict)
+    if not constrain_dict or atom in constrain_dict:
+        exclude = constrained_update(atom, df, constrain_dict)
     else:
-        exclude = [at]
-    update_unconstrained_charge(net_charge, df, exclude)
+        exclude = [atom]
+
+    if constrain_tot:
+        unconstrained_update(value_summed, df, exclude)
 
 
-def update_constrained_charge(at1: str, df: pd.DataFrame,
-                              constrain_dict: Optional[Mapping] = None) -> List[str]:
+def constrained_update(at1: str, df: pd.DataFrame,
+                       constrain_dict: Optional[Mapping] = None) -> List[str]:
     """Perform a constrained update of atomic charges.
 
     Performs an inplace update of the ``"param"`` column in **df**.
@@ -137,8 +139,8 @@ def update_constrained_charge(at1: str, df: pd.DataFrame,
     return exclude
 
 
-def update_unconstrained_charge(net_charge: float, df: pd.DataFrame,
-                                exclude: Optional[Container] = None) -> None:
+def unconstrained_update(net_charge: float, df: pd.DataFrame,
+                         exclude: Optional[Container] = None) -> None:
     """Perform an unconstrained update of atomic charges.
 
     The total charge in **df** is kept equal to **net_charge**.
@@ -158,7 +160,6 @@ def update_unconstrained_charge(net_charge: float, df: pd.DataFrame,
 
     """
     exclude = exclude or ()
-
     include = np.array([i not in exclude for i in df.index])
     if not include.any():
         return
@@ -168,51 +169,7 @@ def update_unconstrained_charge(net_charge: float, df: pd.DataFrame,
     df.loc[include, 'param'] *= i
 
 
-def find_q(df: pd.DataFrame, Q: float = 0.0, constrain_dict: Optional[Mapping] = None) -> float:
-    r"""Calculate the atomic charge :math:`q` given the total charge :math:`Q`.
-
-    Atom subsets are denoted by :math:`m` & :math:`n`, with :math:`a` & :math:`b`
-    being subset-dependent constants.
-
-    .. math::
-
-        Q = \sum_{i} (q * a_{i}) * \sum_{m_{i}} m_{i} + \sum_{j} (q + b_{j}) * \sum_{n_{j}} n_{j}
-
-        q = \frac{Q + \sum_{j} (q * b_{j}) * \sum_{n_{j}} n_{j}}
-            {\sum_{i} (q * a_{i}) * \sum_{m_{i}} m_{i} + \sum_{j, n_{j}} n_{j}}
-
-    Parameters
-    ----------
-    Q : float
-        The sum of all atomic charges.
-
-    df : |pd.DataFrame|_
-        A dataframe with atomic charges.
-
-    constrain_dict : dict
-        A dictionary with charge constrains.
-
-    Returns
-    -------
-    |float|_:
-        A list of atom types with updated atomic charges.
-
-    """
-    constrain_dict = constrain_dict or {}
-    A = Q
-    B = 0.0
-
-    for key, value in constrain_dict.items():
-        at_count = df.at[key, 'count']
-        if value['func'] is np.add:
-            A += at_count * value.arg
-            B += at_count
-        elif value['func'] is np.multiply:
-            B += at_count * value.arg
-    return A / B
-
-
-def get_charge_constraints(constrain: str) -> Settings:
+def get_charge_constraints(constrain: str) -> Dict[str, functools.partial]:
     r"""Construct a set of charge constraints out of a string.
 
     Take a string containing a set of interdependent charge constraints and translate
@@ -286,9 +243,10 @@ def get_charge_constraints(constrain: str) -> Settings:
                 return split[0], split[1], operator
         return split[0], 1.0, '*'
 
-    operator_dict = {'+': np.add, '*': np.multiply}
-    list_ = [i for i in constrain.split('=') if i]
-    ret = Settings()
+    operator_dict = {'*': np.multiply}
+    list_ = [i for i in constrain.split('==') if i]
+
+    ret = {}
     for i in list_:
         # Seperate the operator from its arguments
         arg1, arg2, operator = _loop(i, operator_dict)
@@ -302,8 +260,7 @@ def get_charge_constraints(constrain: str) -> Settings:
             key = arg1.split()[0]
 
         # Prepare and return the arguments and operators
-        ret[key].arg = arg
-        ret[key].func = operator_dict[operator]
+        ret[key] = functools.partial(operator_dict[operator], arg)
     return ret
 
 
