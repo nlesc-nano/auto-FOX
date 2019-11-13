@@ -219,6 +219,8 @@ def reshape_settings(s: Settings) -> None:
 
     set_subsys_kind(s.md_settings, job.psf.atoms)
     if s.preopt_settings is not None:
+        if s.preopt_settings is True:
+            s.preopt_settings = Settings()
         s.preopt_settings = s.md_settings + s.preopt_settings
         del s.preopt_settings.input.motion.md
         s.preopt_settings['global'].run_type = 'geometry_optimization'
