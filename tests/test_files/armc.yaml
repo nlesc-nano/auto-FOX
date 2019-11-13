@@ -69,7 +69,6 @@ armc:
     phi: 1.0
 
 move:
-    charge_constraints: 'Cd = -1 * Se'
     range:
         start: 0.005
         stop: 0.1

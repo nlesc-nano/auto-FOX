@@ -30,7 +30,6 @@ armc:
     phi: 1.0
 
 move:
-    charge_constraints: null
     func: numpy.multiply
     kwargs: {}
     args: []

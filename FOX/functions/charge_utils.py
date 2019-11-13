@@ -1,14 +1,16 @@
 """A module with functions related to manipulating atomic charges."""
 
 import functools
-from typing import Callable, Hashable, Optional, Collection, Mapping, Container, List, Dict
+from types import MappingProxyType
+from typing import (
+    Callable, Hashable, Optional, Collection, Mapping, Container, List, Dict, Union, Iterable,
+    Tuple
+)
 
 import numpy as np
 import pandas as pd
 
-from scm.plams import Settings
-
-__all__ = ['update_charge', 'get_charge_constraints']
+__all__ = ['update_charge']
 
 
 def get_net_charge(df: pd.DataFrame, index: Optional[Collection] = None,
@@ -169,99 +171,68 @@ def unconstrained_update(net_charge: float, df: pd.DataFrame,
     df.loc[include, 'param'] *= i
 
 
-def get_charge_constraints(constrain: str) -> Dict[str, functools.partial]:
-    r"""Construct a set of charge constraints out of a string.
+def assign_constraints(constraints: Union[str, Iterable[str]], param: pd.DataFrame, idx_key: str):
+    # Parse integers and floats
+    constraints = [constraints] if isinstance(constraints, str) else constraints
+    constrain_list = [i.split() for i in constraints]
+    for i in constrain_list:
+        for j, k in enumerate(i):
+            try:
+                i[j] = float(k)
+            except ValueError:
+                pass
 
-    Take a string containing a set of interdependent charge constraints and translate
-    it into a dictionary containing all arguments and operators.
+    # Set values in **param**
+    for constrain in constrain_list:
+        if '==' in i:
+            pass
+        else:
+            _gt_lt_constraints(constrain, param, idx_key)
 
-    The currently supported operators are:
 
-    ================= =======
-     Operation         Symbol
-    ================= =======
-     addition_        ``+``
-     multiplication_  ``*``
-    ================= =======
+_INVERT = MappingProxyType({'max': 'min', 'min': 'max'})
+_OPPERATOR_MAPPING = MappingProxyType({'<': 'min', '=<': 'min', '>': 'max', '>=': 'max'})
 
-    .. _addition: https://docs.scipy.org/doc/numpy/reference/generated/numpy.add.html
-    .. _multiplication: https://docs.scipy.org/doc/numpy/reference/generated/numpy.multiply.html
 
-    Examples
-    --------
-    An example where :math:`q_{Cd} = -0.5*q_{O} = -q_{Se}`:
+def _gt_lt_constraints(constrain: list, param: pd.DataFrame, idx_key: str) -> None:
+    for i, j in enumerate(constrain):
+        if j not in _OPPERATOR_MAPPING:
+            continue
 
-    .. code:: python
+        operator, value, at = _OPPERATOR_MAPPING[j], constrain[i-1], constrain[i+1]
+        if isinstance(at, float):
+            at, value = value, at
+            operator = _INVERT[operator]
+        param.at[(idx_key, at), operator] = value
 
-        >>> constrain = 'Cd = -0.5 * O = -1 * Se'
-        >>> get_charge_constraints(constrain)
-        Cd:
-            arg: 	1.0
-            func: 	<ufunc 'multiply'>
-        O:
-            arg:   -0.5
-            func: 	<ufunc 'multiply'>
-        Se:
-            arg:   -1.0
-            func: 	<ufunc 'multiply'>
 
-    Another example where the following (nonensical) constraint is applied:
-    :math:`q_{Cd} = q_{H} - 1 = q_{O} + 1.5 = 0.5 * q_{Se}`:
+def _find_float(iterable: Iterable[str]) -> Tuple[str, float]:
+    i, j = iterable
+    try:
+        return j, float(i)
+    except ValueError:
+        return i, float(j)
 
-    .. code:: python
 
-        >>> constrain = 'Cd = H + -1 = O + 1.5 = 0.5 * Se'
-        >>> get_charge_constraints(constrain)
-        Cd:
-            arg: 	1.0
-            func: 	<ufunc 'multiply'>
-        H:
-            arg:   -1.0
-            func: 	<ufunc 'add'>
-        O:
-            arg: 	1.5
-            func: 	<ufunc 'add'>
-        Se:
-            arg: 	0.5
-            func: 	<ufunc 'multiply'>
+def _eq_constraints(constrain: list, param: pd.DataFrame, idx_key: str) -> None:
+    ret: Dict[str, functools.partial] = {}
+    constrain = ''.join(i for i in constrain).split('==')
+    iterator = iter(constrain)
 
-    Parameters
-    ----------
-    item : str
-        A string with all charge constraints.
+    # Set the first item
+    item = next(iterator).split('*')
+    if len(item) == 1:
+        at = item[0]
+        multiplier = 1.0
+    elif len(item) == 2:
+        at, multiplier = _find_float(item)
+        multiplier **= -1
+    ret[at] = functools.partial(np.multiply, 1.0)
 
-    Returns
-    -------
-    |plams.Settings|_:
-        A Settings object with all charge constraints.
-
-    """
-    def _loop(i, operator_dict):
-        for operator in operator_dict:
-            split = i.split(operator)
-            if len(split) == 2:
-                return split[0], split[1], operator
-        return split[0], 1.0, '*'
-
-    operator_dict = {'*': np.multiply}
-    list_ = [i for i in constrain.split('==') if i]
-
-    ret = {}
-    for i in list_:
-        # Seperate the operator from its arguments
-        arg1, arg2, operator = _loop(i, operator_dict)
-
-        # Identify keys and values
-        try:
-            arg = float(arg1)
-            key = arg2.split()[0]
-        except ValueError:
-            arg = float(arg2)
-            key = arg1.split()[0]
-
-        # Prepare and return the arguments and operators
-        ret[key] = functools.partial(operator_dict[operator], arg)
-    return ret
+    for item in iterator:
+        at, i = _find_float(item)
+        i *= multiplier
+        ret[at] = functools.partial(np.multiply, i)
 
 
 def invert_ufunc(ufunc: Callable) -> Callable:

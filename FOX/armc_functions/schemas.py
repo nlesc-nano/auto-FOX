@@ -95,9 +95,6 @@ schema_armc: Schema = Schema({
 
 #: Schema for validating the ``"move"`` block.
 schema_move: Schema = Schema({
-    ('charge_constraints',): Or(None, And(str, get_charge_constraints),
-                                error='move.charge_constrain expects a string or None'),
-
     ('func',): Or(abc.Callable, And(str, Use(str_to_callable)),
                   error='move.func expects a callable or string-representation of a callable'),
 
