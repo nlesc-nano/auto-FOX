@@ -14,6 +14,7 @@ This project adheres to `Semantic Versioning <http://semver.org/>`_.
 * Added the AssertionLib package as dependancy.
 * Moved `FOX.classes.molecule_utils` to `FOX.functions.molecule_utils` in favor of a function-based approach.
 * Improved the speed of `read_multi_xyz()` by roughly 10%.
+* Generalized the ARMC constraints system.
 * Fixed the PLAMS branch: see https://github.com/nlesc-nano/auto-FOX/commit/8a1d13b8d5e2f2a2b635ade965a1eb58488ecd2a and
   https://github.com/nlesc-nano/auto-FOX/commit/2916c937689f7d9a9439ba7cd1cce4d2add989cf.
 
