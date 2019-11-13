@@ -12,7 +12,7 @@ Index
 
 API
 ---
-.. autoclass:: FOX.classes.multi_mol_magic._MultiMolecule
+.. autoclass:: _MultiMolecule
     :members:
     :private-members:
     :special-members:
@@ -24,40 +24,28 @@ from __future__ import annotations
 import copy as pycopy
 import textwrap
 import itertools
-from collections import abc
-from typing import (Dict, Optional, List, Any, Callable, Union, Sequence)
+import warnings
+from types import MappingProxyType
+from typing import Dict, Optional, List, Any, Callable, Union, Mapping
 
 import numpy as np
 
-from scm.plams import PeriodicTable
-from scm.plams.core.errors import PTError
-from scm.plams.core.settings import Settings
-
-from .multi_mol_repr import MultiMolRepr
-from ..functions.utils import get_nested_element
+from scm.plams import PeriodicTable, Atom, PTError, Settings
+from assertionlib.ndrepr import NDRepr
 
 __all__: List[str] = []
 
-_prop_dict: Dict[str, Callable] = {
+_PROP_MAPPING: Mapping[str, Callable[[Atom], Any]] = MappingProxyType({
     'symbol': lambda x: x,
     'radius': PeriodicTable.get_radius,
     'atnum': PeriodicTable.get_atomic_number,
     'mass': PeriodicTable.get_mass,
     'connectors': PeriodicTable.get_connectors
-}
+})
 
-_none_dict: Dict[str, Union[str, int, float]] = {
+_NONE_DICT: Mapping[str, Union[str, int, float]] = MappingProxyType({
     'symbol': '', 'radius': -1, 'atnum': -1, 'mass': np.nan, 'connectors': -1
-}
-
-_shape_warning: str = ("ValueWarning: The '{}' argument expects a 'm*n*k' sequence. "
-                       "The following shape was observed: '{}'")
-
-_dtype_warning: str = ("TypeWarning: The '{}' argument expects a sequence consisting of floats. "
-                       "The following element type was observed: '{}'")
-
-_type_error: str = ("The '{}' argument expects a sequence. "
-                    "The following type was observed: '{}'")
+})
 
 
 class _MultiMolecule(np.ndarray):
@@ -71,13 +59,13 @@ class _MultiMolecule(np.ndarray):
                 bonds: Optional[np.ndarray] = None,
                 properties: Optional[Dict[str, Any]] = None) -> _MultiMolecule:
         """Create and return a new object."""
-        obj = _MultiMolecule._sanitize_coords(coords).view(cls)
+        obj = np.array(coords, dtype=float, ndmin=3, copy=False).view(cls)
 
         # Set attributes
-        obj.atoms = _MultiMolecule._sanitize_atoms(atoms)
-        obj.bonds = _MultiMolecule._sanitize_bonds(bonds)
-        obj.properties = _MultiMolecule._sanitize_properties(properties)
-        obj._ndrepr = MultiMolRepr()
+        obj.atoms = atoms
+        obj.bonds = bonds
+        obj.properties = properties
+        obj._ndrepr = NDRepr()
         return obj
 
     def __array_finalize__(self, obj: _MultiMolecule) -> None:
@@ -90,69 +78,36 @@ class _MultiMolecule(np.ndarray):
         self.properties = getattr(obj, 'properties', None)
         self._ndrepr = getattr(obj, '_ndrepr', None)
 
-    @staticmethod
-    def _is_array_like(value: Any) -> bool:
-        """Check if value is array-like."""
-        ret = (
-            isinstance(value, abc.Sequence) or
-            isinstance(value, range) or
-            hasattr(value, '__array__')
-        )
-        return ret
+    """#####################  Properties for managing instance attributes  ######################"""
 
-    @staticmethod
-    def _sanitize_coords(coords: Optional[Union[Sequence, np.ndarray]]) -> np.ndarray:
-        """Sanitize the **coords** arguments in :meth:`_MultiMolecule.__new__`."""
-        if not _MultiMolecule._is_array_like(coords):
-            raise TypeError(_type_error.format('coords', coords.__class__.__name__))
-        ret = np.asarray(coords)
+    @property
+    def atoms(self) -> Dict[str, List[int]]:
+        return self._atoms
 
-        if not ret.ndim == 3 or ret.shape[2] != 3:
-            shape = '*'.join('{:d}'.format(i) for i in ret.shape)
-            print(_shape_warning.format('coords', shape))
+    @atoms.setter
+    def atoms(self, value: Optional[Mapping]) -> None:
+        self._atoms = {} if value is None else dict(value)
 
-        i = get_nested_element(ret)
-        if not isinstance(i, (float, np.float)):
-            print(_dtype_warning.format('ret', i.__class__.__name__))
+    @property
+    def bonds(self) -> np.ndarray:
+        return self._bonds
 
-        return ret
+    @bonds.setter
+    def bonds(self, value: Optional[np.ndarray]) -> None:
+        if value is None:
+            self._bonds = np.zeros((0, 3), dtype=int)
+        else:
+            self._bonds = np.array(value, dtype=int, ndmin=2, copy=False)
 
-    @staticmethod
-    def _sanitize_bonds(bonds: Optional[Union[Sequence, np.ndarray]]) -> np.ndarray:
-        """Sanitize the **bonds** arguments in :meth:`_MultiMolecule.__new__`."""
-        if bonds is None:
-            return np.empty((0, 3), dtype=int)
-        elif not isinstance(bonds, abc.Collection):
-            raise TypeError(_type_error.format('bonds', bonds.__class__.__name__))
+    @property
+    def properties(self) -> Settings:
+        return self._properties
 
-        ret = np.asarray(bonds, dtype=int)
-        if not ret.ndim == 2:
-            print(_shape_warning.format('bonds', ret.ndim))
-        return ret
+    @properties.setter
+    def properties(self, value: Optional[Mapping]) -> None:
+        self._properties = Settings() if value is None else Settings(value)
 
-    @staticmethod
-    def _sanitize_atoms(atoms: Optional[Dict[str, List[int]]]) -> Dict[str, List[int]]:
-        """Sanitize the **atoms** arguments in :meth:`_MultiMolecule.__new__`."""
-        type_error = "The 'atoms' argument expects a 'dict' object. A '{}' object was supplied"
-
-        if atoms is None:
-            return {}
-        elif not isinstance(atoms, dict):
-            raise TypeError(type_error.format('atoms', atoms.__class__.__name__))
-        return atoms
-
-    @staticmethod
-    def _sanitize_properties(properties: Optional[dict]) -> Settings:
-        """Sanitize the **properties** arguments in :meth:`_MultiMolecule.__new__`."""
-        type_error = "The 'properties' argument expects a 'dict' object. A '{}' object was supplied"
-
-        if properties is None:
-            return Settings()
-        elif not isinstance(properties, dict):
-            raise TypeError(type_error.format('properties', properties.__class__.__name__))
-        return Settings(properties)
-
-    """##############################  plams-based properties  ############################### """
+    """###############################  PLAMS-based properties  ################################"""
 
     @property
     def atom12(self) -> _MultiMolecule:
@@ -269,11 +224,11 @@ class _MultiMolecule(np.ndarray):
         prop_list: list = []
         for at, i in self.atoms.items():
             try:
-                at_prop = _prop_dict[prop](at)
+                at_prop = _PROP_MAPPING[prop](at)
             except PTError:  # A custom atom is encountered
-                at_prop = _none_dict[prop]
-                err = "KeyWarning: No {} available for {}, defaulting to '{}'"
-                print(err.format(prop, at, str(at_prop)))
+                at_prop = _NONE_DICT[prop]
+                warnings.warn(f"KeyWarning: No '{prop}' available for '{at}', "
+                              f"defaulting to '{at_prop}'")
             prop_list += [at_prop] * len(i)
 
         # Sort and return
@@ -307,12 +262,10 @@ class _MultiMolecule(np.ndarray):
             return ret
 
         # Copy attributes
-        copy_func = pycopy.deepcopy if deep else pycopy.copy
-        for key, value in vars(self).items():
-            try:
-                setattr(ret, key, value.copy())
-            except AttributeError:
-                setattr(ret, key, copy_func(value))
+        copy_func = pycopy.deepcopy if deep else pycopy.copy()
+        iterator = copy_func(vars(self)).items()
+        for key, value in iterator:
+            setattr(ret, key, value)
         return ret
 
     def __copy__(self) -> _MultiMolecule:
@@ -326,13 +279,13 @@ class _MultiMolecule(np.ndarray):
     def __str__(self) -> str:
         """Return a human-readable string constructed from this instance."""
         def _str(k: str, v: Any) -> str:
-            key = str(k)
+            key = k.strip('_')
             str_list = self._ndrepr.repr(v).split('\n')
             joiner = '\n' + (3 + len(key)) * ' '
             return f'{k} = ' + joiner.join(i for i in str_list)
 
-        ret = f'{self._ndrepr.repr(self)},\n\n'
-        ret += ',\n\n'.join(_str(k, v) for k, v in vars(self).items() if k[0] != '_')
+        ret = super().__str__() + '\n\n'
+        ret += ',\n\n'.join(_str(k, v) for k, v in vars(self).items())
         ret_indent = textwrap.indent(ret, '    ')
         return f'{self.__class__.__name__}(\n{ret_indent}\n)'
 

@@ -7,15 +7,15 @@ import numpy as np
 
 from FOX.io.read_pdb import read_pdb
 
-REF_DIR = 'tests/test_files'
+PATH = join('tests', 'test_files')
 
 
 def test_read_pdb():
     """Test :func:`FOX.io.read_pdb.read_pdb`."""
-    atoms, bonds = read_pdb(join(REF_DIR, 'mol.pdb'))
-    ref_bonds = np.load(join(REF_DIR, 'pdb_bonds.npy'))
+    atoms, bonds = read_pdb(join(PATH, 'mol.pdb'))
+    ref_bonds = np.load(join(PATH, 'pdb_bonds.npy'))
     ref_atoms = pd.read_csv(
-        join(REF_DIR, 'pdb_atoms.csv'), float_precision='high', index_col=0, keep_default_na=False
+        join(PATH, 'pdb_atoms.csv'), float_precision='high', index_col=0, keep_default_na=False
     )
 
     for key in atoms:

@@ -12,7 +12,7 @@ from FOX.functions.utils import (
     dict_to_pandas
 )
 
-REF_DIR = 'tests/test_files'
+PATH = join('tests', 'test_files')
 
 
 def test_assert_error():
@@ -42,7 +42,7 @@ def test_get_template():
 
 def test_template_to_df():
     """Test :func:`FOX.functions.utils.template_to_df`,"""
-    df = template_to_df('param.yaml', path=REF_DIR)
+    df = template_to_df('param.yaml', path=PATH)
     assert isinstance(df, pd.DataFrame)
 
     idx = np.array(['charge', 'epsilon', 'sigma'], dtype=object)
@@ -70,7 +70,7 @@ def test_serialize_array():
 
 def test_read_str_file():
     """Test :func:`FOX.functions.utils.read_str_file`,"""
-    at, charge = read_str_file(join(REF_DIR, 'ligand.str'))
+    at, charge = read_str_file(join(PATH, 'ligand.str'))
     assert at == ('CG2O3', 'HGR52', 'OG2D2', 'OG2D2')
     assert charge == (0.52, 0.0, -0.76, -0.76)
 

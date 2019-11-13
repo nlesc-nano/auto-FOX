@@ -7,22 +7,19 @@ import h5py
 import numpy as np
 
 from scm.plams import Settings
+from assertionlib import assertion
 
 import FOX
-from FOX.io.hdf5_utils import (create_hdf5, to_hdf5, from_hdf5, create_xyz_hdf5)
+from FOX.io.hdf5_utils import create_hdf5, to_hdf5, from_hdf5, create_xyz_hdf5
 
-REF_DIR = 'tests/test_files'
+PATH: str = join('tests', 'test_files')
 
 
 def test_create_hdf5():
     """Test :meth:`FOX.io.hdf5_utils.create_hdf5`."""
-    hdf5_path = join(REF_DIR, 'test.hdf5')
-    examples = join(FOX.__path__[0], 'examples')
-
-    s = FOX.get_template('armc.yaml', path=examples)
-    s.psf.str_file = join(examples, s.psf.str_file)
-    s.molecule = FOX.MultiMolecule.from_xyz(FOX.get_example_xyz())
-    armc = FOX.ARMC.from_dict(s)
+    yaml_file = join(PATH, 'armc.yaml')
+    armc, _ = FOX.ARMC.from_yaml(yaml_file)
+    armc.hdf5_file = hdf5_file = join(PATH, 'test.hdf5')
 
     ref_dict = Settings()
     ref_dict.acceptance.shape = 500, 100
@@ -40,25 +37,21 @@ def test_create_hdf5():
     ref_dict['rdf.0.ref'].shape = 241, 6
     ref_dict['rdf.0.ref'].dtype = np.float
 
-    create_hdf5(hdf5_path, armc)
     try:
-        with h5py.File(hdf5_path, 'r') as f:
+        create_hdf5(hdf5_file, armc)
+        with h5py.File(hdf5_file, 'r') as f:
             for key, value in f.items():
-                assert value.shape == ref_dict[key].shape, key
-                assert isinstance(value[:].item(0), ref_dict[key].dtype), key
+                assertion.shape_eq(value, ref_dict[key])
+                assertion.isinstance(value[:].item(0), ref_dict[key].dtype)
     finally:
-        remove(hdf5_path)
+        remove(hdf5_file)
 
 
 def test_to_hdf5():
     """Test :meth:`FOX.io.hdf5_utils.to_hdf5`."""
-    hdf5_path = join(REF_DIR, 'test.hdf5')
-    examples = join(FOX.__path__[0], 'examples')
-
-    s = FOX.get_template('armc.yaml', path=examples)
-    s.psf.str_file = join(examples, s.psf.str_file)
-    s.molecule = FOX.MultiMolecule.from_xyz(FOX.get_example_xyz())
-    armc = FOX.ARMC.from_dict(s)
+    yaml_file = join(PATH, 'armc.yaml')
+    armc, _ = FOX.ARMC.from_yaml(yaml_file)
+    armc.hdf5_file = hdf5_file = join(PATH, 'test.hdf5')
 
     kappa = 5
     omega = 15
@@ -71,14 +64,14 @@ def test_to_hdf5():
     }
     hdf5_dict['rdf.0'] = hdf5_dict['xyz'][0].init_rdf(atom_subset=['Cd', 'Se', 'O']).values
     hdf5_dict['aux_error_mod'] = np.append(hdf5_dict['param'], hdf5_dict['phi'])
-    hdf5_dict['xyz'] = [s.molecule]
-
-    create_hdf5(hdf5_path, armc)
-    create_xyz_hdf5(hdf5_path, [s.molecule.as_Molecule(0)[0]], 100)
-    to_hdf5(hdf5_path, hdf5_dict, kappa, omega)
+    hdf5_dict['xyz'] = armc.molecule
 
     try:
-        with h5py.File(hdf5_path, 'r') as f:
+        create_hdf5(hdf5_file, armc)
+        create_xyz_hdf5(hdf5_file, [armc.molecule[0].as_Molecule(0)[0]], 100)
+        to_hdf5(hdf5_file, hdf5_dict, kappa, omega)
+
+        with h5py.File(hdf5_file, 'r') as f:
             for key, value in hdf5_dict.items():
                 # Prepare slices
                 if key == 'xyz':
@@ -94,19 +87,15 @@ def test_to_hdf5():
                 except ValueError:
                     np.testing.assert_allclose(value, f[key][dset_slice])
     finally:
-        remove(hdf5_path)
-        remove(hdf5_path.replace('.hdf5', '.xyz.hdf5'))
+        remove(hdf5_file)
+        remove(hdf5_file.replace('.hdf5', '.xyz.hdf5'))
 
 
 def test_from_hdf5():
     """Test :meth:`FOX.io.hdf5_utils.from_hdf5`."""
-    hdf5_path = join(REF_DIR, 'test.hdf5')
-    examples = join(FOX.__path__[0], 'examples')
-
-    s = FOX.get_template('armc.yaml', path=examples)
-    s.psf.str_file = join(examples, s.psf.str_file)
-    s.molecule = FOX.MultiMolecule.from_xyz(FOX.get_example_xyz())
-    armc = FOX.ARMC.from_dict(s)
+    yaml_file = join(PATH, 'armc.yaml')
+    armc, _ = FOX.ARMC.from_yaml(yaml_file)
+    armc.hdf5_file = hdf5_file = join(PATH, 'test.hdf5')
 
     kappa = 0
     omega = 0
@@ -119,20 +108,20 @@ def test_from_hdf5():
     }
     hdf5_dict['rdf.0'] = hdf5_dict['xyz'][0].init_rdf(atom_subset=['Cd', 'Se', 'O']).values
     hdf5_dict['aux_error_mod'] = np.append(hdf5_dict['param'], hdf5_dict['phi'])
-    hdf5_dict['xyz'] = [s.molecule]
-
-    create_hdf5(hdf5_path, armc)
-    create_xyz_hdf5(hdf5_path, [s.molecule.as_Molecule(0)[0]], 100)
-    to_hdf5(hdf5_path, hdf5_dict, kappa, omega)
-    out = from_hdf5(hdf5_path)
+    hdf5_dict['xyz'] = armc.molecule
 
     try:
-        assert hdf5_dict['acceptance'] == out['acceptance'][0]
-        assert hdf5_dict['aux_error'] == out['aux_error']['rdf.0'][0]
-        assert hdf5_dict['phi'] == out['aux_error_mod'].values[0]
-        assert hdf5_dict['phi'] == out['phi'][0][0]
+        create_hdf5(hdf5_file, armc)
+        create_xyz_hdf5(hdf5_file, [armc.molecule[0].as_Molecule(0)[0]], 100)
+        to_hdf5(hdf5_file, hdf5_dict, kappa, omega)
+        out = from_hdf5(hdf5_file)
+
+        assertion.eq(hdf5_dict['acceptance'], out['acceptance'][0])
+        assertion.eq(hdf5_dict['aux_error'], out['aux_error']['rdf.0'][0])
+        assertion.eq(hdf5_dict['phi'], out['aux_error_mod'].values[0])
+        assertion.eq(hdf5_dict['phi'], out['phi'][0][0])
         np.testing.assert_allclose(hdf5_dict['param'], out['param'].values[0])
         np.testing.assert_allclose(hdf5_dict['rdf.0'], out['rdf.0'][0].values)
     finally:
-        remove(hdf5_path)
-        remove(hdf5_path.replace('.hdf5', '.xyz.hdf5'))
+        remove(hdf5_file)
+        remove(hdf5_file.replace('.hdf5', '.xyz.hdf5'))

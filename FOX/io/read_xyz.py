@@ -28,11 +28,12 @@ API
 
 """
 
-from itertools import islice
-
-from typing import (Tuple, Dict, Iterable, List, TextIO, Union)
+from itertools import islice, chain
+from typing import Tuple, Dict, Iterable, List, Union, Iterator, Generator
 
 import numpy as np
+
+from ..functions.utils import group_by_values
 
 __all__ = ['read_multi_xyz']
 
@@ -40,12 +41,10 @@ __all__ = ['read_multi_xyz']
 class XYZError(OSError):
     """Raise when there are issues related to parsing .xyz files."""
 
-    pass
-
 
 def read_multi_xyz(filename: str,
                    return_comment: bool = True) -> Tuple[np.ndarray, Dict[str, List[int]]]:
-    """Read a (multi) .xyz file.
+    r"""Read a (multi) .xyz file.
 
     Parameters
     ----------
@@ -73,7 +72,7 @@ def read_multi_xyz(filename: str,
     # Define constants and construct a dictionary: {atomic symbols: [atomic indices]}
     with open(filename, 'r') as f:
         atom_count = _get_atom_count(f)
-        idx_dict = _get_idx_dict(f, atom_count=atom_count, subtract=1)
+        idx_dict = _get_idx_dict(f, atom_count)
         try:
             line_count = _get_line_count(f, add=[2, atom_count])
         except UnboundLocalError:  # The .xyz file contains a single molecule
@@ -83,15 +82,12 @@ def read_multi_xyz(filename: str,
     mol_count = line_count / (2 + atom_count)
     validate_xyz(mol_count, atom_count, filename)
 
-    # Create an empty m*n*3 xyz array
+    # Create the to-be returned xyz array
     shape = int(mol_count), atom_count, 3
-    xyz = np.empty(shape)
-
-    # Fill the xyz array with cartesian coordinates
     with open(filename, 'r') as f:
-        for i, _ in enumerate(f):
-            next(f)
-            xyz[i] = [at.split()[1:] for _, at in zip(range(atom_count), f)]
+        iterator = chain.from_iterable(_xyz_generator(f, atom_count))
+        xyz = np.fromiter(iterator, dtype=float, count=np.product(shape))
+    xyz.shape = shape  # From 1D to 3D array
 
     if return_comment:
         return xyz, idx_dict, get_comments(filename, atom_count)
@@ -99,8 +95,14 @@ def read_multi_xyz(filename: str,
         return xyz, idx_dict
 
 
-def get_comments(filename: str,
-                 atom_count: int) -> np.ndarray:
+def _xyz_generator(f: Iterable[str], atom_count: int) -> Generator[Iterator[int], None, None]:
+    """Create a Cartesian coordinate generator for :func:`.read_multi_xyz`."""
+    stop = 1 + atom_count
+    for _ in f:
+        yield chain.from_iterable(at.split()[1:] for at in islice(f, 1, stop))
+
+
+def get_comments(filename: str, atom_count: int) -> np.ndarray:
     """Read and returns all comment lines in an xyz file.
 
     A single comment line should be located under the atom count of each molecule.
@@ -119,15 +121,13 @@ def get_comments(filename: str,
         A 1D array with :math:`m` comments extracted from **filename**.
 
     """
+    step = 2 + atom_count
     with open(filename, 'r') as f:
-        next(f)
-        iterator = islice(f, 0, None, atom_count+2)  # Generator slicing
+        iterator = islice(f, 1, None, step)  # Generator slicing
         return np.array([i.rstrip() for i in iterator])
 
 
-def validate_xyz(mol_count: float,
-                 atom_count: int,
-                 filename: str) -> None:
+def validate_xyz(mol_count: float, atom_count: int, filename: str) -> None:
     """Validate **mol_count** and **atom_count** in **xyz_file**.
 
     Parameters
@@ -149,18 +149,18 @@ def validate_xyz(mol_count: float,
         Raised when issues are encountered related to parsing .xyz files.
 
     """
+    filename = repr(filename)
     if not mol_count.is_integer():
-        error = "A non-integer number of molecules ({:d}) was found in '{}'"
-        raise XYZError(error.format(mol_count, filename))
+        raise XYZError(f"A non-integer number of molecules was found in '{filename}'; "
+                       f"mol count: {mol_count}")
     elif mol_count < 1.0:
-        error = "No molecules were found in '{}'; mol count: {:f}"
-        raise XYZError(error.format(filename, mol_count))
+        raise XYZError(f"No molecules were found in '{filename}'; mol count: {mol_count}")
     if atom_count < 1:
-        error = "No atoms were found in '{}'; atom count per molecule: {:d}"
-        raise XYZError(error.format(filename, atom_count))
+        raise XYZError(f"No atoms were found in '{filename}'; "
+                       f"atom count per molecule: {atom_count}")
 
 
-def _get_atom_count(f: TextIO) -> int:
+def _get_atom_count(f: Iterator[str]) -> int:
     """Extract the number of atoms per molecule from the first line in an .xyz file.
 
     Parameters
@@ -179,16 +179,15 @@ def _get_atom_count(f: TextIO) -> int:
         Raised when issues are encountered related to parsing .xyz files.
 
     """
-    ret = f.readline()
+    ret = next(f)
     try:
         return int(ret)
-    except ValueError:
-        raise XYZError("{} is not a valid integer, the first line in '{}' should "
-                       "contain the number of atoms per molecule".format(ret, f.name))
+    except ValueError as ex:
+        raise XYZError(f"{ret} is not a valid integer, the first line in '{f.name}' should "
+                       "contain the number of atoms per molecule").with_traceback(ex.__traceback__)
 
 
-def _get_line_count(f: TextIO,
-                    add: Union[int, Iterable[int]] = 0) -> int:
+def _get_line_count(f: Iterable, add: Union[int, Iterable[int]] = 0) -> int:
     """Extract the total number lines from **f**.
 
     Parameters
@@ -210,9 +209,7 @@ def _get_line_count(f: TextIO,
     return i + sum(add)
 
 
-def _get_idx_dict(f: TextIO,
-                  atom_count: int,
-                  subtract: int = 0) -> Dict[str, list]:
+def _get_idx_dict(f: Iterable[str], atom_count: int) -> Dict[str, List[int]]:
     """Extract atomic symbols and matching atomic indices from **f**.
 
     Parameters
@@ -221,10 +218,7 @@ def _get_idx_dict(f: TextIO,
         An opened .xyz file.
 
     atom_count : int
-        The number of atoms per molecule in **f**.
-
-    subtract : int
-        Ignore the first :math:`n` lines in **f**
+        The number of atoms per molecule.
 
     Returns
     -------
@@ -232,21 +226,6 @@ def _get_idx_dict(f: TextIO,
         A dictionary with atomic symbols and a list of matching atomic indices.
 
     """
-    idx_dict: Dict[str, List[int]] = {}
-    abort = atom_count - subtract
-    for i, at in enumerate(f, -subtract):
-        if i < 0:  # Skip the header
-            continue
-
-        at = at.split()[0].capitalize()
-        try:  # Update idx_dict with new atomic indices
-            idx_dict[at].append(i)
-        except KeyError:
-            idx_dict[at] = [i]
-
-        if i == abort:  # If a single molecule has been fully parsed
-            break
-
-    for value in idx_dict.values():  # Sort the indices and return
-        value.sort()
-    return idx_dict
+    stop = 1 + atom_count
+    atom_list = [at.split(maxsplit=1)[0].capitalize() for at in islice(f, 1, stop)]
+    return group_by_values(enumerate(atom_list))

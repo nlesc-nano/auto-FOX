@@ -44,13 +44,12 @@ API
 
 """
 
-from schema import (And, Optional, Or, Schema, Use)
+from schema import And, Optional, Or, Schema, Use
 from collections import abc
 
 import numpy as np
 
 from ..functions.utils import str_to_callable
-from ..functions.charge_utils import get_charge_constraints
 
 __all__ = [
     'get_pes_schema', 'schema_armc', 'schema_move', 'schema_job', 'schema_param',
@@ -65,11 +64,11 @@ def get_pes_schema(key: str) -> Schema:
         'func': Or(abc.Callable, And(str, Use(str_to_callable)),
                    error=err.format(key)),
 
-        Optional('kwarg', default={}): And(dict, lambda x: all([isinstance(i, str) for i in x]),
-                                           error='pes.{}.kwarg expects a dictionary'.format(key)),
+        Optional('kwargs', default={}): And(dict, lambda x: all([isinstance(i, str) for i in x]),
+                                            error='pes.{}.kwargs expects a dictionary'.format(key)),
 
-        Optional('arg', default=[]): And(abc.Sequence,
-                                         error='pes.{}.arg expects a sequence'.format(key))
+        Optional('args', default=[]): And(abc.Sequence,
+                                          error='pes.{}.args expects a sequence'.format(key))
     })
     return schema_pes
 
@@ -95,16 +94,13 @@ schema_armc: Schema = Schema({
 
 #: Schema for validating the ``"move"`` block.
 schema_move: Schema = Schema({
-    ('charge_constraints',): Or(None, And(str, get_charge_constraints),
-                                error='move.charge_constrain expects a string or None'),
-
     ('func',): Or(abc.Callable, And(str, Use(str_to_callable)),
                   error='move.func expects a callable or string-representation of a callable'),
 
-    ('arg',): And(abc.Sequence, error='move.arg expects a sequence'),
+    ('args',): And(abc.Sequence, error='move.arg expects a sequence'),
 
-    ('kwarg',): And(dict, lambda x: all([isinstance(i, str) for i in x]),
-                    error='move.kwarg expects a dictionary'),
+    ('kwargs',): And(dict, lambda x: all([isinstance(i, str) for i in x]),
+                     error='move.kwarg expects a dictionary'),
 
     ('range', 'start'): And(_float, Use(float), lambda x: x > 0.0,
                             error='move.range.start expects a float larger than 0.0'),
@@ -120,8 +116,8 @@ schema_move: Schema = Schema({
 schema_job: Schema = Schema({
     ('folder',): And(str, error='job.folder expects a string'),
 
-    ('func',): Or(abc.Callable, And(str, Use(str_to_callable)),
-                  error='job.func expects a callable or string-representation of a callable'),
+    ('job_type',): Or(abc.Callable, And(str, Use(str_to_callable)),
+                      error='job.func expects a callable or string-representation of a callable'),
 
     ('keep_files',): And(bool, error='job.keep_files expects a boolean'),
 

@@ -1,6 +1,6 @@
 """A module for constructing angular distribution functions."""
 
-from typing import (Sequence, Hashable, Dict)
+from typing import Sequence, Hashable, Dict
 
 import numpy as np
 import pandas as pd

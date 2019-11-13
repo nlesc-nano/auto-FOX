@@ -20,7 +20,7 @@ API
 
 """
 
-from typing import (Optional, Iterable, Union, Hashable)
+from typing import Optional, Iterable, Union, Hashable
 
 import pandas as pd
 

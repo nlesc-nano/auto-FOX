@@ -17,7 +17,7 @@ from .functions import (
     get_rdf_lowmem, get_rdf,
     get_adf,
     get_template, assert_error, get_example_xyz,
-    update_charge, get_charge_constraints
+    update_charge
 )
 
 from .io import (
@@ -31,9 +31,7 @@ from .io import (
 from .classes import (
     FrozenSettings,
     MultiMolecule,
-    ARMC,
-    Molecule,
-    PSF
+    ARMC, run_armc,
 )
 
 __version__ = __version__
@@ -53,7 +51,5 @@ __all__ = [
 
     'FrozenSettings',
     'MultiMolecule',
-    'ARMC',
-    'Molecule',
-    'PSF'
+    'ARMC', 'run_armc',
 ]

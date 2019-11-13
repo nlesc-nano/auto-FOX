@@ -22,32 +22,31 @@ API
 from __future__ import annotations
 
 from collections import abc
-from itertools import (chain, combinations_with_replacement, zip_longest, islice)
-from typing import (
-    Sequence, Optional, Union, List, Hashable, Callable, Iterable, Dict, Tuple, Any
-)
+from itertools import chain, combinations_with_replacement, zip_longest, islice
+from typing import Sequence, Optional, Union, List, Hashable, Callable, Iterable, Dict, Tuple, Any
 
 import numpy as np
 import pandas as pd
-from scipy import (signal, constants)
+from scipy import signal, constants
 from scipy.spatial import cKDTree
 from scipy.fftpack import fft
 from scipy.spatial.distance import cdist
 
-from scm.plams import (Atom, Bond, PeriodicTable)
+from scm.plams import Molecule, Atom, Bond, PeriodicTable
 
-from .molecule_utils import Molecule
 from .multi_mol_magic import _MultiMolecule
 from ..io.read_kf import read_kf
 from ..io.read_xyz import read_multi_xyz
-from ..functions.rdf import (get_rdf, get_rdf_lowmem, get_rdf_df)
-from ..functions.adf import (get_adf, get_adf_df)
+from ..functions.rdf import get_rdf, get_rdf_lowmem, get_rdf_df
+from ..functions.adf import get_adf, get_adf_df
+from ..functions.utils import group_by_values
+from ..functions.molecule_utils import fix_bond_orders, separate_mod
 
 try:
     import dask
-    DASK: bool = True
-except ImportError:
-    DASK: bool = False
+    DASK_EX: Optional[ImportError] = None
+except ImportError as ex:
+    DASK_EX: Optional[ImportError] = ex
 
 __all__ = ['MultiMolecule']
 
@@ -101,7 +100,7 @@ class MultiMolecule(_MultiMolecule):
     def round(self, decimals: int = 0, inplace: bool = True) -> Optional[MultiMolecule]:
         """Round the Cartesian coordinates of this instance to a given number of decimals.
 
-        Paramaters
+        Parameters
         ----------
         decimals : int
             The number of decimals per element.
@@ -149,13 +148,7 @@ class MultiMolecule(_MultiMolecule):
 
         # Update :attr:`.MultiMolecule.atoms`
         symbols = self.symbol[idx]
-        ret.atoms = {}
-        for i, at in enumerate(symbols):
-            try:
-                ret.atoms[at].append(i)
-            except KeyError:
-                ret.atoms[at] = [i]
-
+        ret.atoms = group_by_values(enumerate(symbols))
         return ret
 
     def guess_bonds(self, atom_subset: AtomSubset = None) -> None:
@@ -172,12 +165,13 @@ class MultiMolecule(_MultiMolecule):
             If ``None``, guess bonds for all atoms in this instance.
 
         """
-        at_subset = np.asarray(sorted(self._get_atom_subset(atom_subset, as_sequence=True)))
+        at_subset = np.fromiter(self._get_atom_subset(atom_subset, as_sequence=True), dtype=int)
+        at_subset.sort()
 
         # Guess bonds
         mol = self.as_Molecule(mol_subset=0, atom_subset=atom_subset)[0]
         mol.guess_bonds()
-        mol.fix_bond_orders()
+        fix_bond_orders(mol)
         self.bonds = MultiMolecule.from_Molecule(mol, subset='bonds').bonds
 
         # Update indices in **self.bonds** to account for **atom_subset**
@@ -187,40 +181,8 @@ class MultiMolecule(_MultiMolecule):
         idx = self.bonds[:, 0:2].argsort(axis=0)[:, 0]
         self.bonds = self.bonds[idx]
 
-    def slice_mol(self, start: int = 0,
-                  stop: Optional[int] = None,
-                  step: int = 1,
-                  inplace: bool = False) -> Optional[MultiMolecule]:
-        """Construct a new :class:`MultiMolecule` instance by slicing this instance.
-
-        Equivalent to :code:`MultiMolecule[start:stop:step].copy()` or
-        :code:`MultiMolecule[start:stop:step]` depending on the value of **inplace**.
-
-        Parameters
-        ----------
-        start : int
-            Start of the interval.
-
-        stop : int
-            End of the interval.
-
-        inplace : bool
-            Instead of returning the new coordinates, perform an inplace update of this instance.
-
-        Returns
-        -------
-        |None|_ or |FOX.MultiMolecule|_:
-            If **inplace** is ``True``, return a new :class:`MultiMolecule` instance.
-
-        """
-        if inplace:
-            self[:] = self[start:stop:step]
-            return None
-        else:
-            return self[start:stop:step].copy()
-
     def random_slice(self, start: int = 0,
-                     stop: Union[int, None] = None,
+                     stop: Optional[int] = None,
                      p: float = 0.5,
                      inplace: bool = False) -> Optional[MultiMolecule]:
         """Construct a new :class:`MultiMolecule` instance by randomly slicing this instance.
@@ -413,7 +375,7 @@ class MultiMolecule(_MultiMolecule):
         """
         # Define residues
         plams_mol = self.as_Molecule(mol_subset=0)[0]
-        frags = plams_mol.separate_mod()
+        frags = separate_mod(plams_mol)
         symbol = self.symbol
 
         # Sort the residues
@@ -478,14 +440,14 @@ class MultiMolecule(_MultiMolecule):
         j = self._get_atom_subset(atom_subset, as_sequence=True)
         if self.bonds is None:
             return np.zeros(len(j), dtype=int)
-        return np.bincount(self.bonds[:, 0:2].flatten(), minlength=self.shape[1])[j]
+        return np.bincount(self.atom12.ravel(), minlength=self.shape[1])[j]
 
     """################################## Root Mean Squared ###################################"""
 
     def _get_time_averaged_prop(self, method: Callable,
                                 atom_subset: AtomSubset = None,
-                                kwarg: Dict[str, Any] = {}) -> pd.DataFrame:
-        """A method for constructing time-averaged properties.
+                                **kwargs: Any) -> pd.DataFrame:
+        r"""A method for constructing time-averaged properties.
 
         Parameters
         ----------
@@ -497,7 +459,7 @@ class MultiMolecule(_MultiMolecule):
             determined by their atomic index or atomic symbol.
             Include all :math:`n` atoms per molecule in this instance if ``None``.
 
-        kwarg : dict [str, object]
+        \**kwargs : object
             Keyword arguments that will be supplied to **method**.
 
         Returns
@@ -511,21 +473,20 @@ class MultiMolecule(_MultiMolecule):
 
         # Get the time-averaged property
         if loop:
-            data = [method(atom_subset=at, **kwarg) for at in at_subset]
+            data = [method(atom_subset=at, **kwargs) for at in at_subset]
         else:
-            data = method(atom_subset=at_subset, **kwarg)
+            data = method(atom_subset=at_subset, **kwargs)
 
         # Construct and return the dataframe
-        idx_range = np.arange(0, self.shape[1])
-        idx = pd.Index(idx_range, name='Abritrary atomic index')
+        idx = pd.RangeIndex(0, self.shape[1], name='Abritrary atomic index')
         column_range, data = self._get_rmsf_columns(data, idx, loop=loop, atom_subset=at_subset)
         columns = pd.Index(column_range, name='Atoms')
         return pd.DataFrame(data, index=idx, columns=columns)
 
     def _get_average_prop(self, method: Callable,
                           atom_subset: AtomSubset = None,
-                          kwarg: Dict[str, Any] = {}) -> pd.DataFrame:
-        """A method for constructing properties averaged over atomic subsets.
+                          **kwargs: Any) -> pd.DataFrame:
+        r"""A method for constructing properties averaged over atomic subsets.
 
         Parameters
         ----------
@@ -538,7 +499,7 @@ class MultiMolecule(_MultiMolecule):
             determined by their atomic index or atomic symbol.
             Include all :math:`n` atoms per molecule in this instance if ``None``.
 
-        kwarg : dict [str, object]
+        \**kwargs : object
             Keyword arguments that will be supplied to **method**.
 
         Returns
@@ -552,9 +513,9 @@ class MultiMolecule(_MultiMolecule):
 
         # Calculate and averaged property
         if loop:
-            data = np.array([method(atom_subset=at, **kwarg) for at in at_subset]).T
+            data = np.array([method(atom_subset=at, **kwargs) for at in at_subset]).T
         else:
-            data = method(atom_subset=atom_subset, **kwarg).T
+            data = method(atom_subset=atom_subset, **kwargs).T
 
         # Construct and return the dataframe
         column_range = self._get_rmsd_columns(loop, atom_subset)
@@ -597,8 +558,8 @@ class MultiMolecule(_MultiMolecule):
             A dataframe holding :math:`m-1` velocities averaged over one or more atom subsets.
 
         """
-        kwarg = {'mol_subset': mol_subset, 'timestep': timestep, 'rms': rms}
-        df = self._get_average_prop(self.get_average_velocity, atom_subset, kwarg)
+        kwargs = {'mol_subset': mol_subset, 'timestep': timestep, 'rms': rms}
+        df = self._get_average_prop(self.get_average_velocity, atom_subset, **kwargs)
         df.index.name = 'Time / fs'
         return df
 
@@ -635,8 +596,8 @@ class MultiMolecule(_MultiMolecule):
             A dataframe holding :math:`m-1` time-averaged velocities.
 
         """
-        kwarg = {'mol_subset': mol_subset, 'timestep': timestep, 'rms': rms}
-        return self._get_time_averaged_prop(self.get_time_averaged_velocity, atom_subset, kwarg)
+        kwargs = {'mol_subset': mol_subset, 'timestep': timestep, 'rms': rms}
+        return self._get_time_averaged_prop(self.get_time_averaged_velocity, atom_subset, **kwargs)
 
     def init_rmsd(self, mol_subset: MolSubset = None,
                   atom_subset: AtomSubset = None,
@@ -645,19 +606,19 @@ class MultiMolecule(_MultiMolecule):
 
         Parameters
         ----------
-            mol_subset : slice
-                Perform the calculation on a subset of molecules in this instance, as
-                determined by their moleculair index.
-                Include all :math:`m` molecules in this instance if ``None``.
+        mol_subset : slice
+            Perform the calculation on a subset of molecules in this instance, as
+            determined by their moleculair index.
+            Include all :math:`m` molecules in this instance if ``None``.
 
-            atom_subset : |Sequence|_
-                Perform the calculation on a subset of atoms in this instance, as
-                determined by their atomic index or atomic symbol.
-                Include all :math:`n` atoms per  molecule in this instance if ``None``.
+        atom_subset : |Sequence|_
+            Perform the calculation on a subset of atoms in this instance, as
+            determined by their atomic index or atomic symbol.
+            Include all :math:`n` atoms per  molecule in this instance if ``None``.
 
-            reset_origin : bool
-                Reset the origin of each molecule in this instance by means of
-                a partial Procrustes superimposition, translating and rotating the molecules.
+        reset_origin : bool
+            Reset the origin of each molecule in this instance by means of
+            a partial Procrustes superimposition, translating and rotating the molecules.
 
         Returns
         -------
@@ -671,8 +632,8 @@ class MultiMolecule(_MultiMolecule):
         """
         if reset_origin:
             self.reset_origin()
-        kwarg = {'mol_subset': mol_subset}
-        df = self._get_average_prop(self.get_rmsd, atom_subset, kwarg)
+        kwargs = {'mol_subset': mol_subset}
+        df = self._get_average_prop(self.get_rmsd, atom_subset, **kwargs)
         df.index.name = 'XYZ frame number'
         return df
 
@@ -709,8 +670,8 @@ class MultiMolecule(_MultiMolecule):
         """
         if reset_origin:
             self.reset_origin()
-        kwarg = {'mol_subset': mol_subset}
-        return self._get_time_averaged_prop(self.get_rmsf, atom_subset, kwarg)
+        kwargs = {'mol_subset': mol_subset}
+        return self._get_time_averaged_prop(self.get_rmsf, atom_subset, **kwargs)
 
     def get_average_velocity(self, timestep: float = 1.0,
                              rms: bool = False,
@@ -1096,8 +1057,8 @@ class MultiMolecule(_MultiMolecule):
 
         # Cast the modified RMSF results in a dataframe
         index = np.arange(0, self.shape[1])
-        kwarg = {'loop': True, 'atom_subset': at_subset}
-        columns, data = mol_cp._get_rmsf_columns(dist_mean, index, **kwarg)
+        kwargs = {'loop': True, 'atom_subset': at_subset}
+        columns, data = mol_cp._get_rmsf_columns(dist_mean, index, **kwargs)
         rmsf = pd.DataFrame(data, columns=columns, index=index)
         rmsf.columns.name = 'Distance from origin\n  /  Ångström'
         rmsf.index.name = 'Arbitrary atomic index'
@@ -1233,21 +1194,21 @@ class MultiMolecule(_MultiMolecule):
 
         # Construct an empty dataframe with appropiate dimensions, indices and keys
         df = get_rdf_df(atom_pairs, dr, r_max)
-        kwarg = {'dr': dr, 'r_max': r_max}
+        kwargs = {'dr': dr, 'r_max': r_max}
 
         # Fill the dataframe with RDF's, averaged over all conformations in this instance
         if low_mem:  # Slower low memory approach
             for i in range(self.shape[0]):
                 for key, at in atom_pairs.items():
                     dist_mat = self.get_dist_mat(mol_subset=i, atom_subset=at)
-                    df[key] += get_rdf_lowmem(dist_mat, **kwarg)
+                    df[key] += get_rdf_lowmem(dist_mat, **kwargs)
             df.loc[0.0] = 0.0
             df /= self.shape[0]
 
         else:  # Faster high memory approach
             for key, at in atom_pairs.items():
                 dist_mat = self.get_dist_mat(atom_subset=at)
-                df[key] = get_rdf(dist_mat, **kwarg)
+                df[key] = get_rdf(dist_mat, **kwargs)
 
         return df
 
@@ -1286,6 +1247,7 @@ class MultiMolecule(_MultiMolecule):
         # Create, fill and return the distance matrix
         if A.ndim == 2:
             return cdist(A, B)[None, ...]
+
         shape = A.shape[0], A.shape[1], B.shape[1]
         ret = np.empty(shape)
         for k, (a, b) in enumerate(zip(A, B)):
@@ -1293,8 +1255,7 @@ class MultiMolecule(_MultiMolecule):
         return ret
 
     @staticmethod
-    def get_pair_dict(atom_subset: AtomSubset,
-                      r: int = 2) -> Dict[str, str]:
+    def get_pair_dict(atom_subset: AtomSubset, r: int = 2) -> Dict[str, str]:
         """Take a subset of atoms and return a dictionary.
 
         Parameters
@@ -1411,7 +1372,6 @@ class MultiMolecule(_MultiMolecule):
 
         Examples
         --------
-
         .. code:: python
 
             >>> import numpy as np
@@ -1559,18 +1519,18 @@ class MultiMolecule(_MultiMolecule):
 
         # Construct the angular distribution function
         # Perform the task in parallel (with dask) if possible
-        if DASK and r_max:
+        if not DASK_EX and r_max:
             func = dask.delayed(MultiMolecule._adf_inner_cdktree)
             jobs = [func(m, n, r_max, atnum_dict, atnum, distance_weighted) for m in mol]
             results = dask.compute(*jobs)
-        elif DASK and not r_max:
+        elif not DASK_EX and not r_max:
             func = dask.delayed(MultiMolecule._adf_inner)
             jobs = [func(m, atnum_dict, atnum, distance_weighted) for m in mol]
             results = dask.compute(*jobs)
-        elif not DASK and r_max:
+        elif DASK_EX and r_max:
             func = MultiMolecule._adf_inner_cdktree
             results = [func(m, n, r_max, atnum_dict, atnum, distance_weighted) for m in mol]
-        elif not DASK and not r_max:
+        elif DASK_EX and not r_max:
             func = MultiMolecule._adf_inner
             results = [func(m, atnum_dict, atnum, distance_weighted) for m in mol]
 
@@ -1693,7 +1653,7 @@ class MultiMolecule(_MultiMolecule):
             return np.arccos(np.einsum('ijkl,ijml->ijkm', unit_vec1, unit_vec2))
 
     def _get_atom_subset(self, atom_subset: AtomSubset,
-                         as_sequence: bool = False) -> Union[slice, range, Sequence[int]]:
+                         as_sequence: bool = False) -> Union[slice, np.ndarray, Tuple[int]]:
         """Sanitize the **_get_atom_subset** argument.
 
         Accepts the following objects:
@@ -1727,7 +1687,7 @@ class MultiMolecule(_MultiMolecule):
 
         Raises
         ------
-        IndexError
+        TypeError
             Raised if an object unsuitable for array slicing is provided.
 
         """
@@ -1738,23 +1698,25 @@ class MultiMolecule(_MultiMolecule):
                 return np.arange(atom_subset.start, atom_subset.stop, atom_subset.step)
         else:
             if atom_subset is None:
-                return slice(0, None)
-            elif isinstance(atom_subset, (range, slice)):
+                return slice(None)
+            elif isinstance(atom_subset, slice):
                 return atom_subset
+            elif isinstance(atom_subset, range):
+                return slice(atom_subset.start, atom_subset.stop, atom_subset.step)
 
         if isinstance(atom_subset, (int, np.integer)):
-            return [atom_subset]
+            return (atom_subset.__index__(),)
         elif isinstance(atom_subset[0], (int, np.integer)):
-            return atom_subset
+            return tuple(i.__index__() for i in atom_subset)
         elif isinstance(atom_subset, str):
-            return self.atoms[atom_subset]
+            return tuple(self.atoms[atom_subset])
         elif isinstance(atom_subset[0], str):
-            return list(chain.from_iterable(self.atoms[i] for i in atom_subset))
+            return tuple(chain.from_iterable(self.atoms[i] for i in atom_subset))
         elif isinstance(atom_subset[0][0], (int, np.integer)):
-            return list(chain.from_iterable(atom_subset))
+            return tuple(i.__index__() for i in chain.from_iterable(atom_subset))
 
-        err = "'{}' of type '{}' is an invalid argument for 'atom_subset'"
-        raise IndexError(err.format(str(atom_subset), atom_subset.__class__.__name__))
+        err = f"The 'atom_subset' parameter is of invalid type: '{atom_subset.__class__.__name__}'"
+        raise TypeError(err)
 
     def _get_mol_subset(self, mol_subset: MolSubset) -> slice:
         """Sanitize the **mol_subset** argument.
@@ -1776,42 +1738,35 @@ class MultiMolecule(_MultiMolecule):
             determined by their moleculair index.
             Include all :math:`m` molecules in this instance if ``None``.
 
-        as_sequence : bool
-            Ensure the subset is returned as a sequence.
-
         Returns
         -------
-        |slice|_:
+        |slice|_ or |int|_:
             An object suitable for array slicing.
 
         Raises
         ------
-        IndexError
-            Raised if an object unsuitable for array slicing is provided.
+        TypeError
+            Raised if **mol_subset** is of invalid type.
 
         """
         if mol_subset is None:
-            return slice(0, None)
+            return slice(None)
         elif isinstance(mol_subset, slice):
             return mol_subset
+        elif hasattr(mol_subset, '__index__'):
+            try:
+                i = mol_subset.__index__()
+                if mol_subset >= 0:
+                    return slice(i, i + 1)
+                else:
+                    return slice(i, None)
 
-        elif isinstance(mol_subset, (int, np.integer)):
-            if mol_subset >= 0:
-                return slice(mol_subset, mol_subset+1)
-            else:
-                j = len(self) + 1 - mol_subset
-                return slice(mol_subset, j)
+            except TypeError as ex:
+                err = "The 'mol_subset' parameter cannot be used as scalar inder"
+                raise ValueError(err).with_traceback(ex.__traceback__)
 
-        elif len(mol_subset) == 1 and isinstance(mol_subset[0], (int, np.integer)):
-            i = mol_subset[0]
-            if i >= 0:
-                return slice(i, i+1)
-            else:
-                j = len(self) + 1 - i
-                return slice(i, j)
-
-        err = "'{}' of type '{}' is an invalid argument for 'mol_subset'"
-        raise IndexError(err.format(str(mol_subset), mol_subset.__class__.__name__))
+        err = f"The 'mol_subset' parameter is of invalid type: '{mol_subset.__class__.__name__}'"
+        raise TypeError(err)
 
     """#################################  Type conversion  ####################################"""
 
@@ -1941,9 +1896,9 @@ class MultiMolecule(_MultiMolecule):
         m_subset = self[self._get_mol_subset(mol_subset)]
         at = self.symbol[:, None]
         header = '{:d}\n'.format(len(at))
-        kwarg = {'fmt': ['%-10.10s', '%-15s', '%-15s', '%-15s'],
-                 'delimiter': '     ',
-                 'comments': ''}
+        kwargs = {
+            'fmt': ['%-10.10s', '%-15s', '%-15s', '%-15s'], 'delimiter': 5 * ' ', 'comments': ''
+        }
 
         # Alter variables depending on the presence or absence of self.properties.comments
         if 'comments' in self.properties and isinstance(self.properties.comments, abc.Iterable):
@@ -1956,7 +1911,7 @@ class MultiMolecule(_MultiMolecule):
         # Create the .xyz file
         with open(filename, 'wb') as file:
             for i, xyz in iterator:
-                np.savetxt(file, np.hstack((at, xyz)), header=header.format(i), **kwarg)
+                np.savetxt(file, np.hstack((at, xyz)), header=header.format(i), **kwargs)
 
     def as_mass_weighted(self, mol_subset: MolSubset = None,
                          atom_subset: AtomSubset = None,
@@ -2045,34 +2000,38 @@ class MultiMolecule(_MultiMolecule):
 
         """
         m_subset = self._get_mol_subset(mol_subset)
-        at_subset = np.asarray(sorted(self._get_atom_subset(atom_subset, as_sequence=True)))
+        at_subset = np.asarray(self._get_atom_subset(atom_subset, as_sequence=True))
+        at_subset.sort()
         at_symbols = self.symbol
 
         # Construct a template molecule and fill it with atoms
         assert self.atoms is not None
         mol_template = Molecule()
         mol_template.properties = self.properties.copy()
+        add_atom = mol_template.add_atom
         for i in at_subset:
             atom = Atom(symbol=at_symbols[i])
-            mol_template.add_atom(atom)
+            add_atom(atom)
 
         # Fill the template molecule with bonds
         if self.bonds.any():
             bond_idx = np.ones(len(self))
             bond_idx[at_subset] += np.arange(len(at_subset))
+            add_bond = mol_template.add_bond
             for i, j, order in self.bonds:
                 if i in at_subset and j in at_subset:
                     at1 = mol_template[int(bond_idx[i])]
                     at2 = mol_template[int(bond_idx[j])]
-                    mol_template.add_bond(Bond(atom1=at1, atom2=at2, order=order/10.0))
+                    add_bond(Bond(atom1=at1, atom2=at2, order=order/10.0))
 
         # Create copies of the template molecule; update their cartesian coordinates
         ret = []
+        ret_append = ret.append
         for i, xyz in enumerate(self[m_subset]):
             mol = mol_template.copy()
             mol.from_array(xyz[at_subset])
             mol.properties.frame = i
-            ret.append(mol)
+            ret_append(mol)
 
         return ret
 
@@ -2100,36 +2059,37 @@ class MultiMolecule(_MultiMolecule):
         """
         if isinstance(mol_list, Molecule):
             plams_mol = mol_list
-            mol_list = [mol_list]
+            mol_list = (mol_list,)
         else:
             plams_mol = mol_list[0]
         subset = subset or ('atoms', 'bonds', 'properties')
 
         # Convert coordinates
-        coords = np.array([mol.as_array() for mol in mol_list])
-        kwarg: dict = {}
+        n_mol = len(mol_list)
+        n_atom = len(plams_mol)
+        iterator = chain.from_iterable(at.coords for mol in mol_list for at in mol)
+        coords = np.fromiter(iterator, dtype=float, count=n_mol*n_atom*3)
+        coords.shape = n_mol, n_atom, 3
+
+        kwargs: dict = {}
 
         # Convert atoms
         if 'atoms' in subset:
-            kwarg['atoms'] = {}
-            for i, at in enumerate(plams_mol.atoms):
-                try:
-                    kwarg['atoms'][at.symbol].append(i)
-                except KeyError:
-                    kwarg['atoms'][at.symbol] = [i]
+            iterator = ((i, at.symbol) for i, at in enumerate(plams_mol.atoms))
+            kwargs['atoms'] = group_by_values(iterator)
 
         # Convert properties
         if 'properties' in subset:
-            kwarg['properties'] = plams_mol.properties.copy()
+            kwargs['properties'] = plams_mol.properties.copy()
 
         # Convert bonds
         if 'bonds' in subset:
             plams_mol.set_atoms_id(start=0)
-            kwarg['bonds'] = np.array([(bond.atom1.id, bond.atom2.id, bond.order * 10) for
-                                       bond in plams_mol.bonds], dtype=int)
+            kwargs['bonds'] = np.array([(bond.atom1.id, bond.atom2.id, bond.order * 10) for
+                                        bond in plams_mol.bonds], dtype=int)
             plams_mol.unset_atoms_id()
 
-        return cls(coords, **kwarg)
+        return cls(coords, **kwargs)
 
     @classmethod
     def from_xyz(cls, filename: str,

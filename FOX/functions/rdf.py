@@ -1,6 +1,6 @@
 """A module for constructing radial distribution functions."""
 
-from typing import (Sequence, Hashable)
+from typing import Sequence, Hashable
 
 import numpy as np
 import pandas as pd

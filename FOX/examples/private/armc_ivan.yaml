@@ -1,39 +1,32 @@
 param:
     charge:
         keys: [input, force_eval, mm, forcefield, charge]
-        Cs: 1.000
-        Pb: 2.000
-        Br: -1.000
+        Cd: 0.9768
+        Se: -0.9768
     epsilon:
         unit: kjmol
         keys: [input, force_eval, mm, forcefield, nonbonded, lennard-jones]
-        Cs Cs: 0.3101
-        Cs Br: 1.5225
-        Cs Pb: 1.5000
-        Pb Pb: 1.6135
-        Pb Br: 1.8340
-        Br Br: 1.8000
+        Cd Cd: 0.3101
+        Se Se: 0.4266
+        Cd Se: 1.5225
     sigma:
         unit: nm
         keys: [input, force_eval, mm, forcefield, nonbonded, lennard-jones]
-        Cs Cs: 0.58
-        Cs Br: 0.38
-        Cs Pb: 0.50
-        Pb Pb: 0.60
-        Pb Br: 0.28
-        Br Br: 0.42
+        Cd Cd: 0.1234
+        Se Se: 0.4852
+        Cd Se: 0.2940
 
 pes:
     rdf:
         func: FOX.MultiMolecule.init_rdf
-        kwarg:
-            atom_subset: [Cs, Pb, Br]
+        kwargs:
+            atom_subset: [Cd, Se, O]
 
-molecule: /Users/basvanbeek/Downloads/md_dft.xyz
+molecule: /Users/basvanbeek/Documents/GitHub/auto-FOX/FOX/data/Cd68Se55_26COO_MD_trajec.xyz
 
 job:
     logfile: /Users/basvanbeek/Downloads/armc.log
-    func: scm.plams.Cp2kJob
+    job_type: scm.plams.Cp2kJob
     name: armc
     path: /Users/basvanbeek/Downloads
     folder: MM_MD_workdir

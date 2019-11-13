@@ -6,9 +6,13 @@ from os.path import join
 import numpy as np
 import pandas as pd
 
-import FOX
+from scm.plams import Cp2kJob, Settings
+from assertionlib import assertion
 
-REF_DIR = 'tests/test_files'
+from FOX import ARMC, MultiMolecule, get_example_xyz
+from FOX.io.read_psf import PSFContainer
+
+PATH = join('tests', 'test_files')
 
 
 def test_input():
@@ -17,13 +21,13 @@ def test_input():
 
     # Define the atoms of interest and the .xyz path + filename
     atoms = ('Cd', 'Se', 'O')
-    example_xyz_filename = FOX.get_example_xyz()
+    example_xyz_filename = get_example_xyz()
 
     # Optional: start the timer
     start = time.time()
 
     # Read the .xyz file
-    mol = FOX.MultiMolecule.from_xyz(example_xyz_filename)
+    mol = MultiMolecule.from_xyz(example_xyz_filename)
 
     # Calculate the RDF, RSMF & RMSD
     rdf = mol.init_rdf(atom_subset=atoms)
@@ -36,12 +40,12 @@ def test_input():
         try:
             df.plot(name)
         except Exception as ex:
-            print(f'{name} - {ex.__class__.__name__}: {ex}')
+            print(f'{name} - {repr(ex)}')
     print('run time: {:.2f} sec'.format(time.time() - start))
 
-    ref_rdf = np.load(join(REF_DIR, 'rdf.npy'))
-    ref_rmsf = np.load(join(REF_DIR, 'rmsf.npy'))
-    ref_rmsd = np.load(join(REF_DIR, 'rmsd.npy'))
+    ref_rdf = np.load(join(PATH, 'rdf.npy'))
+    ref_rmsf = np.load(join(PATH, 'rmsf.npy'))
+    ref_rmsd = np.load(join(PATH, 'rmsd.npy'))
 
     np.testing.assert_allclose(rdf.values, ref_rdf)
     np.testing.assert_allclose(rmsf.values, ref_rmsf)
@@ -50,35 +54,50 @@ def test_input():
 
 def test_cp2k_md():
     """Test :mod:`FOX.examples.cp2k_md`."""
-    examples = join(FOX.__path__[0], 'examples')
-    s = FOX.get_template('armc.yaml', path=examples)
-    s.psf.str_file = join(examples, s.psf.str_file)
-    s.molecule = FOX.MultiMolecule.from_xyz(FOX.get_example_xyz())
-    armc = FOX.ARMC.from_dict(s)
+    yaml_file = join(PATH, 'armc.yaml')
+    armc, job_kwarg = ARMC.from_yaml(yaml_file)
 
-    psf = {
-        'atoms': pd.read_csv(join(REF_DIR, 'psf_atoms.csv'), float_precision='high', index_col=0),
-        'bonds': np.load(join(REF_DIR, 'bonds.npy')),
-        'angles': np.load(join(REF_DIR, 'angles.npy')),
-        'dihedrals': np.load(join(REF_DIR, 'dihedrals.npy')),
-        'impropers': np.load(join(REF_DIR, 'impropers.npy')),
-    }
+    assertion.eq(armc.a_target, 0.25)
+    assertion.is_(armc.apply_move.func, np.multiply)
+    assertion.is_(armc.apply_phi, np.add)
+    assertion.eq(armc.gamma, 2.0)
+    assertion.eq(armc.hdf5_file, 'armc.hdf5')
+    assertion.eq(armc.history_dict, {})
+    assertion.eq(armc.iter_len, 50000)
+    assertion.eq(armc.job_cache, [])
 
-    np.testing.assert_allclose(armc.job.psf.bonds, psf['bonds'])
-    np.testing.assert_allclose(armc.job.psf.angles, psf['angles'])
-    np.testing.assert_allclose(armc.job.psf.dihedrals, psf['dihedrals'])
-    np.testing.assert_allclose(armc.job.psf.impropers, psf['impropers'])
-    for key, value in armc.job.psf.atoms.items():
-        if not value.dtype.name == 'object':
-            np.testing.assert_allclose(value, psf['atoms'][key])
-        else:
-            np.testing.assert_array_equal(value, psf['atoms'][key])
+    assertion.is_(armc.job_type.func, Cp2kJob)
+    assertion.eq(armc.job_type.keywords, {'name': 'armc'})
 
-    assert armc.phi.phi == 1.0
-    assert armc.phi.kwarg == {}
-    assert armc.phi.func == np.add
+    assertion.eq(armc.keep_files, False)
+    assertion.isinstance(armc.md_settings, Settings)
+    assertion.isinstance(armc.molecule, tuple)
+    assertion.len(armc.molecule)
+    assertion.isinstance(armc.molecule[0], MultiMolecule)
 
-    assert armc.armc.a_target == 0.25
-    assert armc.armc.gamma == 2.0
-    assert armc.armc.iter_len == 50000
-    assert armc.armc.sub_iter_len == 100
+    np.testing.assert_allclose(
+        armc.move_range,
+        np.array([0.9, 0.905, 0.91, 0.915, 0.92, 0.925, 0.93, 0.935, 0.94,
+                  0.945, 0.95, 0.955, 0.96, 0.965, 0.97, 0.975, 0.98, 0.985,
+                  0.99, 0.995, 1.005, 1.01, 1.015, 1.02, 1.025, 1.03, 1.035,
+                  1.04, 1.045, 1.05, 1.055, 1.06, 1.065, 1.07, 1.075, 1.08,
+                  1.085, 1.09, 1.095, 1.1])
+    )
+
+    assertion.isinstance(armc.param, pd.DataFrame)
+    assertion.eq(armc.param.shape, (14, 7))
+
+    assertion.isinstance(armc.pes, dict)
+    assertion.contains(armc.pes, 'rdf')
+    assertion.is_(armc.pes['rdf'].func, MultiMolecule.init_rdf)
+    assertion.eq(armc.pes['rdf'].keywords, {'atom_subset': ['Cd', 'Se', 'O']})
+
+    assertion.eq(armc.phi, 1.0)
+    assertion.eq(armc.preopt_settings, None)
+    assertion.eq(armc.rmsd_threshold, 10.0)
+    assertion.eq(armc.sub_iter_len, 100)
+
+    assertion.eq(job_kwarg.logfile, 'armc.log')
+    assertion.eq(job_kwarg.path, '.')
+    assertion.eq(job_kwarg.folder, 'MM_MD_workdir')
+    assertion.isinstance(job_kwarg.psf, PSFContainer)

@@ -5,6 +5,20 @@ Change Log
 All notable changes to this project will be documented in this file.
 This project adheres to `Semantic Versioning <http://semver.org/>`_.
 
+0.6.0
+*****
+* Many minor (consistancy) changes and codestyle improvements.
+* Ported a number of classes from (nano-)CAT to Auto-FOX (`FrozenSettings` & `PSFContainer`).
+* Reduced te number of parameters for the `ARMC()` and `MonteCarlo()` classes.
+* Added the `run_armc()` method for handling all `JobManager` related ARMC tasks.
+* Added the AssertionLib package as dependancy.
+* Moved `FOX.classes.molecule_utils` to `FOX.functions.molecule_utils` in favor of a function-based approach.
+* Improved the speed of `read_multi_xyz()` by roughly 10%.
+* Generalized the ARMC constraints system.
+* Fixed the PLAMS branch: see https://github.com/nlesc-nano/auto-FOX/commit/8a1d13b8d5e2f2a2b635ade965a1eb58488ecd2a and
+  https://github.com/nlesc-nano/auto-FOX/commit/2916c937689f7d9a9439ba7cd1cce4d2add989cf.
+
+
 0.5.0
 *****
 

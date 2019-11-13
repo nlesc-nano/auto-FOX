@@ -11,7 +11,7 @@ molecule: null
 
 job:
     logfile: armc.log
-    func: scm.plams.Cp2kJob
+    job_type: scm.plams.Cp2kJob
     name: armc
     path: .
     folder: MM_MD_workdir
@@ -30,10 +30,9 @@ armc:
     phi: 1.0
 
 move:
-    charge_constraints: null
     func: numpy.multiply
-    kwarg: {}
-    arg: []
+    kwargs: {}
+    args: []
     range:
         start: 0.005
         stop: 0.1

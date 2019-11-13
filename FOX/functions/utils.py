@@ -1,7 +1,7 @@
 """A module with miscellaneous functions."""
 
 from typing import (
-    Iterable, Tuple, Callable, Hashable, Sequence, MutableSequence, Optional, List, Any
+    Iterable, Tuple, Callable, Hashable, Sequence, Optional, List, Any, TypeVar, Dict
 )
 from os.path import join, isfile
 from functools import wraps
@@ -14,6 +14,8 @@ import pandas as pd
 from scm.plams import (Settings, add_to_class)
 
 __all__ = ['get_template', 'template_to_df', 'get_example_xyz']
+
+T = TypeVar('T')
 
 
 def append_docstring(item: Callable) -> Callable:
@@ -50,7 +52,7 @@ def append_docstring(item: Callable) -> Callable:
         try:
             func.__doc__ += item.__doc__
         except TypeError:
-            pass
+            func.__doc__ = item.__doc__
         return func
     return decorator
 
@@ -147,8 +149,7 @@ def get_template(name: str,
         return yaml.load(f, Loader=yaml.FullLoader)
 
 
-def template_to_df(name: str,
-                   path: Optional[str] = None) -> pd.DataFrame:
+def template_to_df(name: str, path: Optional[str] = None) -> pd.DataFrame:
     """Grab a .yaml template and turn it into a pandas dataframe.
 
     Parameters
@@ -175,8 +176,7 @@ def template_to_df(name: str,
         return pd.DataFrame(values, index=idx, columns=['charge'])
 
 
-def serialize_array(array: np.ndarray,
-                    items_per_row: int = 4) -> str:
+def serialize_array(array: np.ndarray, items_per_row: int = 4) -> str:
     """Serialize an array into a single string.
 
     Newlines are placed for every **items_per_row** rows in **array**.
@@ -247,7 +247,6 @@ def get_shape(item: Iterable) -> Tuple[int]:
 
     Examples
     --------
-
     .. code:: python
 
         >>> item = np.random.rand(10, 10, 10)
@@ -283,8 +282,7 @@ def get_shape(item: Iterable) -> Tuple[int]:
     return (1, )  # Plan C: **item** has access to neither A nor B
 
 
-def dict_to_pandas(input_dict: dict,
-                   name: Hashable = 0,
+def dict_to_pandas(input_dict: dict, name: Hashable = 0,
                    object_type: str = 'pd.DataFrame') -> pd.DataFrame:
     """Turn a nested dictionary into a pandas series or dataframe.
 
@@ -292,7 +290,6 @@ def dict_to_pandas(input_dict: dict,
 
     Examples
     --------
-
     .. code:: python
 
         >>> name = 'param'
@@ -363,7 +360,6 @@ def array_to_index(ar: np.ndarray) -> pd.Index:
 
     Examples
     --------
-
     .. code:: python
 
         >>> ar = np.arange(10)
@@ -409,8 +405,7 @@ def get_example_xyz(name: str = 'Cd68Se55_26COO_MD_trajec.xyz') -> str:
     return resource_filename('FOX', join('data', name))
 
 
-def _get_move_range(start: float = 0.005,
-                    stop: float = 0.1,
+def _get_move_range(start: float = 0.005, stop: float = 0.1,
                     step: float = 0.005) -> np.ndarray:
     """Generate an with array of all allowed moves.
 
@@ -528,9 +523,7 @@ def get_class_name(item: Callable) -> str:
     return '{}.{}'.format(item_module, item_class)
 
 
-def slice_str(str_: str,
-              intervals: list,
-              strip_spaces: bool = True) -> list:
+def slice_str(str_: str, intervals: List[Optional[int]], strip_spaces: bool = True) -> list:
     """Slice a string, **str_**, at intervals specified in **intervals**.
 
     Examples
@@ -567,8 +560,7 @@ def slice_str(str_: str,
     return [str_[i:j] for i, j in zip(iter1, iter2)]
 
 
-def get_atom_count(iterable: Iterable[Sequence[str]],
-                   mol: 'FOX.MultiMolecule') -> List[int]:
+def get_atom_count(iterable: Iterable[Sequence[str]], mol: 'FOX.MultiMolecule') -> List[int]:
     """Count the occurences of each atom/atom-pair (from **iterable**) in **mol**.
 
     Duplicate values are removed if when evaluating atom pairs when atom-pairs consist of
@@ -576,7 +568,6 @@ def get_atom_count(iterable: Iterable[Sequence[str]],
 
     Examples
     --------
-
     .. code:: python
 
         >>> Cd_count = len(mol.atoms['Cd'])
@@ -716,15 +707,57 @@ def str_to_callable(string: str) -> Callable:
             return eval(string)
         except NameError:  # Non-builtin function or class
             package, func = string.split('.')
-            exec('from {} import {}'.format(package, func))
+            exec(f'from {package} import {func}')
             return eval(func)
 
     else:
         try:  # Non-builtin function or class
             package, func = string.rsplit('.', 1)
-            exec('from {} import {}'.format(package, func))
+            exec(f'from {package} import {func}')
             return eval(func)
         except ImportError:  # Non-builtin method
             package, class_, method = string.rsplit('.', 2)
-            exec('from {} import {}'.format(package, class_))
+            exec(f'from {package} import {class_}')
             return eval('.'.join([class_, method]))
+
+
+def group_by_values(iterable: Iterable[Tuple[Any, Hashable]]) -> Dict[Hashable, List[Any]]:
+    """Take an iterable, yielding 2-tuples, and group all first elements by the second.
+
+    Exameple
+    --------
+    .. code:: python
+
+        >>> from typing import Iterator
+
+        >>> str_list: list = ['a', 'a', 'a', 'a', 'a', 'b', 'b', 'b']
+        >>> iterable: Iterator = enumerate(str_list)
+        >>> new_dict: dict = group_by_values(iterable)
+
+        >>> print(new_dict)
+        {'a': [1, 2, 3, 4, 5], 'b': [6, 7, 8]}
+
+    Parameter
+    ---------
+    iterable : :class:`Iterable<collections.abc.Iterable>`
+        An iterable yielding 2 elements upon iteration
+        (*e.g.* :meth:`dict.items` or :func:`enumerate`).
+        The second element must be a :class:`Hashable<collections.abc.Hashable>` and will be used
+        as key in the to-be returned dictionary.
+
+    Returns
+    -------
+    :class:`dict` [:class:`Hashable<collections.abc.Hashable>`,
+    :class:`list` [:data:`Any<typing.Any>`]]
+        A grouped dictionary.
+
+    """
+    ret: Dict[Hashable, List[Any]] = {}
+    list_append: Dict[Hashable, list.append] = {}
+    for value, key in iterable:
+        try:
+            list_append[key](value)
+        except KeyError:
+            ret[key] = [value]
+            list_append[key] = ret[key].append
+    return ret

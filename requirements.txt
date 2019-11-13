@@ -1,4 +1,4 @@
-sphinx=1.8
+sphinx>=2.0
 sphinx-autodoc-typehints
 sphinx_rtd_theme
 matplotlib
@@ -6,3 +6,4 @@ numpy
 scipy
 pandas
 plams@git+https://github.com/SCM-NV/PLAMS@master
+AssertionLib@git+https://github.com/nlesc-nano/AssertionLib@master

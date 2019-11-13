@@ -72,7 +72,8 @@ setup(
         'scipy',
         'pandas',
         'schema',
-        'plams@git+https://github.com/SCM-NV/PLAMS@master'
+        'plams@git+https://github.com/SCM-NV/PLAMS@master',
+        'AssertionLib@git+https://github.com/nlesc-nano/AssertionLib@master'
     ],
     setup_requires=[
         'pytest-runner'

@@ -5,11 +5,12 @@ import pandas as pd
 
 from scm.plams import Settings
 
+from .charge_utils import assign_constraints
+
 __all__ = ['set_keys']
 
 
-def set_subsys_kind(settings: Settings,
-                    df: pd.DataFrame) -> None:
+def set_subsys_kind(settings: Settings, df: pd.DataFrame) -> None:
     """Set the FORCE_EVAL/SUBSYS/KIND_ keyword(s) in CP2K job settings.
 
     Performs an inplace update of the input.force_eval.subsys key in **settings**.
@@ -51,13 +52,13 @@ def set_subsys_kind(settings: Settings,
         and atom types (*e.g.* ``"OG2D2"``, ``"HGR52"`` & ``"CG2O3"``).
 
     """
+    subsys = settings.input.force_eval.subsys
     for at_name, at_type in df[['atom name', 'atom type']].values:
-        if not settings.input.force_eval.subsys['kind ' + at_type]:
-            settings.input.force_eval.subsys['kind ' + at_type] = {'element': at_name}
+        if not subsys['kind ' + at_type]:
+            subsys['kind ' + at_type] = {'element': at_name}
 
 
-def set_keys(settings: Settings,
-             param: pd.DataFrame) -> None:
+def set_keys(settings: Settings, param: pd.DataFrame) -> None:
     r"""Parse **param** and populate all appropiate blocks in **settings**.
 
     Updates/creates three columns in **param**:
@@ -123,7 +124,7 @@ def set_keys(settings: Settings,
         if 'constraints' in param.loc[k].index:
             constraints = param.at[(k, 'constraints'), 'param']
             param.drop(index=(k, 'constraints'), inplace=True)
-            _parse_constraints(constraints, param, k)
+            assign_constraints(constraints, param, k)
 
         # Identify and parse the path
         keys = param.at[(k, 'keys'), 'param']
@@ -135,40 +136,7 @@ def set_keys(settings: Settings,
     _populate_keys(settings, param)
 
 
-def _parse_constraints(constraints: list,
-                       param: pd.DataFrame,
-                       idx_key: str):
-    # Parse integers and floats
-    constrain_list = [i.split() for i in constraints]
-    for i in constrain_list:
-        for j, k in enumerate(i):
-            try:
-                i[j] = float(k)
-            except ValueError:
-                pass
-
-    # Parse operators
-    operator_dict = {'<': 'min', '=<': 'min', '>': 'max', '>=': 'max'}
-    invert = {'max': 'min', 'min': 'max'}
-
-    # Set values in **param**
-    for i in constrain_list:
-        for j, k in enumerate(i):
-            if k not in operator_dict:
-                continue
-
-            operator, value, at = operator_dict[k], i[j-1], i[j+1]
-            if isinstance(at, float):
-                at, value = value, at
-                operator = invert[operator]
-            if at not in param.loc[idx_key].index:
-                err = "atom '{}' is specified under 'constraints' yet is absent from '{}'"
-                raise KeyError(err.format(at, idx_key))
-            param.at[(idx_key, at), operator] = value
-
-
-def _populate_keys(settings: Settings,
-                   param: pd.DataFrame) -> None:
+def _populate_keys(settings: Settings, param: pd.DataFrame) -> None:
     """Populate the settings blocks specified in :func:`.set_keys`.
 
     Examples

@@ -33,7 +33,7 @@ API
 """
 
 
-from typing import (Dict, Tuple, Union, TextIO)
+from typing import Dict, Tuple, Union, TextIO
 
 import pandas as pd
 import numpy as np
