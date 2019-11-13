@@ -114,7 +114,7 @@ Arguments
  molecule                   -                  A list of one or more :class:`.MultiMolecule` instances or .xyz filenames of a reference PES.
 
  job.logfile                armc.log           The path+filename for the to-be created `PLAMS logfile <https://www.scm.com/doc/plams/components/functions.html#logging>`_.
- job.func                   scm.plams.Cp2kJob  The job type, see Job_.
+ job.job_type               scm.plams.Cp2kJob  The job type, see Job_.
  job.name                   armc               The base name of the various molecular dynamics jobs.
  job.path                   .                  The base path for storing the various molecular dynamics jobs.
  job.folder                 MM_MD_workdir      The name of the to-be created directory for storing all molecular dynamics jobs.
@@ -133,7 +133,6 @@ Arguments
  move.range.start           0.005              Controls the minimum stepsize of Monte Carlo moves.
  move.range.stop            0.1                Controls the maximum stepsize of Monte Carlo moves.
  move.range.step            0.005              Controls the allowed stepsize values between the minima and maxima.
- move.charge_constraints    -                  Controls constraints applied to the atomic charges during Monte Carlo moves.
 ========================== ================== ===========================================================================================================
 
 Once a the .yaml file with the ARMC settings has been sufficiently customized
@@ -180,14 +179,14 @@ selenium atoms (Cd & Se).
     pes:
         rdf:
             func: FOX.MultiMolecule.init_rdf
-            arg: []
-            kwarg:
+            args: []
+            kwargs:
                 atom_subset: [Cd, Se, O]
 
         adf:
             func: FOX.MultiMolecule.init_adf
-            arg: []
-            kwarg:
+            args: []
+            kwargs:
                 atom_subset: [Cd, Se]
 
 In principle any function, class or method can be provided here,
@@ -213,7 +212,7 @@ numpy.sum_ function is provided below:
   pes:
     numpy_sum:
         func: numpy.sum
-        kwarg:
+        kwargs:
             axis: 0
 
 This .yaml input, given a :class:`.MultiMolecule` instance ``mol``, is equivalent to:
@@ -223,8 +222,8 @@ This .yaml input, given a :class:`.MultiMolecule` instance ``mol``, is equivalen
     >>> import numpy
 
     >>> func = numpy.sum
-    >>> arg = []
-    >>> kwarg = {'axis': 0}
+    >>> args = []
+    >>> kwargs = {'axis': 0}
 
     >>> func(mol, *arg, **kwarg)
 
@@ -240,6 +239,7 @@ The param block
             constraints:
                 -  0 < Cs < 2
                 -  1 < Pb < 3
+                -  Cs == 0.5 * Br
             Cs: 1.000
             Pb: 2.000
         epsilon:
@@ -251,7 +251,8 @@ The param block
         sigma:
             unit: nm
             keys: [input, force_eval, mm, forcefield, nonbonded, lennard-jones]
-            Cs Cs: 0.58
+            constraints: 'Cs Cs == Pb Pb'
+            Cs Cs: 0.60
             Cs Pb: 0.50
             Pb Pb: 0.60
 
