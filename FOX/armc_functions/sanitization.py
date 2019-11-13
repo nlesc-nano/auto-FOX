@@ -39,7 +39,6 @@ from ..classes.multi_mol import MultiMolecule
 from ..functions.utils import get_template, dict_to_pandas, get_atom_count, _get_move_range
 from ..functions.cp2k_utils import set_keys, set_subsys_kind
 from ..functions.molecule_utils import fix_bond_orders
-from ..functions.charge_utils import get_charge_constraints
 from ..armc_functions.schemas import (
     get_pes_schema, schema_armc, schema_move, schema_job, schema_param, schema_hdf5, schema_psf
 )
@@ -195,7 +194,6 @@ def reshape_settings(s: Settings) -> None:
     s.md_settings = s.job.pop('md_settings')
     s.preopt_settings = s.job.pop('preopt_settings')
     s.apply_move = functools.partial(s.move.func, *s.move.args, **s.move.kwargs)
-    s.charge_constraints = get_charge_constraints(s.move.charge_constraints)
     s.move_range = _get_move_range(**s.move.range)
     s.keep_files = s.job.pop('keep_files')
     s.rmsd_threshold = s.job.pop('rmsd_threshold')

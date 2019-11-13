@@ -198,7 +198,6 @@ class MonteCarlo(AbstractDataClass, abc.Mapping):
                  hdf5_file: str = 'ARMC.hdf5',
                  apply_move: Callable[[float, float], float] = np.multiply,
                  move_range: Optional[np.ndarray] = None,
-                 charge_constraints: Optional[Mapping] = None,
                  keep_files: bool = False) -> None:
         """Initialize a :class:`MonteCarlo` instance."""
         super().__init__()
@@ -220,7 +219,6 @@ class MonteCarlo(AbstractDataClass, abc.Mapping):
 
         # Settings for generating Monte Carlo moves
         self.apply_move: Callable[[float, float], float] = apply_move
-        self.charge_constraints: dict = charge_constraints
         self.move_range = move_range
 
         # Internally set attributes
@@ -347,18 +345,15 @@ class MonteCarlo(AbstractDataClass, abc.Mapping):
         # Ensure that the moved value does not exceed the user-specified minimum and maximum
         value = self.clip_move(idx, _value)
 
-        # Constrain the atomic charges
-        columns = ['keys', 'param', 'unit']
-        if 'charge' in idx:
-            at = idx[1]
-            with pd.option_context('mode.chained_assignment', None):
-                update_charge(at, value, param.loc['charge'], self.charge_constraints)
-            for k, v, fstring in param.loc['charge', columns].values:
-                _update_settings(k, v, fstring)
-            print(f'{at}: {value}', param.loc['charge', ['param', 'count']].product(axis=1).sum())
-        else:
-            param.at[idx, 'param'] = value
-            k, v, fstring = param.loc[idx, columns]
+        # Enforce all user-specified constraints
+        param_type, atom = idx
+        charge = param_type == 'charge'
+        constraint_dict = param.at[idx, 'constraints']
+        with pd.option_context('mode.chained_assignment', None):
+            update_charge(atom, value, param.loc[param_type], constraint_dict, charge=charge)
+
+        # Update the CP2K Settings
+        for k, v, fstring in param.loc[param_type, ('keys', 'param', 'unit')].values:
             _update_settings(k, v, fstring)
 
         return tuple(self.param['param'].values)

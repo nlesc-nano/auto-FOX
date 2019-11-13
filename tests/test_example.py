@@ -60,10 +60,6 @@ def test_cp2k_md():
     assertion.eq(armc.a_target, 0.25)
     assertion.is_(armc.apply_move.func, np.multiply)
     assertion.is_(armc.apply_phi, np.add)
-    assertion.eq(
-        armc.charge_constraints,
-        {'Cd': {'arg': 1.0, 'func': np.multiply}, 'Se': {'arg': -1.0, 'func': np.multiply}}
-    )
     assertion.eq(armc.gamma, 2.0)
     assertion.eq(armc.hdf5_file, 'armc.hdf5')
     assertion.eq(armc.history_dict, {})

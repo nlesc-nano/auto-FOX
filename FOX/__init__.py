@@ -17,7 +17,7 @@ from .functions import (
     get_rdf_lowmem, get_rdf,
     get_adf,
     get_template, assert_error, get_example_xyz,
-    update_charge, get_charge_constraints
+    update_charge
 )
 
 from .io import (

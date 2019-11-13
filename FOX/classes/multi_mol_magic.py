@@ -284,7 +284,7 @@ class _MultiMolecule(np.ndarray):
             joiner = '\n' + (3 + len(key)) * ' '
             return f'{k} = ' + joiner.join(i for i in str_list)
 
-        ret = f'{self._ndrepr.repr(self)},\n\n'
+        ret = super().__str__() + '\n\n'
         ret += ',\n\n'.join(_str(k, v) for k, v in vars(self).items())
         ret_indent = textwrap.indent(ret, '    ')
         return f'{self.__class__.__name__}(\n{ret_indent}\n)'

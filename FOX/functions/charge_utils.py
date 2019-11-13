@@ -44,7 +44,7 @@ def get_net_charge(df: pd.DataFrame, index: Optional[Collection] = None,
 
 
 def update_charge(atom: str, value: float, df: pd.DataFrame,
-                  constrain_dict: Optional[Mapping] = None, constrain_tot: bool = True) -> None:
+                  constrain_dict: Optional[Mapping] = None, charge: bool = True) -> None:
     """Set the atomic charge of **at** equal to **charge**.
 
     The atomic charges in **df** are furthermore exposed to the following constraints:
@@ -81,7 +81,7 @@ def update_charge(atom: str, value: float, df: pd.DataFrame,
         A dictionary with charge constrains.
 
     """
-    value_summed = get_net_charge(df)
+    net_charge = get_net_charge(df)
     df.at[atom, 'param'] = value
 
     if not constrain_dict or atom in constrain_dict:
@@ -89,12 +89,12 @@ def update_charge(atom: str, value: float, df: pd.DataFrame,
     else:
         exclude = [atom]
 
-    if constrain_tot:
-        unconstrained_update(value_summed, df, exclude)
+    if charge:
+        unconstrained_update(net_charge, df, exclude)
 
 
 def constrained_update(at1: str, df: pd.DataFrame,
-                       constrain_dict: Optional[Mapping] = None) -> List[str]:
+                       constrain_dict: Optional[Mapping[Hashable, Callable]] = None) -> List[str]:
     """Perform a constrained update of atomic charges.
 
     Performs an inplace update of the ``"param"`` column in **df**.
@@ -122,21 +122,15 @@ def constrained_update(at1: str, df: pd.DataFrame,
         return exclude
     exclude_append = exclude.append
 
-    func1 = invert_ufunc(constrain_dict[at1]['func'])
-    i = constrain_dict[at1]['arg']
-
     # Perform a constrained charge update
-    for at2, values in constrain_dict.items():
+    func1 = invert_partial_ufunc(constrain_dict[at1])
+    for at2, func2 in constrain_dict.items():
         if at2 == at1:
             continue
         exclude_append(at2)
 
-        # Unpack values
-        func2 = values['func']
-        j = values['arg']
-
         # Update the charges
-        df.at[at2, 'param'] = func2(func1(charge, i), j)
+        df.at[at2, 'param'] = func2(func1(charge))
 
     return exclude
 
@@ -171,6 +165,13 @@ def unconstrained_update(net_charge: float, df: pd.DataFrame,
     df.loc[include, 'param'] *= i
 
 
+def invert_partial_ufunc(ufunc: functools.partial) -> Callable:
+    """Invert a NumPy universal function embedded within a :class:`functools.partial` instance."""
+    func = ufunc.func
+    x2 = ufunc.args[0]
+    return functools.partial(func, x2**-1)
+
+
 def assign_constraints(constraints: Union[str, Iterable[str]], param: pd.DataFrame, idx_key: str):
     # Parse integers and floats
     constraints = [constraints] if isinstance(constraints, str) else constraints
@@ -185,7 +186,7 @@ def assign_constraints(constraints: Union[str, Iterable[str]], param: pd.DataFra
     # Set values in **param**
     for constrain in constrain_list:
         if '==' in i:
-            pass
+            _eq_constraints(constrain, param, idx_key)
         else:
             _gt_lt_constraints(constrain, param, idx_key)
 
@@ -215,11 +216,11 @@ def _find_float(iterable: Iterable[str]) -> Tuple[str, float]:
 
 
 def _eq_constraints(constrain: list, param: pd.DataFrame, idx_key: str) -> None:
-    ret: Dict[str, functools.partial] = {}
-    constrain = ''.join(i for i in constrain).split('==')
+    constrain_dict: Dict[str, functools.partial] = {}
+    constrain = ''.join(str(i) for i in constrain).split('==')
     iterator = iter(constrain)
 
-    # Set the first item
+    # Set the first item; remove any prefactor and compensate al other items if required
     item = next(iterator).split('*')
     if len(item) == 1:
         at = item[0]
@@ -227,52 +228,16 @@ def _eq_constraints(constrain: list, param: pd.DataFrame, idx_key: str) -> None:
     elif len(item) == 2:
         at, multiplier = _find_float(item)
         multiplier **= -1
-    ret[at] = functools.partial(np.multiply, 1.0)
+    constrain_dict[at] = functools.partial(np.multiply, 1.0)
 
+    # Assign all other constraints
     for item in iterator:
+        item = item.split('*')
         at, i = _find_float(item)
         i *= multiplier
-        ret[at] = functools.partial(np.multiply, i)
+        constrain_dict[at] = functools.partial(np.multiply, i)
 
-
-def invert_ufunc(ufunc: Callable) -> Callable:
-    """Invert a NumPy universal function.
-
-    Addition will be turned into substraction and multiplication into division.
-
-    Examples
-    --------
-    .. code:: python
-
-        >>> ufunc = np.add
-        >>> ufunc_invert = invert_ufunc(ufunc)
-        >>> print(ufunc_invert)
-        <ufunc 'subtract'>
-
-        >>> ufunc = np.multiply
-        >>> ufunc_invert = invert_ufunc(ufunc)
-        >>> print(ufunc_invert)
-        <ufunc 'true_divide'>
-
-    Parameters
-    ----------
-    ufunc : |Callable|_
-        A NumPy universal function (ufunc).
-        Currently accepted ufuncs are ``np.add`` and ``np.multiply``.
-
-    Returns
-    -------
-    |Callable|_:
-        An inverted NumPy universal function.
-
-    """
-    invert_dict = {
-        np.add: np.subtract,
-        np.multiply: np.divide,
-    }
-
-    try:
-        return invert_dict[ufunc]
-    except KeyError as ex:
-        err = "'{}' is not a supported ufunc. Supported ufuncs consist of: 'add' & 'multiply'"
-        raise ValueError(err.format(ufunc.__name__)).with_traceback(ex.__traceback__)
+    # Update the dataframe
+    param['constraints'] = None
+    for at, _ in param.loc[idx_key].iterrows():
+        param.at[(idx_key, at), 'constraints'] = constrain_dict

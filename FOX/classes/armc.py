@@ -196,7 +196,7 @@ class ARMC(MonteCarlo):
         # Step 3: Evaluate the auxiliary error; accept if the new parameter set lowers the error
         aux_new = self.get_aux_error(pes_new)
         aux_old = self[key_old]
-        accept = True if (aux_new - aux_old).sum() < 0 else False
+        accept = (aux_new - aux_old).sum() < 0
 
         # Step 4: Update the auxiliary error history, apply phi & update job settings
         acceptance[omega] = accept
@@ -206,12 +206,13 @@ class ARMC(MonteCarlo):
         else:
             self[key_new] = aux_new
             self[key_old] = self.apply_phi(aux_old, self.phi)
-            self.param['param'] = self.param['param_old']
             key_new = key_old
 
         # Step 5: Export the results to HDF5
         hdf5_kwarg = self._hdf5_kwarg(mol_list, accept, aux_new, pes_new)
         to_hdf5(self.hdf5_file, hdf5_kwarg, kappa, omega)
+        if not accept:
+            self.param['param'] = self.param['param_old']
         return key_new
 
     def _get_first_key(self) -> Tuple[Tuple[float, ...], ...]:

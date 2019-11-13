@@ -1,7 +1,7 @@
 param:
     prm_file: ligand.prm
     charge:
-        constraints: [0 < Cs < 2, 1 < Pb < 3, -2 < Br < 0, Cd == -1 * Se]
+        constraints: ['0 < Cs < 2', '1 < Pb < 3', '-2 < Br < 0', 'Cd == -1 * Se']
         keys: [input, force_eval, mm, forcefield, charge]
         Cd: 0.9768
         Se: -0.9768
@@ -70,7 +70,6 @@ armc:
     phi: 1.0
 
 move:
-    charge_constraints: 'Cd = -1 * Se'
     range:
         start: 0.005
         stop: 0.1

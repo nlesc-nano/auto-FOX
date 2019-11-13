@@ -50,7 +50,6 @@ from collections import abc
 import numpy as np
 
 from ..functions.utils import str_to_callable
-from ..functions.charge_utils import get_charge_constraints
 
 __all__ = [
     'get_pes_schema', 'schema_armc', 'schema_move', 'schema_job', 'schema_param',
