@@ -249,7 +249,7 @@ def _reshape_param(s: Settings) -> None:
         s.job.md_settings.input.force_eval.mm.forcefield.parm_file_name = s.param.pop('prm_file')
 
     s.param = dict_to_pandas(s.param, 'param')
-    s.param['param old'] = np.nan
+    s.param['param_old'] = np.nan
     set_keys(s.job.md_settings, s.param)
 
 
