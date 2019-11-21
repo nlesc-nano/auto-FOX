@@ -12,7 +12,7 @@ EXCLUDE_PATHS: Tuple[str, ...] = ()
 
 def test_pep8_conformance() -> None:
     """Test for PEP8 compliance."""
-    print(f"PEP8 check of directories:\n{', '.join(INCLUDE_PATHS)}")
+    print(f"PEP8 check of directories: {', '.join(INCLUDE_PATHS)}\n")
 
     # Get paths wrt package root
     root = os.path.dirname(os.path.dirname(__file__))

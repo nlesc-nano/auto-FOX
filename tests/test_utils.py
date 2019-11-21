@@ -6,6 +6,7 @@ import pandas as pd
 import numpy as np
 
 from scm.plams import Settings
+from assertionlib import assertion
 
 from FOX.functions.utils import (
     assert_error, get_template, template_to_df, serialize_array, read_str_file, get_shape,
@@ -22,28 +23,23 @@ def test_assert_error():
     def test_func():
         pass
 
-    try:
-        test_func()
-    except ModuleNotFoundError as ex:
-        assert str(ex) == 'test error test_func'
-    except Exception as ex:
-        raise Exception(ex)
+    assertion.assert_(test_func, exception=ModuleNotFoundError)
 
 
 def test_get_template():
     """Test :func:`FOX.functions.utils.get_template`,"""
     s = get_template(name='md_cp2k_template.yaml')
-    assert isinstance(s, Settings)
+    assertion.isinstance(s, Settings)
 
     dict_ = get_template(name='md_cp2k_template.yaml', as_settings=False)
-    assert not isinstance(dict_, Settings)
-    assert isinstance(dict_, dict)
+    assertion.isinstance(dict_, Settings, invert=True)
+    assertion.isinstance(dict_, dict)
 
 
 def test_template_to_df():
     """Test :func:`FOX.functions.utils.template_to_df`,"""
     df = template_to_df('param.yaml', path=PATH)
-    assert isinstance(df, pd.DataFrame)
+    assertion.isinstance(df, pd.DataFrame)
 
     idx = np.array(['charge', 'epsilon', 'sigma'], dtype=object)
     np.testing.assert_array_equal(idx, df.index.values)
@@ -65,14 +61,14 @@ def test_serialize_array():
     ref = ('         0         0         0         0         0         0         0         '
            '0\n         0         0         0         0         0         0         0         '
            '0\n         0         0         0         0')
-    assert serialize_array(zeros) == ref
+    assertion.eq(serialize_array(zeros), ref)
 
 
 def test_read_str_file():
     """Test :func:`FOX.functions.utils.read_str_file`,"""
     at, charge = read_str_file(join(PATH, 'ligand.str'))
-    assert at == ('CG2O3', 'HGR52', 'OG2D2', 'OG2D2')
-    assert charge == (0.52, 0.0, -0.76, -0.76)
+    assertion.eq(at, ('CG2O3', 'HGR52', 'OG2D2', 'OG2D2'))
+    assertion.eq(charge, (0.52, 0.0, -0.76, -0.76))
 
 
 def test_get_shape():
@@ -81,9 +77,9 @@ def test_get_shape():
     b = a[0:15, 0].tolist()
     c = 5
 
-    assert get_shape(a) == (100, 10)
-    assert get_shape(b) == (15, )
-    assert get_shape(c) == (1, )
+    assertion.eq(get_shape(a), (100, 10))
+    assertion.eq(get_shape(b), (15,))
+    assertion.eq(get_shape(c), (1,))
 
 
 def test_dict_to_pandas():

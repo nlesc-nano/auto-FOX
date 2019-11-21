@@ -5,6 +5,7 @@ from os.path import join
 
 import pandas as pd
 import numpy as np
+from assertionlib import assertion
 
 from FOX.io.read_prm import (read_prm, write_prm, rename_atom_types, _update_dtype)
 
@@ -28,7 +29,7 @@ def test_read_prm():
     }
 
     for key in prm_dict:
-        assert prm_dict[key].shape == shape_dict[key]
+        assertion.shape_eq(prm_dict[key], shape_dict[key])
 
 
 def test_write_prm():
@@ -40,7 +41,7 @@ def test_write_prm():
     write_prm(prm_dict, param_tmp)
     with open(param_tmp, 'r') as a, open(param_ref, 'r') as b:
         for i, j in zip(a, b):
-            assert i == j
+            assertion.eq(i, j)
 
     remove(param_tmp)
 
@@ -58,8 +59,8 @@ def test_rename_atom_types():
             continue
         for key, value in rename_dict.items():
             idx = np.array(df.index.tolist())
-            assert key not in idx
-            assert value in idx
+            assertion.contains(idx, key, invert=True)
+            assertion.contains(idx, value)
 
 
 def test_update_dtype():
@@ -70,13 +71,13 @@ def test_update_dtype():
     float_blacklist = [1]
 
     _update_dtype(df, float_blacklist)
-    assert df[0].dtype == np.dtype('float64')
-    assert df[1].dtype == np.dtype('int64')
-    assert df[2].dtype == np.dtype('object')
+    assertion.eq(df[0].dtype, np.dtype('float64'))
+    assertion.eq(df[1].dtype, np.dtype('int64'))
+    assertion.eq(df[2].dtype, np.dtype('object'))
 
 
 def test_reorder_column_dict():
     """Test :func:`FOX.io.read_prm.reorder_column_dict`."""
     df = read_prm(join(PATH, 'test_param1.prm'))['ATOMS']
-    assert (df.columns == pd.Index(['MASS', '-1', 'mass'], name='parameters')).all()
-    assert df.index.name == 'Atom 1'
+    assertion((df.columns == pd.Index(['MASS', '-1', 'mass'], name='parameters')).all())
+    assertion.eq(df.index.name, 'Atom 1')
