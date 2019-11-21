@@ -1,6 +1,6 @@
 """A module for constructing angular distribution functions."""
 
-from typing import Sequence, Hashable, Dict
+from typing import Sequence, Hashable, Mapping, List
 
 import numpy as np
 import pandas as pd
@@ -32,7 +32,7 @@ def get_adf_df(atom_pairs: Sequence[Hashable]) -> pd.DataFrame:
 def get_adf(ang: np.ndarray,
             dist: np.ndarray,
             atnum_ar: np.ndarray,
-            atnum_dict: Dict[int, int],
+            atnum_dict: Mapping[int, int],
             distance_weighted: bool = True) -> np.ndarray:
     r"""Calculate and return the angular distribution function (ADF).
 
@@ -71,7 +71,9 @@ def get_adf(ang: np.ndarray,
     """
     ang_int = np.degrees(ang).astype(dtype=int)
 
-    ret = []
+    ret: List[np.ndarray] = []
+    ret_append = ret.append
+
     for k, v in atnum_dict.items():
         # Prepare slices
         j = atnum_ar == k
@@ -88,7 +90,7 @@ def get_adf(ang: np.ndarray,
         dens = at_count / denominator
 
         if not distance_weighted:
-            ret.append(dens)
+            ret_append(dens)
             continue
 
         # Weight (and re-normalize) the density based on the distance matrix **dist**
@@ -99,6 +101,6 @@ def get_adf(ang: np.ndarray,
             normalize = area / np.nansum(dens)
             dens *= normalize
         dens[np.isnan(dens)] = 0.0
-        ret.append(dens)
+        ret_append(dens)
 
     return np.array(ret).T
