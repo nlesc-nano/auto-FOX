@@ -248,9 +248,11 @@ def _reshape_param(s: Settings) -> None:
     else:
         s.job.md_settings.input.force_eval.mm.forcefield.parm_file_name = s.param.pop('prm_file')
 
-    s.param = dict_to_pandas(s.param, 'param')
-    s.param['param_old'] = np.nan
-    set_keys(s.job.md_settings, s.param)
+    s.param = param = dict_to_pandas(s.param, 'param')
+    param['param_old'] = np.nan
+    set_keys(s.job.md_settings, param)
+    if 'constraints' not in param.columns:
+        param['constraints'] = None
 
 
 def _generate_psf(path: str, mol: MultiMolecule, md_settings: Settings,
