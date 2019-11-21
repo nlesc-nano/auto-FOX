@@ -223,7 +223,7 @@ def reshape_settings(s: Settings) -> None:
             s.preopt_settings = Settings()
         s.preopt_settings = s.md_settings + s.preopt_settings
         del s.preopt_settings.input.motion.md
-        s.preopt_settings['global'].run_type = 'geometry_optimization'
+        s.preopt_settings.input['global'].run_type = 'geometry_optimization'
 
     return s, pes, job
 
