@@ -135,11 +135,13 @@ def test_rdf():
     mol = MOL.copy()
 
     atoms = ('Cd', 'Se', 'O')
-    rdf1 = mol.init_rdf(atom_subset=atoms).values
-    rdf2 = mol.init_rdf(atom_subset=atoms, low_mem=True).values
+    rdf1 = mol.init_rdf(atom_subset=atoms, mem_level=0).values
+    rdf2 = mol.init_rdf(atom_subset=atoms, mem_level=1).values
+    rdf3 = mol.init_rdf(atom_subset=atoms, mem_level=2).values
     ref = np.load(join(PATH, 'rdf.npy'))
     np.testing.assert_allclose(rdf1, ref)
     np.testing.assert_allclose(rdf2, ref)
+    np.testing.assert_allclose(rdf3, ref)
 
 
 def test_rmsf():

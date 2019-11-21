@@ -1154,9 +1154,7 @@ class MultiMolecule(_MultiMolecule):
     """#############################  Radial Distribution Functions  ##########################"""
 
     def init_rdf(self, atom_subset: AtomSubset = None,
-                 dr: float = 0.05,
-                 r_max: float = 12.0,
-                 low_mem: bool = False):
+                 dr: float = 0.05, r_max: float = 12.0, mem_level: int = 2):
         """Initialize the calculation of radial distribution functions (RDFs).
 
         RDFs are calculated for all possible atom-pairs in **atom_subset** and returned as a
@@ -1176,8 +1174,14 @@ class MultiMolecule(_MultiMolecule):
         r_max : float
             The maximum to be evaluated interatomic distance in Ångström.
 
-        low_mem : bool
-            If ``True``, use a slower but more memory efficient method for constructing the RDFs.
+        mem_level : int
+            Set the level of to-be consumed memory and, by extension, the execution speed.
+            Given a molecule subset of size :math:`m` and atom subsets of (up to) size :math:`n`,
+            the **mem_level** values can be interpreted as following:
+
+            * ``0``: Slow; memory scaling: :math:`n`
+            * ``1``: Medium; memory scaling: :math:`m * n`
+            * ``2``: Fast; memory scaling: :math:`m * n^2`
 
         Returns
         -------
@@ -1188,27 +1192,40 @@ class MultiMolecule(_MultiMolecule):
             Radii are used as index.
 
         """
+        def _rdf(i, j) -> np.ndarray:
+            dist_mat = self.get_dist_mat(mol_subset=i, atom_subset=at)
+            return get_rdf_lowmem(dist_mat, dr=dr, r_max=r_max)
+
+        # Validate the 'mem_level' parameter
+        if not 0 <= mem_level <= 2:
+            raise ValueError("The 'mem_level' parameter should be between 0 and 2")
+
         # If **atom_subset** is None: extract atomic symbols from they keys of **self.atoms**
-        at_subset = atom_subset or tuple(sorted(self.atoms.keys(), key=str))
+        at_subset = atom_subset or sorted(self.atoms, key=str)
         atom_pairs = self.get_pair_dict(at_subset, r=2)
 
         # Construct an empty dataframe with appropiate dimensions, indices and keys
         df = get_rdf_df(atom_pairs, dr, r_max)
-        kwargs = {'dr': dr, 'r_max': r_max}
 
         # Fill the dataframe with RDF's, averaged over all conformations in this instance
-        if low_mem:  # Slower low memory approach
-            for i in range(self.shape[0]):
+        mol_range = range(self.shape[0])
+        if mem_level == 0:  # Slow speed approach; mem scaling: n
+            for i in mol_range:
                 for key, at in atom_pairs.items():
-                    dist_mat = self.get_dist_mat(mol_subset=i, atom_subset=at)
-                    df[key] += get_rdf_lowmem(dist_mat, **kwargs)
+                    df[key] += _rdf(i, at)
             df.loc[0.0] = 0.0
-            df /= self.shape[0]
+            df /= len(self)
 
-        else:  # Faster high memory approach
+        elif mem_level == 1:  # Medium speed approach; mem scaling: m * n
+            for key, at in atom_pairs.items():
+                df[key] = np.sum([_rdf(i, at) for i in mol_range], axis=0)
+            df.loc[0.0] = 0.0
+            df /= len(self)
+
+        else:  # High speed approach; mem scaling: m * n**2
             for key, at in atom_pairs.items():
                 dist_mat = self.get_dist_mat(atom_subset=at)
-                df[key] = get_rdf(dist_mat, **kwargs)
+                df[key] = get_rdf(dist_mat, dr=dr, r_max=r_max)
 
         return df
 
@@ -1505,7 +1522,7 @@ class MultiMolecule(_MultiMolecule):
         at_subset = np.asarray(self._get_atom_subset(atom_subset, as_sequence=True))
 
         # Construct a dictionary with atom counts and unique atom-pair identifiers
-        atom_pairs = self.get_pair_dict(atom_subset or list(self.atoms), r=3)
+        atom_pairs = self.get_pair_dict(atom_subset or sorted(self.atoms, key=str), r=3)
         atnum_dict = {}
         get_atnum = PeriodicTable.get_atomic_number  # method alias
         for at1, at2, at3 in atom_pairs.values():

@@ -85,7 +85,7 @@ def test_cp2k_md():
     )
 
     assertion.isinstance(armc.param, pd.DataFrame)
-    assertion.eq(armc.param.shape, (14, 7))
+    assertion.shape_eq(armc.param, (14, 8))
 
     assertion.isinstance(armc.pes, dict)
     assertion.contains(armc.pes, 'rdf')

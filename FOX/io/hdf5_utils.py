@@ -49,8 +49,9 @@ from __future__ import annotations
 
 from os import remove
 from time import sleep
-from os.path import isfile
 from typing import (Dict, Iterable, Optional, Union, Hashable, List, Tuple, Any)
+from os.path import isfile
+from collections import abc
 
 import numpy as np
 import pandas as pd
@@ -386,15 +387,15 @@ def _xyz_to_hdf5(filename: str, omega: int,
     filename : str
         The path+filename of the hdf5 file.
 
-    mol_list : |list|_ [|FOX.MultiMolecule|_] or |float|_
-        All to-be exported :class:`MultiMolecule` instance(s) or float (*e.g.* ``np.nan``).
-
     omega : int
         The sub-iteration, :math:`\omega`, in the inner loop of :meth:`.ARMC.__call__`.
 
+    mol_list : |list|_ [|FOX.MultiMolecule|_] or |float|_
+        All to-be exported :class:`MultiMolecule` instance(s) or float (*e.g.* ``np.nan``).
+
     """
     with h5py.File(filename, 'a', libver='latest') as f:
-        if isinstance(mol_list, (float, np.float)):
+        if not isinstance(mol_list, abc.Iterable):
             i = 0
             while True:
                 try:
