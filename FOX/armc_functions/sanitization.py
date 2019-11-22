@@ -34,7 +34,7 @@ import pandas as pd
 
 from scm.plams import Settings, Molecule
 
-from ..io.read_psf import PSFContainer, overlay_str_file
+from ..io.read_psf import PSFContainer, overlay_str_file, overlay_rtf_file
 from ..classes.multi_mol import MultiMolecule
 from ..functions.utils import get_template, dict_to_pandas, get_atom_count, _get_move_range
 from ..functions.cp2k_utils import set_keys, set_subsys_kind
@@ -276,7 +276,10 @@ def _generate_psf(path: str, mol: MultiMolecule, md_settings: Settings,
 
     if not_None:
         psf.filename = psf_file = join(path, 'mol.psf')
-        overlay_str_file(psf, psf_s.str_file)
+        if psf_s.str_file:
+            overlay_str_file(psf, psf_s.str_file)
+        else:
+            overlay_rtf_file(psf, psf_s.rtf_file)
         md_settings.input.force_eval.subsys.topology.conn_file_name = psf_file
         md_settings.input.force_eval.subsys.topology.conn_file_format = 'PSF'
 

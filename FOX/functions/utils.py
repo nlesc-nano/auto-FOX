@@ -211,7 +211,7 @@ def serialize_array(array: np.ndarray, items_per_row: int = 4) -> str:
     return ret
 
 
-def read_str_file(filename: str) -> Optional[zip]:
+def read_str_file(filename: str) -> Optional[Tuple[Sequence, Sequence]]:
     """Read atomic charges from CHARMM-compatible stream files (.str).
 
     Returns a settings object with atom types and (atomic) charges.
@@ -223,16 +223,17 @@ def read_str_file(filename: str) -> Optional[zip]:
 
     Returns
     -------
-    |plams.Settings|_ [|str|_, |tuple|_ [|str|_ or |float|_]]:
+    :class:`Sequence` [:class:`str`] and :class:`Sequence` [:class:`float`]
         A settings object with atom types and (atomic) charges.
 
     """
     def inner_loop(f):
         ret = []
+        ret_append = ret.append
         for j in f:
             if j != '\n':
                 j = j.split()[2:4]
-                ret.append((j[0], float(j[1])))
+                ret_append((j[0], float(j[1])))
             else:
                 return ret
 
@@ -761,3 +762,15 @@ def group_by_values(iterable: Iterable[Tuple[Any, Hashable]]) -> Dict[Hashable, 
             ret[key] = [value]
             list_append[key] = ret[key].append
     return ret
+
+
+def read_rtf_file(filename: str) -> Optional[Tuple[Sequence[str], Sequence[float]]]:
+    """Return a 2-tuple with all atom types and charges."""
+    def _parse_item(item: str) -> Tuple[str, float]:
+        item_list = item.split()
+        return item_list[j], float(item_list[k])
+
+    i, j, k = len('ATOM'), 2, 3
+    with open(filename, 'r') as f:
+        ret = [_parse_item(item) for item in f if item[:i] == 'ATOM']
+    return zip(*ret) if ret else None

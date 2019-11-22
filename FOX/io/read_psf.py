@@ -34,7 +34,7 @@ from assertionlib.dataclass import AbstractDataClass
 
 from .file_container import AbstractFileContainer
 from ..classes.frozen_settings import FrozenSettings
-from ..functions.utils import read_str_file
+from ..functions.utils import read_str_file, read_rtf_file
 from ..functions.molecule_utils import get_bonds, get_angles, get_dihedrals, get_impropers
 
 __all__ = ['PSFContainer']
@@ -803,10 +803,10 @@ class PSFContainer(AbstractDataClass, AbstractFileContainer):
 
         """  # noqa
         def get_res_id(at: Atom) -> int:
-            return at.properties.pdb_info.ResidueNumber or 1  # noqa
+            return at.properties.pdb_info.ResidueNumber or 1
 
         def get_res_name(at: Atom) -> str:
-            return at.properties.pdb_info.ResidueName or 'COR'  # noqa
+            return at.properties.pdb_info.ResidueName or 'COR'
 
         def get_at_type(at: Atom) -> str:
             return at.properties.symbol or at.symbol
@@ -873,6 +873,29 @@ def overlay_str_file(psf: PSFContainer, filename: str) -> None:
 
     """
     at_type, charge = read_str_file(filename)
+    _overlay(psf, at_type, charge)
+
+
+def overlay_rtf_file(psf: PSFContainer, filename: str) -> None:
+    """Update all ligand atom types and atomic charges in :attr:`PSF.atoms`.
+
+    Performs an inplace update of the ``"charge"`` and ``"atom type"`` columns
+    in :attr:`PSFContainer.atoms`.
+
+    Parameters
+    ----------
+    psf : |FOX.PSFContainer|
+        A :class:`PSFContainer` instance.
+
+    filename : str
+        The path+filename of a .rtf file containing ligand charges and atom types.
+
+    """
+    at_type, charge = read_rtf_file(filename)
+    _overlay(psf, at_type, charge)
+
+
+def _overlay(psf: PSFContainer, at_type: Iterable[str], charge: Iterable[float]) -> None:
     id_range = range(2, 1 + max(psf.residue_id))
     for i in id_range:
         j = psf.residue_id == i

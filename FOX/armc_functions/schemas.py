@@ -143,6 +143,8 @@ schema_hdf5: Schema = Schema(str, error='hdf5_file expects a string')
 schema_psf: Schema = Schema({
     ('str_file',): Or(None, And(str), error='psf.str_file expects a string'),
 
+    ('rtf_file',): Or(None, And(str), error='psf.rtf_file expects a string'),
+
     ('ligand_atoms',): Or(None, And(abc.Sequence, lambda x: all([isinstance(i, str) for i in x])),
                           error='psf.ligand_atoms expects a sequence of strings')
 })

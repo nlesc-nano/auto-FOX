@@ -107,6 +107,7 @@ Arguments
  param.sigma                -                  A dictionary with atom-pairs and the matching Lennard-Jones :math:`\sigma` parameter.
 
  psf.str_file               -                  The path+filename to a stream file; used for assigning atom types and charges to ligands.
+ psf.rtf_file               -                  The path+filename to a MATCH-produced rtf file; used for assigning atom types and charges to ligands.
  psf.ligand_atoms           -                  All atoms within a ligand, used for defining residues.
 
  pes                        -                  A dictionary holding one or more functions for constructing PES descriptors.
