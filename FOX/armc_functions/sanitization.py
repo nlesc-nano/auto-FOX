@@ -257,7 +257,7 @@ def _reshape_param(s: Settings) -> None:
 
 def _generate_psf(path: str, mol: MultiMolecule, md_settings: Settings,
                   psf_s: Settings, param: pd.DataFrame) -> Optional[PSFContainer]:
-    not_None = all(i is not None for i in psf_s.values())
+    not_None = (psf_s.str_file or psf_s.rtf_file) and psf_s.ligand_atoms
     if not_None:
         mol.guess_bonds(atom_subset=psf_s.ligand_atoms)
 
