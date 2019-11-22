@@ -1,0 +1,188 @@
+"""
+FOX.functions.lj_param
+======================
+
+A module for estimating Lennard-Jones parameters.
+
+Examples
+--------
+.. code:: python
+
+    >>> import pandas as pd
+    >>> from FOX import MultiMolecule, get_example_xyz, estimate_lennard_jones
+
+    >>> xyz_file: str = get_example_xyz()
+    >>> atom_subset = ['Cd', 'Se', 'O']
+
+    >>> mol = MultiMolecule.from_xyz(xyz_file)
+    >>> rdf: pd.DataFrame = mol.init_rdf(atom_subset=atom_subset)
+    >>> param: pd.DataFrame = estimate_lennard_jones(rdf)
+
+    >>> print(param)
+                sigma (Angstrom)  epsilon (kj/mol)
+    Atom pairs
+    Cd Cd                   3.95          2.097554
+    Cd Se                   2.50          4.759017
+    Cd O                    2.20          3.360966
+    Se Se                   4.20          2.976106
+    Se O                    3.65          0.992538
+    O O                     2.15          6.676584
+
+
+Index
+-----
+.. currentmodule:: FOX.functions.lj_param
+.. autosummary::
+    estimate_lj
+    get_free_energy
+
+API
+---
+.. autofunction:: estimate_lj
+.. autofunction:: get_free_energy
+
+"""
+
+from typing import TypeVar, Optional, Mapping, List, Dict, Generator
+
+import numpy as np
+import pandas as pd
+from scipy import constants
+
+from scm.plams import Units
+
+__all__ = ['estimate_lj', 'get_free_energy']
+
+A = TypeVar('A', pd.DataFrame, pd.Series, np.ndarray)
+
+
+def get_free_energy(distribution: A,
+                    temperature: float = 298.15,
+                    inf_replace: Optional[float] = np.nan) -> A:
+    r"""Convert a distribution function into a free energy function.
+
+    Given a distribution function :math:`g(r)` with the parameter :math:`r`, the free energy
+    :math:`F(g(r))` can be retrieved using a Boltzmann inversion:
+
+    .. math::
+
+        F(g(r)) = -RT * \text{ln} (g(r))
+
+    Two examples of valid distribution functions would be the
+    radial-  and angular distribution functions.
+
+    Parameters
+    ----------
+    distribution : :class:`pandas.DataFrame`
+        A distribution function (*e.g.* an RDF) as Pandas DataFrame or Series.
+
+    temperature : :class:`float`
+        The temperature in Kelvin.
+
+    inf_replace : :class:`float`, optional
+        A value used for replacing all instances of infinity (``np.inf``).
+
+    Returns
+    -------
+    :class:`pandas.DataFrame`:
+        An array-like object with a free-energy function (kj/mol) of **distribution**.
+
+    See Also
+    --------
+    :meth:`.MultiMolecule.init_rdf`
+        Initialize the calculation of radial distribution functions (RDFs).
+
+    :meth:`.MultiMolecule.init_adf`
+        Initialize the calculation of distance-weighted angular distribution functions (ADFs).
+
+    """
+    RT = (constants.R / 1000) * temperature  # kj/mol
+    with np.errstate(divide='ignore'):
+        ret = -RT * np.log(distribution)
+    if inf_replace is not None:
+        ret[ret == np.inf] = inf_replace
+    return ret
+
+
+def estimate_lj(rdf: pd.DataFrame, temperature: float = 298.15) -> pd.DataFrame:
+    r"""Estimate the Lennard-Jones :math:`\sigma` and :math:`\varepsilon` parameters.
+
+    Given a radius :math:`r`, the Lennard-Jones potential :math:`V_{LJ}(r)` is defined as
+    following:
+
+    .. math::
+
+        V_{LJ}(r) = 4 \varepsilon
+        \left(
+            \left(
+                \frac{\sigma}{r}
+            \right )^{12} -
+            \left(
+                \frac{\sigma}{r}
+            \right )^6
+        \right )
+
+    The :math:`\sigma` and :math:`\varepsilon` parameters are estimated as following:
+
+    * :math:`\sigma`: The radii at which the first inflection point occurs in **rdf**.
+    * :math:`\varepsilon`: The minimum value in of the **rdf** ree energy multiplied by :math:`-1`.
+    * All values are calculated per atom pair specified in **rdf**.
+
+    Parameters
+    ----------
+    rdf : :class:`pandas.DataFrame`
+        A radial distribution function.
+        The columns should consist of atom-pairs.
+
+    temperature : :class:`float`
+        The temperature in Kelvin.
+
+    Returns
+    -------
+    :class:`pandas.DataFrame`
+        A Pandas DataFrame with two columns, ``"sigma"`` (in Angstrom)
+        and ``"epsilon"`` (in kj/mol), holding the Lennard-Jones parameters.
+        Atom-pairs from **rdf** are used as index.
+
+    See Also
+    --------
+    :meth:`.MultiMolecule.init_rdf`
+        Initialize the calculation of radial distribution functions (RDFs).
+
+    :func:`get_free_energy`
+        Convert a distribution function into a free energy function.
+
+    """
+    G = get_free_energy(rdf, temperature)
+
+    # Prepare the parameter sigma
+    lj_dict: Dict[str, List[float]] = {'sigma (Angstrom)': []}
+    sigma_append = lj_dict['sigma (Angstrom)'].append
+
+    for atoms, distr in rdf.items():
+        grad = np.gradient(distr)
+        i = np.argmax(grad)  # The first inflection point in the RDF
+        sigma_append(distr.index[i])
+
+    lj_dict['epsilon (kj/mol)'] = -1 * G.min()
+    return pd.DataFrame(lj_dict, index=G.columns)
+
+
+def _charge_test(rdf: pd.DataFrame, charge_dict: Mapping[str, float],
+                 temperature: float = 298.15) -> pd.Series:
+    def iter_epsilon(G: pd.DataFrame) -> Generator[float, None, None]:
+        for at_pair in G:
+            at1, at2 = at_pair.split()
+            q1q2 = charge_dict.get(at1, 0.0) * charge_dict.get(at2, 0.0)
+            r_min = G[at_pair].idxmin()
+            E_min = G.at[r_min, at_pair]
+            yield -1 * (E_min - q1q2 / r_min)
+
+    G = get_free_energy(rdf, temperature)
+    G *= Units.conversion_ratio('kj/mol', 'au')
+    G.index *= Units.conversion_ratio('Angstrom', 'Bohr')
+
+    # Prepare the paramater epsilon; correct for Coulombic interaction if necessary
+    ret = np.fromiter(iter_epsilon(G), count=G.shape[1], dtype=float)
+    ret *= Units.conversion_ratio('au', 'kj/mol')
+    return pd.Series(ret, index=G.columns, name='epsilon (kj/mol)')
