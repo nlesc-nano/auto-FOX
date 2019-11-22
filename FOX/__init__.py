@@ -17,7 +17,8 @@ from .functions import (
     get_rdf_lowmem, get_rdf,
     get_adf,
     get_template, assert_error, get_example_xyz,
-    update_charge
+    update_charge,
+    estimate_lj
 )
 
 from .io import (
@@ -42,6 +43,7 @@ __all__ = [
     'get_rdf_lowmem', 'get_rdf',
     'get_adf',
     'get_template', 'assert_error', 'get_example_xyz',
+    'estimate_lj',
 
     'read_kf',
     'read_multi_xyz',

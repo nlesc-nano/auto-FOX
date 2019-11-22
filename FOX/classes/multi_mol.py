@@ -1288,7 +1288,7 @@ class MultiMolecule(_MultiMolecule):
         """
         values = list(combinations_with_replacement(atom_subset, r))
 
-        if not isinstance(atom_subset[0], str):
+        if not isinstance(next(iter(atom_subset)), str):
             str_ = 'series' + ''.join(' {:d}' for _ in values[0])
             return {str_.format(*[i.index(j) for j in i]): i for i in values}
 
