@@ -3,6 +3,7 @@ param:
 
 psf:
     str_file: null
+    rtf_file: null
     ligand_atoms: null
 
 pes: null

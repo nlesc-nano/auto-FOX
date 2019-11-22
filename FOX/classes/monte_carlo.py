@@ -21,7 +21,6 @@ API
 
 import shutil
 import functools
-from functools import partial
 from collections import abc
 from typing import (
     Tuple, List, Dict, Optional, Union, Iterable, Hashable, Iterator, Any, Mapping, Type, Callable

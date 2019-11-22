@@ -2032,7 +2032,7 @@ class MultiMolecule(_MultiMolecule):
 
         # Fill the template molecule with bonds
         if self.bonds.any():
-            bond_idx = np.ones(len(self))
+            bond_idx = np.ones(self.shape[1])
             bond_idx[at_subset] += np.arange(len(at_subset))
             add_bond = mol_template.add_bond
             for i, j, order in self.bonds:

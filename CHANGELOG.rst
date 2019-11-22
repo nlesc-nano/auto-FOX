@@ -5,6 +5,15 @@ Change Log
 All notable changes to this project will be documented in this file.
 This project adheres to `Semantic Versioning <http://semver.org/>`_.
 
+0.6.2
+*****
+* Added the option to read ligand parameters from .rtf files produced by MATCH_.
+  Serves as an alternative for cgenff's .str files.
+* Fixed a missing key for MD pre-optimizations: https://github.com/nlesc-nano/auto-FOX/commit/08b9e3224965a359de8471b9976d2343db96f9de.
+
+.. _MATCH: http://brooks.chem.lsa.umich.edu/index.php?page=match&subdir=articles/resources/software
+
+
 0.6.1
 *****
 * Added an additionl memory consumption level to `MultiMolecule.init_rdf()`.
