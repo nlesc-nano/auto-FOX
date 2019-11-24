@@ -17,6 +17,11 @@ from FOX import MultiMolecule, get_example_xyz
 from FOX.functions.utils import group_by_values
 from FOX.io.read_psf import PSFContainer
 
+__all__ = []
+
+SliceMapping = Mapping[Tuple[str, str], Tuple[Sequence[int], Sequence[int]]]
+PrmMapping = Mapping[Tuple[str, str], Tuple[float, float, float]]
+
 
 def fill_diagonal_blocks(ar: np.ndarray, i: int, j: int, fill_value: float = np.nan) -> None:
     """Fill diagonal blocks of size :math:`i * j`."""
@@ -97,10 +102,6 @@ def get_V_lj(sigma: float, epsilon: float, dist: np.ndarray) -> float:
     return np.nansum(lj)
 
 
-SliceMapping = Mapping[Tuple[str, str], Tuple[Sequence[int], Sequence[int]]]
-PrmMapping = Mapping[Tuple[str, str], Tuple[float, float, float]]
-
-
 def get_V(mol: MultiMolecule, slice_mapping: SliceMapping,
           prm_mapping: PrmMapping,
           core_atoms: Optional[Iterable[str]] = None) -> pd.DataFrame:
@@ -142,14 +143,14 @@ def construct_prm_df(atoms: Iterable[str]) -> pd.DataFrame:
     return pd.DataFrame(
         0.0,
         index=pd.MultiIndex.from_tuples(combinations_with_replacement(sorted(atoms), 2)),
-        columns=['charge', 'sigma', 'epsilon']
+        columns=['charge', 'epsilon', 'sigma']
     )
 
 
-def set_charges(df: pd.DataFrame, charge_mapping: Mapping[str, float]) -> None:
+def set_charge(df: pd.DataFrame, charge_mapping: Mapping[str, float]) -> None:
     """Set :math:`q_{i} * q_{j}`."""
-    for ij in combinations_with_replacement(charge_mapping, 2):
-        i, j = sorted(ij)
+    atom_pairs = combinations_with_replacement(sorted(charge_mapping), 2)
+    for i, j in atom_pairs:
         charge = charge_mapping[i] * charge_mapping[j]
         df.at[(i, j), 'charge'] = charge
 
@@ -157,49 +158,48 @@ def set_charges(df: pd.DataFrame, charge_mapping: Mapping[str, float]) -> None:
 def set_epsilon(df: pd.DataFrame, epsilon_mapping: Mapping[str, float],
                 unit: str = 'kj/mol') -> None:
     r"""Set :math:`\sqrt{\varepsilon_{i} * \varepsilon_{j}}`."""
-    atom_pairs = list(combinations_with_replacement(sorted(epsilon_mapping), 2))
-    for ij in atom_pairs:
-        i, j = ij
-        epsilon = epsilon_mapping[i] * epsilon_mapping[j]
+    atom_pairs = combinations_with_replacement(sorted(epsilon_mapping), 2)
+    for i, j in atom_pairs:
+        epsilon = (epsilon_mapping[i] * epsilon_mapping[j])**0.5
+        epsilon *= Units.conversion_ratio(unit, 'au')
         df.at[(i, j), 'epsilon'] = epsilon
-
-    df.loc[atom_pairs, 'epsilon'] **= 0.5
-    df.loc[atom_pairs, 'epsilon'] *= Units.conversion_ratio(unit, 'au')
 
 
 def set_sigma(df: pd.DataFrame, sigma_mapping: Mapping[str, float],
               unit: str = 'nm') -> None:
     r"""Set :math:`\frac{ \sigma_{i} * \sigma_{j} }{2}`."""
-    atom_pairs = list(combinations_with_replacement(sorted(sigma_mapping), 2))
-    for ij in atom_pairs:
-        i, j = ij
-        sigma = sigma_mapping[i] + sigma_mapping[j]
+    unit2au = Units.conversion_ratio(unit, 'au')
+    atom_pairs = combinations_with_replacement(sorted(sigma_mapping), 2)
+    for i, j in atom_pairs:
+        sigma = (sigma_mapping[i] + sigma_mapping[j]) / 2
+        sigma *= unit2au
         df.at[(i, j), 'sigma'] = sigma
 
-    df.loc[atom_pairs, 'sigma'] /= 2
-    df.loc[atom_pairs, 'sigma'] *= Units.conversion_ratio(unit, 'au')
+
+def set_charge_pairs(df: pd.DataFrame, charge_mapping: Mapping[Tuple[str, str], float]) -> None:
+    """Set :math:`q_{ij}`."""
+    for _ij, charge in charge_mapping.items():
+        ij = sorted(_ij)
+        df.at[ij, 'charge'] = charge
 
 
 def set_epsilon_pairs(df: pd.DataFrame, epsilon_mapping: Mapping[Tuple[str, str], float],
                       unit: str = 'kj/mol') -> None:
     r"""Set :math:`\varepsilon_{ij}`."""
-    for ij, epsilon in epsilon_mapping.items():
-        i, j = ij
-        df.at[(i, j), 'epsilon'] = epsilon
-
-    atom_pairs = list(epsilon_mapping.keys())
-    df.loc[atom_pairs, 'epsilon'] *= Units.conversion_ratio(unit, 'au')
+    unit2au = Units.conversion_ratio(unit, 'au')
+    for _ij, epsilon in epsilon_mapping.items():
+        ij = sorted(_ij)
+        epsilon *= unit2au
+        df.at[ij, 'epsilon'] = epsilon
 
 
 def set_sigma_pairs(df: pd.DataFrame, sigma_mapping: Mapping[Tuple[str, str], float],
                     unit: str = 'nm') -> None:
     r"""Set :math:`\sigma_{ij}`."""
-    for ij, sigma in sigma_mapping.items():
-        i, j = ij
-        df.at[(i, j), 'sigma'] = sigma
-
-    atom_pairs = list(sigma_mapping.keys())
-    df.loc[atom_pairs, 'sigma'] *= Units.conversion_ratio(unit, 'au')
+    for _ij, sigma in sigma_mapping.items():
+        ij = sorted(_ij)
+        sigma *= Units.conversion_ratio(unit, 'au')
+        df.at[ij, 'sigma'] = sigma
 
 
 def get_atom_dict(psf: Union[str, PSFContainer]) -> Dict[str, List[int]]:
@@ -223,13 +223,14 @@ def get_atom_dict(psf: Union[str, PSFContainer]) -> Dict[str, List[int]]:
     try:
         iterator = enumerate(psf.atom_type)
     except AttributeError as ex:
-        raise TypeError("Invalid type: '{psf.__class__.__name__}'").with_traceback(ex.__traceback__)
+        err = "The 'psf' parameter is of invalid type: '{psf.__class__.__name__}'"
+        raise TypeError(err).with_traceback(ex.__traceback__)
     return group_by_values(iterator)
 
 
-charges = {'Cd': 0.976800, 'Se': -0.976800, 'O': -0.470400, 'H': 0.0, 'C': 0.452400}
-epsilon = {'H': -0.0460, 'C': -0.0700, 'O': -0.1200}  # kcal/mol
-sigma = {'H': 0.9000, 'C': 2.0000, 'O': 1.7000}  # Ånstroms
+charge_dict = {'Cd': 0.976800, 'Se': -0.976800, 'O': -0.470400, 'H': 0.0, 'C': 0.452400}
+epsilon_dict = {'H': -0.0460, 'C': -0.0700, 'O': -0.1200}  # kcal/mol
+sigma_dict = {'H': 0.9000, 'C': 2.0000, 'O': 1.7000}  # Ånstroms
 
 epsilon_pairs = {('Cd', 'Cd'): 0.3101,  # kj/mol
                  ('Se', 'Se'): 0.4266,
@@ -244,11 +245,11 @@ sigma_pairs = {('Cd', 'Cd'): 0.1234,  # nm
                ('O', 'Se'): 0.3526}
 
 # Create and fill a DataFrame of all (pair-wise) parameters
-df = construct_prm_df(charges)
-set_charges(df, charges)
-set_epsilon(df, epsilon, unit='kcal/mol')
+df = construct_prm_df(charge_dict)
+set_charge(df, charge_dict)
+set_epsilon(df, epsilon_dict, unit='kcal/mol')
 set_epsilon_pairs(df, epsilon_pairs)
-set_sigma(df, sigma, unit='angstrom')
+set_sigma(df, sigma_dict, unit='angstrom')
 set_sigma_pairs(df, sigma_pairs)
 
 # Create the molecule
