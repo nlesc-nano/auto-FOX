@@ -6,31 +6,160 @@ A module for calculating non-bonded interactions using Coulomb + Lennard-Jones p
 
 """
 
+from types import MappingProxyType
 from itertools import combinations_with_replacement
 from typing import Mapping, Tuple, Sequence, Optional, Iterable, Union, Dict, List
 
 import numpy as np
 import pandas as pd
 
-from scm.plams import Units
-from FOX import MultiMolecule, get_example_xyz
-from FOX.functions.utils import group_by_values
-from FOX.io.read_psf import PSFContainer
+from scm.plams import Units, Settings
 
-__all__ = []
+from .utils import read_rtf_file, fill_diagonal_blocks, group_by_values
+from ..classes.multi_mol import MultiMolecule
+from ..io.read_psf import PSFContainer
+from ..io.read_prm import PRMContainer
+
+__all__ = ['get_non_bonded', 'get_V']
 
 SliceMapping = Mapping[Tuple[str, str], Tuple[Sequence[int], Sequence[int]]]
 PrmMapping = Mapping[Tuple[str, str], Tuple[float, float, float]]
 
 
-def fill_diagonal_blocks(ar: np.ndarray, i: int, j: int, fill_value: float = np.nan) -> None:
-    """Fill diagonal blocks of size :math:`i * j`."""
-    i0 = j0 = 0
-    len_ar = ar.shape[1]
-    while len_ar > i0:
-        ar[:, i0:i0+i, j0:j0+j] = fill_value
-        i0 += i
-        j0 += j
+def get_non_bonded(mol: Union[str, MultiMolecule],
+                   psf: Union[str, PSFContainer],
+                   prm: Union[None, str, PRMContainer] = None,
+                   rtf: Optional[str] = None,
+                   cp2k_settings: Optional[Mapping] = None) -> pd.DataFrame:
+    r"""Collect forcefield parameters and calculate all non-covalent interactions in **mol**.
+
+    Forcefield parameters (*i.e.* charges and Lennard-Jones :math:`\sigma` and
+    :math:`\varepsilon` values) are collected from the provided **psf**, **prm**, **rtf** and/or
+    **cp2k_settings** parameters.
+    Note that only that only **psf** is strictly required, though due to the lack of
+    :math:`\sigma` and :math:`\varepsilon` values the resulting potential energy
+    will be exclusivelly electrostatic in nature.
+    Supplying a **prm** and/or **rtf** file is redundant if
+    all parameters are specified in **cp2k_settings**.
+
+    Intra-ligand interactions are ignored.
+
+    Parameters
+    ----------
+    mol : :class:`str` or :class:`MultiMolecule`
+        A MultiMolecule instance or the path+filename of an .xyz file.
+
+    psf : :class:`str` or :class:`PSFContainer`
+        A PSFContainer instance or the path+filename of a .psf file.
+         Used for setting :math:`q` and creating atom-subsets.
+
+    prm : :class:`str` or :class:`PRMContainer`, optional
+        A PRMContainer instance or the path+filename of a .prm file.
+        Used for setting :math:`\sigma` and :math:`\varepsilon`.
+
+    rtf : :class:`str`, optional
+        The path+filename of an .rtf file.
+        Used for setting :math:`q`.
+
+    cp2k_settings : :class:`Settings`, optional
+        CP2K input settings.
+        Used for setting :math:`q`, :math:`\sigma` and :math:`\varepsilon`.
+
+    Returns
+    -------
+    :class:`pandas.DataFrame`
+        A DataFrame with the electrostatic and Lennard-Jones components of the
+        (inter-ligand) potential energy per atom-pair.
+        The potential energy is summed over atoms with matching atom types and
+        averaged over all molecules within **mol**.
+        Units are in atomic units.
+
+    See Also
+    --------
+    :func:`get_V`
+        Calculate all non-covalent interactions averaged over all molecules in **mol**.
+
+    """
+    psf = PSFContainer.read(psf)
+
+    if not isinstance(mol, MultiMolecule):
+        mol = MultiMolecule.from_xyz(mol)
+    mol.atoms = mol_atoms = psf_to_atom_dict(psf)
+
+    prm_df = df = construct_prm_df(mol_atoms)
+    overlay_psf(df, psf)
+    if prm is not None:
+        overlay_prm(df, prm)
+    if cp2k_settings is not None:
+        overlay_cp2k_settings(df, cp2k_settings)
+
+    slice_dict = {(i, j): (mol_atoms[i], mol_atoms[j]) for i, j in prm_df.index}
+    core_atoms = set(psf.atom_type[psf.residue_id == 1])
+    ligand_count = psf.residue_id.max() - 1
+    return get_V(mol, slice_dict, df.loc, ligand_count, core_atoms=core_atoms)
+
+
+def get_V(mol: MultiMolecule, slice_mapping: SliceMapping,
+          prm_mapping: PrmMapping, ligand_count: int,
+          core_atoms: Optional[Iterable[str]] = None) -> pd.DataFrame:
+    """Calculate all non-covalent interactions averaged over all molecules in **mol**.
+
+    Parameters
+    ----------
+    mol : :class:`MultiMolecule`
+        A MultiMolecule instance.
+
+    slice_mapping : :class:`dict`
+        A mapping of atoms-pairs to matching atomic indices.
+
+    prm_mapping : :class:`dict`
+        A mapping of atoms-pairs to matching (pair-wise) values for :math:`q`,
+        :math:`sigma` and :math:`\varepsilon`.
+        Units should be in atomic units.
+
+    ligand_count : :class:`int`
+        The number of ligands.
+
+    core_atoms : :class:`set` [:class:`str`], optional
+        A set of all atoms within the core.
+
+    Returns
+    -------
+    :class:`pandas.DataFrame`
+        A DataFrame with the electrostatic and Lennard-Jones components of the
+        (inter-ligand) potential energy per atom-pair.
+        The potential energy is summed over atoms with matching atom types and
+        averaged over all molecules within **mol**.
+        Units are in atomic units.
+
+    """
+    core_atoms = set(core_atoms) if core_atoms is not None else set()
+    mol = mol * Units.conversion_ratio('Angstrom', 'au')
+
+    df = pd.DataFrame(
+        0.0,
+        index=pd.MultiIndex.from_tuples(sorted(slice_mapping.keys())),
+        columns=pd.Index(['elstat', 'lj'], name='au')
+    )
+
+    for atoms, ij in slice_mapping.items():
+        dist = mol.get_dist_mat(atom_subset=ij)
+        if not core_atoms.intersection(atoms):
+            i = len(ij[0]) // ligand_count
+            j = len(ij[1]) // ligand_count
+            fill_diagonal_blocks(dist, i, j)  # Set intra-ligand interactions to np.nan
+        else:
+            dist[dist == 0.0] = np.nan
+
+        prm = prm_mapping[atoms]
+        df.at[atoms, 'elstat'] = get_V_elstat(prm['charge'], dist)
+        df.at[atoms, 'lj'] = get_V_lj(prm['sigma'], prm['epsilon'], dist)
+
+        if atoms[0] == atoms[1]:  # Avoid double-counting
+            df.loc[atoms] /= 2
+
+    df /= len(mol)
+    return df
 
 
 def get_V_elstat(qq: float, dist: np.ndarray) -> float:
@@ -102,54 +231,18 @@ def get_V_lj(sigma: float, epsilon: float, dist: np.ndarray) -> float:
     return np.nansum(lj)
 
 
-def get_V(mol: MultiMolecule, slice_mapping: SliceMapping,
-          prm_mapping: PrmMapping,
-          core_atoms: Optional[Iterable[str]] = None) -> pd.DataFrame:
-    """Calculate all non-covalent interactions averaged over all molecules in **mol**."""
-    core_atoms = set(core_atoms)
-
-    mol.guess_bonds(atom_subset=[at for at in mol.atoms if at not in core_atoms])
-    ligand_count = len(mol.residue_argsort(concatenate=False)[1:])
-    mol *= Units.conversion_ratio('Angstrom', 'au')
-
-    df = pd.DataFrame(
-        0.0,
-        index=pd.MultiIndex.from_tuples(sorted(slice_mapping)),
-        columns=['elstat', 'lj']
-    )
-
-    for atoms, ij in slice_mapping.items():
-        dist = mol.get_dist_mat(atom_subset=ij)
-        if not core_atoms.intersection(atoms):
-            i = len(ij[0]) // ligand_count
-            j = len(ij[1]) // ligand_count
-            fill_diagonal_blocks(dist, i, j)  # Set intra-ligand interactions to np.nan
-        else:
-            dist[dist == 0.0] = np.nan
-
-        charge, sigma, eps = prm_mapping[atoms]
-        df.at[atoms, 'elstat'] = get_V_elstat(charge, dist)
-        df.at[atoms, 'lj'] = get_V_lj(sigma, eps, dist)
-
-        if atoms[0] == atoms[1]:  # Avoid double-counting
-            df.loc[atoms] /= 2
-
-    df /= len(mol)
-    return df
-
-
 def construct_prm_df(atoms: Iterable[str]) -> pd.DataFrame:
     """Construct an empty parameter DataFrame for all **atoms** combinations of length 2."""
     return pd.DataFrame(
         0.0,
-        index=pd.MultiIndex.from_tuples(combinations_with_replacement(sorted(atoms), 2)),
-        columns=['charge', 'epsilon', 'sigma']
+        index=pd.MultiIndex.from_tuples(combinations_with_replacement(sorted(atoms.keys()), 2)),
+        columns=pd.Index(['charge', 'epsilon', 'sigma'], name='au')
     )
 
 
 def set_charge(df: pd.DataFrame, charge_mapping: Mapping[str, float]) -> None:
     """Set :math:`q_{i} * q_{j}`."""
-    atom_pairs = combinations_with_replacement(sorted(charge_mapping), 2)
+    atom_pairs = combinations_with_replacement(sorted(charge_mapping.keys()), 2)
     for i, j in atom_pairs:
         charge = charge_mapping[i] * charge_mapping[j]
         df.at[(i, j), 'charge'] = charge
@@ -158,7 +251,7 @@ def set_charge(df: pd.DataFrame, charge_mapping: Mapping[str, float]) -> None:
 def set_epsilon(df: pd.DataFrame, epsilon_mapping: Mapping[str, float],
                 unit: str = 'kj/mol') -> None:
     r"""Set :math:`\sqrt{\varepsilon_{i} * \varepsilon_{j}}`."""
-    atom_pairs = combinations_with_replacement(sorted(epsilon_mapping), 2)
+    atom_pairs = combinations_with_replacement(sorted(epsilon_mapping.keys()), 2)
     for i, j in atom_pairs:
         epsilon = (epsilon_mapping[i] * epsilon_mapping[j])**0.5
         epsilon *= Units.conversion_ratio(unit, 'au')
@@ -169,7 +262,7 @@ def set_sigma(df: pd.DataFrame, sigma_mapping: Mapping[str, float],
               unit: str = 'nm') -> None:
     r"""Set :math:`\frac{ \sigma_{i} * \sigma_{j} }{2}`."""
     unit2au = Units.conversion_ratio(unit, 'au')
-    atom_pairs = combinations_with_replacement(sorted(sigma_mapping), 2)
+    atom_pairs = combinations_with_replacement(sorted(sigma_mapping.keys()), 2)
     for i, j in atom_pairs:
         sigma = (sigma_mapping[i] + sigma_mapping[j]) / 2
         sigma *= unit2au
@@ -179,7 +272,7 @@ def set_sigma(df: pd.DataFrame, sigma_mapping: Mapping[str, float],
 def set_charge_pairs(df: pd.DataFrame, charge_mapping: Mapping[Tuple[str, str], float]) -> None:
     """Set :math:`q_{ij}`."""
     for _ij, charge in charge_mapping.items():
-        ij = sorted(_ij)
+        ij = tuple(sorted(_ij))
         df.at[ij, 'charge'] = charge
 
 
@@ -188,7 +281,7 @@ def set_epsilon_pairs(df: pd.DataFrame, epsilon_mapping: Mapping[Tuple[str, str]
     r"""Set :math:`\varepsilon_{ij}`."""
     unit2au = Units.conversion_ratio(unit, 'au')
     for _ij, epsilon in epsilon_mapping.items():
-        ij = sorted(_ij)
+        ij = tuple(sorted(_ij))
         epsilon *= unit2au
         df.at[ij, 'epsilon'] = epsilon
 
@@ -196,13 +289,84 @@ def set_epsilon_pairs(df: pd.DataFrame, epsilon_mapping: Mapping[Tuple[str, str]
 def set_sigma_pairs(df: pd.DataFrame, sigma_mapping: Mapping[Tuple[str, str], float],
                     unit: str = 'nm') -> None:
     r"""Set :math:`\sigma_{ij}`."""
+    unit2au = Units.conversion_ratio(unit, 'au')
     for _ij, sigma in sigma_mapping.items():
-        ij = sorted(_ij)
-        sigma *= Units.conversion_ratio(unit, 'au')
+        ij = tuple(sorted(_ij))
+        sigma *= unit2au
         df.at[ij, 'sigma'] = sigma
 
 
-def get_atom_dict(psf: Union[str, PSFContainer]) -> Dict[str, List[int]]:
+#: Map CP2K units to PLAMS units (see :class:`scm.plams.Units`).
+UNIT_MAPPING: Mapping[str, str] = MappingProxyType({'kcalmol': 'kcal/mol', 'kjmol': 'kj/mol'})
+
+
+def overlay_cp2k_settings(df: pd.DataFrame, cp2k_settings: Mapping) -> None:
+    r"""Overlay **df** with all :math:`q`, :math:`\sigma` and :math:`\varepsilon` values from **cp2k_settings**."""  # noqa
+    charge = cp2k_settings['input']['force_eval']['mm']['forcefield']['charge']
+    charge_dict = {block['atom']: block['charge'] for block in charge}
+
+    with Settings.supress_missing():
+        lj = cp2k_settings['input']['force_eval']['mm']['forcefield']['nonbonded']['lennard-jones']
+        epsilon_s = Settings()
+        sigma_s = Settings()
+        for block in lj:
+            atoms = tuple(block['atoms'].split())
+
+            try:
+                unit_sigma, sigma = block['sigma'].split()
+            except ValueError:
+                unit_sigma, sigma = '[angstrom]', block['sigma']
+            unit_sigma = unit_sigma[1:-1]
+            unit_sigma = UNIT_MAPPING.get(unit_sigma, unit_sigma)
+            sigma = float(sigma)
+
+            try:
+                unit_eps, epsilon = block['epsilon'].split()
+            except ValueError:
+                unit_eps, epsilon = '[kcalmol]', block['sigma']
+            unit_eps = unit_eps[1:-1]
+            unit_eps = UNIT_MAPPING.get(unit_eps, unit_eps)
+            epsilon = float(epsilon)
+
+            sigma_s[unit_sigma][atoms] = sigma
+            epsilon_s[unit_eps][atoms] = epsilon
+
+    set_charge(df, charge_dict)
+    for unit, dct in epsilon_s.items():
+        set_epsilon_pairs(df, dct, unit=unit)
+    for unit, dct in sigma_s.items():
+        set_sigma_pairs(df, dct, unit=unit)
+
+
+def overlay_prm(df: pd.DataFrame, prm: Union[str, PRMContainer]) -> None:
+    r"""Overlay **df** with all :math:`\sigma` and :math:`\varepsilon` values from **prm**."""
+    if not isinstance(prm, PRMContainer):
+        prm = PRMContainer.read(prm)
+
+    nonbonded = prm.nonbonded.set_index(0)
+    epsilon = nonbonded[2].astype(float, copy=False)
+    sigma = nonbonded[3].astype(float, copy=False)
+    set_epsilon(df, epsilon, unit='kcal/mol')
+    set_sigma(df, sigma, unit='angstrom')
+
+
+def overlay_rtf(df: pd.DataFrame, rtf: str) -> None:
+    r"""Overlay **df** with all :math:`q` values from **rtf**."""
+    charge_dict = dict(zip(*read_rtf_file(rtf)))
+    set_charge(df, charge_dict)
+
+
+def overlay_psf(df: pd.DataFrame, psf: Union[str, PRMContainer]) -> None:
+    r"""Overlay **df** with all :math:`q` values from **psf**."""
+    if not isinstance(psf, PSFContainer):
+        psf = PSFContainer.read(psf)
+
+    charge = psf.atoms.set_index('atom type')['charge']
+    charge_dict = charge.to_dict()
+    set_charge(df, charge_dict)
+
+
+def psf_to_atom_dict(psf: Union[str, PSFContainer]) -> Dict[str, List[int]]:
     """Create a new dictionary of atoms and their respective indices.
 
     Parameters
@@ -228,35 +392,15 @@ def get_atom_dict(psf: Union[str, PSFContainer]) -> Dict[str, List[int]]:
     return group_by_values(iterator)
 
 
-charge_dict = {'Cd': 0.976800, 'Se': -0.976800, 'O': -0.470400, 'H': 0.0, 'C': 0.452400}
-epsilon_dict = {'H': -0.0460, 'C': -0.0700, 'O': -0.1200}  # kcal/mol
-sigma_dict = {'H': 0.9000, 'C': 2.0000, 'O': 1.7000}  # Ånstroms
-
-epsilon_pairs = {('Cd', 'Cd'): 0.3101,  # kj/mol
-                 ('Se', 'Se'): 0.4266,
-                 ('Cd', 'Se'): 1.5225,
-                 ('Cd', 'O'): 1.8340,
-                 ('O', 'Se'): 1.6135}
-
-sigma_pairs = {('Cd', 'Cd'): 0.1234,  # nm
-               ('Se', 'Se'): 0.4852,
-               ('Cd', 'Se'): 0.2940,
-               ('Cd', 'O'): 0.2471,
-               ('O', 'Se'): 0.3526}
-
-# Create and fill a DataFrame of all (pair-wise) parameters
-df = construct_prm_df(charge_dict)
-set_charge(df, charge_dict)
-set_epsilon(df, epsilon_dict, unit='kcal/mol')
-set_epsilon_pairs(df, epsilon_pairs)
-set_sigma(df, sigma_dict, unit='angstrom')
-set_sigma_pairs(df, sigma_pairs)
-
+"""
 # Create the molecule
-mol = MultiMolecule.from_xyz(get_example_xyz())
-mol_atoms = mol.atoms
-slice_dict = {(i, j): (mol_atoms[i], mol_atoms[j]) for i, j in df.index}
+psf = '/Users/bvanbeek/Documents/CdSe/Week_5/qd/Cd68Cl26Se55__26_C#CCCC[=O][O-]@O7.psf'
+prm = '/Users/bvanbeek/Documents/CdSe/Week_5/ligand/forcefield/ff_assignment/ff_assignment.prm'
+cp2k_dict = {'input': cp2kparser.read_input('/Users/bvanbeek/Documents/CdSe/Week_5/qd/qd_opt/QD_opt/QD_opt.in')}  # noqa
+mol = '/Users/bvanbeek/Documents/CdSe/Week_5/qd/qd_opt/QD_opt/cp2k-pos-1.xyz'
 
-# Get all non-bonded interactions
-core_atoms = {'Cd', 'Se'}
-df_new = get_V(mol, slice_dict, df.loc, core_atoms=core_atoms)
+V_df = get_nonbonded(mol, psf, prm, cp2k_dict)
+V_df.loc[('Cd', 'Cd')] = V_df.loc[('Se', 'Se')] = V_df.loc[('Cd', 'Se')] = 0.0
+V_df *= Units.conversion_ratio('au', 'kcal/mol')
+V_df /= 26
+"""

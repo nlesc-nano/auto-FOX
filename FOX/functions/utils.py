@@ -779,3 +779,29 @@ def read_rtf_file(filename: str) -> Optional[Tuple[Sequence[str], Sequence[float
     with open(filename, 'r') as f:
         ret = [_parse_item(item) for item in f if item[:i] == 'ATOM']
     return zip(*ret) if ret else None
+
+
+def fill_diagonal_blocks(ar: np.ndarray, i: int, j: int, fill_value: float = np.nan) -> None:
+    """Fill diagonal blocks in **ar** of size :math:`i * j`.
+
+    Parameters
+    ----------
+    ar : :class:`nump.ndarray`
+        A >= 2D NumPy array.
+    i : :class:`int`
+        The size of the diagonal blocks along axis -2.
+    j : :class:`int`
+        The size of the diagonal blocks along axis -1.
+    fill_value : :class:`float`
+        The fill value for the diagonal blocks.
+
+    """
+    if (j <= 0) or (i <= 0):
+        raise ValueError(f"'i' and 'j' should be larger than 0; observed values: {i} & {j}")
+
+    i0 = j0 = 0
+    len_ar = ar.shape[1]
+    while len_ar > i0:
+        ar[..., i0:i0+i, j0:j0+j] = fill_value
+        i0 += i
+        j0 += j
