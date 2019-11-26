@@ -2032,13 +2032,15 @@ class MultiMolecule(_MultiMolecule):
 
         # Fill the template molecule with bonds
         if self.bonds.any():
-            bond_idx = np.ones(self.shape[1])
+            bond_idx = np.ones(self.shape[-2], dtype=int)
             bond_idx[at_subset] += np.arange(len(at_subset))
+            bond_idx = bond_idx.tolist()
+
             add_bond = mol_template.add_bond
             for i, j, order in self.bonds:
                 if i in at_subset and j in at_subset:
-                    at1 = mol_template[int(bond_idx[i])]
-                    at2 = mol_template[int(bond_idx[j])]
+                    at1 = mol_template[bond_idx[i]]
+                    at2 = mol_template[bond_idx[j]]
                     add_bond(Bond(atom1=at1, atom2=at2, order=order/10.0))
 
         # Create copies of the template molecule; update their cartesian coordinates

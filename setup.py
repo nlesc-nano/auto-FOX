@@ -72,7 +72,7 @@ setup(
         'scipy',
         'pandas',
         'schema',
-        'AssertionLib',
+        'AssertionLib>=1.0',
         'plams@git+https://github.com/SCM-NV/PLAMS@master'
     ],
     setup_requires=[

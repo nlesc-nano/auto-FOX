@@ -1,6 +1,7 @@
 """A module for testing example input files in the FOX/examples directory."""
 
 import time
+import os
 from os.path import join
 
 import numpy as np
@@ -98,6 +99,6 @@ def test_cp2k_md():
     assertion.eq(armc.sub_iter_len, 100)
 
     assertion.eq(job_kwarg.logfile, 'armc.log')
-    assertion.eq(job_kwarg.path, '.')
+    assertion.eq(job_kwarg.path, os.getcwd())
     assertion.eq(job_kwarg.folder, 'MM_MD_workdir')
     assertion.isinstance(job_kwarg.psf, PSFContainer)
