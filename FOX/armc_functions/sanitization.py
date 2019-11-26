@@ -24,9 +24,10 @@ API
 
 """
 
+import os
 import functools
 from typing import Union, Iterable, Tuple, Optional
-from os.path import join
+from os.path import join, isfile, abspath
 from collections import abc
 
 import numpy as np
@@ -189,6 +190,9 @@ def reshape_settings(s: Settings) -> None:
 
     """
     # MonteCarlo() parameters
+    if s.job.path == '.':
+        s.job.path = os.getcwd()
+
     _reshape_param(s)
     s.job_type = functools.partial(s.job.pop('job_type'), name=s.job.pop('name'))
     s.md_settings = s.job.pop('md_settings')
@@ -246,7 +250,9 @@ def _reshape_param(s: Settings) -> None:
         s.job.md_settings.input.force_eval.mm.forcefield.parmtype = 'OFF'
         del s.param.prm_file
     else:
-        s.job.md_settings.input.force_eval.mm.forcefield.parm_file_name = s.param.pop('prm_file')
+        prm_file = s.param.pop('prm_file')
+        prm_file_ = abspath(prm_file) if isfile(abspath(prm_file)) else join(s.job.path, prm_file)
+        s.job.md_settings.input.force_eval.mm.forcefield.parm_file_name = prm_file_
 
     s.param = param = dict_to_pandas(s.param, 'param')
     param['param_old'] = np.nan

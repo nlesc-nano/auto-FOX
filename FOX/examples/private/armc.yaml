@@ -41,7 +41,7 @@ job:
     name: armc
     path: .
     folder: MM_MD_workdir
-    keep_files: False
+    keep_files: True
 
     preopt_settings: null
     md_settings:
@@ -68,7 +68,6 @@ armc:
     phi: 1.0
 
 move:
-    charge_constraints: 'Cd = -1 * Se'
     range:
         start: 0.005
         stop: 0.1
