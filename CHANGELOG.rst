@@ -10,7 +10,7 @@ This project adheres to `Semantic Versioning <http://semver.org/>`_.
 *****
 * Updated the ``read_prm`` module.
 * Added a workflow for calculating inter-ligand and core/ligand interactions
-  using electrostatic + Lennard-Jones potentials: ``FOX.get_nonbonded()``.
+  using electrostatic + Lennard-Jones potentials: ``FOX.get_non_bonded()``.
 
 
 0.6.3
