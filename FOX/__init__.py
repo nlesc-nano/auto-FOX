@@ -18,14 +18,16 @@ from .functions import (
     get_adf,
     get_template, assert_error, get_example_xyz,
     update_charge,
-    estimate_lj
+    estimate_lj,
+    get_non_bonded
 )
 
 from .io import (
     read_kf,
     read_multi_xyz,
     read_pdb,
-    read_prm, write_prm, rename_atom_types,
+    PSFContainer,
+    PRMContainer,
     create_hdf5, create_xyz_hdf5, to_hdf5, from_hdf5
 )
 
@@ -44,11 +46,13 @@ __all__ = [
     'get_adf',
     'get_template', 'assert_error', 'get_example_xyz',
     'estimate_lj',
+    'get_non_bonded',
 
     'read_kf',
     'read_multi_xyz',
     'read_pdb',
-    'read_prm', 'write_prm', 'rename_atom_types',
+    'PSFContainer',
+    'PRMContainer',
     'create_hdf5', 'create_xyz_hdf5', 'to_hdf5', 'from_hdf5',
 
     'FrozenSettings',

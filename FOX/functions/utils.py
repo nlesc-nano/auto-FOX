@@ -1,7 +1,8 @@
 """A module with miscellaneous functions."""
 
 from typing import (
-    Iterable, Tuple, Callable, Hashable, Sequence, Optional, List, Any, TypeVar, Dict
+    Iterable, Tuple, Callable, Hashable, Sequence, Optional, List, Any, TypeVar, Dict,
+    Type, MutableMapping
 )
 from os.path import join, isfile
 from functools import wraps
@@ -26,12 +27,12 @@ def append_docstring(item: Callable) -> Callable:
     .. code:: python
 
         >>> def func1():
-        ...     """'func1 docstring '"""
+        ...     '''func1 docstring.'''
         ...     pass
 
         >>> @append_docstring(func1)
         >>> def func2():
-        ...     """'func2 docstring'"""
+        ...     '''func2 docstring.'''
         ...     pass
 
         >>> help(func2)
@@ -58,8 +59,7 @@ def append_docstring(item: Callable) -> Callable:
 
 
 def assert_error(error_msg: str = '') -> Callable:
-    """Take an error message, if not ``false`` then cause a function or class
-    to raise a ModuleNotFoundError upon being called.
+    """Take an error message, if not ``false`` then cause a function or class to raise a ModuleNotFoundError upon being called.
 
     Indended for use as a decorater:
 
@@ -86,7 +86,7 @@ def assert_error(error_msg: str = '') -> Callable:
     |Callable|_
         A decorated callable.
 
-    """
+    """  # noqa
     def _function_error(f_type: Callable,
                         error_msg: str) -> Callable:
         """Process functions fed into :func:`assert_error`."""
@@ -722,7 +722,9 @@ def str_to_callable(string: str) -> Callable:
             return eval('.'.join([class_, method]))
 
 
-def group_by_values(iterable: Iterable[Tuple[Any, Hashable]]) -> Dict[Hashable, List[Any]]:
+def group_by_values(iterable: Iterable[Tuple[Any, Hashable]],
+                    mapping_type: Type[MutableMapping] = dict
+                    ) -> MutableMapping[Hashable, List[Any]]:
     """Take an iterable, yielding 2-tuples, and group all first elements by the second.
 
     Exameple
@@ -746,6 +748,9 @@ def group_by_values(iterable: Iterable[Tuple[Any, Hashable]]) -> Dict[Hashable, 
         The second element must be a :class:`Hashable<collections.abc.Hashable>` and will be used
         as key in the to-be returned dictionary.
 
+    mapping_type : :class:`type` [:class:`MutableMapping<collections.abc.MutableMapping>`]
+        The to-be returned mapping type.
+
     Returns
     -------
     :class:`dict` [:class:`Hashable<collections.abc.Hashable>`,
@@ -753,7 +758,7 @@ def group_by_values(iterable: Iterable[Tuple[Any, Hashable]]) -> Dict[Hashable, 
         A grouped dictionary.
 
     """
-    ret: Dict[Hashable, List[Any]] = {}
+    ret: Dict[Hashable, List[Any]] = mapping_type()
     list_append: Dict[Hashable, list.append] = {}
     for value, key in iterable:
         try:
@@ -774,3 +779,29 @@ def read_rtf_file(filename: str) -> Optional[Tuple[Sequence[str], Sequence[float
     with open(filename, 'r') as f:
         ret = [_parse_item(item) for item in f if item[:i] == 'ATOM']
     return zip(*ret) if ret else None
+
+
+def fill_diagonal_blocks(ar: np.ndarray, i: int, j: int, fill_value: float = np.nan) -> None:
+    """Fill diagonal blocks in **ar** of size :math:`i * j`.
+
+    Parameters
+    ----------
+    ar : :class:`nump.ndarray`
+        A >= 2D NumPy array.
+    i : :class:`int`
+        The size of the diagonal blocks along axis -2.
+    j : :class:`int`
+        The size of the diagonal blocks along axis -1.
+    fill_value : :class:`float`
+        The fill value for the diagonal blocks.
+
+    """
+    if (j <= 0) or (i <= 0):
+        raise ValueError(f"'i' and 'j' should be larger than 0; observed values: {i} & {j}")
+
+    i0 = j0 = 0
+    len_ar = ar.shape[1]
+    while len_ar > i0:
+        ar[..., i0:i0+i, j0:j0+j] = fill_value
+        i0 += i
+        j0 += j

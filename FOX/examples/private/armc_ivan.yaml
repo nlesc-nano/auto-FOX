@@ -1,4 +1,5 @@
 param:
+    prm_file: ligand.prm
     charge:
         keys: [input, force_eval, mm, forcefield, charge]
         Cd: 0.9768
@@ -16,19 +17,23 @@ param:
         Se Se: 0.4852
         Cd Se: 0.2940
 
+psf:
+    str_file: ligand.str
+    ligand_atoms: [C, O, H]
+
 pes:
     rdf:
         func: FOX.MultiMolecule.init_rdf
         kwargs:
             atom_subset: [Cd, Se, O]
 
-molecule: /Users/basvanbeek/Documents/GitHub/auto-FOX/FOX/data/Cd68Se55_26COO_MD_trajec.xyz
+molecule: /Users/bvanbeek/Documents/GitHub/auto-FOX/FOX/data/Cd68Se55_26COO_MD_trajec.xyz
 
 job:
-    logfile: /Users/basvanbeek/Downloads/armc.log
+    logfile: /Users/bvanbeek/Downloads/armc.log
     job_type: scm.plams.Cp2kJob
     name: armc
-    path: /Users/basvanbeek/Downloads
+    path: /Users/bvanbeek/Downloads
     folder: MM_MD_workdir
     keep_files: False
     rmsd_threshold: 5.0
@@ -55,7 +60,7 @@ job:
                         csvr:
                             timecon: 1250
 
-hdf5_file: /Users/basvanbeek/Downloads/armc.hdf5
+hdf5_file: /Users/bvanbeek/Downloads/armc.hdf5
 
 armc:
     iter_len: 20000

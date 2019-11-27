@@ -6,6 +6,13 @@ All notable changes to this project will be documented in this file.
 This project adheres to `Semantic Versioning <http://semver.org/>`_.
 
 
+0.6.4
+*****
+* Updated the ``read_prm`` module.
+* Added a workflow for calculating inter-ligand and core/ligand interactions
+  using electrostatic + Lennard-Jones potentials: ``FOX.get_non_bonded()``.
+
+
 0.6.3
 *****
 * Added a function, ``FOX.estimate_lj()``, for estimating Lennard-Jones
@@ -25,7 +32,7 @@ This project adheres to `Semantic Versioning <http://semver.org/>`_.
 *****
 * Added an additionl memory consumption level to `MultiMolecule.init_rdf()`.
 * Ensure that the 'constraints' column is always present in the ARMC parameter DataFrame.
-* `_xyz_to_hdf5()` no longer crashes when `mol_list=None`.
+* ``_xyz_to_hdf5()`` no longer crashes when ``mol_list=None``.
 * Switched the `AssertionLib` package from GitHub to PyPi.
 
 
