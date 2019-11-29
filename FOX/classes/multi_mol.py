@@ -58,6 +58,11 @@ AtomSubset = Union[
 ]
 
 
+def neg_exp(x: np.ndarray) -> np.ndarray:
+    """Return :math:`e^{-x}`"""
+    return np.exp(-x)
+
+
 class MultiMolecule(_MultiMolecule):
     """A class designed for handling a and manipulating large numbers of molecules.
 
@@ -1456,7 +1461,7 @@ class MultiMolecule(_MultiMolecule):
     def init_adf(self, mol_subset: MolSubset = None,
                  atom_subset: AtomSubset = None,
                  r_max: Union[float, str] = 8.0,
-                 weight: Callable[[np.ndarray], np.ndarray] = lambda n: np.exp(-n)) -> pd.DataFrame:
+                 weight: Callable[[np.ndarray], np.ndarray] = neg_exp) -> pd.DataFrame:
         r"""Initialize the calculation of distance-weighted angular distribution functions (ADFs).
 
         ADFs are calculated for all possible atom-pairs in **atom_subset** and returned as a
@@ -1481,19 +1486,12 @@ class MultiMolecule(_MultiMolecule):
             The distance cuttoff can be disabled by settings this value to ``np.inf``, ``"np.inf"``
             or ``"inf"``.
 
-        distance_weighted : |bool|_
-            Return the distance-weighted angular distribution function.
-            Every angle the to-be constructed angle matrix, :math:`\phi_{ijk}`, is weighted by the
-            distance according to the weighting factor :math:`v_{ijk}`:
-
-            .. math::
-
-                v_{ijk} = \Biggl \lbrace
-                {
-                    e^{-r_{ji}}, \quad r_{ji} \; \gt \; r_{jk}
-                    \atop
-                    e^{-r_{jk}}, \quad r_{ji} \; \lt \; r_{jk}
-                }
+        weight : Callable[[np.ndarray], np.ndarray], optional
+            A callable for creating a weighting factor from inter-atomic distances.
+            The callable should take an array as input and return an array.
+            Given an angle :math:`\phi_{ijk}`, to the distance :math:`r_{ijk}` is defined
+            as :math:`max[r_{ij}, r_{jk}]`.
+            Set to ``None`` to disable distance weighting.
 
         Returns
         -------
