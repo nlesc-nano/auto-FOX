@@ -19,8 +19,6 @@ API
 
 """
 
-from __future__ import annotations
-
 import reprlib
 import inspect
 from typing import Dict, Optional, Any, Set, Iterator, Iterable, Callable, AnyStr, List
@@ -849,12 +847,6 @@ class PSFContainer(AbstractDataClass, AbstractFileContainer):
             ret.append(value)
 
         return ret
-
-
-try:
-    from nanoCAT.ff.psf import PSFContainer
-except ImportError:
-    pass
 
 
 def overlay_str_file(psf: PSFContainer, filename: str) -> None:

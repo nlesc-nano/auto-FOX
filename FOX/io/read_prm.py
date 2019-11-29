@@ -226,9 +226,3 @@ class PRMContainer(AbstractDataClass, AbstractFileContainer):
                 write(write_str)
 
         write('\nEND\n')
-
-
-try:
-    from nanoCAT.ff.prm import PRMContainer
-except ImportError:
-    pass

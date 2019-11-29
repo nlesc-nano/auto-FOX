@@ -17,8 +17,8 @@ with open('README.rst') as readme_file:
 setup(
     name='Auto-FOX',
     version=version['__version__'],
-    description='A library for analyzing potential energy surfaces (PESs) and using the resulting\
-    PES descriptors for constructing forcefield parameters.',
+    description=('A library for analyzing potential energy surfaces (PESs) and using the resulting'
+                 ' PES descriptors for constructing forcefield parameters.'),
     long_description=readme + '\n\n',
     author='Bas van Beek',
     author_email='b.f.van.beek@vu.nl',
@@ -53,7 +53,10 @@ setup(
         'molecular-mechanics',
         'science',
         'chemistry',
-        'python-3.7'
+        'python-3',
+        'python-3.6',
+        'python-3.7',
+        'python-3.8'
     ],
     classifiers=[
         'Development Status :: 4 - Beta',
@@ -62,10 +65,12 @@ setup(
         'License :: OSI Approved :: GNU Lesser General Public License',
         'Natural Language :: English',
         'Programming Language :: Python :: 3',
-        'Programming Language :: Python :: 3.7'
+        'Programming Language :: Python :: 3.6',
+        'Programming Language :: Python :: 3.7',
+        'Programming Language :: Python :: 3.8'
     ],
     test_suite='tests',
-    python_requires='>=3.7',
+    python_requires='>=3.6',
     install_requires=[
         'pyyaml>=5.1',
         'numpy',

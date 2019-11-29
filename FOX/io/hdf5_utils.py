@@ -24,7 +24,6 @@ Index
     dset_to_series
     dset_to_df
 
-
 API
 ---
 .. autofunction:: FOX.io.hdf5_utils.create_hdf5
@@ -44,8 +43,6 @@ API
 .. autofunction:: FOX.io.hdf5_utils.dset_to_df
 
 """
-
-from __future__ import annotations
 
 from os import remove
 from time import sleep

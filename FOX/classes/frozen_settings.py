@@ -19,8 +19,6 @@ API
 
 """
 
-from __future__ import annotations
-
 import copy
 import textwrap
 from typing import (NoReturn, Hashable)
@@ -65,7 +63,7 @@ class FrozenSettings(Settings):
 
     __repr__ = __str__
 
-    def __missing__(self, key: Hashable) -> FrozenSettings: return _frozen_settings
+    def __missing__(self, key: Hashable) -> 'FrozenSettings': return _frozen_settings
     def __bool__(self) -> bool: return bool(len(self))
 
     @classmethod
