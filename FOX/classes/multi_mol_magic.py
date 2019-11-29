@@ -19,19 +19,18 @@ API
 
 """
 
-from __future__ import annotations
-
 import copy as pycopy
 import textwrap
 import itertools
 import warnings
 from types import MappingProxyType
-from typing import Dict, Optional, List, Any, Callable, Union, Mapping
+from typing import Dict, Optional, List, Any, Callable, Union, Mapping, Iterable, NoReturn
 
 import numpy as np
 
 from scm.plams import PeriodicTable, Atom, PTError, Settings
 from assertionlib.ndrepr import NDRepr
+from assertionlib.dataclass import AbstractDataClass
 
 __all__: List[str] = []
 
@@ -48,16 +47,130 @@ _NONE_DICT: Mapping[str, Union[str, int, float]] = MappingProxyType({
 })
 
 
+class LocGetter(AbstractDataClass):
+    """A getter and setter for atom-type based slicing.
+
+    Get, set and del operations are performed using the list(s) of atomic indices associated
+    with the provided atomic symbol(s).
+    Accepts either one or more atomic symbols.
+
+    Examples
+    --------
+    .. code:: python
+
+        >>> mol = MultiMolecule(...)
+        >>> mol.atoms['Cd'] = [0, 1, 2, 3, 4, 5]
+        >>> mol.atoms['Se'] = [6, 7, 8, 9, 10, 11]
+        >>> mol.atoms['O'] = [12, 13, 14]
+
+        >>> (mol.at['Cd'] == mol[mol.atoms['Cd']]).all()
+        True
+
+        >>> idx = list(range(15))
+        >>> (mol.at['Cd', 'Se', 'O'] == mol[idx]).all()
+        True
+
+    Parameters
+    ----------
+    mol : :class:`MultiMolecule`
+        A MultiMolecule instance; see :attr:`AtGetter.atoms`.
+
+    Attributes
+    ----------
+    mol : :class:`MultiMolecule`
+        A MultiMolecule instance.
+
+    atoms : :class:`dict`
+        The :attr:`MultiMolecule.atoms` attribute of **mol**.
+
+    """
+
+    _VALUE_ERR = "'MultiMolecule.at' operations require a >= 2D array; observed dimensionality: {}D"
+    _TYPE_ERR = "'MultiMolecule.at' operations require a 'str' or iterable consisting of 'str'; observed type: '{}'"  # noqa
+    __slots__ = frozenset({'mol'})
+
+    @property
+    def atoms(self) -> Dict[str, List[int]]: return self.mol.atoms
+
+    def __init__(self, mol: '_MultiMolecule') -> None:
+        super().__init__()
+        self.mol = mol
+
+    @AbstractDataClass.inherit_annotations()
+    def _str_iterator(self):
+        yield 'mol', self.mol
+        yield 'atoms.keys()', self.atoms.keys()
+
+    def __getitem__(self, key: Union[str, Iterable[str]]) -> '_MultiMolecule':
+        """Get items from :attr:`AtGetter.mol`."""
+        idx = self._parse_key(key)
+        try:
+            return self.mol[..., idx, :]
+        except IndexError as ex:
+            raise ValueError(self._VALUE_ERR.format(self.mol.ndim)).with_traceback(ex.__traceback__)
+
+    def __setitem__(self, key: Union[str, Iterable[str]], value: '_MultiMolecule') -> None:
+        """Set items in :attr:`AtGetter.mol`."""
+        idx = self._parse_key(key)
+        try:
+            self.mol[..., idx, :] = value
+        except IndexError as ex:
+            raise ValueError(self._VALUE_ERR.format(self.mol.ndim)).with_traceback(ex.__traceback__)
+
+    def __delitem__(self, key: Union[str, Iterable[str]]) -> NoReturn:
+        """Delete items from :attr:`AtGetter.mol`, thus raising a :exc:`ValueError`."""
+        idx = self._parse_key(key)
+        del self.mol[..., idx, :]  # This will raise a ValueError
+
+    def _parse_key(self, key: Union[str, Iterable[str]]) -> List[int]:
+        """Return the atomic indices of **key** are all atoms in **key**.
+
+        Parameter
+        ---------
+        key : :class:`str` or :class:`Iterable<collections.abc.Iterable>` [:class:`str`]
+            An atom type or an iterable consisting of atom types.
+
+        Returns
+        -------
+        :class:`list` [:class:`int`]
+            A (flattened) list of atomic indices.
+
+        """
+        if isinstance(key, str):
+            return self.atoms[key]
+
+        try:
+            key_iterator = iter(key)
+        except TypeError as ex:  # **key** is neither a string nor an iterable of strings
+            cls_name = key.__class__.__name__
+            raise TypeError(self._TYPE_ERR.format(cls_name)).with_traceback(ex.__traceback__)
+
+        # Gather all indices and flatten them
+        idx: List[int] = []
+        atoms = self.atoms
+        for k in key_iterator:
+            idx += atoms[k]
+        return idx
+
+    def __eq__(self, value: Any) -> bool:
+        """Check if this instance and **value** are equivalent."""
+        try:
+            return type(self) is type(value) and self.mol is value.mol
+        except AttributeError:
+            return False
+
+
 class _MultiMolecule(np.ndarray):
     """Private superclass of :class:`.MultiMolecule`.
 
     Handles all magic methods and @property decorated methods.
+
     """
 
     def __new__(cls, coords: np.ndarray,
                 atoms: Optional[Dict[str, List[int]]] = None,
                 bonds: Optional[np.ndarray] = None,
-                properties: Optional[Dict[str, Any]] = None) -> _MultiMolecule:
+                properties: Optional[Dict[str, Any]] = None) -> '_MultiMolecule':
         """Create and return a new object."""
         obj = np.array(coords, dtype=float, ndmin=3, copy=False).view(cls)
 
@@ -68,7 +181,7 @@ class _MultiMolecule(np.ndarray):
         obj._ndrepr = NDRepr()
         return obj
 
-    def __array_finalize__(self, obj: _MultiMolecule) -> None:
+    def __array_finalize__(self, obj: '_MultiMolecule') -> None:
         """Finalize the array creation."""
         if obj is None:
             return
@@ -79,6 +192,9 @@ class _MultiMolecule(np.ndarray):
         self._ndrepr = getattr(obj, '_ndrepr', None)
 
     """#####################  Properties for managing instance attributes  ######################"""
+
+    @property
+    def loc(self) -> LocGetter: return LocGetter(self)
 
     @property
     def atoms(self) -> Dict[str, List[int]]:
@@ -110,7 +226,7 @@ class _MultiMolecule(np.ndarray):
     """###############################  PLAMS-based properties  ################################"""
 
     @property
-    def atom12(self) -> _MultiMolecule:
+    def atom12(self) -> '_MultiMolecule':
         """Get or set the indices of the atoms for all bonds in
         :attr:`.MultiMolecule.bonds` as 2D array."""
         return self.bonds[:, 0:2]
@@ -120,7 +236,7 @@ class _MultiMolecule(np.ndarray):
         self.bonds[:, 0:2] = value
 
     @property
-    def atom1(self) -> _MultiMolecule:
+    def atom1(self) -> '_MultiMolecule':
         """Get or set the indices of the first atoms in all bonds of
         :attr:`.MultiMolecule.bonds` as 1D array."""
         return self.bonds[:, 0]
@@ -131,8 +247,7 @@ class _MultiMolecule(np.ndarray):
 
     @property
     def atom2(self) -> np.ndarray:
-        """Get or set the indices of the second atoms in all bonds of
-        :attr:`.MultiMolecule.bonds` as 1D array."""
+        """Get or set the indices of the second atoms in all bonds of :attr:`.MultiMolecule.bonds` as 1D array."""  # noqa
         return self.bonds[:, 1]
 
     @atom2.setter
@@ -149,7 +264,7 @@ class _MultiMolecule(np.ndarray):
         self.bonds[:, 2] = value * 10
 
     @property
-    def x(self) -> _MultiMolecule:
+    def x(self) -> '_MultiMolecule':
         """Get or set the x coordinates for all atoms in instance as 2D array."""
         return self[:, :, 0]
 
@@ -158,16 +273,16 @@ class _MultiMolecule(np.ndarray):
         self[:, :, 0] = value
 
     @property
-    def y(self) -> _MultiMolecule:
+    def y(self) -> '_MultiMolecule':
         """Get or set the y coordinates for all atoms in this instance as 2D array."""
         return self[:, :, 1]
 
     @y.setter
-    def y(self, value: _MultiMolecule) -> None:
+    def y(self, value: np.ndarray) -> None:
         self[:, :, 1] = value
 
     @property
-    def z(self) -> _MultiMolecule:
+    def z(self) -> '_MultiMolecule':
         """Get or set the z coordinates for all atoms in this instance as 2D array."""
         return self[:, :, 2]
 
@@ -237,7 +352,7 @@ class _MultiMolecule(np.ndarray):
 
     """##################################  Magic methods  #################################### """
 
-    def copy(self, order: str = 'C', deep: bool = True) -> _MultiMolecule:
+    def copy(self, order: str = 'C', deep: bool = True) -> '_MultiMolecule':
         """Create a copy of this instance.
 
         .. _np.ndarray.copy: https://docs.scipy.org/doc/numpy/reference/generated/numpy.ndarray.copy.html  # noqa
@@ -268,11 +383,11 @@ class _MultiMolecule(np.ndarray):
             setattr(ret, key, value)
         return ret
 
-    def __copy__(self) -> _MultiMolecule:
+    def __copy__(self) -> '_MultiMolecule':
         """Create copy of this instance."""
         return self.copy(order='K', deep=False)
 
-    def __deepcopy__(self, memo: None) -> _MultiMolecule:
+    def __deepcopy__(self, memo: None) -> '_MultiMolecule':
         """Create a deep copy of this instance."""
         return self.copy(order='K', deep=True)
 

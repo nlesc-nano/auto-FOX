@@ -10,8 +10,10 @@ This project adheres to `Semantic Versioning <http://semver.org/>`_.
 * Made Auto-FOX compatible with Python 3.6.
 * Added tests for Python 3.6 and 3.8.
 * Permanently moved a number of modules from (nano-)CAT to Auto-FOX.
-* Added the ``MutliMolecule.at()`` methods.
-  Allows for the slicing of MultiMolecule (directly) using atomic symbols.
+* Added the ``MutliMolecule.loc`` property; allowing for the slicing of
+  MultiMolecule (directly) using atomic symbols.
+  Usage examples: ``mol.loc['Cd']`` and ``mol.loc['Cd', 'Se', 'O']``.
+  The Equivalent to ``mol[mol.atoms['Cd']]``.
 
 
 0.6.5
