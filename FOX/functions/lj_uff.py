@@ -30,7 +30,7 @@ import pandas as pd
 __all__ = ['UFF_DF', 'combine_sigma', 'combine_epsilon']
 
 #: Absolute path to the ``FOX.data.uff`` .csv file.
-_CSV: str = join(dirname(os.getcwd()), 'data', 'uff.csv')
+_CSV: str = join(dirname(dirname(__file__)), 'data', 'uff.csv')
 
 #: A DataFrame with UFF Lennard-Jones parameters.
 #: Has access to the ``"sigma"``, ``"epsilon"`` and ``"psi"`` columns.
