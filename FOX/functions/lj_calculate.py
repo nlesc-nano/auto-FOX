@@ -6,8 +6,6 @@ A module for calculating non-bonded interactions using Coulomb + Lennard-Jones p
 
 """
 
-from __future__ import annotations
-
 import textwrap
 from types import MappingProxyType
 from typing import Mapping, Tuple, Sequence, Optional, Iterable, Union, Dict, List

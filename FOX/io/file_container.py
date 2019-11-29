@@ -340,9 +340,3 @@ class NullContext(AbstractContextManager):
 
     def __exit__(self, exc_type, exc_value, traceback) -> None:
         pass
-
-
-try:
-    from CAT.abc.file_container import AbstractFileContainer
-except ImportError:
-    pass

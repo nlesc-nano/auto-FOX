@@ -19,8 +19,6 @@ API
 
 """
 
-from __future__ import annotations
-
 import os
 from typing import Tuple, Dict, Any, Optional, Iterable, Callable
 from contextlib import AbstractContextManager
@@ -49,7 +47,7 @@ class Init(AbstractContextManager):
         finish()
 
 
-def run_armc(armc: ARMC, path: Optional[str] = None, folder: Optional[str] = None,
+def run_armc(armc: 'ARMC', path: Optional[str] = None, folder: Optional[str] = None,
              logfile: Optional[str] = None, psf: Optional['PSFContainer'] = None) -> None:
     """A wrapper arround :class:`ARMC` for handling the JobManager."""
     with Init(path=path, folder=folder):
@@ -117,7 +115,7 @@ class ARMC(MonteCarlo):
         self.apply_phi: Callable[[float, float], float] = apply_phi
 
     @classmethod
-    def from_yaml(cls, filename: str) -> Tuple[ARMC, dict]:
+    def from_yaml(cls, filename: str) -> Tuple['ARMC', dict]:
         """Create a :class:`.ARMC` instance from a .yaml file.
 
         Parameters

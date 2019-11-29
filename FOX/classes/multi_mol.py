@@ -19,8 +19,6 @@ API
 
 """
 
-from __future__ import annotations
-
 from collections import abc
 from itertools import chain, combinations_with_replacement, zip_longest, islice
 from typing import (
@@ -104,7 +102,7 @@ class MultiMolecule(_MultiMolecule):
 
     """
 
-    def round(self, decimals: int = 0, inplace: bool = True) -> Optional[MultiMolecule]:
+    def round(self, decimals: int = 0, inplace: bool = True) -> Optional['MultiMolecule']:
         """Round the Cartesian coordinates of this instance to a given number of decimals.
 
         Parameters
@@ -124,7 +122,7 @@ class MultiMolecule(_MultiMolecule):
             ret[:] = super().round(decimals)
             return ret
 
-    def delete_atoms(self, atom_subset: AtomSubset) -> MultiMolecule:
+    def delete_atoms(self, atom_subset: AtomSubset) -> 'MultiMolecule':
         """Create a copy of this instance with all atoms in **atom_subset** removed.
 
         Parameters
@@ -191,7 +189,7 @@ class MultiMolecule(_MultiMolecule):
     def random_slice(self, start: int = 0,
                      stop: Optional[int] = None,
                      p: float = 0.5,
-                     inplace: bool = False) -> Optional[MultiMolecule]:
+                     inplace: bool = False) -> Optional['MultiMolecule']:
         """Construct a new :class:`MultiMolecule` instance by randomly slicing this instance.
 
         The probability of including a particular element is equivalent to **p**.
@@ -239,7 +237,7 @@ class MultiMolecule(_MultiMolecule):
 
     def reset_origin(self, mol_subset: MolSubset = None,
                      atom_subset: AtomSubset = None,
-                     inplace: bool = True) -> Optional[MultiMolecule]:
+                     inplace: bool = True) -> Optional['MultiMolecule']:
         """Reallign all molecules in this instance.
 
         All molecules in this instance are rotating and translating, by performing a partial partial
@@ -294,7 +292,7 @@ class MultiMolecule(_MultiMolecule):
 
     def sort(self, sort_by: Union[str, Sequence[int]] = 'symbol',
              reverse: bool = False,
-             inplace: bool = True) -> Optional[MultiMolecule]:
+             inplace: bool = True) -> Optional['MultiMolecule']:
         """Sort the atoms in this instance and **self.atoms**, performing in inplace update.
 
         Parameters
@@ -1557,7 +1555,7 @@ class MultiMolecule(_MultiMolecule):
         return df
 
     @staticmethod
-    def _adf_inner_cdktree(m: MultiMolecule, n: int, r_max: float,
+    def _adf_inner_cdktree(m: 'MultiMolecule', n: int, r_max: float,
                            idx_list: Iterable[Tuple[np.ndarray, np.ndarray, np.ndarray]],
                            weight: Callable[[np.ndarray], np.ndarray]) -> np.ndarray:
         """Perform the loop of :meth:`.init_adf` with a distance cutoff."""
@@ -1589,7 +1587,7 @@ class MultiMolecule(_MultiMolecule):
         return ret
 
     @staticmethod
-    def _adf_inner(m: MultiMolecule,
+    def _adf_inner(m: 'MultiMolecule',
                    idx_list: Iterable[Tuple[np.ndarray, np.ndarray, np.ndarray]],
                    weight: Callable[[np.ndarray], np.ndarray]) -> np.ndarray:
         """Perform the loop of :meth:`.init_adf` without a distance cutoff."""
@@ -1817,7 +1815,7 @@ class MultiMolecule(_MultiMolecule):
 
         """
         m_subset = self._get_mol_subset(mol_subset)
-        mol_range = range(m_subset.start, m_subset.stop, m_subset.step)
+        mol_range = range(m_subset.start or 0, m_subset.stop or len(self), m_subset.step or 1)
         outputformat = outputformat or filename.rsplit('.', 1)[-1]
         plams_mol = self.as_Molecule(mol_subset=0)[0]
 
@@ -1941,7 +1939,7 @@ class MultiMolecule(_MultiMolecule):
 
     def as_mass_weighted(self, mol_subset: MolSubset = None,
                          atom_subset: AtomSubset = None,
-                         inplace: bool = False) -> Optional[MultiMolecule]:
+                         inplace: bool = False) -> Optional['MultiMolecule']:
         """Transform the Cartesian of this instance into mass-weighted Cartesian coordinates.
 
         Parameters
@@ -2065,7 +2063,7 @@ class MultiMolecule(_MultiMolecule):
 
     @classmethod
     def from_Molecule(cls, mol_list: Union[Molecule, Iterable[Molecule]],
-                      subset: Sequence[str] = 'atoms') -> MultiMolecule:
+                      subset: Sequence[str] = 'atoms') -> 'MultiMolecule':
         """Construct a :class:`.MultiMolecule` instance from one or more PLAMS molecules.
 
         Parameters
@@ -2122,7 +2120,7 @@ class MultiMolecule(_MultiMolecule):
     @classmethod
     def from_xyz(cls, filename: str,
                  bonds: Optional[np.ndarray] = None,
-                 properties: Optional[dict] = None) -> MultiMolecule:
+                 properties: Optional[dict] = None) -> 'MultiMolecule':
         """Construct a :class:`.MultiMolecule` instance from a (multi) .xyz file.
 
         Comment lines extracted from the .xyz file are stored, as array, under
@@ -2155,7 +2153,7 @@ class MultiMolecule(_MultiMolecule):
     @classmethod
     def from_kf(cls, filename: str,
                 bonds: Optional[np.ndarray] = None,
-                properties: Optional[dict] = None) -> MultiMolecule:
+                properties: Optional[dict] = None) -> 'MultiMolecule':
         """Construct a :class:`.MultiMolecule` instance from a KF binary file.
 
         Parameters

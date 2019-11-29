@@ -169,7 +169,10 @@ def _populate_keys(settings: Settings, param: pd.DataFrame) -> None:
 
     """
     for i in param.index.levels[0]:
-        keys = param.loc[i, 'keys'].iloc[0]
+        try:
+            keys = param.loc[i, 'keys'].iloc[0]
+        except KeyError:
+            continue
         if not isinstance(settings.get_nested(keys), list):
             settings.set_nested(keys, [])
 

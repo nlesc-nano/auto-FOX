@@ -245,9 +245,3 @@ def get_impropers(mol: Molecule) -> np.ndarray:
     idx = np.argsort(mass, axis=1)[:, ::-1]
     ret[:, 1], ret[:, 2], ret[:, 3] = np.take_along_axis(ret[:, 1:], idx, axis=1).T
     return ret
-
-
-try:
-    from nanoCAT.ff.mol_topology import get_bonds, get_angles, get_dihedrals, get_impropers
-except ImportError:
-    pass
