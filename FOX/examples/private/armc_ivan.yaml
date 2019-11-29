@@ -8,8 +8,9 @@ param:
         unit: kjmol
         keys: [input, force_eval, mm, forcefield, nonbonded, lennard-jones]
         Cd Cd: 0.3101
-        Se Se: 0.4266
-        Cd Se: 1.5225
+        frozen:
+            Cd Se: 1.5225
+            Se Se: 0.4266
     sigma:
         unit: nm
         keys: [input, force_eval, mm, forcefield, nonbonded, lennard-jones]
@@ -35,7 +36,7 @@ job:
     name: armc
     path: /Users/bvanbeek/Downloads
     folder: MM_MD_workdir
-    keep_files: False
+    keep_files: True
     rmsd_threshold: 5.0
 
     preopt_settings: null

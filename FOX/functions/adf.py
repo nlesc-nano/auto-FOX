@@ -1,6 +1,6 @@
 """A module for constructing angular distribution functions."""
 
-from typing import Sequence, Hashable, Mapping, List
+from typing import Sequence, Hashable, Optional
 
 import numpy as np
 import pandas as pd
@@ -29,78 +29,38 @@ def get_adf_df(atom_pairs: Sequence[Hashable]) -> pd.DataFrame:
     return df
 
 
-def get_adf(ang: np.ndarray,
-            dist: np.ndarray,
-            atnum_ar: np.ndarray,
-            atnum_dict: Mapping[int, int],
-            distance_weighted: bool = True) -> np.ndarray:
+def get_adf(ang: np.ndarray, weights: Optional[np.ndarray] = None) -> np.ndarray:
     r"""Calculate and return the angular distribution function (ADF).
-
-    The ADF is based on the 3D angle matrix **ang_mat**.
 
     Parameters
     ----------
-    ang : :math:`n*k*l` |np.ndarray|_ [|np.float64|_]
-        A 3D angle matrix (radian) constructed from 1 molecule and three sets of
-        :math:`n`, :math:`k` and :math:`l` atoms.
+    ang : |np.ndarray|_ [|np.int64|_]
+        A 1D array of angles (:code:`dtype=int`) with all angles.
+        Units should be in degrees.
 
-    dist : :math:`n*k*l` |np.ndarray|_ [|np.float64|_]
-        A 3D distance matrix (Angstrom) containing all distances between three sets of
-        :math:`n`, :math:`k` and :math:`l` atoms.
-
-    distance_weighted : |bool|_
-        Return the distance-weighted angular distribution function.
-        Each angle, :math:`\phi_{ijk}`, is weighted by the distance according to the
-        weighting factor :math:`v`:
-
-        .. math::
-
-            v = \Biggl \lbrace
-            {
-                e^{-r_{ji}}, \quad r_{ji} \; \gt \; r_{jk}
-                \atop
-                e^{-r_{jk}}, \quad r_{ji} \; \lt \; r_{jk}
-            }
+    weights : |np.ndarray|_ [|np.float|_], optional
+        A 1D array of weighting factors.
+        Should be of the same length as **ang**.
 
     Returns
     -------
     :math:`m*180` |np.ndarray|_ [|np.float64|_]:
-        A 2D array with an angular distribution function spanning all values between 0 and 180
+        A 1D array with an angular distribution function spanning all values between 0 and 180
         degrees.
 
     """
-    ang_int = np.degrees(ang).astype(dtype=int)
+    # Calculate and normalize the density
+    denominator = len(ang) / 180
+    at_count = np.bincount(ang, minlength=181)[1:181]
+    dens = at_count / denominator
 
-    ret: List[np.ndarray] = []
-    ret_append = ret.append
+    if weights is None:
+        return dens
 
-    for k, v in atnum_dict.items():
-        # Prepare slices
-        j = atnum_ar == k
-        dist_flat = dist[j]
-
-        # Calculate the average angle density
-        r_max = -np.log(dist_flat.min())
-        volume = (4/3) * np.pi * (0.5 * r_max)**3
-        dens_mean = v / volume
-
-        # Calculate and normalize the density
-        denominator = dens_mean * (volume / 180) * len(dist_flat) / v
-        at_count = np.array(np.bincount(ang_int[j], minlength=181)[1:181], dtype=float)
-        dens = at_count / denominator
-
-        if not distance_weighted:
-            ret_append(dens)
-            continue
-
-        # Weight (and re-normalize) the density based on the distance matrix **dist**
-        area = dens.sum()
-        with np.errstate(divide='ignore', invalid='ignore'):
-            weight = np.bincount(ang_int[j], dist_flat, minlength=181)[1:181] / at_count
-            dens *= weight
-            normalize = area / np.nansum(dens)
-            dens *= normalize
-        dens[np.isnan(dens)] = 0.0
-        ret_append(dens)
-
-    return np.array(ret).T
+    # Weight (and re-normalize) the density based on the distance matrix **dist**
+    area = dens.sum()
+    with np.errstate(divide='ignore', invalid='ignore'):
+        dens *= np.bincount(ang, weights=weights, minlength=181)[1:181] / at_count
+        dens *= area / np.nansum(dens)
+    dens[np.isnan(dens)] = 0.0
+    return dens

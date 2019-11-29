@@ -7,7 +7,7 @@
    :target: https://www.python.org
 
 #################################################
-Automated Forcefield Optimization Extension 0.6.4
+Automated Forcefield Optimization Extension 0.6.5
 #################################################
 
 **Auto-FOX** is a library for analyzing potential energy surfaces (PESs) and

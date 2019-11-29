@@ -5,6 +5,12 @@ Change Log
 All notable changes to this project will be documented in this file.
 This project adheres to `Semantic Versioning <http://semver.org/>`_.
 
+0.6.5
+*****
+* Cleaned up the angular distribution code & atom subset code.
+* Added a module for constructing UFF Lennard-Jones parameters.
+* Added the option to speicify constant parameter values in the ARMC .yaml input.
+
 
 0.6.4
 *****

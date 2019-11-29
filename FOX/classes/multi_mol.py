@@ -23,7 +23,9 @@ from __future__ import annotations
 
 from collections import abc
 from itertools import chain, combinations_with_replacement, zip_longest, islice
-from typing import Sequence, Optional, Union, List, Hashable, Callable, Iterable, Dict, Tuple, Any
+from typing import (
+    Sequence, Optional, Union, List, Hashable, Callable, Iterable, Dict, Tuple, Any
+)
 
 import numpy as np
 import pandas as pd
@@ -32,7 +34,7 @@ from scipy.spatial import cKDTree
 from scipy.fftpack import fft
 from scipy.spatial.distance import cdist
 
-from scm.plams import Molecule, Atom, Bond, PeriodicTable
+from scm.plams import Molecule, Atom, Bond
 
 from .multi_mol_magic import _MultiMolecule
 from ..io.read_kf import read_kf
@@ -142,7 +144,7 @@ class MultiMolecule(_MultiMolecule):
             raise TypeError("'None' is an invalid value for 'atom_subset'")
 
         # Delete atoms
-        at_subset = np.array(self._get_atom_subset(atom_subset, as_sequence=True))
+        at_subset = self._get_atom_subset(atom_subset, as_array=True)
         idx = np.arange(0, self.shape[1])[~at_subset]
         ret = self[:, idx].copy()
 
@@ -165,7 +167,7 @@ class MultiMolecule(_MultiMolecule):
             If ``None``, guess bonds for all atoms in this instance.
 
         """
-        at_subset = np.fromiter(self._get_atom_subset(atom_subset, as_sequence=True), dtype=int)
+        at_subset = self._get_atom_subset(atom_subset, as_array=True)
         at_subset.sort()
 
         # Guess bonds
@@ -437,7 +439,7 @@ class MultiMolecule(_MultiMolecule):
             A 1D array with the number of bonds per atom, for all :math:`n` atoms in this instance.
 
         """
-        j = self._get_atom_subset(atom_subset, as_sequence=True)
+        j = self._get_atom_subset(atom_subset, as_array=True)
         if self.bonds is None:
             return np.zeros(len(j), dtype=int)
         return np.bincount(self.atom12.ravel(), minlength=self.shape[1])[j]
@@ -1454,7 +1456,7 @@ class MultiMolecule(_MultiMolecule):
     def init_adf(self, mol_subset: MolSubset = None,
                  atom_subset: AtomSubset = None,
                  r_max: Union[float, str] = 8.0,
-                 distance_weighted: bool = True) -> pd.DataFrame:
+                 weight: Callable[[np.ndarray], np.ndarray] = lambda n: np.exp(-n)) -> pd.DataFrame:
         r"""Initialize the calculation of distance-weighted angular distribution functions (ADFs).
 
         ADFs are calculated for all possible atom-pairs in **atom_subset** and returned as a
@@ -1519,49 +1521,47 @@ class MultiMolecule(_MultiMolecule):
 
         # Identify atom and molecule subsets
         m_subset = self._get_mol_subset(mol_subset)
-        at_subset = np.asarray(self._get_atom_subset(atom_subset, as_sequence=True))
+        at_subset = self._get_atom_subset(atom_subset, as_array=True)
 
-        # Construct a dictionary with atom counts and unique atom-pair identifiers
+        # Construct a dictionary unique atom-pair identifiers as keys
         atom_pairs = self.get_pair_dict(atom_subset or sorted(self.atoms, key=str), r=3)
-        atnum_dict = {}
-        get_atnum = PeriodicTable.get_atomic_number  # method alias
-        for at1, at2, at3 in atom_pairs.values():
-            key = (get_atnum(at1) + get_atnum(at3)) * get_atnum(at2)
-            atnum_dict[key] = len(self.atoms[at2])
 
         # Slice this MultiMolecule instance based on **atom_subset** and **mol_subset**
         del_atom = np.arange(0, self.shape[1])[~at_subset]
         mol = self.delete_atoms(del_atom)[m_subset]
-        atnum = mol.atnum
+        for k, v in atom_pairs.items():
+            v_new = []
+            for at in v:
+                bool_ar = np.zeros(mol.shape[1], dtype=bool)
+                bool_ar[mol.atoms[at] if isinstance(at, str) else at] = True
+                v_new.append(bool_ar)
+            atom_pairs[k] = v_new
 
         # Construct the angular distribution function
         # Perform the task in parallel (with dask) if possible
         if not DASK_EX and r_max:
             func = dask.delayed(MultiMolecule._adf_inner_cdktree)
-            jobs = [func(m, n, r_max, atnum_dict, atnum, distance_weighted) for m in mol]
+            jobs = [func(m, n, r_max, atom_pairs.values(), weight) for m in mol]
             results = dask.compute(*jobs)
         elif not DASK_EX and not r_max:
             func = dask.delayed(MultiMolecule._adf_inner)
-            jobs = [func(m, atnum_dict, atnum, distance_weighted) for m in mol]
+            jobs = [func(m, atom_pairs.values(), weight) for m in mol]
             results = dask.compute(*jobs)
         elif DASK_EX and r_max:
             func = MultiMolecule._adf_inner_cdktree
-            results = [func(m, n, r_max, atnum_dict, atnum, distance_weighted) for m in mol]
+            results = [func(m, n, r_max, atom_pairs.values(), weight) for m in mol]
         elif DASK_EX and not r_max:
             func = MultiMolecule._adf_inner
-            results = [func(m, atnum_dict, atnum, distance_weighted) for m in mol]
+            results = [func(m, atom_pairs.values(), weight) for m in mol]
 
         df = get_adf_df(atom_pairs)
-        df.loc[:, :] = np.array(results).mean(axis=0)
+        df.loc[:, :] = np.array(results).mean(axis=0).T
         return df
 
     @staticmethod
-    def _adf_inner_cdktree(m: MultiMolecule,
-                           n: int,
-                           r_max: float,
-                           atnum_dict: Dict[int, int],
-                           atnum: np.ndarray,
-                           distance_weighted: bool) -> np.ndarray:
+    def _adf_inner_cdktree(m: MultiMolecule, n: int, r_max: float,
+                           idx_list: Iterable[Tuple[np.ndarray, np.ndarray, np.ndarray]],
+                           weight: Callable[[np.ndarray], np.ndarray]) -> np.ndarray:
         """Perform the loop of :meth:`.init_adf` with a distance cutoff."""
         # Construct slices and a distance matrix
         tree = cKDTree(m)
@@ -1570,49 +1570,54 @@ class MultiMolecule(_MultiMolecule):
         idx[idx == m.shape[0]] = 0
 
         # Slice the Cartesian coordinates
-        coords1 = coords3 = m[idx]
+        coords13 = m[idx]
         coords2 = m[..., None, :]
 
         # Construct (3D) angle- and distance-matrices
         with np.errstate(divide='ignore', invalid='ignore'):
-            vec12 = ((coords1 - coords2) / dist[..., None])
-            vec32 = ((coords3 - coords2) / dist[..., None])
-            ang = np.arccos(np.einsum('jkl,jml->jkm', vec12, vec32))
-            dist = np.exp(-np.maximum(dist[..., None], dist[..., None, :]))
+            vec = ((coords13 - coords2) / dist[..., None])
+            ang = np.arccos(np.einsum('jkl,jml->jkm', vec, vec))
+            dist = np.maximum(dist[..., None], dist[..., None, :])
         ang[np.isnan(ang)] = 0.0
-
-        # Create an array of (unique) atom-pair identifiers
-        atnum_ar = atnum[:, None, None] * (atnum[idx][..., None] + atnum[idx][..., None, :])
+        ang = np.degrees(ang).astype(int)  # Radian (float) to degrees (int)
 
         # Construct and return the ADF
-        return get_adf(ang, dist, atnum_ar, atnum_dict, distance_weighted)
+        ret = []
+        ret_append = ret.append
+        for i, j, k in idx_list:
+            ijk = j[:, None, None] & i[idx][..., None] & k[idx][..., None, :]
+            weights = weight(dist[ijk]) if weight is not None else None
+            ret_append(get_adf(ang[ijk], weights=weights))
+        return ret
 
     @staticmethod
     def _adf_inner(m: MultiMolecule,
-                   atnum_dict: Dict[int, int],
-                   atnum: np.ndarray,
-                   distance_weighted: bool) -> np.ndarray:
+                   idx_list: Iterable[Tuple[np.ndarray, np.ndarray, np.ndarray]],
+                   weight: Callable[[np.ndarray], np.ndarray]) -> np.ndarray:
         """Perform the loop of :meth:`.init_adf` without a distance cutoff."""
         # Construct a distance matrix
         dist = cdist(m, m)
 
         # Slice the Cartesian coordinates
-        coords1 = coords3 = m
+        coords13 = m
         coords2 = m[..., None, :]
 
         # Construct (3D) angle- and distance-matrices
         with np.errstate(divide='ignore', invalid='ignore'):
-            vec12 = ((coords1 - coords2) / dist[..., None])
-            vec32 = ((coords3 - coords2) / dist[..., None])
-            ang = np.arccos(np.einsum('jkl,jml->jkm', vec12, vec32))
+            vec = ((coords13 - coords2) / dist[..., None])
+            ang = np.arccos(np.einsum('jkl,jml->jkm', vec, vec))
             dist = np.exp(-np.maximum(dist[..., None], dist[..., None, :]))
         ang[np.isnan(ang)] = 0.0
-
-        # Create an array of (unique) atom-pair identifiers
-        atnum_ar = atnum[:, None, None] * (atnum[..., None] + atnum[..., None, :])
+        ang = np.degrees(ang).astype(int)  # Radian (float) to degrees (int)
 
         # Construct and return the ADF
-        return get_adf(ang, dist, atnum_ar, atnum_dict, distance_weighted)
+        ret = []
+        ret_append = ret.append
+        for i, j, k in idx_list:
+            ijk = j[:, None, None] & i[..., None] & k[..., None, :]
+            weights = weight(dist[ijk]) if weight is not None else None
+            ret_append(get_adf(ang[ijk], weights=weights))
+        return ret
 
     def get_angle_mat(self, mol_subset: MolSubset = 0,
                       atom_subset: Tuple[AtomSubset, AtomSubset, AtomSubset] = (None, None, None),
@@ -1670,7 +1675,7 @@ class MultiMolecule(_MultiMolecule):
             return np.arccos(np.einsum('ijkl,ijml->ijkm', unit_vec1, unit_vec2))
 
     def _get_atom_subset(self, atom_subset: AtomSubset,
-                         as_sequence: bool = False) -> Union[slice, np.ndarray, Tuple[int]]:
+                         as_array: bool = False) -> Union[slice, np.ndarray]:
         """Sanitize the **_get_atom_subset** argument.
 
         Accepts the following objects:
@@ -1682,6 +1687,7 @@ class MultiMolecule(_MultiMolecule):
             * Sequence of integers (*e.g.* lists, tuples or arrays)
             * Sequence of strings
             * Nested sequence of integers
+            * Boolean sequences
 
         Notes
         -----
@@ -1694,8 +1700,8 @@ class MultiMolecule(_MultiMolecule):
             determined by their atomic index or atomic symbol.
             Include all :math:`n` atoms per molecule in this instance if ``None``.
 
-        as_sequence : bool
-            Ensure the subset is returned as a sequence.
+        as_array : bool
+            Ensure the subset is returned as an array of integers.
 
         Returns
         -------
@@ -1708,9 +1714,9 @@ class MultiMolecule(_MultiMolecule):
             Raised if an object unsuitable for array slicing is provided.
 
         """
-        if as_sequence:
+        if as_array:
             if atom_subset is None:
-                return np.arange(0, self.shape[1])
+                return np.arange(0, self.shape[-2])
             elif isinstance(atom_subset, (range, slice)):
                 return np.arange(atom_subset.start, atom_subset.stop, atom_subset.step)
         else:
@@ -1721,19 +1727,24 @@ class MultiMolecule(_MultiMolecule):
             elif isinstance(atom_subset, range):
                 return slice(atom_subset.start, atom_subset.stop, atom_subset.step)
 
-        if isinstance(atom_subset, (int, np.integer)):
-            return (atom_subset.__index__(),)
-        elif isinstance(atom_subset[0], (int, np.integer)):
-            return tuple(i.__index__() for i in atom_subset)
-        elif isinstance(atom_subset, str):
-            return tuple(self.atoms[atom_subset])
-        elif isinstance(atom_subset[0], str):
-            return tuple(chain.from_iterable(self.atoms[i] for i in atom_subset))
-        elif isinstance(atom_subset[0][0], (int, np.integer)):
-            return tuple(i.__index__() for i in chain.from_iterable(atom_subset))
+        ret = np.array(atom_subset, ndmin=1, copy=False).ravel()
+        i = ret[0]
+        if isinstance(i, np.str_):
+            atoms = self.atoms
+            return np.fromiter(chain.from_iterable(atoms[j] for j in ret), dtype=int)
+        elif isinstance(i, np.integer):
+            return ret
+        elif isinstance(i, np.bool_):
+            return ret if not as_array else np.arange(len(ret), dtype=int)[ret]
+        elif ret.dtype.name == 'object':
+            try:
+                return np.fromiter(chain.from_iterable(ret), dtype=int)
+            except ValueError as ex:
+                raise TypeError("'atom_subset' expected a (nested) sequence of integers, "
+                                "strings or booleans; observed value type: "
+                                f"'{i.__class__.__name__}'").with_traceback(ex.__traceback__)
 
-        err = f"The 'atom_subset' parameter is of invalid type: '{atom_subset.__class__.__name__}'"
-        raise TypeError(err)
+        raise TypeError(f"'atom_subset' is of invalid type: '{atom_subset.__class__.__name__}'")
 
     def _get_mol_subset(self, mol_subset: MolSubset) -> slice:
         """Sanitize the **mol_subset** argument.
@@ -1777,13 +1788,11 @@ class MultiMolecule(_MultiMolecule):
                     return slice(i, i + 1)
                 else:
                     return slice(i, None)
-
             except TypeError as ex:
                 err = "The 'mol_subset' parameter cannot be used as scalar inder"
                 raise ValueError(err).with_traceback(ex.__traceback__)
 
-        err = f"The 'mol_subset' parameter is of invalid type: '{mol_subset.__class__.__name__}'"
-        raise TypeError(err)
+        raise TypeError(f"'mol_subset' is of invalid type: '{mol_subset.__class__.__name__}'")
 
     """#################################  Type conversion  ####################################"""
 
@@ -1809,21 +1818,23 @@ class MultiMolecule(_MultiMolecule):
             Include all :math:`m` molecules in this instance if ``None``.
 
         """
-        _m_subset = self._get_mol_subset(mol_subset)
-        m_subset = range(_m_subset.start, _m_subset.stop, _m_subset.step)
+        m_subset = self._get_mol_subset(mol_subset)
+        mol_range = range(m_subset.start, m_subset.stop, m_subset.step)
         outputformat = outputformat or filename.rsplit('.', 1)[-1]
         plams_mol = self.as_Molecule(mol_subset=0)[0]
 
-        if len(m_subset) != 1 or (m_subset.stop - m_subset.start) // m_subset.step != 1:
+        if len(mol_range) != 1 or (mol_range.stop - mol_range.start) // mol_range.step != 1:
             name_list = filename.rsplit('.', 1)
             name_list.insert(-1, '.{:d}.')
             name = ''.join(name_list)
         else:
             name = filename
 
-        for i, j in enumerate(m_subset, 1):
-            plams_mol.from_array(self[j])
-            plams_mol.write(name.format(i), outputformat=outputformat)
+        from_array = plams_mol.from_array
+        write = plams_mol.write
+        for i, j in enumerate(mol_range, 1):
+            from_array(self[j])
+            write(name.format(i), outputformat=outputformat)
 
     def as_pdb(self, filename: str,
                mol_subset: Optional[MolSubset] = 0) -> None:
@@ -2017,7 +2028,7 @@ class MultiMolecule(_MultiMolecule):
 
         """
         m_subset = self._get_mol_subset(mol_subset)
-        at_subset = np.asarray(self._get_atom_subset(atom_subset, as_sequence=True))
+        at_subset = self._get_atom_subset(atom_subset, as_array=True)
         at_subset.sort()
         at_symbols = self.symbol
 

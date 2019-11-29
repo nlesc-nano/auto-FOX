@@ -343,11 +343,10 @@ def dict_to_pandas(input_dict: dict, name: Hashable = 0,
 
     # Construct a DataFrame or Series
     pd_type = object_type.split('.')[-1].lower()
-    if pd_type == 'series':
-        ret = pd.Series(list(flat_dict.values()), index=idx, name=name)
-    elif pd_type == 'dataframe':
-        ret = pd.DataFrame(list(flat_dict.values()), index=idx, columns=[name])
-    else:
+    ret = pd.Series(list(flat_dict.values()), index=idx, name=name)
+    if pd_type == 'dataframe':
+        ret = ret.to_frame()
+    elif pd_type != 'series':
         raise ValueError("{} is not an accepted value for the keyword argument 'object_type'. "
                          "Accepted values are 'DataFrame' and 'Series'".format(str(object_type)))
 
