@@ -54,8 +54,8 @@ def set_subsys_kind(settings: Settings, df: pd.DataFrame) -> None:
     """
     subsys = settings.input.force_eval.subsys
     for at_name, at_type in df[['atom name', 'atom type']].values:
-        if not subsys['kind ' + at_type]:
-            subsys['kind ' + at_type] = {'element': at_name}
+        if not subsys[f'kind {at_type}']:
+            subsys[f'kind {at_type}'] = {'element': at_name}
 
 
 def set_keys(settings: Settings, param: pd.DataFrame) -> None:
@@ -170,7 +170,8 @@ def _populate_keys(settings: Settings, param: pd.DataFrame) -> None:
     """
     for i in param.index.levels[0]:
         keys = param.loc[i, 'keys'].iloc[0]
-        settings.set_nested(keys, [])
+        if not isinstance(settings.get_nested(keys), list):
+            settings.set_nested(keys, [])
 
     for (k, at), (keys, prm, fstring) in param[['keys', 'param', 'unit']].iterrows():
         # User either 'atoms' or `atom' as key depending on the number of atoms

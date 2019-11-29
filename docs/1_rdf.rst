@@ -31,7 +31,7 @@ the number of molecules.
 Note: Due to larger size of angle matrices it is recommended to use
 ``low_mem=False`` when generating ADFs.
 
-Below is an example RDF of a CdSe quantum dot pacified with formate ligands.
+Below is an example RDF and ADF of a CdSe quantum dot pacified with formate ligands.
 The RDF is printed for all possible combinations of cadmium, selenium and
 oxygen (Cd_Cd, Cd_Se, Cd_O, Se_Se, Se_O and O_O).
 
@@ -42,9 +42,10 @@ oxygen (Cd_Cd, Cd_Se, Cd_O, Se_Se, Se_O and O_O).
     >>> example_xyz_file = get_example_xyz()
     >>> mol = MultiMolecule.from_xyz(example_xyz_file)
 
+    # Default weight: np.exp(-r)
     >>> rdf = mol.init_rdf(atom_subset=('Cd', 'Se', 'O'))
-    >>> adf = mol.init_adf(r_max=8, distance_weighted=False, atom_subset=('Cd', 'Se'))
-    >>> adf_weighted = mol.init_adf(r_max=8, distance_weighted=True, atom_subset=('Cd', 'Se'))
+    >>> adf = mol.init_adf(r_max=8, weight=None, atom_subset=('Cd', 'Se'))
+    >>> adf_weighted = mol.init_adf(r_max=8, atom_subset=('Cd', 'Se'))
 
     >>> rdf.plot(title='RDF')
     >>> adf.plot(title='ADF')
@@ -56,8 +57,8 @@ oxygen (Cd_Cd, Cd_Se, Cd_O, Se_Se, Se_O and O_O).
     from FOX import (MultiMolecule, get_example_xyz)
     mol = MultiMolecule.from_xyz(get_example_xyz())
     rdf = mol.init_rdf(atom_subset=('Cd', 'Se', 'O'))
-    adf = mol.init_adf(r_max=8, distance_weighted=False, atom_subset=('Cd', 'Se'))
-    adf_weighted = mol.init_adf(r_max=8, distance_weighted=True, atom_subset=('Cd', 'Se'))
+    adf = mol.init_adf(r_max=8, weight=None, atom_subset=('Cd', 'Se'))
+    adf_weighted = mol.init_adf(r_max=8, atom_subset=('Cd', 'Se'))
     rdf.plot(title='RDF')
     adf.plot(title='ADF')
     adf_weighted.plot(title='Distance-weighted ADF')

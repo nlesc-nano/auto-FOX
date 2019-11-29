@@ -217,6 +217,7 @@ def reshape_settings(s: Settings) -> None:
     # Pop
     pes = s.pop('pes')
     job = s.pop('job')
+
     job.psf = _generate_psf(job.path, s.molecule[0], s.md_settings, s.pop('psf'), s.param)
     if job.psf is None:
         del job.psf
@@ -253,6 +254,20 @@ def _reshape_param(s: Settings) -> None:
         prm_file = s.param.pop('prm_file')
         prm_file_ = abspath(prm_file) if isfile(abspath(prm_file)) else join(s.job.path, prm_file)
         s.job.md_settings.input.force_eval.mm.forcefield.parm_file_name = prm_file_
+
+    # Create a copy of s.param with just all frozen settings
+    prm_frozen = Settings()
+    for k, v in s.param.items():
+        if 'frozen' not in v:
+            continue
+        if 'keys' in v:
+            prm_frozen[k]['keys'] = v['keys']
+        if 'unit' in v:
+            prm_frozen[k].unit = v.unit
+        prm_frozen[k].update(v.pop('frozen'))
+    if prm_frozen:
+        df_frozen = dict_to_pandas(prm_frozen, 'param')
+        set_keys(s.job.md_settings, df_frozen)
 
     s.param = param = dict_to_pandas(s.param, 'param')
     param['param_old'] = np.nan

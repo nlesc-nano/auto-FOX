@@ -194,11 +194,11 @@ def test_adf():
 
     atoms = ('Cd', 'Se')
 
-    adf1 = mol.init_adf(atom_subset=atoms, distance_weighted=True).values
+    adf1 = mol.init_adf(atom_subset=atoms).values
     ref1 = np.load(join(PATH, 'adf_weighted.npy'))
     np.testing.assert_allclose(adf1, ref1)
 
-    adf2 = mol.init_adf(atom_subset=atoms, distance_weighted=False).values
+    adf2 = mol.init_adf(atom_subset=atoms, weight=None).values
     ref2 = np.load(join(PATH, 'adf.npy'))
     np.testing.assert_allclose(adf2, ref2)
 
