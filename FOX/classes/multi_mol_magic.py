@@ -48,7 +48,7 @@ _NONE_DICT: Mapping[str, Union[str, int, float]] = MappingProxyType({
 
 
 class LocGetter(AbstractDataClass):
-    """A getter and setter for atom-type based slicing.
+    """A getter and setter for atom-type-based slicing.
 
     Get, set and del operations are performed using the list(s) of atomic indices associated
     with the provided atomic symbol(s).
@@ -63,12 +63,20 @@ class LocGetter(AbstractDataClass):
         >>> mol.atoms['Se'] = [6, 7, 8, 9, 10, 11]
         >>> mol.atoms['O'] = [12, 13, 14]
 
-        >>> (mol.at['Cd'] == mol[mol.atoms['Cd']]).all()
+        >>> (mol.loc['Cd'] == mol[mol.atoms['Cd']]).all()
         True
 
-        >>> idx = list(range(15))
-        >>> (mol.at['Cd', 'Se', 'O'] == mol[idx]).all()
+        >>> idx = mol.atoms['Cd'] + mol.atoms['Se'] + mol.atoms['O']
+        >>> (mol.loc['Cd', 'Se', 'O'] == mol[idx]).all()
         True
+
+        >>> mol.loc['Cd'] = 1
+        >>> print((mol.loc['Cd'] == 1).all())
+        True
+
+        >>> del mol.loc['Cd']
+        ValueError: cannot delete array elements
+
 
     Parameters
     ----------
@@ -79,9 +87,6 @@ class LocGetter(AbstractDataClass):
     ----------
     mol : :class:`MultiMolecule`
         A MultiMolecule instance.
-
-    atoms : :class:`dict`
-        The :attr:`MultiMolecule.atoms` attribute of **mol**.
 
     """
 
@@ -99,7 +104,7 @@ class LocGetter(AbstractDataClass):
     @AbstractDataClass.inherit_annotations()
     def _str_iterator(self):
         yield 'mol', self.mol
-        yield 'atoms.keys()', self.atoms.keys()
+        yield 'keys', self.atoms.keys()
 
     def __getitem__(self, key: Union[str, Iterable[str]]) -> '_MultiMolecule':
         """Get items from :attr:`AtGetter.mol`."""
@@ -194,7 +199,9 @@ class _MultiMolecule(np.ndarray):
     """#####################  Properties for managing instance attributes  ######################"""
 
     @property
-    def loc(self) -> LocGetter: return LocGetter(self)
+    def loc(self) -> LocGetter:
+        return LocGetter(self)
+    loc.__doc__ = LocGetter.__doc__
 
     @property
     def atoms(self) -> Dict[str, List[int]]:
