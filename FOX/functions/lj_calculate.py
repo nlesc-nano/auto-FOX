@@ -1,8 +1,22 @@
-"""
+r"""
 FOX.functions.lj_calculate
 ==========================
 
 A module for calculating non-bonded interactions using Coulomb + Lennard-Jones potentials.
+
+.. math::
+
+    V_{LJ} = 4 \varepsilon
+    \left(
+        \left(
+            \frac{\sigma}{r}
+        \right )^{12} -
+        \left(
+            \frac{\sigma}{r}
+        \right )^6
+    \right )
+
+    V_{Coulomb} = \frac{1}{4 \pi \varepsilon_{0}} \frac{q_{i} q_{j}}{r_{ij}}
 
 """
 
