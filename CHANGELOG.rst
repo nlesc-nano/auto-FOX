@@ -6,6 +6,14 @@ All notable changes to this project will be documented in this file.
 This project adheres to `Semantic Versioning <http://semver.org/>`_.
 
 
+0.6.8
+*****
+* Added a workflow for calculating intera-ligand interactions using
+  harmonic- + cosine-based potentials: ``FOX.get_bonded()``.
+  Complementary to the in 0.6.4 introduced ``FOX.get_non_bonded()``.
+* Added a number of useful workflows as stand-alone scripts.
+
+
 0.6.7
 *****
 * ``FOX.estimate_lj()`` can now estimate sigma based on either the base or
@@ -27,7 +35,7 @@ This project adheres to `Semantic Versioning <http://semver.org/>`_.
 *****
 * Cleaned up the angular distribution code & atom subset code.
 * Added a module for constructing UFF Lennard-Jones parameters.
-* Added the option to speicify constant parameter values in the ARMC .yaml input.
+* Added the option to specify constant parameter values in the ARMC .yaml input.
 
 
 0.6.4
