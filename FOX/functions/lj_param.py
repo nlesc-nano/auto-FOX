@@ -43,6 +43,7 @@ API
 
 """
 
+import reprlib
 from typing import TypeVar, Optional, Mapping, List, Dict, Generator
 
 import numpy as np
@@ -104,7 +105,8 @@ def get_free_energy(distribution: A,
     return ret
 
 
-def estimate_lj(rdf: pd.DataFrame, temperature: float = 298.15) -> pd.DataFrame:
+def estimate_lj(rdf: pd.DataFrame, temperature: float = 298.15,
+                sigma_estimate: str = 'base') -> pd.DataFrame:
     r"""Estimate the Lennard-Jones :math:`\sigma` and :math:`\varepsilon` parameters.
 
     Given a radius :math:`r`, the Lennard-Jones potential :math:`V_{LJ}(r)` is defined as
@@ -124,7 +126,7 @@ def estimate_lj(rdf: pd.DataFrame, temperature: float = 298.15) -> pd.DataFrame:
 
     The :math:`\sigma` and :math:`\varepsilon` parameters are estimated as following:
 
-    * :math:`\sigma`: The radii at which the first inflection point occurs in **rdf**.
+    * :math:`\sigma`: The radii at which the first inflection point or peak base occurs in **rdf**.
     * :math:`\varepsilon`: The minimum value in of the **rdf** ree energy multiplied by :math:`-1`.
     * All values are calculated per atom pair specified in **rdf**.
 
@@ -136,6 +138,11 @@ def estimate_lj(rdf: pd.DataFrame, temperature: float = 298.15) -> pd.DataFrame:
 
     temperature : :class:`float`
         The temperature in Kelvin.
+
+    sigma_estimate : :class:`str`
+        Whether :math:`\sigma` should be estimated based on the base of the first peak or
+        its inflection point.
+        Accepted values are ``"base"`` and ``"inflection"``, respectively.
 
     Returns
     -------
@@ -154,14 +161,22 @@ def estimate_lj(rdf: pd.DataFrame, temperature: float = 298.15) -> pd.DataFrame:
 
     """
     G = get_free_energy(rdf, temperature)
+    if sigma_estimate not in {'base', 'inflection'}:
+        raise ValueError("'sigma_estimate' expected either 'base' or 'inflection'; observed value: "
+                         f"{reprlib.repr(sigma_estimate)}")
 
     # Prepare the parameter sigma
     lj_dict: Dict[str, List[float]] = {'sigma (Angstrom)': []}
     sigma_append = lj_dict['sigma (Angstrom)'].append
 
     for atoms, distr in rdf.items():
-        grad = np.gradient(distr)
-        i = np.argmax(grad)  # The first inflection point in the RDF
+        if sigma_estimate == 'inflection':
+            grad = np.gradient(distr)
+            i = np.argmax(grad)  # The first inflection point in the RDF
+        elif sigma_estimate == 'base':
+            distr_ar = distr.values
+            j = distr_ar.argmax()
+            i = np.where(distr_ar[:j] <= 10**-8)[0][-1]  # Find the base of the first peak
         sigma_append(distr.index[i])
 
     lj_dict['epsilon (kj/mol)'] = -1 * G.min()
