@@ -1,6 +1,6 @@
 r"""
-FOX.functions.lj_calculate
-==========================
+FOX.ff.lj_calculate
+===================
 
 A module for calculating non-bonded interactions using Coulomb + Lennard-Jones potentials.
 
@@ -31,7 +31,7 @@ import pandas as pd
 
 from scm.plams import Units, Settings
 
-from .utils import read_rtf_file, fill_diagonal_blocks, group_by_values
+from ..functions.utils import read_rtf_file, fill_diagonal_blocks, group_by_values
 from ..classes.multi_mol import MultiMolecule
 from ..io.read_psf import PSFContainer
 from ..io.read_prm import PRMContainer

@@ -12,6 +12,9 @@ This project adheres to `Semantic Versioning <http://semver.org/>`_.
   harmonic- + cosine-based potentials: ``FOX.get_bonded()``.
   Complementary to the in 0.6.4 introduced ``FOX.get_non_bonded()``.
 * Added a number of useful workflows as stand-alone scripts.
+* Added the ``FOX.ff`` directory for all forcefield related modules.
+* Slimmed down the number of exposed functions and classess.
+* Changed ``PSFContainer._SHAPE_DICT`` and ``._HEADER_DICT`` to instances of ``MappingProxyType()``.
 
 
 0.6.7

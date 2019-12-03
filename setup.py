@@ -30,7 +30,8 @@ setup(
         'FOX.functions',
         'FOX.armc_functions',
         'FOX.classes',
-        'FOX.io'
+        'FOX.io',
+        'FOX.ff'
     ],
     package_dir={'FOX': 'FOX'},
     package_data={'FOX': [

@@ -7,7 +7,8 @@ import numpy as np
 
 from assertionlib import assertion
 
-from FOX import MultiMolecule, get_example_xyz, get_template
+from FOX import MultiMolecule, get_example_xyz
+from FOX.functions.utils import get_template
 
 MOL = MultiMolecule.from_xyz(get_example_xyz())
 PATH = join('tests', 'test_files')
