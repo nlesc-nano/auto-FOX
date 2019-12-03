@@ -15,6 +15,7 @@ This project adheres to `Semantic Versioning <http://semver.org/>`_.
 * Added the ``FOX.ff`` directory for all forcefield related modules.
 * Slimmed down the number of exposed functions and classess.
 * Changed ``PSFContainer._SHAPE_DICT`` and ``._HEADER_DICT`` to instances of ``MappingProxyType()``.
+* Fixed a bug where some ``PSFContainer()`` dihedral angles where ordered incorectly.
 
 
 0.6.7
