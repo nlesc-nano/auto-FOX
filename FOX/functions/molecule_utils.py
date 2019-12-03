@@ -23,7 +23,7 @@ from typing import List
 
 import numpy as np
 
-from scm.plams import Molecule
+from scm.plams import Molecule, Atom
 
 __all__ = ['get_bonds', 'get_angles', 'get_dihedrals', 'get_impropers']
 
@@ -72,13 +72,13 @@ def separate_mod(mol: Molecule) -> List[List[int]]:
         at._visited = False
 
     # Loop through atoms
-    def dfs(at1, m):
+    def dfs(at1: Atom, m_append: list.append):
         at1._visited = True
-        m.append(at1.id)
+        m_append(at1.id)
         for bond in at1.bonds:
             at2 = bond.other_end(at1)
             if not at2._visited:
-                dfs(at2, m)
+                dfs(at2, m_append)
 
     # Create a nested list of atomic indices
     indices = []
@@ -86,7 +86,7 @@ def separate_mod(mol: Molecule) -> List[List[int]]:
     for at in mol.atoms:
         if not at._visited:
             m = []
-            dfs(at, m)
+            dfs(at, m.append)
             indices_append(m)
 
     return indices
@@ -157,7 +157,7 @@ def get_angles(mol: Molecule) -> np.ndarray:
 
     # Sort horizontally
     idx1 = np.argsort(ret[:, ::2], axis=1)
-    ret[:, ::2] = np.take_along_axis(ret[:, ::2], idx1, axis=1).T
+    ret[:, ::2] = np.take_along_axis(ret[:, ::2], idx1, axis=1)
 
     # Sort and return vertically
     idx2 = np.argsort(ret, axis=0)[:, 0]
@@ -242,5 +242,5 @@ def get_impropers(mol: Molecule) -> np.ndarray:
     # Sort along the rows of columns 2, 3 & 4 based on atomic mass in descending order
     mass = np.array([[mol[int(j)].mass for j in i] for i in ret[:, 1:]])
     idx = np.argsort(mass, axis=1)[:, ::-1]
-    ret[:, 1:] = np.take_along_axis(ret[:, 1:], idx, axis=1).T
+    ret[:, 1:] = np.take_along_axis(ret[:, 1:], idx, axis=1)
     return ret
