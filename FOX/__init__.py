@@ -32,6 +32,7 @@ from .classes import (
 from .ff import (
     get_bonded,
     get_non_bonded,
+    get_intra_non_bonded,
     estimate_lj
 )
 
@@ -53,5 +54,6 @@ __all__ = [
 
     'estimate_lj',
     'get_non_bonded',
+    'get_intra_non_bonded',
     'get_bonded'
 ]
