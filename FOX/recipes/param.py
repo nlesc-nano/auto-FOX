@@ -58,6 +58,8 @@ except ImportError:
 
 from FOX import from_hdf5, assert_error
 
+__all__ = ['get_best_param', 'get_best_descriptor', 'overlay_descriptor', 'plot_descriptor']
+
 
 def get_best_param(hdf5_file: str) -> pd.Series:
     """Return the parameter set which yields the lowest error.
