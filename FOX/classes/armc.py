@@ -141,7 +141,7 @@ class ARMC(MonteCarlo):
         s, pes_kwarg, job_kwarg = init_armc_sanitization(yaml_dict)
         self = cls.from_dict(s)
         for name, options in pes_kwarg.items():
-            self.add_pes_evaluator(name, options.func, *options.args, **options.kwargs)
+            self.add_pes_evaluator(name, options.func, options.args, options.kwargs)
         return self, job_kwarg
 
     def __call__(self) -> None:

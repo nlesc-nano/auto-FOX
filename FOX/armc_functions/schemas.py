@@ -64,8 +64,12 @@ def get_pes_schema(key: str) -> Schema:
         'func': Or(abc.Callable, And(str, Use(str_to_callable)),
                    error=err.format(key)),
 
-        Optional('kwargs', default={}): And(dict, lambda x: all([isinstance(i, str) for i in x]),
-                                            error='pes.{}.kwargs expects a dictionary'.format(key)),
+        Optional('kwargs', default={}): Or(
+            And(dict, lambda x: all([isinstance(i, str) for i in x])),
+            And(list, lambda x: all([isinstance(i, dict) for i in x]),
+                lambda x: all([isinstance(k, str) for i in x for k in i])),
+            error='pes.{}.kwargs expects a dictionary or list of dictionaries'.format(key)
+        ),
 
         Optional('args', default=[]): And(abc.Sequence,
                                           error='pes.{}.args expects a sequence'.format(key))
