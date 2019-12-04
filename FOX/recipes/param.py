@@ -26,6 +26,7 @@ Examples
     :scale: 20 %
     :align: center
 
+
 Index
 -----
 .. currentmodule:: FOX.recipes.param
@@ -167,13 +168,12 @@ def plot_descriptor(descriptor: DF) -> PltFigure:
 
     Parameters
     ----------
-    descriptor :class:`pandas.DataFrame`, :class:`pandas.Series` or
-    :class:`Iterable<collections.abc.Iterable>` [:class:`pandas.DataFrame`]
+    descriptor : :class:`pandas.DataFrame` or :class:`Iterable<collections.abc.Iterable>` [:class:`pandas.DataFrame`]
         A DataFrame or an iterable consisting of DataFrames.
 
     Returns
     -------
-    :class:`Figure<matplotlib.pyplot.Figure>`
+    :class:`Figure<matplotlib.figure.Figure>`
         A matplotlib figure.
 
     See Also
@@ -184,7 +184,7 @@ def plot_descriptor(descriptor: DF) -> PltFigure:
     :func:`overlay_descriptor`
         Overlay the PES descriptor, which yields the lowest error, with its QM reference.
 
-    """
+    """  # noqa
     if isinstance(descriptor, pd.Series):
         descriptor = descriptor.to_frame()
 
