@@ -6,6 +6,18 @@ All notable changes to this project will be documented in this file.
 This project adheres to `Semantic Versioning <http://semver.org/>`_.
 
 
+0.6.9
+*****
+See https://github.com/nlesc-nano/auto-FOX/issues/52.
+* Repos of script to analyze AMRC data.
+* Simultaneous fitting of different trajectories with different atom types;
+  ensure that the PES descriptor generators can have different arguments for each trajectory.
+* Pre-processed input.
+* Guess=True (simplified input for epsilon and sigma parameters).
+  e.g. ``Guess=(True, 'Frozen')`` or ``Guess=(True, 'Relax')``.
+* Restart procedure for ARMC.
+
+
 0.6.8
 *****
 * Added a workflow for calculating covalent intra-ligand interactions using

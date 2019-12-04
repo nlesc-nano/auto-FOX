@@ -486,10 +486,10 @@ class MonteCarlo(AbstractDataClass, abc.Mapping):
             mol_count = len(self.molecule)
             ret = [{key: np.inf for key in self.pes}] * mol_count
         else:
-            iterator: Iterator[Tuple[MultiMolecule, str, List[Callable]]] = zip(
+            iterator: Iterator[Tuple[MultiMolecule, List[str], List[Callable]]] = zip(
                 self.molecule, repeat(self.pes.keys, len(self.molecule)), *self.pes.values()
             )
-            ret = [{key: func(mol) for func in func_list} for mol, key, *func_list in iterator]
+            ret = [{k: func(mol) for k, func in zip(keys, funcs)} for mol, keys, *funcs in iterator]
 
         # Delete the output directory and return
         if not self.keep_files:
