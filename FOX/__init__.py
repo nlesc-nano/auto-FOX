@@ -38,11 +38,12 @@ from .ff import (
 
 __author__ = "Bas van Beek"
 __email__ = 'b.f.van.beek@vu.nl'
+example_xyz: str = get_example_xyz()
 
 __all__ = [
     '__version__',
 
-    'get_example_xyz', 'assert_error',
+    'get_example_xyz', 'example_xyz', 'assert_error',
 
     'PSFContainer',
     'PRMContainer',
