@@ -9,20 +9,21 @@ Index
 .. currentmodule:: FOX.io.read_kf
 .. autosummary::
     read_kf
-    _get_idx_dict
 
 API
 ---
-.. autofunction:: FOX.io.read_kf.read_kf
-.. autofunction:: FOX.io.read_kf._get_idx_dict
+.. autofunction:: read_kf
 
 """
 
-from typing import (Tuple, Dict, List)
+from itertools import chain
+from typing import Tuple, Dict, List
 
 import numpy as np
 
 from scm.plams import KFReader
+
+from .utils import group_by_values
 
 __all__ = ['read_kf']
 
@@ -58,19 +59,19 @@ def read_kf(filename: str) -> Tuple[np.ndarray, Dict[str, List[int]]]:
     mol_count = kf.read('History', 'nEntries')
 
     # Create an empty m*(n*3) xyz array
-    shape = mol_count, atom_count * 3
-    xyz = np.empty(shape)
+    shape = mol_count, atom_count, 3
+    count = mol_count * atom_count * 3
 
     # Fill the xyz array with cartesian coordinates
-    coords = 'Coords({:d})'
-    for i in range(mol_count):
-        xyz[i] = kf.read('History', coords.format(i+1))
-    xyz.shape = mol_count, atom_count, 3
+    mol_range = range(1, 1+mol_count)
+    iterator = chain.from_iterable(kf.read('History', f'Coords({i})') for i in mol_range)
+    xyz = np.fromiter(iterator, dtype=float, count=count)
+    xyz.shape = shape
 
     return xyz, _get_idx_dict(kf)
 
 
-def _get_idx_dict(kf: KFReader) -> Dict[str, list]:
+def _get_idx_dict(kf: KFReader) -> Dict[str, List[int]]:
     """Extract atomic symbols and matching atomic indices from **kf**.
 
     Parameters
@@ -85,11 +86,4 @@ def _get_idx_dict(kf: KFReader) -> Dict[str, list]:
 
     """
     at_list = kf.read('Molecule', 'AtomSymbols').split()
-
-    ret: Dict[str, List[int]] = {}
-    for i, at in enumerate(at_list):
-        try:
-            ret[at].append(i)
-        except KeyError:
-            ret[at] = [i]
-    return ret
+    return group_by_values(enumerate(at_list))
