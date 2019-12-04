@@ -8,8 +8,11 @@ This project adheres to `Semantic Versioning <http://semver.org/>`_.
 
 0.6.8
 *****
-* Added a workflow for calculating intera-ligand interactions using
+* Added a workflow for calculating covalent intra-ligand interactions using
   harmonic- + cosine-based potentials: ``FOX.get_bonded()``.
+  Complementary to the in 0.6.4 introduced ``FOX.get_non_bonded()``.
+* Added a workflow for calculating non-covalent intera-ligand interactions
+  using electrostatic + Lennard-Jones potentials: ``FOX.get_intra_non_bonded()``.
   Complementary to the in 0.6.4 introduced ``FOX.get_non_bonded()``.
 * Added a number of useful workflows as stand-alone scripts.
 * Added the ``FOX.ff`` directory for all forcefield related modules.
