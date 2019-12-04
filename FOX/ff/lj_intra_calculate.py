@@ -20,23 +20,54 @@ A module for calculating non-bonded intra-ligand interactions using Coulomb + Le
 
 """  # noqa
 
-from typing import Set, Generator, List, Union, Iterable
+from typing import Set, Generator, List, Union
 from itertools import chain
 
 import numpy as np
 
-from scm.plams import Atom, Molecule
+from scm.plams import Atom, Molecule, Units
 
-from FOX import get_example_xyz
 from FOX.classes.multi_mol import MultiMolecule
 from FOX.io.read_psf import PSFContainer
 from FOX.io.read_prm import PRMContainer
 from FOX.ff.lj_calculate import psf_to_atom_dict, LJDataFrame, get_V_elstat, get_V_lj
 from FOX.ff.bonded_calculate import _dist
 
+__all__ = ['get_intra_non_bonded']
 
-def start_workflow(mol: Union[str, MultiMolecule], psf: Union[str, PSFContainer],
-                   prm: Union[str, PRMContainer]) -> LJDataFrame:
+
+def get_intra_non_bonded(mol: Union[str, MultiMolecule], psf: Union[str, PSFContainer],
+                         prm: Union[str, PRMContainer]) -> LJDataFrame:
+    r"""Collect forcefield parameters and calculate all non-covalent intra-ligand interactions in **mol**.
+
+    Forcefield parameters (*i.e.* charges and Lennard-Jones :math:`\sigma` and
+    :math:`\varepsilon` values) are collected from the provided **psf** and **prm** files.
+
+    Inter-ligand, core-core and intra-core interactions are ignored.
+
+    Parameters
+    ----------
+    mol : :class:`str` or :class:`MultiMolecule`
+        A MultiMolecule instance or the path+filename of an .xyz file.
+
+    psf : :class:`str` or :class:`PSFContainer`
+        A PSFContainer instance or the path+filename of a .psf file.
+         Used for setting :math:`q` and creating atom-subsets.
+
+    prm : :class:`str` or :class:`PRMContainer`
+        A PRMContainer instance or the path+filename of a .prm file.
+        Used for setting :math:`\sigma` and :math:`\varepsilon`.
+
+    Returns
+    -------
+    :class:`pandas.DataFrame`
+        A DataFrame with the electrostatic and Lennard-Jones components of the
+        (inter-ligand) potential energy per atom-pair.
+        The potential energy is summed over atoms with matching atom types and
+        averaged over all molecules within **mol**.
+        Units are in atomic units.
+
+    """  # noqa
     if not isinstance(psf, PSFContainer):
         psf = PSFContainer.read(psf)
 
@@ -45,32 +76,51 @@ def start_workflow(mol: Union[str, MultiMolecule], psf: Union[str, PSFContainer]
     else:
         mol = mol.copy()
 
+    # Define the various non-bonded atom-pairs
     core_atoms = psf.atoms.index[psf.residue_id == 1] - 1
     lig_atoms = psf.atoms.index[psf.residue_id != 1] - 1
     mol.guess_bonds(atom_subset=lig_atoms)
-    ij = get_idx(mol, core_atoms).T
+    ij = _get_idx(mol, core_atoms).T
 
-    psf_to_atom_dict(psf)
-    prm_df = LJDataFrame(index=mol.atoms.keys())
+    # Construct the parameter DataFrame
+    mol.atoms = psf_to_atom_dict(psf)
+    prm_df = LJDataFrame(index=set(mol.symbol[lig_atoms]))
     prm_df.overlay_psf(psf)
     prm_df.overlay_prm(prm)
-    prm_df['V_elstat'] = np.nan
-    prm_df['V_LJ'] = np.nan
+    prm_df['elstat'] = 0.0
+    prm_df['lj'] = 0.0
+    prm_df.columns.name = 'au'
+    prm_df.dropna(inplace=True)
 
-    #
-    # dist =  _dist(mol, ij)
+    # Map each atom-index pair (ij) to a pair of atomic symbols (more specifically: their hashes)
+    mol.atoms = {hash(k): v for k, v in mol.atoms.items()}
+    symbol = mol.symbol[ij].T
+    symbol.sort(axis=1)
 
-    return prm_df, ij
+    # Construct the distance array
+    dist = _dist(mol, ij.T)
+    dist *= Units.conversion_ratio('angstrom', 'au')
+
+    # Calculate the potential energies
+    for idx, items in prm_df[['charge', 'epsilon', 'sigma']].iterrows():
+        idx_hash = sorted(hash(i) for i in ij)
+        dist_slice = dist[:, np.all(symbol == idx_hash, axis=1)]
+
+        charge, epsilon, sigma = items
+        prm_df.at[idx, 'elstat'] = get_V_elstat(items['charge'], dist_slice)
+        prm_df.at[idx, 'lj'] = get_V_lj(sigma, epsilon, dist_slice)
+
+    return prm_df[['elstat', 'lj']]
 
 
-def get_idx(mol: MultiMolecule, core_atoms) -> np.ndarray:
+def _get_idx(mol: MultiMolecule, core_atoms: np.ndarray) -> np.ndarray:
     def dfs(at1: Atom, id_list: list, i: int, exclude: Set[Atom], depth: int = 0):
         exclude.add(at1)
         for bond in at1.bonds:
             at2 = bond.other_end(at1)
             if at2 in exclude:
                 continue
-            elif depth <= 3:
+            elif depth >= 3:
                 id_list += [i, at2.id]
             dfs(at2, id_list, i, exclude, depth=1+depth)
 
@@ -81,6 +131,7 @@ def get_idx(mol: MultiMolecule, core_atoms) -> np.ndarray:
             yield id_list
 
     _mol = mol.delete_atoms(core_atoms)
+    _mol.bonds -= len(core_atoms)
     molecule = _mol.as_Molecule(0)[0]
     molecule.set_atoms_id(start=0)
 
@@ -88,10 +139,3 @@ def get_idx(mol: MultiMolecule, core_atoms) -> np.ndarray:
     idx += len(mol._get_atom_subset(core_atoms, as_array=True))
     idx.shape = -1, 2
     return idx
-
-
-prm = '/Users/bvanbeek/Documents/GitHub/auto-FOX/FOX/examples/ligand.prm'
-psf = '/Users/bvanbeek/Downloads/mol.psf'
-xyz = get_example_xyz()
-
-df, ij = start_workflow(xyz, psf, prm)
