@@ -1,6 +1,6 @@
 """
 FOX.io.read_kf
-=================
+==============
 
 A module for potential energy surfaces from KF binary files.
 
@@ -23,7 +23,7 @@ import numpy as np
 
 from scm.plams import KFReader
 
-from .utils import group_by_values
+from ..functions.utils import group_by_values
 
 __all__ = ['read_kf']
 
