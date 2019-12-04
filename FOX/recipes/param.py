@@ -9,6 +9,9 @@ Examples
 .. code:: python
 
     >>> import pandas as pd
+    >>> from FOX.recipes import (
+    ...     get_best_param, get_best_descriptor, overlay_descriptor, plot_descriptor
+    ... )
 
     >>> hdf5_file: str = ...
 
