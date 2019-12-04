@@ -28,8 +28,10 @@ API
 
 """
 
-from itertools import islice, chain
+import os
+import reprlib
 from typing import Tuple, Dict, Iterable, List, Union, Iterator, Generator
+from itertools import islice, chain
 
 import numpy as np
 
@@ -149,15 +151,14 @@ def validate_xyz(mol_count: float, atom_count: int, filename: str) -> None:
         Raised when issues are encountered related to parsing .xyz files.
 
     """
-    filename = repr(filename)
+    filename = f"'...{os.sep}{os.path.basename(filename)}'"
     if not mol_count.is_integer():
         raise XYZError(f"A non-integer number of molecules was found in '{filename}'; "
                        f"mol count: {mol_count}")
     elif mol_count < 1.0:
         raise XYZError(f"No molecules were found in '{filename}'; mol count: {mol_count}")
     if atom_count < 1:
-        raise XYZError(f"No atoms were found in '{filename}'; "
-                       f"atom count per molecule: {atom_count}")
+        raise XYZError(f"No atoms were found in '{filename}'; atom count: {atom_count}")
 
 
 def _get_atom_count(f: Iterator[str]) -> int:
@@ -183,8 +184,9 @@ def _get_atom_count(f: Iterator[str]) -> int:
     try:
         return int(ret)
     except ValueError as ex:
-        raise XYZError(f"{ret} is not a valid integer, the first line in '{f.name}' should "
-                       "contain the number of atoms per molecule").with_traceback(ex.__traceback__)
+        err = (f"{reprlib.repr(ret)} is not a valid integer, the first line in an .xyz file "
+               "should contain the number of atoms per molecule")
+        raise XYZError(err).with_traceback(ex.__traceback__)
 
 
 def _get_line_count(f: Iterable, add: Union[int, Iterable[int]] = 0) -> int:
@@ -204,9 +206,10 @@ def _get_line_count(f: Iterable, add: Union[int, Iterable[int]] = 0) -> int:
         The total number of lines in **f**.
 
     """
-    for i, _ in enumerate(f, 1):
+    start = 1 + sum(add)
+    for i, _ in enumerate(f, start):
         pass
-    return i + sum(add)
+    return i
 
 
 def _get_idx_dict(f: Iterable[str], atom_count: int) -> Dict[str, List[int]]:

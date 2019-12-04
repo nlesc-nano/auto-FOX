@@ -14,23 +14,6 @@ A module for calculating bonded interactions using harmonic + cosine potentials.
 
     V_{impropers} = k_{\omega} (\omega - \omega_{0})^2
 
-
-Inter-ligand non-covalent interactions:
-
-.. math::
-
-    V_{LJ} = 4 \varepsilon
-        \left(
-            \left(
-                \frac{\sigma}{r}
-            \right )^{12} -
-            \left(
-                \frac{\sigma}{r}
-            \right )^6
-        \right )
-
-    V_{Coulomb} = \frac{1}{4 \pi \varepsilon_{0}} \frac{q_{i} q_{j}}{r_{ij}}
-
 """
 
 from typing import Union
@@ -331,49 +314,3 @@ def get_V_cos(phi: np.ndarray, k: float, n: int, delta: float = 0.0) -> float:
     """  # noqa
     V = k * np.cos(n * phi - delta)
     return V.mean(axis=0)
-
-
-"""
-prm_file = '/Users/basvanbeek/Documents/GitHub/auto-FOX/FOX/examples/ligand.prm'
-psf_file = '/Users/basvanbeek/Downloads/mol.psf'
-xyz_file = get_example_xyz()
-
-psf = PSFContainer.read(psf_file)
-psf.bonds -= 1
-psf.angles -= 1
-psf.impropers -= 1
-
-mol = MultiMolecule.from_xyz(xyz_file)
-mol.atoms = psf_to_atom_dict(psf)
-
-# non-covalent
-
-nb_mol = mol.delete_atoms(['Cd', 'Se'])
-nb_mol.guess_bonds()
-molecule = nb_mol.as_Molecule(0)[0]
-molecule.set_atoms_id(start=0)
-at_count = len(molecule) // (psf.residue_id.max() - 1)
-
-
-def dfs(at1: Atom, id_list: list, i: int, exclude: Set[Atom], depth: int = 0):
-    exclude.add(at1)
-    for bond in at1.bonds:
-        at2 = bond.other_end(at1)
-        if at2 in exclude:
-            continue
-        elif depth > 3:
-            id_list += [i, at2.id]
-        dfs(at2, id_list, i, exclude, depth=1+depth)
-
-
-def gather_idx(molecule: Molecule) -> Generator[List[int], None, None]:
-    for i, at in enumerate(molecule):
-        id_list = []
-        dfs(at, id_list.append, i, set())
-        yield id_list
-
-
-idx = np.fromiter(chain.from_iterable(gather_idx(molecule)), dtype=int)
-idx += len(mol.atoms['Cd']) + len(mol.atoms['Se'])
-idx.shape = -1, 2
-"""

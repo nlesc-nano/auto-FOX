@@ -491,8 +491,9 @@ class PSFContainer(AbstractDataClass, AbstractFileContainer):
             # Read the psf block header
             try:
                 key = cls._HEADER_DICT[i.split()[1].rstrip(':')]
-            except KeyError:
-                raise OSError(f'Failed to parse file; invalid header: {reprlib.repr(i)}')
+            except KeyError as ex:
+                err = f'Failed to parse file; invalid header: {reprlib.repr(i)}'
+                raise OSError(err).with_traceback(ex.__traceback__)
             ret[key] = value = []
 
             # Read the actual psf blocks

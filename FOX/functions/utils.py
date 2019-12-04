@@ -745,19 +745,19 @@ def group_by_values(iterable: Iterable[Tuple[Any, Hashable]],
         An iterable yielding 2 elements upon iteration
         (*e.g.* :meth:`dict.items` or :func:`enumerate`).
         The second element must be a :class:`Hashable<collections.abc.Hashable>` and will be used
-        as key in the to-be returned dictionary.
+        as key in the to-be returned mapping.
 
     mapping_type : :class:`type` [:class:`MutableMapping<collections.abc.MutableMapping>`]
         The to-be returned mapping type.
 
     Returns
     -------
-    :class:`dict` [:class:`Hashable<collections.abc.Hashable>`,
-    :class:`list` [:data:`Any<typing.Any>`]]
+    :class:`MutableMapping<collections.abc.MutableMapping>`
+    [:class:`Hashable<collections.abc.Hashable>`, :class:`list` [:data:`Any<typing.Any>`]]
         A grouped dictionary.
 
     """
-    ret: Dict[Hashable, List[Any]] = mapping_type()
+    ret: MutableMapping[Hashable, List[Any]] = mapping_type()
     list_append: Dict[Hashable, list.append] = {}
     for value, key in iterable:
         try:
