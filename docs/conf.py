@@ -302,4 +302,16 @@ rst_epilog = """
 .. |Hashable| replace:: *Hashable*
 .. |Iterable| replace:: *Iterable*
 .. |object| replace:: *object*
+
+"""
+
+"""
+.. |MutableMapping| replace:: :class:`MutableMapping<collections.abc.MutableMapping>`
+.. |Mapping| replace:: :class:`Mapping<collections.abc.Mapping>`
+.. |Iterable| replace:: :class:`Iterable<collections.abc.Iterable>`
+.. |Iterator| replace:: :class:`Iterator<collections.abc.Iterator>`
+.. |Collection| replace:: :class:`Collection<collections.abc.Collection>`
+.. |Sequence| replace:: :class:`Sequence<collections.abc.Sequence>`
+.. |Hashable| replace:: :class:`Hashable<collections.abc.Hashable>`
+.. |Any| replace :data:`Any<typing.Any>`
 """
