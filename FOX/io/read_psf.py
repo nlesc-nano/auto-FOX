@@ -23,6 +23,7 @@ import reprlib
 import inspect
 from typing import Dict, Optional, Any, Set, Iterator, Iterable, Callable, AnyStr, List
 from itertools import chain
+from types import MappingProxyType
 
 import numpy as np
 import pandas as pd
@@ -31,7 +32,6 @@ from scm.plams import Molecule, Atom
 from assertionlib.dataclass import AbstractDataClass
 
 from .file_container import AbstractFileContainer
-from ..classes.frozen_settings import FrozenSettings
 from ..functions.utils import read_str_file, read_rtf_file
 from ..functions.molecule_utils import get_bonds, get_angles, get_dihedrals, get_impropers
 
@@ -166,12 +166,12 @@ class PSFContainer(AbstractDataClass, AbstractFileContainer):
 
     """  # noqa
 
-    #: A :class:`frozenset` with the names of private instance attributes.
+    #: A :class:`from` with the names of private instance attributes.
     #: These attributes will be excluded whenever calling :meth:`PSF.as_dict`.
     _PRIVATE_ATTR: Set[str] = frozenset({'_pd_printoptions', '_np_printoptions'})
 
     #: A dictionary containg array shapes among other things
-    _SHAPE_DICT = FrozenSettings({
+    _SHAPE_DICT = MappingProxyType({
         'filename': {'shape': 1},
         'title': {'shape': 1},
         'atoms': {'shape': 8},
@@ -185,7 +185,7 @@ class PSFContainer(AbstractDataClass, AbstractFileContainer):
     })
 
     #: A dictionary mapping .psf headers to :class:`PSFContainer` attribute names
-    _HEADER_DICT = FrozenSettings({
+    _HEADER_DICT = MappingProxyType({
         '!NTITLE': 'title',
         '!NATOM': 'atoms',
         '!NBOND': 'bonds',
@@ -483,31 +483,31 @@ class PSFContainer(AbstractDataClass, AbstractFileContainer):
         ret = {}
 
         next(iterator)  # Skip the first line
-        with FrozenSettings.supress_missing():
-            for i in iterator:
-                # Search for psf blocks
-                if i == '\n':
-                    continue
+        for i in iterator:
+            # Search for psf blocks
+            if i == '\n':
+                continue
 
-                # Read the psf block header
-                try:
-                    key = cls._HEADER_DICT[i.split()[1].rstrip(':')]
-                except KeyError:
-                    raise OSError(f'Failed to parse file; invalid header: {reprlib.repr(i)}')
-                ret[key] = value = []
+            # Read the psf block header
+            try:
+                key = cls._HEADER_DICT[i.split()[1].rstrip(':')]
+            except KeyError as ex:
+                err = f'Failed to parse file; invalid header: {reprlib.repr(i)}'
+                raise OSError(err).with_traceback(ex.__traceback__)
+            ret[key] = value = []
 
-                # Read the actual psf blocks
+            # Read the actual psf blocks
+            try:
+                j = next(iterator)
+            except StopIteration:
+                break
+
+            while j != '\n':
+                value.append(j.split())
                 try:
                     j = next(iterator)
                 except StopIteration:
                     break
-
-                while j != '\n':
-                    value.append(j.split())
-                    try:
-                        j = next(iterator)
-                    except StopIteration:
-                        break
 
         return cls._post_process_psf(ret)
 
@@ -557,7 +557,7 @@ class PSFContainer(AbstractDataClass, AbstractFileContainer):
             # Cast into a flattened array of indices
             else:
                 ar = np.fromiter(chain.from_iterable(value), dtype=int)
-                ar.shape = len(ar) // cls._SHAPE_DICT[key].shape, cls._SHAPE_DICT[key].shape
+                ar.shape = len(ar) // cls._SHAPE_DICT[key]['shape'], cls._SHAPE_DICT[key]['shape']
                 psf_dict[key] = ar
 
         return psf_dict
@@ -642,8 +642,8 @@ class PSFContainer(AbstractDataClass, AbstractFileContainer):
                     'donors', 'acceptors', 'no_nonbonded')
 
         for attr in sections:
-            header = self._SHAPE_DICT[attr].header
-            row_len = self._SHAPE_DICT[attr].row_len
+            header = self._SHAPE_DICT[attr]['header']
+            row_len = self._SHAPE_DICT[attr]['row_len']
 
             value = getattr(self, attr)
             item_count = len(value) if value.shape[-1] != 0 else 0

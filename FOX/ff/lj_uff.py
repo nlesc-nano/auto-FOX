@@ -1,6 +1,6 @@
 """
-FOX.functions.lj_uff
-====================
+FOX.ff.lj_uff
+=============
 
 Functions related to the Lennard-Jones parameters of the Universal force field (UFF).
 

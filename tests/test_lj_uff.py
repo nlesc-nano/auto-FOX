@@ -6,7 +6,7 @@ from itertools import combinations
 import numpy as np
 from assertionlib import assertion
 
-from FOX.functions.lj_uff import UFF_DF, combine_sigma, combine_epsilon
+from FOX.ff.lj_uff import UFF_DF, combine_sigma, combine_epsilon
 
 PATH = Path('tests') / 'test_files'
 
