@@ -53,6 +53,28 @@ such as the radial distribution function (RDF).
     :align: center
 
 
+Examples
+--------
+An workflow for plotting parameters as a function of ARMC iterations.
+
+.. code:: python
+
+    >>> from FOX import from_hdf5
+    >>> from FOX.recipes plot_descriptor
+
+    >>> hdf5_file: str = ...
+
+    >>> param: pd.DataFrame = from_hdf5(hdf5_file, 'param')
+    >>> param.index.name = 'ARMC iteration'
+    >>> param_dict = {key: param[key] for key in param.columns.levels[0]}
+
+    >>> plot_descriptor(param_dict)
+
+.. image:: param.png
+    :scale: 20 %
+    :align: center
+
+
 Index
 -----
 .. currentmodule:: FOX.recipes.param
@@ -225,6 +247,8 @@ def plot_descriptor(descriptor: DF) -> PltFigure:
 
     fig, ax_tup = plt.subplots(ncols=ncols, sharex=True, sharey=False)
     for (key, df), ax in zip(iterator, ax_tup):
+        if isinstance(key, tuple):
+            key = ' '.join(repr(i) for i in key)
         df.plot(ax=ax, title=key, figsize=figsize)
 
     plt.show(block=True)
