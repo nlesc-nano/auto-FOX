@@ -6,17 +6,19 @@ A set of functions for analyzing and plotting ARMC results.
 
 Examples
 --------
+A General overview of the functions within this module.
+
 .. code:: python
 
     >>> import pandas as pd
     >>> from FOX.recipes import (
-    ...     get_best_param, get_best_descriptor, overlay_descriptor, plot_descriptor
+    ...     get_best, overlay_descriptor, plot_descriptor
     ... )
 
     >>> hdf5_file: str = ...
 
-    >>> param: pd.Series = get_best_param(hdf5_file)  # Extract the best parameters
-    >>> rdf: pd.DataFrame = get_best_descriptor(hdf5_file, name='rdf')  # Extract the matching RDF
+    >>> param: pd.Series = get_best(hdf5_file, name='param')  # Extract the best parameters
+    >>> rdf: pd.DataFrame = get_best(hdf5_file, name='rdf')  # Extract the matching RDF
 
     # Compare the RDF to its reference RDF and plot
     >>> rdf_dict = overlay_descriptor(hdf5_file, name='rdf')
@@ -27,19 +29,27 @@ Examples
     :align: center
 
 
+An small workflow for calculating for calculating free energies using an RDF & ADF
+
+.. code:: python
+
+    >>> from FOX import get_free_energy
+    >>> from FOX.recipes import get_best
+
+    >>> rdf: pd.DataFrame = get_best(hdf5_file, name='rdf')
+    >>> G_rdf: pd.DataFrame = get_free_energy(rdf, unit='kcal/mol')
+
 Index
 -----
 .. currentmodule:: FOX.recipes.param
 .. autosummary::
-    get_best_param
-    get_best_descriptor
+    get_best
     overlay_descriptor
     plot_descriptor
 
 API
 ---
-.. autofunction:: get_best_param
-.. autofunction:: get_best_descriptor
+.. autofunction:: get_best
 .. autofunction:: overlay_descriptor
 .. autofunction:: plot_descriptor
 
@@ -53,41 +63,29 @@ import pandas as pd
 try:
     import matplotlib.pyplot as plt
     PltFigure = plt.Figure
-    PLT_ERROR = ''
+    PLT_ERROR = None
 except ImportError:
     PltFigure = 'matplotlib.pyplot.Figure'
     PLT_ERROR = ("Use of the FOX.{} function requires the 'matplotlib' package."
                  "\n'matplotlib' can be installed via PyPi with the following command:"
                  "\n\tpip install matplotlib")
 
+try:
+    import h5py
+except ImportError:
+    H5PY_ERROR = ("Use of the FOX.{} function requires the 'h5py' package."
+                  "\n'h5py' can be installed via conda with the following command:"
+                  "\n\tconda install -n FOX -c conda-forge h5py")
+
 from FOX import from_hdf5, assert_error
 
-__all__ = ['get_best_param', 'get_best_descriptor', 'overlay_descriptor', 'plot_descriptor']
+__all__ = ['get_best', 'overlay_descriptor', 'plot_descriptor']
+
+NDFrame = pd.DataFrame.__bases__[0]  # Superclass of pd.DataFrame & pd.Series
 
 
-def get_best_param(hdf5_file: str) -> pd.Series:
-    """Return the parameter set which yields the lowest error.
-
-    Parameters
-    ----------
-    hdf5_file : :class:`str`
-        The path+filename of the ARMC .hdf5 file.
-
-    Returns
-    -------
-    :class:`pandas.Series`
-        A Series with the optimal ARMC parameters.
-
-    """
-    hdf5_dict = from_hdf5(hdf5_file, ['aux_error', 'param'])
-    aux_error, param = hdf5_dict['aux_error'], hdf5_dict['param']
-
-    i: int = aux_error.sum(axis=1).idxmin()
-    return param.loc[i]
-
-
-def get_best_descriptor(hdf5_file: str, name: str = 'rdf', i: int = 0) -> pd.DataFrame:
-    """Return the PES descriptor which yields the lowest error.
+def get_best(hdf5_file: str, name: str = 'rdf', i: int = 0) -> pd.DataFrame:
+    """Return the PES descriptor or ARMC property which yields the lowest error.
 
     Parameters
     ----------
@@ -96,23 +94,31 @@ def get_best_descriptor(hdf5_file: str, name: str = 'rdf', i: int = 0) -> pd.Dat
 
     name : :class:`str`
         The name of the PES descriptor, *e.g.* ``"rdf"``.
+        Alternatively one can supply an ARMC property such as ``"acceptance"``,
+        ``"param"`` or ``"aux_error"``.
 
     i : :class:`int`
-        The index of desired PES.
-        Only relevant for state-averaged ARMCs.
+        The index of the desired PES.
+        Only relevant for PES-descriptors of state-averaged ARMCs.
 
     Returns
     -------
-    :class:`pandas.DataFrame`
-        A DataFrame of the optimal PES descriptor.
+    :class:`pandas.DataFrame` or :class:`pd.Series`
+        A DataFrame of the optimal PES descriptor or other (user-specified) ARMC property.
 
     """
     full_name = f'{name}.{i}'
-    hdf5_dict = from_hdf5(hdf5_file, ['aux_error', full_name])
-    aux_error, descr = hdf5_dict['aux_error'], hdf5_dict[full_name]
+    with h5py.File(hdf5_file, 'r') as f:
+        if full_name not in f.keys():  # i.e. if **name** does not belong to a PE descriptor
+            full_name = name
 
+    # Load the DataFrames
+    hdf5_dict = from_hdf5(hdf5_file, ['aux_error', full_name])
+    aux_error, prop = hdf5_dict['aux_error'], hdf5_dict[full_name]
+
+    # Return the best DataFrame (or Series)
     j: int = aux_error.sum(axis=1).idxmin()
-    df = descr[j]
+    df = prop[j] if not isinstance(prop, NDFrame) else prop.loc[j]
     df.columns.name = full_name
     return df
 
