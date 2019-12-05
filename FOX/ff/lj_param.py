@@ -57,12 +57,11 @@ __all__ = ['estimate_lj', 'get_free_energy']
 A = TypeVar('A', pd.DataFrame, pd.Series, np.ndarray)
 
 
-def get_free_energy(distribution: A,
-                    temperature: float = 298.15,
-                    inf_replace: Optional[float] = np.nan) -> A:
+def get_free_energy(distribution: A, temperature: float = 298.15,
+                    unit: str = 'kj/mol', inf_replace: Optional[float] = np.nan) -> A:
     r"""Convert a distribution function into a free energy function.
 
-    Given a distribution function :math:`g(r)` with the parameter :math:`r`, the free energy
+    Given a distribution function :math:`g(r)`, the free energy
     :math:`F(g(r))` can be retrieved using a Boltzmann inversion:
 
     .. math::
@@ -72,16 +71,22 @@ def get_free_energy(distribution: A,
     Two examples of valid distribution functions would be the
     radial-  and angular distribution functions.
 
+    .. _`scm.plams.units`: https://www.scm.com/doc/plams/components/utils.html#scm.plams.tools.units.Units
+
     Parameters
     ----------
-    distribution : :class:`pandas.DataFrame`
-        A distribution function (*e.g.* an RDF) as Pandas DataFrame or Series.
+    distribution : array-like
+        A distribution function (*e.g.* an RDF) as an array-like object.
 
     temperature : :class:`float`
         The temperature in Kelvin.
 
     inf_replace : :class:`float`, optional
         A value used for replacing all instances of infinity (``np.inf``).
+
+    unit : :class:`str`
+        The to-be returned unit.
+        See `scm.plams.Units`_ for a comprehensive overview of all allowed values.
 
     Returns
     -------
@@ -96,12 +101,15 @@ def get_free_energy(distribution: A,
     :meth:`.MultiMolecule.init_adf`
         Initialize the calculation of distance-weighted angular distribution functions (ADFs).
 
-    """
+    """  # noqa
     RT = (constants.R / 1000) * temperature  # kj/mol
+
     with np.errstate(divide='ignore'):
         ret = -RT * np.log(distribution)
     if inf_replace is not None:
         ret[ret == np.inf] = inf_replace
+
+    ret *= Units.conversion_ratio('kj/mol', unit)
     return ret
 
 

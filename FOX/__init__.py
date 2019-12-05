@@ -33,7 +33,7 @@ from .ff import (
     get_bonded,
     get_non_bonded,
     get_intra_non_bonded,
-    estimate_lj
+    estimate_lj, get_free_energy
 )
 
 __author__ = "Bas van Beek"
@@ -53,8 +53,10 @@ __all__ = [
     'MultiMolecule',
     'ARMC', 'run_armc',
 
-    'estimate_lj',
+    'estimate_lj', 'get_free_energy',
     'get_non_bonded',
     'get_intra_non_bonded',
-    'get_bonded'
+    'get_bonded',
+
+    'recipes'
 ]
