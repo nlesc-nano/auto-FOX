@@ -31,7 +31,8 @@ setup(
         'FOX.armc_functions',
         'FOX.classes',
         'FOX.io',
-        'FOX.ff'
+        'FOX.ff',
+        'FOX.recipes'
     ],
     package_dir={'FOX': 'FOX'},
     package_data={'FOX': [
