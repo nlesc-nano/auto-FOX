@@ -113,7 +113,7 @@ def create_hdf5(filename: str, armc: 'FOX.ARMC') -> None:
     # Store the *index*, *column* and *name* attributes of dataframes/series in the hdf5 file
     kappa = armc.iter_len // armc.sub_iter_len
     idx = armc.param['param'].index.append(pd.MultiIndex.from_tuples([('phi', '')]))
-    aux_error_idx = [f'{k}.{i}' for k, func in armc.pes.items() for i, _ in enumerate(func.ref)]
+    aux_error_idx = [f'{k}.{i}' for k, funcs in armc.pes.items() for i, _ in enumerate(funcs)]
     pd_dict = {
         'param': armc.param['param'],
         'phi': pd.Series(np.nan, index=np.arange(kappa), name='phi'),
@@ -121,8 +121,9 @@ def create_hdf5(filename: str, armc: 'FOX.ARMC') -> None:
         'aux_error_mod': pd.Series(np.nan, index=idx, name='aux_error_mod')
     }
 
-    for name, func in armc.pes.items():
-        for i, ref in enumerate(func.ref):
+    for name, func_list in armc.pes.items():
+        for i, func in enumerate(func_list):
+            ref = func.ref
             key = f'{name}.{i}'
             pd_dict[key] = ref
             pd_dict[key + '.ref'] = ref
@@ -266,8 +267,9 @@ def _get_kwarg_dict(armc: 'FOX.ARMC') -> Settings:
     ret.aux_error_mod.shape = shape + (1 + len(armc.param), )
     ret.aux_error_mod.dtype = float
 
-    for _key, value in armc.pes.items():
-        for i, ref in enumerate(value.ref):
+    for _key, partial_list in armc.pes.items():
+        for i, partial in enumerate(partial_list):
+            ref = partial.ref
             key = f'{_key}.{i}'
 
             ret[key].shape = shape + get_shape(ref)

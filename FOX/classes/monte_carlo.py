@@ -234,6 +234,7 @@ class MonteCarlo(AbstractDataClass, abc.Mapping):
         for mol, kwarg in iterator:
             partial = functools.partial(func, *args, **kwarg)
             partial.__doc__ = func.__doc__
+            partial.__name__ = func.__name__
             partial.ref = partial(mol)
             ret_append(partial)
         self.pes[name] = ret
@@ -487,7 +488,7 @@ class MonteCarlo(AbstractDataClass, abc.Mapping):
             ret = [{key: np.inf for key in self.pes}] * mol_count
         else:
             iterator: Iterator[Tuple[MultiMolecule, List[str], List[Callable]]] = zip(
-                self.molecule, repeat(self.pes.keys, len(self.molecule)), *self.pes.values()
+                mol_list, repeat(self.pes.keys(), len(mol_list)), *self.pes.values()
             )
             ret = [{k: func(mol) for k, func in zip(keys, funcs)} for mol, keys, *funcs in iterator]
 

@@ -67,19 +67,6 @@ def run_armc(armc: 'ARMC', path: Optional[str] = None, folder: Optional[str] = N
             armc.restart()
 
 
-def restart_armc(armc: 'ARMC', hdf5_file: str,
-                 path: Optional[str] = None, folder: Optional[str] = None,
-                 logfile: Optional[str] = None) -> None:
-    """A for restarting :class:`ARMC` jobs."""
-    raise NotImplementedError
-    with Init(path=path, folder=folder):
-        if logfile is not None:
-            config.default_jobmanager.logfile = logfile
-            config.log.file = 3
-
-        armc.restart()
-
-
 class ARMC(MonteCarlo):
     r"""The Addaptive Rate Monte Carlo class (:class:`.ARMC`).
 
@@ -320,7 +307,7 @@ class ARMC(MonteCarlo):
 
         """
         def norm_mean(key: str, mm_pes: np.ndarray, i: int) -> float:
-            qm_pes = self.pes[key].ref[i]
+            qm_pes = self.pes[key][i].ref
             A, B = np.asarray(qm_pes, dtype=float), np.asarray(mm_pes, dtype=float)
             ret = (A - B)**2
             return ret.sum() / A.sum()
