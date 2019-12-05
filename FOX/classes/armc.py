@@ -48,7 +48,8 @@ class Init(AbstractContextManager):
 
 
 def run_armc(armc: 'ARMC', path: Optional[str] = None, folder: Optional[str] = None,
-             logfile: Optional[str] = None, psf: Optional['PSFContainer'] = None) -> None:
+             logfile: Optional[str] = None, psf: Optional['PSFContainer'] = None,
+             restart: bool = False) -> None:
     """A wrapper arround :class:`ARMC` for handling the JobManager."""
     with Init(path=path, folder=folder):
         if logfile is not None:
@@ -59,7 +60,24 @@ def run_armc(armc: 'ARMC', path: Optional[str] = None, folder: Optional[str] = N
         if psf is not None:
             psf.write(None)
 
-        armc()
+        # To restart or not? That's the question
+        if not restart:
+            armc()
+        else:
+            armc.restart()
+
+
+def restart_armc(armc: 'ARMC', hdf5_file: str,
+                 path: Optional[str] = None, folder: Optional[str] = None,
+                 logfile: Optional[str] = None) -> None:
+    """A for restarting :class:`ARMC` jobs."""
+    raise NotImplementedError
+    with Init(path=path, folder=folder):
+        if logfile is not None:
+            config.default_jobmanager.logfile = logfile
+            config.log.file = 3
+
+        armc.restart()
 
 
 class ARMC(MonteCarlo):
@@ -144,16 +162,16 @@ class ARMC(MonteCarlo):
             self.add_pes_evaluator(name, options.func, options.args, options.kwargs)
         return self, job_kwarg
 
-    def __call__(self) -> None:
+    def __call__(self, start: int = 0, key_new: Optional[Tuple[float, ...]] = None) -> None:
         """Initialize the Addaptive Rate Monte Carlo procedure."""
-        # Construct the HDF5 file
-        create_hdf5(self.hdf5_file, self)
-
-        # Initialize the first MD calculation
-        key_new = self._get_first_key()
+        if start == 0:
+            create_hdf5(self.hdf5_file, self)  # Construct the HDF5 file
+            key_new = self._get_first_key()  # Initialize the first MD calculation
+        elif key_new is None:
+            raise TypeError("'key_new' cannot be 'None' if 'start' is larger than 0")
 
         # Start the main loop
-        for kappa in range(self.super_iter_len):
+        for kappa in range(start, self.super_iter_len):
             acceptance = np.zeros(self.sub_iter_len, dtype=bool)
             create_xyz_hdf5(self.hdf5_file, self.molecule, iter_len=self.sub_iter_len)
 
@@ -355,4 +373,32 @@ class ARMC(MonteCarlo):
         NotImplementedError
 
         """
-        raise NotImplementedError
+        import h5py
+
+        # Initialize the first MD calculation
+        with h5py.File(filename, 'r') as f:
+            i, j = f.attrs['super-iteration'], f.attrs['sub-iteration']
+            if i == -1:
+                raise ValueError
+
+            self.phi = f['phi'][i]
+            self.param['param'] = self.param['param'] = f['param'][i, j]
+            for key, err in zip(f['param'][i], f['aux_error'][i]):
+                key = tuple(key)
+                self[key] = err
+            self[key] = f['aux_error'][i, j]
+
+            param = f['param'][i, :j]
+            acceptance = np.zeros(self.sub_iter_len, dtype=bool)
+            acceptance[1:1+j] = param[1:] == param[:-1]
+            if i != 0:
+                acceptance[0] = f['param'][i-1, -1] == param[0]
+
+        j += 1
+        i += 1
+
+        for omega in range(j, self.sub_iter_len):
+            key = self.do_inner(i, omega, acceptance, key)
+        self.update_phi(acceptance)
+
+        self(start=i, key_new=key)
