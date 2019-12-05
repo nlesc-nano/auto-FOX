@@ -93,7 +93,7 @@ class LJDataFrame(pd.DataFrame):
     def overlay_cp2k_settings(self: pd.DataFrame, cp2k_settings: Mapping) -> None:
         r"""Overlay **df** with all :math:`q`, :math:`\sigma` and :math:`\varepsilon` values from **cp2k_settings**."""  # noqa
         charge = cp2k_settings['input']['force_eval']['mm']['forcefield']['charge']
-        charge_dict = {block['atom']: block['charge'] for block in charge}
+        charge_dict = {block['atom']: float(block['charge']) for block in charge}
 
         lj = cp2k_settings['input']['force_eval']['mm']['forcefield']['nonbonded']['lennard-jones']  # noqa
         epsilon_s = Settings()
