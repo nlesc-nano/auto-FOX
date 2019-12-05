@@ -89,8 +89,8 @@ def test_cp2k_md():
 
     assertion.isinstance(armc.pes, dict)
     assertion.contains(armc.pes, 'rdf')
-    assertion.is_(armc.pes['rdf'].func, MultiMolecule.init_rdf)
-    assertion.eq(armc.pes['rdf'].keywords, {'atom_subset': ['Cd', 'Se', 'O']})
+    assertion.is_(armc.pes['rdf'][0].func, MultiMolecule.init_rdf)
+    assertion.eq(armc.pes['rdf'][0].keywords, {'atom_subset': ['Cd', 'Se', 'O']})
 
     assertion.eq(armc.phi, 1.0)
     assertion.eq(armc.preopt_settings, None)

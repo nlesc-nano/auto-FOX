@@ -11,7 +11,7 @@ https://auto-fox.readthedocs.io/en/latest/
 
 """
 
-import warnings
+from os.path import join
 
 from .__version__ import __version__
 
@@ -41,9 +41,8 @@ from .ff import (
 __author__ = "Bas van Beek"
 __email__ = 'b.f.van.beek@vu.nl'
 
-with warnings.catch_warnings():
-    #: The path+filename of the example multi-xyz file.
-    example_xyz: str = get_example_xyz()
+#: The path+filename of the example multi-xyz file.
+example_xyz: str = join(__path__[0], 'data', 'Cd68Se55_26COO_MD_trajec.xyz')
 
 __all__ = [
     '__version__',
