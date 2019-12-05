@@ -11,9 +11,7 @@ A General overview of the functions within this module.
 .. code:: python
 
     >>> import pandas as pd
-    >>> from FOX.recipes import (
-    ...     get_best, overlay_descriptor, plot_descriptor
-    ... )
+    >>> from FOX.recipes import get_best, overlay_descriptor, plot_descriptor
 
     >>> hdf5_file: str = ...
 
@@ -36,6 +34,7 @@ such as the radial distribution function (RDF).
 
 .. code:: python
 
+    >>> import pandas as pd
     >>> from FOX import get_free_energy
     >>> from FOX.recipes import get_best, overlay_descriptor, plot_descriptor
 
@@ -59,8 +58,9 @@ An workflow for plotting parameters as a function of ARMC iterations.
 
 .. code:: python
 
+    >>> import pandas as pd
     >>> from FOX import from_hdf5
-    >>> from FOX.recipes plot_descriptor
+    >>> from FOX.recipes import plot_descriptor
 
     >>> hdf5_file: str = ...
 
@@ -107,6 +107,7 @@ except ImportError:
                  "\n\tpip install matplotlib")
 try:
     import h5py
+    H5PY_ERROR = None
 except ImportError:
     H5PY_ERROR = ("Use of the FOX.{} function requires the 'h5py' package."
                   "\n'h5py' can be installed via conda with the following command:"
@@ -119,6 +120,7 @@ __all__ = ['get_best', 'overlay_descriptor', 'plot_descriptor']
 NDFrame = pd.DataFrame.__bases__[0]  # Superclass of pd.DataFrame & pd.Series
 
 
+@assert_error(H5PY_ERROR)
 def get_best(hdf5_file: str, name: str = 'rdf', i: int = 0) -> pd.DataFrame:
     """Return the PES descriptor or ARMC property which yields the lowest error.
 
@@ -198,11 +200,8 @@ def overlay_descriptor(hdf5_file: str, name: str = 'rdf', i: int = 0) -> Dict[st
     return ret
 
 
-DF = Union[pd.Series, pd.DataFrame, Iterable[pd.DataFrame], Iterable[pd.Series]]
-
-
 @assert_error(PLT_ERROR)
-def plot_descriptor(descriptor: DF) -> PltFigure:
+def plot_descriptor(descriptor: Union[NDFrame, Iterable[NDFrame]]) -> PltFigure:
     """Plot a DataFrame or iterable consisting of one or more DataFrames.
 
     Requires the ``matploblib`` package.
@@ -215,15 +214,16 @@ def plot_descriptor(descriptor: DF) -> PltFigure:
     Returns
     -------
     :class:`Figure<matplotlib.figure.Figure>`
-        A matplotlib figure.
+        A matplotlib Figure.
 
     See Also
     --------
     :func:`get_best`
-        Return the PES descriptor which yields the lowest error and overlay it with the reference PES descriptor.
+        Return the PES descriptor or ARMC property which yields the lowest error.
 
     :func:`overlay_descriptor`
-        Overlay the PES descriptor, which yields the lowest error, with its QM reference.
+        Return the PES descriptor which yields the lowest error and
+        overlay it with the reference PES descriptor.
 
     """  # noqa
     if isinstance(descriptor, pd.Series):
