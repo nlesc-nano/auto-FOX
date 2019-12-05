@@ -9,9 +9,9 @@ Examples
 .. code:: python
 
     >>> import pandas as pd
-    >>> from FOX import MultiMolecule, get_example_xyz, estimate_lennard_jones
+    >>> from FOX import MultiMolecule, example_xyz, estimate_lennard_jones
 
-    >>> xyz_file: str = get_example_xyz()
+    >>> xyz_file: str = example_xyz
     >>> atom_subset = ['Cd', 'Se', 'O']
 
     >>> mol = MultiMolecule.from_xyz(xyz_file)
@@ -31,7 +31,7 @@ Examples
 
 Index
 -----
-.. currentmodule:: FOX.functions.lj_param
+.. currentmodule:: FOX.ff.lj_param
 .. autosummary::
     estimate_lj
     get_free_energy
