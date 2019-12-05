@@ -117,7 +117,7 @@ from FOX import from_hdf5, assert_error
 
 __all__ = ['get_best', 'overlay_descriptor', 'plot_descriptor']
 
-NDFrame = pd.DataFrame.__bases__[0]  # Superclass of pd.DataFrame & pd.Series
+NDFrame: type = pd.DataFrame.__bases__[0]  # Superclass of pd.DataFrame & pd.Series
 
 
 @assert_error(H5PY_ERROR)
@@ -145,7 +145,7 @@ def get_best(hdf5_file: str, name: str = 'rdf', i: int = 0) -> pd.DataFrame:
 
     """
     full_name = f'{name}.{i}'
-    with h5py.File(hdf5_file, 'r') as f:
+    with h5py.File(hdf5_file, 'r', libver='latest') as f:
         if full_name not in f.keys():  # i.e. if **name** does not belong to a PE descriptor
             full_name = name
 
