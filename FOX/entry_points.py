@@ -64,12 +64,19 @@ def main_armc(args: Optional[list] = None) -> None:
         'filename', nargs=1, type=str, help='A .yaml file with ARMC settings.'
     )
 
-    filename = parser.parse_args(args).filename[0]
+    parser.add_argument(
+        '-r', '--restart', nargs=1, type=bool, default=[False], required=False,
+        help='Whether or not to continue a previous calculation.'
+    )
+
+    args_parsed = parser.parse_args(args)
+    filename: str = args_parsed.filename[0]
+    restart: bool = args_parsed.restart[0]
     if not isfile(filename):
         raise FileNotFoundError("[Errno 2] No such file: '{}'".format(filename))
 
     armc, kwargs = ARMC.from_yaml(filename)
-    run_armc(armc, **kwargs)
+    run_armc(armc, restart=restart, **kwargs)
 
 
 def main_plot_pes(args: Optional[list] = None) -> None:

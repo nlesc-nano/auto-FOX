@@ -28,7 +28,7 @@ import numpy as np
 from scm.plams import init, finish, config
 
 from .monte_carlo import MonteCarlo
-from ..io.hdf5_utils import create_hdf5, to_hdf5, create_xyz_hdf5
+from ..io.hdf5_utils import create_hdf5, to_hdf5, create_xyz_hdf5, _get_filename_xyz
 from ..functions.utils import get_template
 from ..armc_functions.sanitization import init_armc_sanitization
 
@@ -345,47 +345,34 @@ class ARMC(MonteCarlo):
         sign = np.sign(self.a_target - np.mean(acceptance))
         self.phi *= self.gamma**sign
 
-    def restart(self, filename: str) -> None:
-        r"""Restart a previously started Addaptive Rate Monte Carlo procedure.
-
-        Restarts from the beginning of the last super-iteration :math:`\kappa`.
-
-        Parameters
-        ----------
-        filename : str
-            The path+name of the an ARMC hdf5 file.
-
-        Raises
-        ------
-        NotImplementedError
-
-        """
+    def restart(self) -> None:
+        r"""Restart a previously started Addaptive Rate Monte Carlo procedure."""
         import h5py
 
         # Initialize the first MD calculation
-        with h5py.File(filename, 'r') as f:
+        with h5py.File(self.hdf5_file, 'r', libver='latest') as f:
             i, j = f.attrs['super-iteration'], f.attrs['sub-iteration']
-            if i == -1:
-                raise ValueError
+            if i < 0:
+                raise ValueError(f'i: {i.__class__.__name__} = {i}')
 
             self.phi = f['phi'][i]
-            self.param['param'] = self.param['param'] = f['param'][i, j]
+            self.param['param'] = self.param['param_old'] = f['param'][i, j]
             for key, err in zip(f['param'][i], f['aux_error'][i]):
                 key = tuple(key)
                 self[key] = err
-            self[key] = f['aux_error'][i, j]
+            acceptance = f['acceptance'][i]
 
-            param = f['param'][i, :j]
-            acceptance = np.zeros(self.sub_iter_len, dtype=bool)
-            acceptance[1:1+j] = param[1:] == param[:-1]
-            if i != 0:
-                acceptance[0] = f['param'][i-1, -1] == param[0]
+        # Validate the xyz .hdf5 file; create a new one if required
+        xyz = _get_filename_xyz(self.hdf5_file)
+        if not os.path.isfile(xyz):
+            create_xyz_hdf5(self.hdf5_file, self.molecule, iter_len=self.sub_iter_len)
 
+        # Finish the current set of sub-iterations
         j += 1
         i += 1
-
         for omega in range(j, self.sub_iter_len):
             key = self.do_inner(i, omega, acceptance, key)
         self.update_phi(acceptance)
 
+        # And continue
         self(start=i, key_new=key)

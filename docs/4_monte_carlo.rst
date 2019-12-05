@@ -138,7 +138,9 @@ Arguments
 
 Once a the .yaml file with the ARMC settings has been sufficiently customized
 the parameter optimization can be started via the command prompt with:
-:code:`init_armc my_settings.yaml`
+:code:`init_armc my_settings.yaml`.
+
+Previous caculations can be continued with :code:`init_armc my_settings.yaml --restart True`.
 
 
 The pes block

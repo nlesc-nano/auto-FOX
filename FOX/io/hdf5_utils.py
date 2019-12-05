@@ -18,7 +18,6 @@ Index
     from_hdf5
     _get_dset
     _get_xyz_dset
-    restart_from_hdf5
     _get_filename_xyz
     _attr_to_array
     dset_to_series
@@ -36,7 +35,6 @@ API
 .. autofunction:: FOX.io.hdf5_utils.from_hdf5
 .. autofunction:: FOX.io.hdf5_utils._get_dset
 .. autofunction:: FOX.io.hdf5_utils._get_xyz_dset
-.. autofunction:: FOX.io.hdf5_utils.restart_from_hdf5
 .. autofunction:: FOX.io.hdf5_utils._get_filename_xyz
 .. autofunction:: FOX.io.hdf5_utils._attr_to_array
 .. autofunction:: FOX.io.hdf5_utils.dset_to_series
@@ -286,9 +284,8 @@ def _get_kwarg_dict(armc: 'FOX.ARMC') -> Settings:
 
 
 @assert_error(H5PY_ERROR)
-def hdf5_availability(filename: str,
-                      timeout: float = 5.0,
-                      max_attempts: Optional[int] = None) -> None:
+def hdf5_availability(filename: str, timeout: float = 5.0,
+                      max_attempts: Optional[int] = 10) -> None:
     """Check if a .hdf5 file is opened by another process; return once it is not.
 
     If two processes attempt to simultaneously open a single hdf5 file then
@@ -331,10 +328,8 @@ def hdf5_availability(filename: str,
 
 
 @assert_error(H5PY_ERROR)
-def to_hdf5(filename: str,
-            dset_dict: Dict[str, np.ndarray],
-            kappa: int,
-            omega: int) -> None:
+def to_hdf5(filename: str, dset_dict: Dict[str, np.ndarray],
+            kappa: int, omega: int) -> None:
     r"""Export results from **dset_dict** to the hdf5 file **filename**.
 
     All items in **dset_dict**, except ``"xyz"``, are exported to **filename**.
@@ -548,17 +543,6 @@ def _get_xyz_dset(f: H5pyFile) -> Tuple[np.ndarray, Dict[str, List[int]]]:
     ret[:j] = f[key][i:]
     ret[j:] = f[key][:i]
     return ret, idx_dict
-
-
-def restart_from_hdf5(filename: str) -> Dict[str, Any]:
-    """Restart a previously started Addaptive Rate Monte Carlo procedure.
-
-    Parameters
-    ----------
-    filename : str
-        The path+name of an existing ARMC hdf5 file.
-    """
-    pass
 
 
 """###################################### hdf5 utilities #######################################"""
