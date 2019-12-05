@@ -197,8 +197,8 @@ def plot_descriptor(descriptor: DF) -> PltFigure:
 
     See Also
     --------
-    :func:`get_best_descriptor`
-        Return the PES descriptor which yields the lowest error.
+    :func:`get_best`
+        Return the PES descriptor which yields the lowest error and overlay it with the reference PES descriptor.
 
     :func:`overlay_descriptor`
         Overlay the PES descriptor, which yields the lowest error, with its QM reference.
