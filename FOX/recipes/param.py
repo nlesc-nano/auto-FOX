@@ -29,15 +29,29 @@ A General overview of the functions within this module.
     :align: center
 
 
-An small workflow for calculating for calculating free energies using an RDF & ADF
+Examples
+--------
+An small workflow for calculating for calculating free energies using distribution functions
+such as the radial distribution function (RDF).
 
 .. code:: python
 
     >>> from FOX import get_free_energy
-    >>> from FOX.recipes import get_best
+    >>> from FOX.recipes import get_best, overlay_descriptor, plot_descriptor
+
+    >>> hdf5_file: str = ...
 
     >>> rdf: pd.DataFrame = get_best(hdf5_file, name='rdf')
-    >>> G_rdf: pd.DataFrame = get_free_energy(rdf, unit='kcal/mol')
+    >>> G: pd.DataFrame = get_free_energy(rdf, unit='kcal/mol')
+
+    >>> rdf_dict = overlay_descriptor(hdf5_file, name='rdf)
+    >>> G_dict = {key: get_free_energy(value) for key, value in rdf_dict.items()}
+    >>> plot_descriptor(G_dict)
+
+.. image:: G_rdf.png
+    :scale: 20 %
+    :align: center
+
 
 Index
 -----
@@ -69,7 +83,6 @@ except ImportError:
     PLT_ERROR = ("Use of the FOX.{} function requires the 'matplotlib' package."
                  "\n'matplotlib' can be installed via PyPi with the following command:"
                  "\n\tpip install matplotlib")
-
 try:
     import h5py
 except ImportError:
