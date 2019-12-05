@@ -1,12 +1,13 @@
 """A module with miscellaneous functions."""
 
+import warnings
+from os.path import join, isfile
+from functools import wraps
+from pkg_resources import resource_filename
 from typing import (
     Iterable, Tuple, Callable, Hashable, Sequence, Optional, List, Any, TypeVar, Dict,
     Type, MutableMapping
 )
-from os.path import join, isfile
-from functools import wraps
-from pkg_resources import resource_filename
 
 import yaml
 import numpy as np
@@ -402,6 +403,8 @@ def array_to_index(ar: np.ndarray) -> pd.Index:
 
 def get_example_xyz(name: str = 'Cd68Se55_26COO_MD_trajec.xyz') -> str:
     """Return the path + name of the example multi-xyz file."""
+    warnings.warn("'FOX.get_example_xyz()' is deprecated in favour of 'FOX.example_xyz'",
+                  DeprecationWarning)
     return resource_filename('FOX', join('data', name))
 
 

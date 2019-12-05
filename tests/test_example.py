@@ -10,7 +10,7 @@ import pandas as pd
 from scm.plams import Cp2kJob, Settings
 from assertionlib import assertion
 
-from FOX import ARMC, MultiMolecule, get_example_xyz
+from FOX import ARMC, MultiMolecule, example_xyz
 from FOX.io.read_psf import PSFContainer
 
 PATH = join('tests', 'test_files')
@@ -22,13 +22,12 @@ def test_input():
 
     # Define the atoms of interest and the .xyz path + filename
     atoms = ('Cd', 'Se', 'O')
-    example_xyz_filename = get_example_xyz()
 
     # Optional: start the timer
     start = time.time()
 
     # Read the .xyz file
-    mol = MultiMolecule.from_xyz(example_xyz_filename)
+    mol = MultiMolecule.from_xyz(example_xyz)
 
     # Calculate the RDF, RSMF & RMSD
     rdf = mol.init_rdf(atom_subset=atoms)
