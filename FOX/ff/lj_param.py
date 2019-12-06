@@ -44,7 +44,7 @@ API
 """
 
 import reprlib
-from typing import TypeVar, Optional, Mapping, List, Dict, Generator
+from typing import TypeVar, Optional, Mapping, Sequence, Dict, Generator
 
 import numpy as np
 import pandas as pd
@@ -58,7 +58,7 @@ A = TypeVar('A', pd.DataFrame, pd.Series, np.ndarray)
 
 
 def get_free_energy(distribution: A, temperature: float = 298.15,
-                    unit: str = 'kj/mol', inf_replace: Optional[float] = np.nan) -> A:
+                    unit: str = 'kcal/mol', inf_replace: Optional[float] = np.nan) -> A:
     r"""Convert a distribution function into a free energy function.
 
     Given a distribution function :math:`g(r)`, the free energy
@@ -155,8 +155,8 @@ def estimate_lj(rdf: pd.DataFrame, temperature: float = 298.15,
     Returns
     -------
     :class:`pandas.DataFrame`
-        A Pandas DataFrame with two columns, ``"sigma"`` (in Angstrom)
-        and ``"epsilon"`` (in kj/mol), holding the Lennard-Jones parameters.
+        A Pandas DataFrame with two columns, ``"sigma"`` (Angstrom)
+        and ``"epsilon"`` (kcal/mol), holding the Lennard-Jones parameters.
         Atom-pairs from **rdf** are used as index.
 
     See Also
@@ -174,8 +174,10 @@ def estimate_lj(rdf: pd.DataFrame, temperature: float = 298.15,
                          f"{reprlib.repr(sigma_estimate)}")
 
     # Prepare the parameter sigma
-    lj_dict: Dict[str, List[float]] = {'sigma (Angstrom)': []}
-    sigma_append = lj_dict['sigma (Angstrom)'].append
+    lj_dict: Dict[str, Sequence[float]] = {}
+    lj_dict['epsilon'] = -1 * G.min()
+    lj_dict['sigma'] = []
+    sigma_append = lj_dict['sigma'].append
 
     for _, distr in rdf.items():
         if sigma_estimate == 'inflection':
@@ -187,7 +189,6 @@ def estimate_lj(rdf: pd.DataFrame, temperature: float = 298.15,
             i = np.where(distr_ar[:j] <= 10**-8)[0][-1]  # Find the base of the first peak
         sigma_append(distr.index[i])
 
-    lj_dict['epsilon (kj/mol)'] = -1 * G.min()
     return pd.DataFrame(lj_dict, index=G.columns)
 
 
