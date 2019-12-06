@@ -6,7 +6,7 @@ from itertools import combinations_with_replacement
 import pandas as pd
 
 from FOX.ff.lj_uff import combine_sigma, combine_epsilon
-from FOX.ff.lj_calculate import LJDataFrame
+from FOX.ff.lj_dataframe import LJDataFrame
 
 
 SIGMA_MAPPING = MappingProxyType({
@@ -29,3 +29,5 @@ def _parse_uff(atoms: Iterable[str]):
 
 def guesstimate(atoms: Iterable[str]):
     uff_df = _parse_uff(atoms)
+
+
