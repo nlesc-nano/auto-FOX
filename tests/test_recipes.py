@@ -10,10 +10,7 @@ from assertionlib import assertion
 from FOX.recipes import get_best, overlay_descriptor, plot_descriptor
 
 PATH = Path('tests') / 'test_files' / 'recipes'
-PATH = Path('/Users/basvanbeek/Documents/GitHub/auto-FOX/tests/test_files/recipes')
-
 HDF5 = Path('tests') / 'test_files' / 'armc_test.hdf5'
-HDF5 = Path('/Users/basvanbeek/Documents/GitHub/auto-FOX/tests/test_files/armc_test.hdf5')
 
 
 def test_get_best() -> None:
