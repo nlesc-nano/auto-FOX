@@ -150,13 +150,19 @@ def get_best(hdf5_file: str, name: str = 'rdf', i: int = 0) -> pd.DataFrame:
             full_name = name
 
     # Load the DataFrames
-    hdf5_dict = from_hdf5(hdf5_file, ['aux_error', full_name])
-    aux_error, prop = hdf5_dict['aux_error'], hdf5_dict[full_name]
+    if full_name == 'aux_error':
+        aux_error = prop = from_hdf5(hdf5_file, 'aux_error')
+    else:
+        hdf5_dict = from_hdf5(hdf5_file, ['aux_error', full_name])
+        aux_error, prop = hdf5_dict['aux_error'], hdf5_dict[full_name]
 
     # Return the best DataFrame (or Series)
     j: int = aux_error.sum(axis=1).idxmin()
-    df = prop[j] if not isinstance(prop, NDFrame) else prop.loc[j]
-    df.columns.name = full_name
+    df = prop[j] if not isinstance(prop, NDFrame) else prop.iloc[j]
+    if isinstance(df, pd.DataFrame):
+        df.columns.name = full_name
+    elif isinstance(df, pd.Series):
+        df.name = full_name
     return df
 
 
