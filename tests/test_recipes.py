@@ -47,8 +47,8 @@ def test_plot_descriptor() -> None:
     rdf = get_best(HDF5, name='rdf')
     rdf_dict = overlay_descriptor(HDF5, name='rdf')
 
-    fig1 = plot_descriptor(rdf)
-    fig2 = plot_descriptor(rdf_dict)
+    fig1 = plot_descriptor(rdf, show_fig=False)
+    fig2 = plot_descriptor(rdf_dict, show_fig=False)
 
     name1 = str(PATH / 'tmp_fig1.png')
     name2 = str(PATH / 'tmp_fig2.png')
