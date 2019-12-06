@@ -32,7 +32,7 @@ from scm.plams import Molecule, Atom
 from assertionlib.dataclass import AbstractDataClass
 
 from .file_container import AbstractFileContainer
-from ..functions.utils import read_str_file, read_rtf_file
+from ..functions.utils import read_str_file, read_rtf_file, group_by_values
 from ..functions.molecule_utils import get_bonds, get_angles, get_dihedrals, get_impropers
 
 __all__ = ['PSFContainer']
@@ -847,6 +847,18 @@ class PSFContainer(AbstractDataClass, AbstractFileContainer):
             ret.append(value)
 
         return ret
+
+    def to_atom_dict(self) -> Dict[str, List[int]]:
+        """Create a dictionary of atom types and lists with their respective indices.
+
+        Returns
+        -------
+        :class:`dict` [:class:`str`, :class:`list` [:class:`int`]]
+            A dictionary with atom types as keys and lists of matching atomic indices as values.
+            The indices are 0-based.
+
+        """
+        return group_by_values(enumerate(self.atom_type))
 
 
 def overlay_str_file(psf: PSFContainer, filename: str) -> None:

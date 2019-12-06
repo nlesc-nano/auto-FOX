@@ -24,7 +24,6 @@ import pandas as pd
 
 from scm.plams import Units
 
-from .lj_calculate import psf_to_atom_dict
 from ..classes.multi_mol import MultiMolecule
 from ..io.read_psf import PSFContainer
 from ..io.read_prm import PRMContainer
@@ -75,7 +74,7 @@ def get_bonded(mol: Union[str, MultiMolecule],
     # Read the molecule
     if not isinstance(mol, MultiMolecule):
         mol = MultiMolecule.from_xyz(mol)
-    mol.atoms = psf_to_atom_dict(psf)
+    mol.atoms = psf.to_atom_dict()
 
     # Extract parameters from the .prm file
     bonds, angles, dihedrals, impropers = process_prm(prm)

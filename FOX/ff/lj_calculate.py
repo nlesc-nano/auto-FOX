@@ -20,7 +20,7 @@ A module for calculating non-bonded interactions using Coulomb + Lennard-Jones p
 
 """
 
-from typing import Mapping, Tuple, Sequence, Optional, Iterable, Union, Dict, List
+from typing import Mapping, Tuple, Sequence, Optional, Iterable, Union
 
 import numpy as np
 import pandas as pd
@@ -28,7 +28,7 @@ import pandas as pd
 from scm.plams import Units
 
 from .lj_dataframe import LJDataFrame
-from ..functions.utils import fill_diagonal_blocks, group_by_values
+from ..functions.utils import fill_diagonal_blocks
 from ..classes.multi_mol import MultiMolecule
 from ..io.read_psf import PSFContainer
 from ..io.read_prm import PRMContainer
@@ -97,7 +97,7 @@ def get_non_bonded(mol: Union[str, MultiMolecule],
 
     if not isinstance(mol, MultiMolecule):
         mol = MultiMolecule.from_xyz(mol)
-    mol.atoms = mol_atoms = psf_to_atom_dict(psf)
+    mol.atoms = mol_atoms = psf.to_atom_dict()
 
     prm_df = LJDataFrame(index=mol_atoms.keys())
     prm_df.overlay_psf(psf)
@@ -244,29 +244,3 @@ def get_V_lj(sigma: float, epsilon: float, dist: np.ndarray) -> float:
     lj = sigma_dist**2 - sigma_dist
     lj *= epsilon * 4
     return np.nansum(lj)
-
-
-def psf_to_atom_dict(psf: Union[str, PSFContainer]) -> Dict[str, List[int]]:
-    """Create a new dictionary of atoms and their respective indices.
-
-    Parameters
-    ----------
-    psf : :class:`str` or :class:`PSFContainer`
-        A PSFContainer instance or a file-like object representing a .psf file.
-
-    Returns
-    -------
-    :class:`dict` [:class:`str`, :class:`list` [:class:`int`]]
-        A dictionary with atom types as keys and lists of matching atomic indices as values.
-        The indices are 0-based.
-
-    """
-    if not isinstance(psf, PSFContainer):
-        psf = PSFContainer.read(psf)
-
-    try:
-        iterator = enumerate(psf.atom_type)
-    except AttributeError as ex:
-        err = f"The 'psf' parameter is of invalid type: '{psf.__class__.__name__}'"
-        raise TypeError(err).with_traceback(ex.__traceback__)
-    return group_by_values(iterator)
