@@ -128,7 +128,7 @@ def test_vacf():
 
     vacf = mol.get_vacf()
     vacf_ref = np.load(join(PATH, 'vacf.npy'))
-    np.testing.assert_allclose(vacf, vacf_ref)
+    np.testing.assert_allclose(vacf, vacf_ref, rtol=1e-06)
 
 
 def test_rdf():
