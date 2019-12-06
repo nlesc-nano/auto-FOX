@@ -177,7 +177,7 @@ def estimate_lj(rdf: pd.DataFrame, temperature: float = 298.15,
     lj_dict: Dict[str, List[float]] = {'sigma (Angstrom)': []}
     sigma_append = lj_dict['sigma (Angstrom)'].append
 
-    for distr in rdf.values:
+    for _, distr in rdf.items():
         if sigma_estimate == 'inflection':
             grad = np.gradient(distr)
             i = np.argmax(grad)  # The first inflection point in the RDF
