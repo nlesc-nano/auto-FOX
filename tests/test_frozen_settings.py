@@ -3,7 +3,7 @@
 from scm.plams import Settings
 from assertionlib import assertion
 
-from FOX.classes.frozen_settings import FrozenSettings
+from FOX import FrozenSettings
 
 _s = Settings()
 _s.a.b.c.d = True

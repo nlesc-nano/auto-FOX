@@ -36,20 +36,19 @@ The RMSD is printed for cadmium, selenium and oxygen atoms.
 
 .. code:: python
 
-    >>> from FOX import (MultiMolecule, get_example_xyz)
+    >>> from FOX import MultiMolecule, example_xyz
 
-    >>> example_xyz_file = get_example_xyz()
-    >>> mol = MultiMolecule.from_xyz(example_xyz_file)
+    >>> mol = MultiMolecule.from_xyz(example_xyz)
     >>> rmsd = mol.init_rmsd(atom_subset=('Cd', 'Se', 'O'))
     >>> rmsd.plot(title='RMSD')
 
 
 .. plot::
 
-    from FOX import (MultiMolecule, get_example_xyz)
-    atoms = ('Cd', 'Se', 'O')
-    mol = MultiMolecule.from_xyz(get_example_xyz())
-    rmsd = mol.init_rmsd(atom_subset=atoms)
+    from FOX import MultiMolecule, example_xyz
+
+    mol = MultiMolecule.from_xyz(example_xyz)
+    rmsd = mol.init_rmsd(atom_subset=('Cd', 'Se', 'O'))
     rmsd.plot(title='RMSD')
 
 
@@ -85,20 +84,19 @@ The RMSF is printed for cadmium, selenium and oxygen atoms.
 
 .. code:: python
 
-    >>> from FOX import (MultiMolecule, get_example_xyz)
+    >>> from FOX import MultiMolecule, example_xyz
 
-    >>> example_xyz_file = get_example_xyz()
-    >>> mol = MultiMolecule.from_xyz(example_xyz_file)
+    >>> mol = MultiMolecule.from_xyz(example_xyz)
     >>> rmsd = mol.init_rmsf(atom_subset=('Cd', 'Se', 'O'))
     >>> rmsd.plot(title='RMSF')
 
 
 .. plot::
 
-    from FOX import (MultiMolecule, get_example_xyz)
-    atoms = ('Cd', 'Se', 'O')
-    mol = MultiMolecule.from_xyz(get_example_xyz())
-    rmsd = mol.init_rmsf(atom_subset=atoms)
+    from FOX import MultiMolecule, example_xyz
+
+    mol = MultiMolecule.from_xyz(example_xyz)
+    rmsd = mol.init_rmsf(atom_subset=('Cd', 'Se', 'O'))
     rmsd.plot(title='RMSF')
 
 
@@ -109,11 +107,10 @@ See the :meth:`.MultiMolecule.init_shell_search` method.
 
 .. code:: python
 
-    >>> from FOX import (MultiMolecule, get_example_xyz)
+    >>> from FOX import MultiMolecule, example_xyz
     >>> import matplotlib.pyplot as plt
 
-    >>> example_xyz_file = get_example_xyz()
-    >>> mol = MultiMolecule.from_xyz(example_xyz_file)
+    >>> mol = MultiMolecule.from_xyz(example_xyz)
     >>> rmsf, rmsf_idx, rdf = mol.init_shell_search(atom_subset=('Cd', 'Se'))
 
     >>> fig, (ax, ax2) = plt.subplots(ncols=2)
@@ -124,10 +121,10 @@ See the :meth:`.MultiMolecule.init_shell_search` method.
 
 .. plot::
 
-    from FOX import (MultiMolecule, get_example_xyz)
+    from FOX import MultiMolecule, example_xyz
     import matplotlib.pyplot as plt
 
-    mol = MultiMolecule.from_xyz(get_example_xyz())
+    mol = MultiMolecule.from_xyz(example_xyz)
     rmsf, rmsf_idx, rdf = mol.init_shell_search(atom_subset=('Cd', 'Se'))
 
     fig, (ax, ax2) = plt.subplots(ncols=2)

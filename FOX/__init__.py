@@ -11,6 +11,8 @@ https://auto-fox.readthedocs.io/en/latest/
 
 """
 
+from os.path import join
+
 from .__version__ import __version__
 
 from .functions import (
@@ -33,16 +35,19 @@ from .ff import (
     get_bonded,
     get_non_bonded,
     get_intra_non_bonded,
-    estimate_lj
+    estimate_lj, get_free_energy
 )
 
 __author__ = "Bas van Beek"
 __email__ = 'b.f.van.beek@vu.nl'
 
+#: The path+filename of the example multi-xyz file.
+example_xyz: str = join(__path__[0], 'data', 'Cd68Se55_26COO_MD_trajec.xyz')
+
 __all__ = [
     '__version__',
 
-    'get_example_xyz', 'assert_error',
+    'get_example_xyz', 'example_xyz', 'assert_error',
 
     'PSFContainer',
     'PRMContainer',
@@ -52,8 +57,10 @@ __all__ = [
     'MultiMolecule',
     'ARMC', 'run_armc',
 
-    'estimate_lj',
+    'estimate_lj', 'get_free_energy',
     'get_non_bonded',
     'get_intra_non_bonded',
-    'get_bonded'
+    'get_bonded',
+
+    'recipes'
 ]

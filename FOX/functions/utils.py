@@ -1,12 +1,13 @@
 """A module with miscellaneous functions."""
 
+import warnings
+from os.path import join, isfile
+from functools import wraps
+from pkg_resources import resource_filename
 from typing import (
     Iterable, Tuple, Callable, Hashable, Sequence, Optional, List, Any, TypeVar, Dict,
     Type, MutableMapping
 )
-from os.path import join, isfile
-from functools import wraps
-from pkg_resources import resource_filename
 
 import yaml
 import numpy as np
@@ -402,6 +403,8 @@ def array_to_index(ar: np.ndarray) -> pd.Index:
 
 def get_example_xyz(name: str = 'Cd68Se55_26COO_MD_trajec.xyz') -> str:
     """Return the path + name of the example multi-xyz file."""
+    err = "'FOX.get_example_xyz()' has been deprecated in favour of 'FOX.example_xyz'"
+    warnings.warn(err, FutureWarning)
     return resource_filename('FOX', join('data', name))
 
 
@@ -780,27 +783,55 @@ def read_rtf_file(filename: str) -> Optional[Tuple[Sequence[str], Sequence[float
     return zip(*ret) if ret else None
 
 
-def fill_diagonal_blocks(ar: np.ndarray, i: int, j: int, fill_value: float = np.nan) -> None:
-    """Fill diagonal blocks in **ar** of size :math:`i * j`.
+def fill_diagonal_blocks(a: np.ndarray, i: int, j: int, val: float = np.nan) -> None:
+    """Fill diagonal blocks in **a** of size :math:`i * j`.
+
+    The blocks are filled along the last 2 axes in **ar**.
+    Performs an inplace update of **a**.
+
+    Examples
+    --------
+    .. code:: python
+
+        >>> import numpy as np
+
+        >>> a = np.zeros((10, 15), dtype=int)
+        >>> i = 2
+        >>> j = 3
+
+        >>> fill_diagonal_blocks(ar, i, j, val=1)
+        >>> print(ar)
+        [[1 1 1 0 0 0 0 0 0 0 0 0 0 0 0]
+         [1 1 1 0 0 0 0 0 0 0 0 0 0 0 0]
+         [0 0 0 1 1 1 0 0 0 0 0 0 0 0 0]
+         [0 0 0 1 1 1 0 0 0 0 0 0 0 0 0]
+         [0 0 0 0 0 0 1 1 1 0 0 0 0 0 0]
+         [0 0 0 0 0 0 1 1 1 0 0 0 0 0 0]
+         [0 0 0 0 0 0 0 0 0 1 1 1 0 0 0]
+         [0 0 0 0 0 0 0 0 0 1 1 1 0 0 0]
+         [0 0 0 0 0 0 0 0 0 0 0 0 1 1 1]
+         [0 0 0 0 0 0 0 0 0 0 0 0 1 1 1]]
 
     Parameters
     ----------
-    ar : :class:`nump.ndarray`
-        A >= 2D NumPy array.
+    a : :class:`nump.ndarray`
+        A >= 2D NumPy array whose diagonal blocks are to be filled.
+        Gets modified in-place.
     i : :class:`int`
         The size of the diagonal blocks along axis -2.
     j : :class:`int`
         The size of the diagonal blocks along axis -1.
     fill_value : :class:`float`
-        The fill value for the diagonal blocks.
+        Value to be written on the diagonal.
+        Its type must be compatible with that of the array **a**.
 
     """
     if (j <= 0) or (i <= 0):
         raise ValueError(f"'i' and 'j' should be larger than 0; observed values: {i} & {j}")
 
     i0 = j0 = 0
-    len_ar = ar.shape[1]
-    while len_ar > i0:
-        ar[..., i0:i0+i, j0:j0+j] = fill_value
+    dim1 = a.shape[-2]
+    while dim1 > i0:
+        a[..., i0:i0+i, j0:j0+j] = val
         i0 += i
         j0 += j

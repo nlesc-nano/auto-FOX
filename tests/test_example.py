@@ -10,7 +10,7 @@ import pandas as pd
 from scm.plams import Cp2kJob, Settings
 from assertionlib import assertion
 
-from FOX import ARMC, MultiMolecule, get_example_xyz
+from FOX import ARMC, MultiMolecule, example_xyz
 from FOX.io.read_psf import PSFContainer
 
 PATH = join('tests', 'test_files')
@@ -22,13 +22,12 @@ def test_input():
 
     # Define the atoms of interest and the .xyz path + filename
     atoms = ('Cd', 'Se', 'O')
-    example_xyz_filename = get_example_xyz()
 
     # Optional: start the timer
     start = time.time()
 
     # Read the .xyz file
-    mol = MultiMolecule.from_xyz(example_xyz_filename)
+    mol = MultiMolecule.from_xyz(example_xyz)
 
     # Calculate the RDF, RSMF & RMSD
     rdf = mol.init_rdf(atom_subset=atoms)
@@ -71,7 +70,8 @@ def test_cp2k_md():
     assertion.eq(armc.job_type.keywords, {'name': 'armc'})
 
     assertion.eq(armc.keep_files, False)
-    assertion.isinstance(armc.md_settings, Settings)
+    for s in armc.md_settings:
+        assertion.isinstance(s, Settings)
     assertion.isinstance(armc.molecule, tuple)
     assertion.len(armc.molecule)
     assertion.isinstance(armc.molecule[0], MultiMolecule)
@@ -90,15 +90,16 @@ def test_cp2k_md():
 
     assertion.isinstance(armc.pes, dict)
     assertion.contains(armc.pes, 'rdf')
-    assertion.is_(armc.pes['rdf'].func, MultiMolecule.init_rdf)
-    assertion.eq(armc.pes['rdf'].keywords, {'atom_subset': ['Cd', 'Se', 'O']})
+    assertion.is_(armc.pes['rdf'][0].func, MultiMolecule.init_rdf)
+    assertion.eq(armc.pes['rdf'][0].keywords, {'atom_subset': ['Cd', 'Se', 'O']})
 
     assertion.eq(armc.phi, 1.0)
-    assertion.eq(armc.preopt_settings, None)
+    assertion.is_(armc.preopt_settings, None)
     assertion.eq(armc.rmsd_threshold, 10.0)
     assertion.eq(armc.sub_iter_len, 100)
 
     assertion.eq(job_kwarg.logfile, 'armc.log')
     assertion.eq(job_kwarg.path, os.getcwd())
     assertion.eq(job_kwarg.folder, 'MM_MD_workdir')
-    assertion.isinstance(job_kwarg.psf, PSFContainer)
+    for psf in job_kwarg.psf:
+        assertion.isinstance(psf, PSFContainer)

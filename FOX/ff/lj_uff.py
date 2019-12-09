@@ -22,7 +22,6 @@ API
 
 """
 
-import os
 from os.path import join, dirname
 
 import pandas as pd
@@ -35,7 +34,7 @@ _CSV: str = join(dirname(dirname(__file__)), 'data', 'uff.csv')
 #: A DataFrame with UFF Lennard-Jones parameters.
 #: Has access to the ``"sigma"``, ``"epsilon"`` and ``"psi"`` columns.
 #: See :data:`_CSV` for the path to the corresponding .csv file.
-UFF_DF: pd.DataFrame = pd.read_csv(_CSV, index_col=0, skiprows=10)[['sigma', 'epsilon']]
+UFF_DF: pd.DataFrame = pd.read_csv(_CSV, index_col=0, skiprows=10)[['epsilon', 'sigma']]
 UFF_DF.columns.name = 'Å & kcal/mol'
 
 

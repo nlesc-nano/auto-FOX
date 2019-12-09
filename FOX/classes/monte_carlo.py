@@ -21,9 +21,12 @@ API
 
 import shutil
 import functools
+from types import MappingProxyType
+from itertools import repeat
 from collections import abc
 from typing import (
-    Tuple, List, Dict, Optional, Union, Iterable, Hashable, Iterator, Any, Mapping, Type, Callable
+    Tuple, List, Dict, Optional, Union, Iterable, Hashable, Iterator, Any, Mapping, Type, Callable,
+    KeysView, ValuesView, ItemsView, Sequence
 )
 
 import numpy as np
@@ -50,90 +53,7 @@ def get_xyz_path(self):
 
 
 class MonteCarlo(AbstractDataClass, abc.Mapping):
-    r"""The base :class:`.MonteCarlo` class.
-
-    .. _plams.init: https://www.scm.com/doc/plams/components/functions.html#scm.plams.core.functions.init  # noqa
-
-    Attributes
-    ----------
-    hdf5_file : |str|_
-        The path+filename of the .hdf5 file containing all Monte Carlo results.
-
-    param : |pd.DataFrame|_
-        A DataFrame containing all to-be optimized forcefield paramaters.
-        Paramater names are stored in the DataFrame index.
-        Contains the following columns:
-
-        * ``"param"`` (|np.float64|_): The current set of paramaters.
-        * ``"param_old"`` (|np.float64|_): The last set of accepted paramaters.
-        * ``"unit"`` (|object|_): To-be formatted strings containing all units.
-        * ``"max"`` (|np.float64|_): The maximum allowed value of each paramater.
-        * ``"min"`` (|np.float64|_): The minimum allowed value of each paramater.
-        * ``"keys"`` (|object|_): Tuples of keys pointing the parameters.
-        * ``"count"`` (|np.int64|_): The number of atoms or atom-pairs relevant for each parameter.
-
-    job : |plams.Settings|_
-        A PLAMS Settings instance with all molecular dynamics-related settings.
-        Contains the following keys:
-
-        * ``"psf"`` (|FOX.PSF|_): A :class:`.PSF` instance construced
-          from :attr:`MonteCarlo.job` [``"molecule"``].
-        * ``"func"`` (|type|_): A callable object constructed from a plams.Job_ subclass.
-        * ``"path"`` (|str|_): The path to the :attr:`.MonteCarlo.job` [``"folder"``] directory.
-          See the ``path`` argument in plams.init_ for more info.
-        * ``"name"`` (|str|_): The name of each PLAMS job.
-          See the ``name`` argument in plams.Job_ for more info.
-        * ``"folder"`` (|str|_): The name of the directory used for storing all PLAMS jobs.
-          See the ``folder`` argument in plams.init_ for more info.
-        * ``"logfile"`` (|str|_): The path+filename of the PLAMS logfile.
-        * ``"molecule"`` (|tuple|_ [|plams.Molecule|_]): An iterable consisting of
-          PLAMS molecule(s).
-        * ``"keep_files"`` (|bool|_): Whether or not results of the PLAMS jobs should be saved or
-          deleted after each respective job is finished.
-        * ``"md_settings"`` (|plams.Settings|_): A settings instance with all molecular dynamics
-          settings.
-        * ``"rmsd_threshold"`` (|float|_): An RMSD threshold for the geometry (pre-)optimization.
-          Parameters are discarded if this threshold is exceeded.
-        * ``"preopt_settings"`` (|plams.Settings|_): A settings instance with all geometry
-          (pre-)optimization settings.
-
-    move : |plams.Settings|_
-        A PLAM Settings instance with settings related to moving paramaters.
-        Contains the following keys:
-
-        * ``"arg"`` (|list|_): A list of arguments for :attr:`.MonteCarlo.move` [``"func"``].
-        * ``"func"`` (|type|_): The callable for performing paramaters moves.
-        * ``"range"`` (|np.ndarray|_): An array of allowed moves.
-        * ``"kwarg"`` (|dict|_): A dictionary with keyword arguments
-          for :attr:`.MonteCarlo.move` [``"func"``].
-        * ``"charge_constraints"`` (|dict|_): A dictionary with optional constraints for updating
-          atomic charges.
-
-    pes : |plams.Settings|_
-        A PLAM Settings instance with settings related to constructing PES descriptors.
-        Using the RDF as example, this section has the following general structure:
-
-        ::
-
-            key:
-                func: FOX.MultiMolecule.init_rdf
-                arg: []
-                kwarg:
-                    atom_subset: [Cd, Se, O]
-
-        Contains the following keys:
-
-        * ``key`` (|str|_): One or more user-specified keys. The exact value of each key is
-          irrelevant and can be altered to ones desire.
-        * ``"ref"`` (|tuple|_ [|np.ndarray|_]): An iterable consisting of array-like objects
-          holding (*ab-initio*) reference PES descriptor(s).
-        * ``"arg"`` (|list|_): A list of arguments
-          for :attr:`.MonteCarlo.pes` [``key``][``"func"``].
-        * ``"func"`` (|type|_): A callable for constructing a specific PES descriptor.
-        * ``"kwarg"`` (|dict|_): A dictionary with keyword arguments
-          for :attr:`.MonteCarlo.pes` [``key``][``"func"``].
-
-    """
+    r"""The base :class:`.MonteCarlo` class."""
 
     @property
     def molecule(self) -> Tuple[MultiMolecule, ...]:
@@ -146,22 +66,30 @@ class MonteCarlo(AbstractDataClass, abc.Mapping):
         self._plams_molecule = tuple(mol.as_Molecule(0)[0] for mol in self._molecule)
 
     @property
-    def md_settings(self) -> Settings:
+    def md_settings(self) -> Tuple[Settings, ...]:
         """Get **value** or set **value** as a |plams.Settings| instance."""
         return self._md_settings
 
     @md_settings.setter
-    def md_settings(self, value: Optional[Mapping]) -> None:
-        self._md_settings = Settings(value)
+    def md_settings(self, value: Union[Mapping, Iterable[Mapping]]) -> None:
+        if isinstance(value, abc.Mapping):
+            self._md_settings = (Settings(value),)
+        else:
+            self._md_settings = tuple(Settings(i) for i in value)
 
     @property
-    def preopt_settings(self) -> Settings:
+    def preopt_settings(self) -> Tuple[Settings, ...]:
         """Get **value** or set **value** as a |plams.Settings| instance."""
         return self._preopt_settings
 
     @preopt_settings.setter
-    def preopt_settings(self, value: Optional[Mapping]) -> None:
-        self._preopt_settings = value if value is None else Settings(value)
+    def preopt_settings(self, value: Union[None, Mapping, Iterable[Mapping]]) -> None:
+        if value is None:
+            self._preopt_settings = None
+        elif isinstance(value, abc.Mapping):
+            self._md_settings = (Settings(value),)
+        else:
+            self._md_settings = tuple(Settings(i) for i in value)
 
     @property
     def move_range(self) -> np.ndarray:
@@ -190,8 +118,8 @@ class MonteCarlo(AbstractDataClass, abc.Mapping):
 
     def __init__(self, molecule: Union[MultiMolecule, Iterable[MultiMolecule]],
                  param: pd.DataFrame,
-                 md_settings: Mapping,
-                 preopt_settings: Optional[Mapping] = None,
+                 md_settings: Union[Mapping, Iterable[Mapping]],
+                 preopt_settings: Union[None, Mapping, Iterable[Mapping]] = None,
                  rmsd_threshold: float = 5.0,
                  job_type: Type[Job] = Cp2kJob,
                  hdf5_file: str = 'ARMC.hdf5',
@@ -222,7 +150,7 @@ class MonteCarlo(AbstractDataClass, abc.Mapping):
 
         # Internally set attributes
         self.history_dict = {}
-        self.pes: Dict[str, Callable[[np.ndarray], np.ndarray]] = {}
+        self.pes: Dict[str, List[Callable[[np.ndarray], np.ndarray]]] = {}
         self.job_cache: List[Job] = []
 
     @AbstractDataClass.inherit_annotations()
@@ -230,23 +158,42 @@ class MonteCarlo(AbstractDataClass, abc.Mapping):
         iterator = ((k.strip('_'), v) for k, v in super()._str_iterator())
         return sorted(iterator)
 
-    def __setitem__(self, key: Hashable, value: Any) -> None: self.history_dict[key] = value
+    # Ensure compatibility with collections.abc.Mapping
 
-    def __getitem__(self, key: Hashable) -> Any: return self.history_dict[key]
+    def __setitem__(self, key: Hashable, value: Any) -> None:
+        """Set :attr:`MonteCarlo.history_dict` ``[key]`` to ``value``."""
+        self.history_dict[key] = value
 
-    def __iter__(self) -> Iterator[Hashable]: return iter(self.history_dict)
+    def __getitem__(self, key: Hashable) -> Any:
+        """Return :attr:`MonteCarlo.history_dict` ``[key]``."""
+        return self.history_dict[key]
 
-    def __len__(self) -> int: return len(self.history_dict)
+    def __iter__(self) -> Iterator[Hashable]:
+        """Iterate over :attr:`MonteCarlo.history_dict`."""
+        return iter(self.history_dict)
 
-    def __contains__(self, key: Hashable) -> bool: return key in self.history_dict
+    def __len__(self) -> int:
+        """Return the number of items in :attr:`MonteCarlo.history_dict`."""
+        return len(self.history_dict)
 
-    def keys(self): return self.history_dict.keys()
+    def __contains__(self, key: Hashable) -> bool:
+        """Return whether or not :attr:`MonteCarlo.history_dict` contains the specified key."""
+        return key in self.history_dict
 
-    def items(self): return self.history_dict.items()
+    def keys(self) -> KeysView:
+        """Return a view of :attr:`MonteCarlo.history_dict`'s keys."""
+        return self.history_dict.keys()
 
-    def values(self): return self.history_dict.values()
+    def items(self) -> ItemsView:
+        """Return a view of :attr:`MonteCarlo.history_dict`'s items."""
+        return self.history_dict.items()
 
-    def add_pes_evaluator(self, name: str, func: Callable, *args: Any, **kwargs: Any) -> None:
+    def values(self) -> ValuesView:
+        """Return a view of :attr:`MonteCarlo.history_dict`'s values."""
+        return self.history_dict.values()
+
+    def add_pes_evaluator(self, name: str, func: Callable, args: Sequence[Any] = (),
+                          kwargs: Mapping[str, Any] = MappingProxyType({})) -> None:
         r"""Add a callable to this instance for constructing PES-descriptors.
 
         Examples
@@ -264,7 +211,7 @@ class MonteCarlo(AbstractDataClass, abc.Mapping):
             >>> atom_subset = ['Cd', 'Se', 'O']  # Keyword argument for func
 
             # Add the PES-descriptor constructor
-            >>> mc.add_pes_evaluator(name, func, atom_subset=atom_subset)
+            >>> mc.add_pes_evaluator(name, func, kwargs={'atom_subset': atom_subset})
 
         Parameters
         ----------
@@ -276,14 +223,29 @@ class MonteCarlo(AbstractDataClass, abc.Mapping):
             The callable should take an array-like object as input and
             return a new array-like object as output.
 
-        \*args/\**kwargs : :data:`Any<typing.Any>`
-            Further positional and/or keyword arguments for **func**.
+        args : :class:`Sequence<collections.abc.Sequence>`
+            A sequence of positional arguments.
+
+        kwargs : :class:`dict` or :class:`Iterable<collections.abc.Iterable>` [:class:`dict`]
+            A dictionary or an iterable of dictionaries with keyword arguments.
+            Providing an iterable allows one to use a unique set of keyword arguments for each
+            molecule in :attr:`MonteCarlo.molecule`.
 
         """
-        partial = functools.partial(func, *args, **kwargs)
-        partial.__doc__ = func.__doc__
-        partial.ref = tuple(partial(mol) for mol in self.molecule)
-        self.pes[name] = partial
+        if not isinstance(kwargs, abc.Mapping):
+            iterator = zip(self.molecule, kwargs)
+        else:
+            iterator = zip(self.molecule, repeat(kwargs, len(self.molecule)))
+
+        ret: List[functools.partial] = []
+        ret_append = ret.append
+        for mol, kwarg in iterator:
+            partial = functools.partial(func, *args, **kwarg)
+            partial.__doc__ = func.__doc__
+            partial.__name__ = func.__name__
+            partial.ref = partial(mol)
+            ret_append(partial)
+        self.pes[name] = ret
 
     def move(self) -> Tuple[float]:
         """Update a random parameter in **self.param** by a random value from **self.move.range**.
@@ -329,9 +291,11 @@ class MonteCarlo(AbstractDataClass, abc.Mapping):
 
         """
         def _update_settings(k: Tuple[str, ...], v: float, fstring: str) -> None:
-            self.md_settings.set_nested(k, fstring.format(v))
+            for s in self.md_settings:
+                s.set_nested(k, fstring.format(v))
             if self.preopt_settings is not None:
-                self.preopt_settings.set_nested(k, fstring.format(v))
+                for s in self.preopt_settings:
+                    s.set_nested(k, fstring.format(v))
 
         # Unpack arguments
         param = self.param
@@ -411,10 +375,10 @@ class MonteCarlo(AbstractDataClass, abc.Mapping):
             The :class:`.MultiMolecule` list is replaced with ``None`` if the job crashes.
 
         """
-        s = self.preopt_settings
-        name = self.job_name
+        name = f'{self.job_name}.preopt'
         job_type = self.job_type
-        job_list = [job_type(name=name, molecule=mol, settings=s) for mol in self._plams_molecule]
+        job_list = [job_type(name=name, molecule=mol, settings=s) for
+                    mol, s in zip(self._plams_molecule, self.preopt_settings)]
 
         # Preoptimize
         mol_list = []
@@ -448,11 +412,11 @@ class MonteCarlo(AbstractDataClass, abc.Mapping):
             Return ``None`` if the job crashes.
 
         """
-        s = self.md_settings
         name = self.job_name
         job_type = self.job_type
         mol_generator = (mol.as_Molecule(-1)[0] for mol in mol_preopt)
-        jobs = [job_type(name=name, molecule=mol, settings=s) for mol in mol_generator]
+        jobs = [job_type(name=name, molecule=mol, settings=s) for
+                mol, s in zip(mol_generator, self.md_settings)]
 
         # Run MD
         mol_list = []
@@ -498,9 +462,8 @@ class MonteCarlo(AbstractDataClass, abc.Mapping):
             return False
 
         for mol in mol_preopt:
-            mol_subset = slice(0, None, len(mol) - 1)
-            rmsd = mol.get_rmsd(mol_subset)
-            if rmsd[1] > threshold_:
+            rmsd = mol.get_rmsd(mol_subset=-1)
+            if rmsd > threshold_:
                 return False
 
         return True
@@ -533,7 +496,10 @@ class MonteCarlo(AbstractDataClass, abc.Mapping):
             mol_count = len(self.molecule)
             ret = [{key: np.inf for key in self.pes}] * mol_count
         else:
-            ret = [{key: func(mol) for key, func in self.pes.items()} for mol in mol_list]
+            iterator: Iterator[Tuple[MultiMolecule, List[str], List[Callable]]] = zip(
+                mol_list, repeat(self.pes.keys(), len(mol_list)), *self.pes.values()
+            )
+            ret = [{k: func(mol) for k, func in zip(keys, funcs)} for mol, keys, *funcs in iterator]
 
         # Delete the output directory and return
         if not self.keep_files:

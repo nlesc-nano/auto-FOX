@@ -1,1 +1,1 @@
-.. automodule:: FOX.functions.lj_param
+.. automodule:: FOX.ff.lj_param

@@ -56,7 +56,7 @@ def test_to_hdf5():
     kappa = 5
     omega = 15
     hdf5_dict = {
-        'xyz': [FOX.MultiMolecule.from_xyz(FOX.get_example_xyz())],
+        'xyz': [FOX.MultiMolecule.from_xyz(FOX.example_xyz)],
         'phi': 5.0,
         'param': np.arange(14, dtype=float),
         'acceptance': True,
@@ -100,7 +100,7 @@ def test_from_hdf5():
     kappa = 0
     omega = 0
     hdf5_dict = {
-        'xyz': [FOX.MultiMolecule.from_xyz(FOX.get_example_xyz())],
+        'xyz': [FOX.MultiMolecule.from_xyz(FOX.example_xyz)],
         'phi': 5.0,
         'param': np.arange(14, dtype=float),
         'acceptance': True,

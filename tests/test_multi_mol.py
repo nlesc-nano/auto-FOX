@@ -7,10 +7,10 @@ import numpy as np
 
 from assertionlib import assertion
 
-from FOX import MultiMolecule, get_example_xyz
+from FOX import MultiMolecule, example_xyz
 from FOX.functions.utils import get_template
 
-MOL = MultiMolecule.from_xyz(get_example_xyz())
+MOL = MultiMolecule.from_xyz(example_xyz)
 PATH = join('tests', 'test_files')
 
 
@@ -128,7 +128,7 @@ def test_vacf():
 
     vacf = mol.get_vacf()
     vacf_ref = np.load(join(PATH, 'vacf.npy'))
-    np.testing.assert_allclose(vacf, vacf_ref)
+    np.testing.assert_allclose(vacf, vacf_ref, rtol=1e-06)
 
 
 def test_rdf():
@@ -285,5 +285,5 @@ def test_from_xyz():
     """Test :meth:`.MultiMolecule.from_xyz`."""
     mol = MOL.copy()
 
-    mol_new = MultiMolecule.from_xyz(get_example_xyz())
+    mol_new = MultiMolecule.from_xyz(example_xyz)
     np.testing.assert_allclose(mol_new, mol)

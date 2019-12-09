@@ -10,7 +10,7 @@ import numpy as np
 from scm.plams import Molecule
 from assertionlib import assertion
 
-from FOX.io.read_psf import PSFContainer
+from FOX import PSFContainer
 
 PATH: str = join('tests', 'test_files', 'psf')
 PSF: PSFContainer = PSFContainer.read(join(PATH, 'mol.psf'))

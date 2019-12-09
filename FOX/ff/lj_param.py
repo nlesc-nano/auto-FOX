@@ -9,9 +9,9 @@ Examples
 .. code:: python
 
     >>> import pandas as pd
-    >>> from FOX import MultiMolecule, get_example_xyz, estimate_lennard_jones
+    >>> from FOX import MultiMolecule, example_xyz, estimate_lennard_jones
 
-    >>> xyz_file: str = get_example_xyz()
+    >>> xyz_file: str = example_xyz
     >>> atom_subset = ['Cd', 'Se', 'O']
 
     >>> mol = MultiMolecule.from_xyz(xyz_file)
@@ -31,7 +31,7 @@ Examples
 
 Index
 -----
-.. currentmodule:: FOX.functions.lj_param
+.. currentmodule:: FOX.ff.lj_param
 .. autosummary::
     estimate_lj
     get_free_energy
@@ -44,7 +44,7 @@ API
 """
 
 import reprlib
-from typing import TypeVar, Optional, Mapping, List, Dict, Generator
+from typing import TypeVar, Optional, Mapping, Sequence, Dict, Generator
 
 import numpy as np
 import pandas as pd
@@ -57,12 +57,11 @@ __all__ = ['estimate_lj', 'get_free_energy']
 A = TypeVar('A', pd.DataFrame, pd.Series, np.ndarray)
 
 
-def get_free_energy(distribution: A,
-                    temperature: float = 298.15,
-                    inf_replace: Optional[float] = np.nan) -> A:
+def get_free_energy(distribution: A, temperature: float = 298.15,
+                    unit: str = 'kcal/mol', inf_replace: Optional[float] = np.nan) -> A:
     r"""Convert a distribution function into a free energy function.
 
-    Given a distribution function :math:`g(r)` with the parameter :math:`r`, the free energy
+    Given a distribution function :math:`g(r)`, the free energy
     :math:`F(g(r))` can be retrieved using a Boltzmann inversion:
 
     .. math::
@@ -72,16 +71,22 @@ def get_free_energy(distribution: A,
     Two examples of valid distribution functions would be the
     radial-  and angular distribution functions.
 
+    .. _`scm.plams.units`: https://www.scm.com/doc/plams/components/utils.html#scm.plams.tools.units.Units
+
     Parameters
     ----------
-    distribution : :class:`pandas.DataFrame`
-        A distribution function (*e.g.* an RDF) as Pandas DataFrame or Series.
+    distribution : array-like
+        A distribution function (*e.g.* an RDF) as an array-like object.
 
     temperature : :class:`float`
         The temperature in Kelvin.
 
     inf_replace : :class:`float`, optional
         A value used for replacing all instances of infinity (``np.inf``).
+
+    unit : :class:`str`
+        The to-be returned unit.
+        See `scm.plams.Units`_ for a comprehensive overview of all allowed values.
 
     Returns
     -------
@@ -96,12 +101,15 @@ def get_free_energy(distribution: A,
     :meth:`.MultiMolecule.init_adf`
         Initialize the calculation of distance-weighted angular distribution functions (ADFs).
 
-    """
+    """  # noqa
     RT = (constants.R / 1000) * temperature  # kj/mol
+
     with np.errstate(divide='ignore'):
         ret = -RT * np.log(distribution)
     if inf_replace is not None:
         ret[ret == np.inf] = inf_replace
+
+    ret *= Units.conversion_ratio('kj/mol', unit)
     return ret
 
 
@@ -147,8 +155,8 @@ def estimate_lj(rdf: pd.DataFrame, temperature: float = 298.15,
     Returns
     -------
     :class:`pandas.DataFrame`
-        A Pandas DataFrame with two columns, ``"sigma"`` (in Angstrom)
-        and ``"epsilon"`` (in kj/mol), holding the Lennard-Jones parameters.
+        A Pandas DataFrame with two columns, ``"sigma"`` (Angstrom)
+        and ``"epsilon"`` (kcal/mol), holding the Lennard-Jones parameters.
         Atom-pairs from **rdf** are used as index.
 
     See Also
@@ -166,10 +174,12 @@ def estimate_lj(rdf: pd.DataFrame, temperature: float = 298.15,
                          f"{reprlib.repr(sigma_estimate)}")
 
     # Prepare the parameter sigma
-    lj_dict: Dict[str, List[float]] = {'sigma (Angstrom)': []}
-    sigma_append = lj_dict['sigma (Angstrom)'].append
+    lj_dict: Dict[str, Sequence[float]] = {}
+    lj_dict['epsilon'] = -1 * G.min()
+    lj_dict['sigma'] = []
+    sigma_append = lj_dict['sigma'].append
 
-    for distr in rdf.values:
+    for _, distr in rdf.items():
         if sigma_estimate == 'inflection':
             grad = np.gradient(distr)
             i = np.argmax(grad)  # The first inflection point in the RDF
@@ -179,7 +189,6 @@ def estimate_lj(rdf: pd.DataFrame, temperature: float = 298.15,
             i = np.where(distr_ar[:j] <= 10**-8)[0][-1]  # Find the base of the first peak
         sigma_append(distr.index[i])
 
-    lj_dict['epsilon (kj/mol)'] = -1 * G.min()
     return pd.DataFrame(lj_dict, index=G.columns)
 
 

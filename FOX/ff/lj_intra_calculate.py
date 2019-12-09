@@ -27,11 +27,12 @@ import numpy as np
 
 from scm.plams import Atom, Molecule, Units
 
-from FOX.classes.multi_mol import MultiMolecule
-from FOX.io.read_psf import PSFContainer
-from FOX.io.read_prm import PRMContainer
-from FOX.ff.lj_calculate import psf_to_atom_dict, LJDataFrame, get_V_elstat, get_V_lj
-from FOX.ff.bonded_calculate import _dist
+from .lj_calculate import get_V_elstat, get_V_lj
+from .lj_dataframe import LJDataFrame
+from .bonded_calculate import _dist
+from ..classes.multi_mol import MultiMolecule
+from ..io.read_psf import PSFContainer
+from ..io.read_prm import PRMContainer
 
 __all__ = ['get_intra_non_bonded']
 
@@ -83,7 +84,7 @@ def get_intra_non_bonded(mol: Union[str, MultiMolecule], psf: Union[str, PSFCont
     ij = _get_idx(mol, core_atoms).T
 
     # Construct the parameter DataFrame
-    mol.atoms = psf_to_atom_dict(psf)
+    mol.atoms = psf.to_atom_dict()
     prm_df = LJDataFrame(index=set(mol.symbol[lig_atoms]))
     prm_df.overlay_psf(psf)
     prm_df.overlay_prm(prm)

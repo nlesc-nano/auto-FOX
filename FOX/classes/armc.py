@@ -28,7 +28,7 @@ import numpy as np
 from scm.plams import init, finish, config
 
 from .monte_carlo import MonteCarlo
-from ..io.hdf5_utils import create_hdf5, to_hdf5, create_xyz_hdf5
+from ..io.hdf5_utils import create_hdf5, to_hdf5, create_xyz_hdf5, _get_filename_xyz
 from ..functions.utils import get_template
 from ..armc_functions.sanitization import init_armc_sanitization
 
@@ -48,7 +48,8 @@ class Init(AbstractContextManager):
 
 
 def run_armc(armc: 'ARMC', path: Optional[str] = None, folder: Optional[str] = None,
-             logfile: Optional[str] = None, psf: Optional['PSFContainer'] = None) -> None:
+             logfile: Optional[str] = None, psf: Optional[Iterable['PSFContainer']] = None,
+             restart: bool = False) -> None:
     """A wrapper arround :class:`ARMC` for handling the JobManager."""
     with Init(path=path, folder=folder):
         if logfile is not None:
@@ -57,9 +58,14 @@ def run_armc(armc: 'ARMC', path: Optional[str] = None, folder: Optional[str] = N
 
         # Create a .psf file if specified
         if psf is not None:
-            psf.write(None)
+            for item in psf:
+                item.write(None)
 
-        armc()
+        # To restart or not? That's the question
+        if not restart:
+            armc()
+        else:
+            armc.restart()
 
 
 class ARMC(MonteCarlo):
@@ -141,19 +147,19 @@ class ARMC(MonteCarlo):
         s, pes_kwarg, job_kwarg = init_armc_sanitization(yaml_dict)
         self = cls.from_dict(s)
         for name, options in pes_kwarg.items():
-            self.add_pes_evaluator(name, options.func, *options.args, **options.kwargs)
+            self.add_pes_evaluator(name, options.func, options.args, options.kwargs)
         return self, job_kwarg
 
-    def __call__(self) -> None:
+    def __call__(self, start: int = 0, key_new: Optional[Tuple[float, ...]] = None) -> None:
         """Initialize the Addaptive Rate Monte Carlo procedure."""
-        # Construct the HDF5 file
-        create_hdf5(self.hdf5_file, self)
-
-        # Initialize the first MD calculation
-        key_new = self._get_first_key()
+        if start == 0:
+            create_hdf5(self.hdf5_file, self)  # Construct the HDF5 file
+            key_new = self._get_first_key()  # Initialize the first MD calculation
+        elif key_new is None:
+            raise TypeError("'key_new' cannot be 'None' if 'start' is larger than 0")
 
         # Start the main loop
-        for kappa in range(self.super_iter_len):
+        for kappa in range(start, self.super_iter_len):
             acceptance = np.zeros(self.sub_iter_len, dtype=bool)
             create_xyz_hdf5(self.hdf5_file, self.molecule, iter_len=self.sub_iter_len)
 
@@ -302,7 +308,7 @@ class ARMC(MonteCarlo):
 
         """
         def norm_mean(key: str, mm_pes: np.ndarray, i: int) -> float:
-            qm_pes = self.pes[key].ref[i]
+            qm_pes = self.pes[key][i].ref
             A, B = np.asarray(qm_pes, dtype=float), np.asarray(mm_pes, dtype=float)
             ret = (A - B)**2
             return ret.sum() / A.sum()
@@ -340,19 +346,34 @@ class ARMC(MonteCarlo):
         sign = np.sign(self.a_target - np.mean(acceptance))
         self.phi *= self.gamma**sign
 
-    def restart(self, filename: str) -> None:
-        r"""Restart a previously started Addaptive Rate Monte Carlo procedure.
+    def restart(self) -> None:
+        r"""Restart a previously started Addaptive Rate Monte Carlo procedure."""
+        import h5py
 
-        Restarts from the beginning of the last super-iteration :math:`\kappa`.
+        # Initialize the first MD calculation
+        with h5py.File(self.hdf5_file, 'r', libver='latest') as f:
+            i, j = f.attrs['super-iteration'], f.attrs['sub-iteration']
+            if i < 0:
+                raise ValueError(f'i: {i.__class__.__name__} = {i}')
 
-        Parameters
-        ----------
-        filename : str
-            The path+name of the an ARMC hdf5 file.
+            self.phi = f['phi'][i]
+            self.param['param'] = self.param['param_old'] = f['param'][i, j]
+            for key, err in zip(f['param'][i], f['aux_error'][i]):
+                key = tuple(key)
+                self[key] = err
+            acceptance = f['acceptance'][i]
 
-        Raises
-        ------
-        NotImplementedError
+        # Validate the xyz .hdf5 file; create a new one if required
+        xyz = _get_filename_xyz(self.hdf5_file)
+        if not os.path.isfile(xyz):
+            create_xyz_hdf5(self.hdf5_file, self.molecule, iter_len=self.sub_iter_len)
 
-        """
-        raise NotImplementedError
+        # Finish the current set of sub-iterations
+        j += 1
+        i += 1
+        for omega in range(j, self.sub_iter_len):
+            key = self.do_inner(i, omega, acceptance, key)
+        self.update_phi(acceptance)
+
+        # And continue
+        self(start=i, key_new=key)

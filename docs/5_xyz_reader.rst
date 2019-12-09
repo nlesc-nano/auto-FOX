@@ -15,10 +15,9 @@ a :class:`.MultiMolecule` instance.
 
 .. code:: python
 
-    >>> import FOX
+    >>> from FOX import MultiMolecule, example_xyz
 
-    >>> example_xyz_file = FOX.get_example_xyz()
-    >>> mol = FOX.MultiMolecule.from_xyz(example_xyz_file)
+    >>> mol = MultiMolecule.from_xyz(example_xyz)
 
     >>> print(type(mol))
     <class 'FOX.classes.multi_mol.MultiMolecule'>
@@ -32,4 +31,4 @@ API
 .. automethod:: FOX.classes.multi_mol.MultiMolecule.from_xyz
     :noindex:
 
-.. autofunction:: FOX.functions.utils.get_example_xyz
+.. autodata:: FOX.example_xyz

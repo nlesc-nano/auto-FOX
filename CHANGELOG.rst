@@ -6,6 +6,19 @@ All notable changes to this project will be documented in this file.
 This project adheres to `Semantic Versioning <http://semver.org/>`_.
 
 
+0.6.9
+*****
+* ``FOX.get_example_xyz()`` has been deprecated in favor of ``FOX.example_xyz``.
+* Moved the ``psf_to_atom_dict()`` function to ``PSFContainer.to_atom_dict()``.
+
+From https://github.com/nlesc-nano/auto-FOX/issues/52:
+
+* Repos of script to analyze AMRC data.
+* Simultaneous fitting of different trajectories with different atom types;
+  ensure that the PES descriptor generators can have different arguments for each trajectory.
+* Restart procedure for ARMC.
+
+
 0.6.8
 *****
 * Added a workflow for calculating covalent intra-ligand interactions using
