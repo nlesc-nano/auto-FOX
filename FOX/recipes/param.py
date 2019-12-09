@@ -207,7 +207,8 @@ def overlay_descriptor(hdf5_file: str, name: str = 'rdf', i: int = 0) -> Dict[st
 
 
 @assert_error(PLT_ERROR)
-def plot_descriptor(descriptor: Union[NDFrame, Iterable[NDFrame]], show_fig: bool = True) -> PltFigure:
+def plot_descriptor(descriptor: Union[NDFrame, Iterable[NDFrame]],
+                    show_fig: bool = True) -> PltFigure:
     """Plot a DataFrame or iterable consisting of one or more DataFrames.
 
     Requires the ``matploblib`` package.

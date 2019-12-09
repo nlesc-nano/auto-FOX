@@ -70,7 +70,8 @@ def test_cp2k_md():
     assertion.eq(armc.job_type.keywords, {'name': 'armc'})
 
     assertion.eq(armc.keep_files, False)
-    assertion.isinstance(armc.md_settings, Settings)
+    for s in armc.md_settings:
+        assertion.isinstance(s, Settings)
     assertion.isinstance(armc.molecule, tuple)
     assertion.len(armc.molecule)
     assertion.isinstance(armc.molecule[0], MultiMolecule)
@@ -93,11 +94,12 @@ def test_cp2k_md():
     assertion.eq(armc.pes['rdf'][0].keywords, {'atom_subset': ['Cd', 'Se', 'O']})
 
     assertion.eq(armc.phi, 1.0)
-    assertion.eq(armc.preopt_settings, None)
+    assertion.is_(armc.preopt_settings, None)
     assertion.eq(armc.rmsd_threshold, 10.0)
     assertion.eq(armc.sub_iter_len, 100)
 
     assertion.eq(job_kwarg.logfile, 'armc.log')
     assertion.eq(job_kwarg.path, os.getcwd())
     assertion.eq(job_kwarg.folder, 'MM_MD_workdir')
-    assertion.isinstance(job_kwarg.psf, PSFContainer)
+    for psf in job_kwarg.psf:
+        assertion.isinstance(psf, PSFContainer)
