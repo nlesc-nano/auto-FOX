@@ -66,22 +66,30 @@ class MonteCarlo(AbstractDataClass, abc.Mapping):
         self._plams_molecule = tuple(mol.as_Molecule(0)[0] for mol in self._molecule)
 
     @property
-    def md_settings(self) -> Settings:
+    def md_settings(self) -> Tuple[Settings, ...]:
         """Get **value** or set **value** as a |plams.Settings| instance."""
         return self._md_settings
 
     @md_settings.setter
-    def md_settings(self, value: Optional[Mapping]) -> None:
-        self._md_settings = Settings(value)
+    def md_settings(self, value: Union[Mapping, Iterable[Mapping]]) -> None:
+        if isinstance(value, abc.Mapping):
+            self._md_settings = (Settings(value),)
+        else:
+            self._md_settings = tuple(Settings(i) for i in value)
 
     @property
-    def preopt_settings(self) -> Settings:
+    def preopt_settings(self) -> Tuple[Settings, ...]:
         """Get **value** or set **value** as a |plams.Settings| instance."""
         return self._preopt_settings
 
     @preopt_settings.setter
-    def preopt_settings(self, value: Optional[Mapping]) -> None:
-        self._preopt_settings = value if value is None else Settings(value)
+    def preopt_settings(self, value: Union[None, Mapping, Iterable[Mapping]]) -> None:
+        if value is None:
+            self._preopt_settings = None
+        elif isinstance(value, abc.Mapping):
+            self._md_settings = (Settings(value),)
+        else:
+            self._md_settings = tuple(Settings(i) for i in value)
 
     @property
     def move_range(self) -> np.ndarray:
@@ -110,8 +118,8 @@ class MonteCarlo(AbstractDataClass, abc.Mapping):
 
     def __init__(self, molecule: Union[MultiMolecule, Iterable[MultiMolecule]],
                  param: pd.DataFrame,
-                 md_settings: Mapping,
-                 preopt_settings: Optional[Mapping] = None,
+                 md_settings: Union[Mapping, Iterable[Mapping]],
+                 preopt_settings: Union[None, Mapping, Iterable[Mapping]] = None,
                  rmsd_threshold: float = 5.0,
                  job_type: Type[Job] = Cp2kJob,
                  hdf5_file: str = 'ARMC.hdf5',
@@ -283,9 +291,11 @@ class MonteCarlo(AbstractDataClass, abc.Mapping):
 
         """
         def _update_settings(k: Tuple[str, ...], v: float, fstring: str) -> None:
-            self.md_settings.set_nested(k, fstring.format(v))
+            for s in self.md_settings:
+                s.set_nested(k, fstring.format(v))
             if self.preopt_settings is not None:
-                self.preopt_settings.set_nested(k, fstring.format(v))
+                for s in self.preopt_settings:
+                    s.set_nested(k, fstring.format(v))
 
         # Unpack arguments
         param = self.param
@@ -365,10 +375,10 @@ class MonteCarlo(AbstractDataClass, abc.Mapping):
             The :class:`.MultiMolecule` list is replaced with ``None`` if the job crashes.
 
         """
-        s = self.preopt_settings
-        name = self.job_name
+        name = f'{self.job_name}.preopt'
         job_type = self.job_type
-        job_list = [job_type(name=name, molecule=mol, settings=s) for mol in self._plams_molecule]
+        job_list = [job_type(name=name, molecule=mol, settings=s) for
+                    mol, s in zip(self._plams_molecule, self.preopt_settings)]
 
         # Preoptimize
         mol_list = []
@@ -402,11 +412,11 @@ class MonteCarlo(AbstractDataClass, abc.Mapping):
             Return ``None`` if the job crashes.
 
         """
-        s = self.md_settings
         name = self.job_name
         job_type = self.job_type
         mol_generator = (mol.as_Molecule(-1)[0] for mol in mol_preopt)
-        jobs = [job_type(name=name, molecule=mol, settings=s) for mol in mol_generator]
+        jobs = [job_type(name=name, molecule=mol, settings=s) for
+                mol, s in zip(mol_generator, self.md_settings)]
 
         # Run MD
         mol_list = []
@@ -452,9 +462,8 @@ class MonteCarlo(AbstractDataClass, abc.Mapping):
             return False
 
         for mol in mol_preopt:
-            mol_subset = slice(0, None, len(mol) - 1)
-            rmsd = mol.get_rmsd(mol_subset)
-            if rmsd[1] > threshold_:
+            rmsd = mol.get_rmsd(mol_subset=-1)
+            if rmsd > threshold_:
                 return False
 
         return True

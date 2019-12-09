@@ -218,17 +218,23 @@ def reshape_settings(s: Settings) -> None:
     pes = s.pop('pes')
     job = s.pop('job')
 
-    job.psf = _generate_psf(job.path, s.molecule[0], s.md_settings, s.pop('psf'), s.param)
+    job.psf, s.md_settings = zip(*[_generate_psf(job.path, m, s.md_settings, s.psf, s.param, i) for
+                                   i, m in enumerate(s.molecule)])
+
+    del s.psf
     if job.psf is None:
         del job.psf
 
-    set_subsys_kind(s.md_settings, job.psf.atoms)
+    for md_settings, psf in zip(s.md_settings, job.psf):
+        set_subsys_kind(md_settings, psf.atoms)
+
     if s.preopt_settings is not None:
         if s.preopt_settings is True:
-            s.preopt_settings = Settings()
-        s.preopt_settings = s.md_settings + s.preopt_settings
-        del s.preopt_settings.input.motion.md
-        s.preopt_settings.input['global'].run_type = 'geometry_optimization'
+            s.preopt_settings = [Settings() for _ in s.md_settings]
+        for md, preopt in zip(s.md_settings, s.preopt_settings):
+            preopt.soft_update(md)
+            del preopt.input.motion.md
+            preopt.input['global'].run_type = 'geometry_optimization'
 
     return s, pes, job
 
@@ -277,10 +283,12 @@ def _reshape_param(s: Settings) -> None:
 
 
 def _generate_psf(path: str, mol: MultiMolecule, md_settings: Settings,
-                  psf_s: Settings, param: pd.DataFrame) -> Optional[PSFContainer]:
+                  psf_s: Settings, param: pd.DataFrame,
+                  i: int) -> Tuple[Optional[PSFContainer], Settings]:
     not_None = (psf_s.str_file or psf_s.rtf_file) and psf_s.ligand_atoms
     if not_None:
-        mol.guess_bonds(atom_subset=psf_s.ligand_atoms)
+        atom_subset = set(mol.atoms).intersection(psf_s.ligand_atoms)
+        mol.guess_bonds(atom_subset=list(atom_subset))
 
     # Create a and sanitize a plams molecule
     plams_mol = mol.as_Molecule(0)[0]
@@ -295,8 +303,9 @@ def _generate_psf(path: str, mol: MultiMolecule, md_settings: Settings,
     psf.generate_impropers(plams_mol)
     psf.generate_atoms(plams_mol)
 
+    md_settings = md_settings.copy()
     if not_None:
-        psf.filename = psf_file = join(path, 'mol.psf')
+        psf.filename = psf_file = join(path, f'mol.{i}.psf')
         if psf_s.str_file:
             overlay_str_file(psf, psf_s.str_file)
         else:
@@ -310,7 +319,10 @@ def _generate_psf(path: str, mol: MultiMolecule, md_settings: Settings,
 
     # Calculate the number of pairs
     param['count'] = get_atom_count(param.index, psf.atom_type)
-    return psf if not_None else None
+    if not_None:
+        return psf, md_settings
+    else:
+        return None, md_settings
 
 
 def _assign_residues(plams_mol: Molecule, res_list: Iterable[Iterable[int]]) -> None:

@@ -48,7 +48,7 @@ class Init(AbstractContextManager):
 
 
 def run_armc(armc: 'ARMC', path: Optional[str] = None, folder: Optional[str] = None,
-             logfile: Optional[str] = None, psf: Optional['PSFContainer'] = None,
+             logfile: Optional[str] = None, psf: Optional[Iterable['PSFContainer']] = None,
              restart: bool = False) -> None:
     """A wrapper arround :class:`ARMC` for handling the JobManager."""
     with Init(path=path, folder=folder):
@@ -58,7 +58,8 @@ def run_armc(armc: 'ARMC', path: Optional[str] = None, folder: Optional[str] = N
 
         # Create a .psf file if specified
         if psf is not None:
-            psf.write(None)
+            for item in psf:
+                item.write(None)
 
         # To restart or not? That's the question
         if not restart:
