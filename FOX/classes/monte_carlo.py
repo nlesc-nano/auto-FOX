@@ -87,9 +87,9 @@ class MonteCarlo(AbstractDataClass, abc.Mapping):
         if value is None:
             self._preopt_settings = None
         elif isinstance(value, abc.Mapping):
-            self._md_settings = (Settings(value),)
+            self._preopt_settings = (Settings(value),)
         else:
-            self._md_settings = tuple(Settings(i) for i in value)
+            self._preopt_settings = tuple(Settings(i) for i in value)
 
     @property
     def move_range(self) -> np.ndarray:
