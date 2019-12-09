@@ -4,10 +4,11 @@ import time
 import os
 from os.path import join
 
+import yaml
 import numpy as np
 import pandas as pd
 
-from scm.plams import Cp2kJob, Settings
+from scm.plams import Cp2kJob
 from assertionlib import assertion
 
 from FOX import ARMC, MultiMolecule, example_xyz
@@ -70,11 +71,17 @@ def test_cp2k_md():
     assertion.eq(armc.job_type.keywords, {'name': 'armc'})
 
     assertion.eq(armc.keep_files, False)
-    for s in armc.md_settings:
-        assertion.isinstance(s, Settings)
     assertion.isinstance(armc.molecule, tuple)
     assertion.len(armc.molecule)
-    assertion.isinstance(armc.molecule[0], MultiMolecule)
+    for mol in armc.molecule:
+        assertion.isinstance(mol, MultiMolecule)
+
+    s = armc.md_settings[0].copy()
+    del s.input.force_eval.mm.forcefield.parm_file_name
+    del s.input.force_eval.subsys.topology.conn_file_name
+    with open(join(PATH, 'armc_md_settings.yaml'), 'r') as f:
+        ref = yaml.load(f, Loader=yaml.FullLoader)
+        assertion.eq(s, ref)
 
     np.testing.assert_allclose(
         armc.move_range,
@@ -85,8 +92,17 @@ def test_cp2k_md():
                   1.085, 1.09, 1.095, 1.1])
     )
 
-    assertion.isinstance(armc.param, pd.DataFrame)
-    assertion.shape_eq(armc.param, (14, 8))
+    param_ref = pd.read_csv(join(PATH, 'armc_param.csv'), index_col=[0, 1], float_precision='high')
+    param_ref['constraints'] = None
+    param_ref['keys'] = [eval(i) for i in param_ref['keys']]
+    for k, v1 in param_ref.items():
+        v2 = armc.param[k]
+        if k == 'param_old':
+            assertion.is_(v1.isna().all(), v2.isna().all())
+        elif v1.dtype.name == 'float64':
+            np.testing.assert_allclose(v1, v2)
+        else:
+            np.testing.assert_array_equal(v1, v2)
 
     assertion.isinstance(armc.pes, dict)
     assertion.contains(armc.pes, 'rdf')

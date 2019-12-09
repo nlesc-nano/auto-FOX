@@ -1,0 +1,15 @@
+,,param,param_old,unit,max,min,keys,constraints,count
+charge,CG2O3,0.4524,,{:f},inf,-inf,"['input', 'force_eval', 'mm', 'forcefield', 'charge', 0, 'charge']",,26
+charge,Cd,0.9768,,{:f},inf,-inf,"['input', 'force_eval', 'mm', 'forcefield', 'charge', 1, 'charge']",,68
+charge,OG2D2,-0.4704,,{:f},inf,-inf,"['input', 'force_eval', 'mm', 'forcefield', 'charge', 2, 'charge']",,52
+charge,Se,-0.9768,,{:f},inf,-inf,"['input', 'force_eval', 'mm', 'forcefield', 'charge', 3, 'charge']",,55
+epsilon,Cd Cd,0.3101,,[kjmol] {:f},inf,-inf,"['input', 'force_eval', 'mm', 'forcefield', 'nonbonded', 'lennard-jones', 0, 'epsilon']",,2278
+epsilon,Cd OG2D2,1.834,,[kjmol] {:f},inf,-inf,"['input', 'force_eval', 'mm', 'forcefield', 'nonbonded', 'lennard-jones', 1, 'epsilon']",,3536
+epsilon,Cd Se,1.5225,,[kjmol] {:f},inf,-inf,"['input', 'force_eval', 'mm', 'forcefield', 'nonbonded', 'lennard-jones', 2, 'epsilon']",,3740
+epsilon,Se OG2D2,1.6135,,[kjmol] {:f},inf,-inf,"['input', 'force_eval', 'mm', 'forcefield', 'nonbonded', 'lennard-jones', 3, 'epsilon']",,2860
+epsilon,Se Se,0.4266,,[kjmol] {:f},inf,-inf,"['input', 'force_eval', 'mm', 'forcefield', 'nonbonded', 'lennard-jones', 4, 'epsilon']",,1485
+sigma,Cd Cd,0.1234,,[nm] {:f},inf,-inf,"['input', 'force_eval', 'mm', 'forcefield', 'nonbonded', 'lennard-jones', 0, 'sigma']",,2278
+sigma,Cd OG2D2,0.2471,,[nm] {:f},inf,-inf,"['input', 'force_eval', 'mm', 'forcefield', 'nonbonded', 'lennard-jones', 1, 'sigma']",,3536
+sigma,Cd Se,0.294,,[nm] {:f},inf,-inf,"['input', 'force_eval', 'mm', 'forcefield', 'nonbonded', 'lennard-jones', 2, 'sigma']",,3740
+sigma,Se OG2D2,0.3526,,[nm] {:f},inf,-inf,"['input', 'force_eval', 'mm', 'forcefield', 'nonbonded', 'lennard-jones', 3, 'sigma']",,2860
+sigma,Se Se,0.4852,,[nm] {:f},inf,-inf,"['input', 'force_eval', 'mm', 'forcefield', 'nonbonded', 'lennard-jones', 4, 'sigma']",,1485
