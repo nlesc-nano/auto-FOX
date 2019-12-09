@@ -299,7 +299,6 @@ atomic charges in the ``move.charge_constraints`` block (see below).
 State averaged ARMC
 -------------------
 
-
 ::
 
     ...
@@ -325,13 +324,6 @@ State averaged ARMC
                 - atom_subset: [Cd, Se, S, O]
 
     ...
-
-
-
-Charge constraints
-------------------
-
-.. autofunction:: FOX.functions.charge_utils.get_charge_constraints
 
 
 FOX.MonteCarlo API
