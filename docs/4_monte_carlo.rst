@@ -302,10 +302,29 @@ State averaged ARMC
 
 ::
 
+    ...
+
     molecule:
-        - /path/to/md1.xyz
-        - /path/to/md2.xyz
-        - /path/to/md3.xyz
+        - /path/to/md_acetate.xyz
+        - /path/to/md_phosphate.xyz
+        - /path/to/md_sulfate.xyz
+
+    psf:
+        rtf_file:
+            acetate.rtf
+            phosphate.rtf
+            sulfate.rtf
+        ligand_atoms: [S, P, O, C, H]
+
+    pes:
+        rdf:
+            func: FOX.MultiMolecule.init_rdf
+            kwargs:
+                - atom_subset: [Cd, Se, O]
+                - atom_subset: [Cd, Se, P, O]
+                - atom_subset: [Cd, Se, S, O]
+
+    ...
 
 
 

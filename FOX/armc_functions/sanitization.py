@@ -306,10 +306,11 @@ def _generate_psf(path: str, mol: MultiMolecule, md_settings: Settings,
     md_settings = md_settings.copy()
     if not_None:
         psf.filename = psf_file = join(path, f'mol.{i}.psf')
-        if psf_s.str_file:
-            overlay_str_file(psf, psf_s.str_file)
+        str_file, rtf_file = psf_s.str_file, psf_s.rtf_file
+        if str_file:
+            overlay_str_file(psf, str_file) if isinstance(str_file, str) else str_file[i]
         else:
-            overlay_rtf_file(psf, psf_s.rtf_file)
+            overlay_rtf_file(psf, rtf_file) if isinstance(rtf_file, str) else rtf_file[i]
         md_settings.input.force_eval.subsys.topology.conn_file_name = psf_file
         md_settings.input.force_eval.subsys.topology.conn_file_format = 'PSF'
 
