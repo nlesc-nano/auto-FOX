@@ -20,7 +20,7 @@ API
 """
 
 import os
-from typing import Tuple, Dict, Any, Optional, Iterable, Callable
+from typing import Tuple, Dict, Any, Optional, Iterable, Callable, Mapping
 from contextlib import AbstractContextManager
 
 import numpy as np
@@ -31,6 +31,7 @@ from .monte_carlo import MonteCarlo
 from ..io.hdf5_utils import create_hdf5, to_hdf5, create_xyz_hdf5, _get_filename_xyz
 from ..functions.utils import get_template
 from ..armc_functions.sanitization import init_armc_sanitization
+from ..armc_functions.guess import guess_param
 
 __all__ = ['ARMC', 'run_armc']
 
@@ -47,19 +48,30 @@ class Init(AbstractContextManager):
         finish()
 
 
-def run_armc(armc: 'ARMC', path: Optional[str] = None, folder: Optional[str] = None,
-             logfile: Optional[str] = None, psf: Optional[Iterable['PSFContainer']] = None,
-             restart: bool = False) -> None:
+def run_armc(armc: 'ARMC',
+             path: Optional[str] = None,
+             folder: Optional[str] = None,
+             logfile: Optional[str] = None,
+             psf: Optional[Iterable['PSFContainer']] = None,
+             restart: bool = False,
+             guess: Optional[Mapping[str, Mapping]] = None) -> None:
     """A wrapper arround :class:`ARMC` for handling the JobManager."""
+    # Create a .psf file if specified
+    if psf is not None:
+        for item in psf:
+            item.write(None)
+
+    # Guess the remaining unspecified parameters based on either UFF or the RDF
+    if guess is not None:
+        for k in guess.items():
+            frozen = (k if guess['frozen'] else None)
+            guess_param(armc, mode=guess['mode'], columns=k, frozen=frozen)
+
+    # Initialize the ARMC procedure
     with Init(path=path, folder=folder):
         if logfile is not None:
             config.default_jobmanager.logfile = logfile
             config.log.file = 3
-
-        # Create a .psf file if specified
-        if psf is not None:
-            for item in psf:
-                item.write(None)
 
         # To restart or not? That's the question
         if not restart:

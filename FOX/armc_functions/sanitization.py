@@ -50,9 +50,10 @@ def init_armc_sanitization(dct: Mapping) -> Settings:
     s = validate(s_inp)
     _parse_move(s)
     _parse_armc(s)
-    job = _parse_job(s)
-    pes = _parse_pes(s)
-    _parse_param(s, s.md_settings, job.path)
+    job: Settings = _parse_job(s)
+    pes: Settings = _parse_pes(s)
+
+    _parse_param(s, job)
     job.psf = _parse_psf(s, job.path)
     _parse_preopt(s)
     return s, pes, job
@@ -233,7 +234,7 @@ def _parse_preopt(s: Settings) -> None:
         preopt.input['global'].run_type = 'geometry_optimization'
 
 
-def _parse_param(s: Settings, md_settings: Settings, path: str) -> None:
+def _parse_param(s: Settings, job: str) -> None:
     """Reshape and post-process the ``"param"`` block in the validated ARMC settings.
 
     Parameters
@@ -248,6 +249,9 @@ def _parse_param(s: Settings, md_settings: Settings, path: str) -> None:
 
     """
     param = s.param
+    md_settings = s.md_settings
+    path = job['path']
+
     if param.prm_file is None:
         md_settings.input.force_eval.mm.forcefield.parmtype = 'OFF'
         del param.prm_file
@@ -258,13 +262,21 @@ def _parse_param(s: Settings, md_settings: Settings, path: str) -> None:
 
     # Create a copy of s.param with just all frozen settings
     prm_frozen = Settings()
+    job['guess'] = {}
     for k, v in param.items():
+        if 'guess' in v:
+            job['guess'][k] = {'mode': v.guess.mode, 'frozen': False}
+            del v.guess
+
         if 'frozen' not in v:
             continue
         if 'keys' in v:
             prm_frozen[k]['keys'] = v['keys']
         if 'unit' in v:
             prm_frozen[k].unit = v.unit
+        if 'guess' in v.frozen:
+            job['guess'][k] = {'mode': v.frozen.guess.mode, 'frozen': True}
+            del v.frozen.guess
         prm_frozen[k].update(v.pop('frozen'))
 
     if prm_frozen:

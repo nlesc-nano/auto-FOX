@@ -115,7 +115,7 @@ def get_free_energy(distribution: A, temperature: float = 298.15,
 
 def estimate_lj(rdf: pd.DataFrame, temperature: float = 298.15,
                 sigma_estimate: str = 'base') -> pd.DataFrame:
-    r"""Estimate the Lennard-Jones :math:`\sigma` and :math:`\varepsilon` parameters.
+    r"""Estimate the Lennard-Jones :math:`\sigma` and :math:`\varepsilon` parameters using an RDF.
 
     Given a radius :math:`r`, the Lennard-Jones potential :math:`V_{LJ}(r)` is defined as
     following:
