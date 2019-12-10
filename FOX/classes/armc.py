@@ -214,8 +214,22 @@ class ARMC(MonteCarlo):
         s.job.rmsd_threshold = self.rmsd_threshold
         s.job.job_type = f'{self.job_type.func.__module__}.{self.job_type.func.__name__}'
         s.job.name = self.job_type.keywords['name']
-        s.job.preopt_settings = self.preopt_settings[0] if self.preopt_settings is not None else None
+        s.job.preopt_settings = self.preopt_settings[0] if self.preopt_settings else None
         s.job.md_settings = self.md_settings[0]
+
+        s.psf = {}
+        with Settings.supress_missing():
+            try:
+                s.psf.psf_file = [s.input.force_eval.subsys.topology.conn_file_name for
+                                  s in self.md_settings]
+                del s.job.md_settings.input.force_eval.subsys.topology.conn_file_name
+            except KeyError:
+                pass
+
+            try:
+                del s.job.preopt_settings.input.force_eval.subsys.topology.conn_file_name
+            except (TypeError, KeyError):
+                pass
 
         # The molecule block
         s.molecule = []
