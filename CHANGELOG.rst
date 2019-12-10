@@ -11,6 +11,7 @@ This project adheres to `Semantic Versioning <http://semver.org/>`_.
 From https://github.com/nlesc-nano/auto-FOX/issues/52:
 
 * Added the option to estimate non-bonded parameters using either UFF or the RDF.
+* ``ARMC()`` instances can now be converted into ``ARMC.from_yaml()``-compatible .yaml files.
 
 
 0.6.10
