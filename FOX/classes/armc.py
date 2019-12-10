@@ -63,9 +63,9 @@ def run_armc(armc: 'ARMC',
 
     # Guess the remaining unspecified parameters based on either UFF or the RDF
     if guess is not None:
-        for k in guess.items():
-            frozen = (k if guess['frozen'] else None)
-            guess_param(armc, mode=guess['mode'], columns=k, frozen=frozen)
+        for k, v in guess.items():
+            frozen = (k if v['frozen'] else None)
+            guess_param(armc, mode=v['mode'], columns=k, frozen=frozen)
 
     # Initialize the ARMC procedure
     with Init(path=path, folder=folder):
