@@ -248,9 +248,9 @@ class ARMC(MonteCarlo):
                 pes_dict.kwargs.append(func.keywords)
 
         # The move block
-        s.move.range.stop = float(self.move_range.max() - 1)
-        s.move.range.step = float(abs(self.move_range[-1] - self.move_range[-2]))
-        s.move.range.start = float(self.move_range[len(self.move_range) // 2] - 1)
+        s.move.range.stop = round(float(self.move_range.max() - 1), 8)
+        s.move.range.step = round(float(abs(self.move_range[-1] - self.move_range[-2])), 8)
+        s.move.range.start = round(float(self.move_range[len(self.move_range) // 2] - 1), 8)
 
         # Write the file
         with manager(filename, 'w') as f:
