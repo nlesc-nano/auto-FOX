@@ -149,6 +149,8 @@ schema_psf: Schema = Schema({
 
     ('rtf_file',): Or(None, And(str), error='psf.rtf_file expects a string'),
 
-    ('ligand_atoms',): Or(None, And(abc.Sequence, lambda x: all([isinstance(i, str) for i in x])),
+    ('psf_file',): Or(None, And(str), error='psf.psf_file expects a string'),
+
+    ('ligand_atoms',): Or(None, And(abc.Sequence, lambda x: all(isinstance(i, str) for i in x)),
                           error='psf.ligand_atoms expects a sequence of strings')
 })

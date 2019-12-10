@@ -13,6 +13,7 @@ from os.path import join, isfile, abspath
 from collections import abc
 
 import numpy as np
+import pandas as pd
 
 from scm.plams import Settings, Molecule
 
@@ -296,7 +297,11 @@ def _generate_psf(s: Settings, path: str, i: int) -> Optional[PSFContainer]:
     param = s.param
     psf_s = s.psf
 
-    not_None = (psf_s.str_file or psf_s.rtf_file) and psf_s.ligand_atoms
+    if psf_s.psf_file:
+        psf_file = s.psf_file if isinstance(s.psf_file, str) else s.psf_file[i]
+        return _read_psf(psf_file, param, md_settings)
+
+    not_None = any(psf_s.str_file, psf_s.rtf_file) and psf_s.ligand_atoms
     if not_None:
         atom_subset = set(mol.atoms).intersection(psf_s.ligand_atoms)
         mol.guess_bonds(atom_subset=list(atom_subset))
@@ -314,6 +319,7 @@ def _generate_psf(s: Settings, path: str, i: int) -> Optional[PSFContainer]:
     psf.generate_impropers(plams_mol)
     psf.generate_atoms(plams_mol)
 
+    # Overlay the PSFContainer instance with either the .rtf or .str file
     if not_None:
         psf.filename = join(path, f'mol.{i}.psf')
         str_, rtf = psf_s.str_file, psf_s.rtf_file
@@ -331,6 +337,22 @@ def _generate_psf(s: Settings, path: str, i: int) -> Optional[PSFContainer]:
     # Calculate the number of pairs
     param['count'] = get_atom_count(param.index, psf.atom_type)
     return psf if not_None else None
+
+
+def _read_psf(psf_file: str, param: pd.DataFrame, s: Settings) -> PSFContainer:
+    psf = PSFContainer.read(psf_file)
+
+    # Update the CP2K Settings
+    s.input.force_eval.subsys.topology.conn_file_name = psf.filename
+    s.input.force_eval.subsys.topology.conn_file_format = 'PSF'
+
+    # Update atomic charges
+    for at, charge in param.loc['charge', 'param'].items():
+        psf.update_atom_charge(at, charge)
+
+    # Calculate the number of pairs
+    param['count'] = get_atom_count(param.index, psf.atom_type)
+    return psf
 
 
 def _assign_residues(plams_mol: Molecule, res_list: Iterable[Iterable[int]]) -> None:

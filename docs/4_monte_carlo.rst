@@ -98,16 +98,17 @@ The algorithm
 Arguments
 ---------
 
-========================== ================== ===========================================================================================================
+========================== ================== =================================================================================================================
  Parameter                  Default            Parameter description
-========================== ================== ===========================================================================================================
+========================== ================== =================================================================================================================
  param.prm_file             -                  The path+filename of a CHARMM parameter file.
  param.charge               -                  A dictionary with atoms and matching atomic charges.
  param.epsilon              -                  A dictionary with atom-pairs and the matching Lennard-Jones :math:`\epsilon` parameter.
  param.sigma                -                  A dictionary with atom-pairs and the matching Lennard-Jones :math:`\sigma` parameter.
 
- psf.str_file               -                  The path+filename to a stream file; used for assigning atom types and charges to ligands.
- psf.rtf_file               -                  The path+filename to a MATCH-produced rtf file; used for assigning atom types and charges to ligands.
+ psf.str_file               -                  The path+filename to one or more stream file; used for assigning atom types and charges to ligands.
+ psf.rtf_file               -                  The path+filename to one or more MATCH-produced rtf file; used for assigning atom types and charges to ligands.
+ psf.psf_file               -                  The path+filename to one or more psf files; used for assigning atom types and charges to ligands.
  psf.ligand_atoms           -                  All atoms within a ligand, used for defining residues.
 
  pes                        -                  A dictionary holding one or more functions for constructing PES descriptors.
@@ -134,7 +135,7 @@ Arguments
  move.range.start           0.005              Controls the minimum stepsize of Monte Carlo moves.
  move.range.stop            0.1                Controls the maximum stepsize of Monte Carlo moves.
  move.range.step            0.005              Controls the allowed stepsize values between the minima and maxima.
-========================== ================== ===========================================================================================================
+========================== ================== =================================================================================================================
 
 Once a the .yaml file with the ARMC settings has been sufficiently customized
 the parameter optimization can be started via the command prompt with:

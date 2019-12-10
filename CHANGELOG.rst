@@ -8,6 +8,8 @@ This project adheres to `Semantic Versioning <http://semver.org/>`_.
 
 0.6.11
 ******
+* .psf files can now be directly supplied in the ARMC .yaml input.
+
 From https://github.com/nlesc-nano/auto-FOX/issues/52:
 
 * Added the option to estimate non-bonded parameters using either UFF or the RDF.
