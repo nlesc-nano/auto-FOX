@@ -265,7 +265,7 @@ def _parse_param(s: Settings, job: str) -> None:
     job['guess'] = {}
     for k, v in param.items():
         if 'guess' in v:
-            job['guess'][k] = {'mode': v.guess.mode, 'frozen': False}
+            job['guess'][k] = {'mode': v.guess, 'frozen': False}
             del v.guess
 
         if 'frozen' not in v:
@@ -275,7 +275,7 @@ def _parse_param(s: Settings, job: str) -> None:
         if 'unit' in v:
             prm_frozen[k].unit = v.unit
         if 'guess' in v.frozen:
-            job['guess'][k] = {'mode': v.frozen.guess.mode, 'frozen': True}
+            job['guess'][k] = {'mode': v.frozen.guess, 'frozen': True}
             del v.frozen.guess
         prm_frozen[k].update(v.pop('frozen'))
 
