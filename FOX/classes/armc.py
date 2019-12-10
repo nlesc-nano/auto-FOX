@@ -212,7 +212,7 @@ class ARMC(MonteCarlo):
         s.job.path = path
         s.job.keep_files = self.keep_files
         s.job.rmsd_threshold = self.rmsd_threshold
-        s.job.job_type = f'{self.job_type.func.__module__}.{self.job_type.func.__name__}'
+        s.job.job_type = f'{self.job_type.func.__module__}.{self.job_type.func.__qualname__}'
         s.job.name = self.job_type.keywords['name']
         s.job.preopt_settings = self.preopt_settings[0] if self.preopt_settings else None
         s.job.md_settings = self.md_settings[0]
@@ -228,7 +228,7 @@ class ARMC(MonteCarlo):
 
             try:
                 del s.job.preopt_settings.input.force_eval.subsys.topology.conn_file_name
-            except (TypeError, KeyError):
+            except (AttributeError, KeyError):
                 pass
 
         # The molecule block
@@ -241,7 +241,7 @@ class ARMC(MonteCarlo):
         # The pes block
         for name, func_list in self.pes.items():
             pes_dict = s.pes[name]
-            pes_dict.args = func_list[0].func
+            pes_dict.func = f'{func_list[0].func.__module__}.{func_list[0].func.__qualname__}'
             pes_dict.args = list(func_list[0].args)
             pes_dict.kwargs = []
             for func in func_list:

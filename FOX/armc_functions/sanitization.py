@@ -298,7 +298,7 @@ def _generate_psf(s: Settings, path: str, i: int) -> Optional[PSFContainer]:
     psf_s = s.psf
 
     if psf_s.psf_file:
-        psf_file = s.psf_file if isinstance(s.psf_file, str) else s.psf_file[i]
+        psf_file = psf_s.psf_file if isinstance(psf_s.psf_file, str) else psf_s.psf_file[i]
         return _read_psf(psf_file, param, md_settings)
 
     not_None = (psf_s.str_file or psf_s.rtf_file) and psf_s.ligand_atoms
