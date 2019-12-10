@@ -301,7 +301,7 @@ def _generate_psf(s: Settings, path: str, i: int) -> Optional[PSFContainer]:
         psf_file = s.psf_file if isinstance(s.psf_file, str) else s.psf_file[i]
         return _read_psf(psf_file, param, md_settings)
 
-    not_None = any(psf_s.str_file, psf_s.rtf_file) and psf_s.ligand_atoms
+    not_None = (psf_s.str_file or psf_s.rtf_file) and psf_s.ligand_atoms
     if not_None:
         atom_subset = set(mol.atoms).intersection(psf_s.ligand_atoms)
         mol.guess_bonds(atom_subset=list(atom_subset))
