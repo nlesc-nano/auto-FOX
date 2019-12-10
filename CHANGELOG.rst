@@ -6,6 +6,13 @@ All notable changes to this project will be documented in this file.
 This project adheres to `Semantic Versioning <http://semver.org/>`_.
 
 
+0.6.11
+******
+From https://github.com/nlesc-nano/auto-FOX/issues/52:
+
+* Added the option to estimate non-bonded parameters using either UFF or the RDF.
+
+
 0.6.10
 ******
 * Added the option to provide multiple .rtf files for state-averaged ARMC runs.
