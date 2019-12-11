@@ -1,5 +1,5 @@
 param:
-    prm_file: /Users/bvanbeek/Documents/GitHub/auto-FOX/tests/test_files/ligand.prm
+    prm_file: tests/test_files/ligand.prm
     charge:
         keys: [input, force_eval, mm, forcefield, charge]
         Cd: 0.9768
@@ -24,7 +24,7 @@ param:
         Se OG2D2: 0.3526
 
 psf:
-    str_file: /Users/bvanbeek/Documents/GitHub/auto-FOX/tests/test_files/ligand.str
+    str_file: tests/test_files/ligand.str
     ligand_atoms: [C, O, H]
 
 pes:
@@ -33,13 +33,13 @@ pes:
         kwargs:
             atom_subset: [Cd, Se, O]
 
-molecule: /Users/bvanbeek/Documents/GitHub/auto-FOX/tests/test_files/Cd68Se55_26COO_MD_trajec.xyz
+molecule: tests/test_files/Cd68Se55_26COO_MD_trajec.xyz
 
 job:
     logfile: armc.log
     job_type: scm.plams.Cp2kJob
     name: armc
-    path: /Users/bvanbeek/Documents/GitHub/auto-FOX/tests/test_files/armc
+    path: tests/test_files/armc
     folder: MM_MD_workdir
     keep_files: False
     rmsd_threshold: 10.0
