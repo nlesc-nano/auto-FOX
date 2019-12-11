@@ -38,7 +38,8 @@ setup(
     package_data={'FOX': [
         'data/Cd68Se55_26COO_MD_trajec.xyz',
         'data/*.yaml',
-        'armc_functions/*.png'
+        'armc_functions/*.png',
+        'data/*.csv'
     ]},
     include_package_data=True,
     entry_points={'console_scripts': [
