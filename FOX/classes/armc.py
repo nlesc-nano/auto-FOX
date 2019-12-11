@@ -204,12 +204,11 @@ class ARMC(MonteCarlo):
         s.param = df_to_dict(self.param)
 
         # The job block
-        s.job.path = os.getcwd() if path is None else path
+        s.job.path = os.getcwd() if path is None else str(path)
         if logfile is not None:
             s.job.logfile = logfile
         if folder is not None:
             s.job.folder = folder
-        s.job.path = path
         s.job.keep_files = self.keep_files
         s.job.rmsd_threshold = self.rmsd_threshold
         s.job.job_type = f'{self.job_type.func.__module__}.{self.job_type.func.__qualname__}'
