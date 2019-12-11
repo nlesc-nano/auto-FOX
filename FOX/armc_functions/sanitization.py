@@ -289,6 +289,7 @@ def _parse_param(s: Settings, job: str) -> None:
     set_keys(md_settings, param)
     if 'constraints' not in param.columns:
         param['constraints'] = None
+    param['count'] = 0
 
 
 def _generate_psf(s: Settings, path: str, i: int) -> Optional[PSFContainer]:
@@ -335,7 +336,7 @@ def _generate_psf(s: Settings, path: str, i: int) -> Optional[PSFContainer]:
         psf.update_atom_charge(at, charge)
 
     # Calculate the number of pairs
-    param['count'] = get_atom_count(param.index, psf.atom_type)
+    param['count'].update(get_atom_count(param.index, psf.atom_type))
     return psf if not_None else None
 
 
@@ -351,7 +352,7 @@ def _read_psf(psf_file: str, param: pd.DataFrame, s: Settings) -> PSFContainer:
         psf.update_atom_charge(at, charge)
 
     # Calculate the number of pairs
-    param['count'] = get_atom_count(param.index, psf.atom_type)
+    param['count'].update(get_atom_count(param.index, psf.atom_type))
     return psf
 
 
