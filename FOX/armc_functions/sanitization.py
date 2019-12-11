@@ -4,29 +4,11 @@ FOX.armc_functions.sanitization
 
 A module for parsing and sanitizing ARMC settings.
 
-Index
------
-.. currentmodule:: FOX.armc_functions.sanitization
-.. autosummary::
-    init_armc_sanitization
-    validate
-    reshape_settings
-    _reshape_param
-    generate_psf
-
-API
----
-.. autofunction:: FOX.armc_functions.sanitization.init_armc_sanitization
-.. autofunction:: FOX.armc_functions.sanitization.validate
-.. autofunction:: FOX.armc_functions.sanitization.reshape_settings
-.. autofunction:: FOX.armc_functions.sanitization._reshape_param
-.. autofunction:: FOX.armc_functions.sanitization.generate_psf
-
 """
 
 import os
 import functools
-from typing import Union, Iterable, Tuple, Optional
+from typing import Union, Iterable, Tuple, Optional, Mapping
 from os.path import join, isfile, abspath
 from collections import abc
 
@@ -47,12 +29,12 @@ from ..armc_functions.schemas import (
 __all__ = ['init_armc_sanitization']
 
 
-def init_armc_sanitization(dict_: dict) -> Settings:
+def init_armc_sanitization(dct: Mapping) -> Settings:
     """Initialize the armc input settings sanitization.
 
     Parameters
     ----------
-    dict_ : dict
+    dct : dict
         A dictionary containing all ARMC settings.
 
     Returns
@@ -62,13 +44,20 @@ def init_armc_sanitization(dict_: dict) -> Settings:
 
     """
     # Load and apply the template
-    s = get_template('armc_template.yaml')
-    s.update(Settings(dict_))
+    s_inp = get_template('armc_template.yaml')
+    s_inp.update(dct)
 
     # Validate, post-process and return
-    s_ret = validate(s)
-    s_ret, pes, job = reshape_settings(s_ret)
-    return s_ret, pes, job
+    s = validate(s_inp)
+    _parse_move(s)
+    _parse_armc(s)
+    job: Settings = _parse_job(s)
+    pes: Settings = _parse_pes(s)
+
+    _parse_param(s, job)
+    job.psf = _parse_psf(s, job.path)
+    _parse_preopt(s)
+    return s, pes, job
 
 
 def validate(s: Settings) -> Settings:
@@ -91,10 +80,11 @@ def validate(s: Settings) -> Settings:
         A validated Settings instance.
 
     """
-    # Flatten the Settings instance
     md_settings = s.job.pop('md_settings')
     preopt_settings = s.job.pop('preopt_settings')
     pes_settings = s.pop('pes')
+
+    # Flatten the Settings instance
     s_flat = Settings()
     for k, v in s.items():
         try:
@@ -152,7 +142,7 @@ def validate_mol(mol: Union[MultiMolecule, str, Iterable]) -> Tuple[MultiMolecul
     err = ("molecule expects one or more FOX.MultiMolecule instance(s) or .xyz filename(s); "
            "observed type: '{}'")
 
-    def _validate(item: Union[MultiMolecule, str, abc.Iterable]) -> tuple:
+    def _validate(item: Union[MultiMolecule, str, abc.Iterable]) -> Optional[tuple]:
         """Validate the object type of **item**."""
         if isinstance(item, MultiMolecule):
             item.round(3)
@@ -163,14 +153,15 @@ def validate_mol(mol: Union[MultiMolecule, str, Iterable]) -> Tuple[MultiMolecul
             return (ret,)
         elif not isinstance(item, abc.Iterable):
             raise TypeError(err.format(item.__class__.__name__))
-        return ()
+        return None
 
     # Validate **mol**
     ret = _validate(mol)
-    if ret:
+    if ret is not None:
         return ret
 
     # **mol** is an iterable, validate its elements
+    ret = ()
     for i in mol:
         ret += _validate(i)
 
@@ -180,66 +171,71 @@ def validate_mol(mol: Union[MultiMolecule, str, Iterable]) -> Tuple[MultiMolecul
     return ret
 
 
-def reshape_settings(s: Settings) -> None:
-    """Reshape and post-process the validated ARMC settings.
+def _parse_move(s: Settings) -> None:
+    move = s.move
+    s.apply_move = functools.partial(move.func, *move.args, **move.kwargs)
+    s.move_range = _get_move_range(**move.range)
+    del s.move
 
-    Parameters
-    ----------
-    s : |plams.Settings|_
-        A Settings instance containing all ARMC settings.
 
-    """
-    # MonteCarlo() parameters
-    if s.job.path == '.':
-        s.job.path = os.getcwd()
+def _parse_job(s: Settings) -> Settings:
+    job = s.job
+    if job.path == '.' or not job.path:
+        job.path = os.getcwd()
 
-    _reshape_param(s)
-    s.job_type = functools.partial(s.job.pop('job_type'), name=s.job.pop('name'))
-    s.md_settings = s.job.pop('md_settings')
-    s.preopt_settings = s.job.pop('preopt_settings')
-    s.apply_move = functools.partial(s.move.func, *s.move.args, **s.move.kwargs)
-    s.move_range = _get_move_range(**s.move.range)
-    s.keep_files = s.job.pop('keep_files')
-    s.rmsd_threshold = s.job.pop('rmsd_threshold')
+    s.job_type = functools.partial(job.pop('job_type'), name=job.pop('name'))
+    s.md_settings = job.pop('md_settings')
+    s.preopt_settings = job.pop('preopt_settings')
+    s.keep_files = job.pop('keep_files')
+    s.rmsd_threshold = job.pop('rmsd_threshold')
+    return s.pop('job')
 
-    # ARMC() parameters
-    s.a_target = s.armc.a_target
-    s.gamma = s.armc.gamma
-    s.iter_len = s.armc.iter_len
-    s.sub_iter_len = s.armc.sub_iter_len
-    s.phi = s.armc.phi
+
+def _parse_armc(s: Settings) -> None:
+    armc = s.armc
+
+    s.a_target = armc.a_target
+    s.gamma = armc.gamma
+    s.iter_len = armc.iter_len
+    s.sub_iter_len = armc.sub_iter_len
+    s.phi = armc.phi
     s.apply_phi = np.add
 
     # Delete leftovers
     del s.armc
-    del s.move
 
-    # Pop
-    pes = s.pop('pes')
-    job = s.pop('job')
 
-    job.psf, s.md_settings = zip(*[_generate_psf(job.path, m, s.md_settings, s.psf, s.param, i) for
-                                   i, m in enumerate(s.molecule)])
+def _parse_pes(s: Settings) -> Settings:
+    return s.pop('pes')
 
+
+def _parse_psf(s: Settings, path: str) -> Optional[PSFContainer]:
+    s.md_settings = [s.md_settings.copy() for _ in s.molecule]
+    psf = [_generate_psf(s, path, i) for i, _ in enumerate(s.molecule)]
     del s.psf
-    if job.psf is None:
-        del job.psf
 
-    for md_settings, psf in zip(s.md_settings, job.psf):
-        set_subsys_kind(md_settings, psf.atoms)
+    if psf is None:
+        return psf
 
-    if s.preopt_settings is not None:
-        if s.preopt_settings is True:
-            s.preopt_settings = [Settings() for _ in s.md_settings]
-        for md, preopt in zip(s.md_settings, s.preopt_settings):
-            preopt.soft_update(md)
-            del preopt.input.motion.md
-            preopt.input['global'].run_type = 'geometry_optimization'
-
-    return s, pes, job
+    for md_settings, i in zip(s.md_settings, psf):
+        set_subsys_kind(md_settings, i.atoms)
+    return psf
 
 
-def _reshape_param(s: Settings) -> None:
+def _parse_preopt(s: Settings) -> None:
+    if s.preopt_settings is None:
+        return
+
+    if s.preopt_settings is True:
+        s.preopt_settings = [Settings() for _ in s.md_settings]
+
+    for md, preopt in zip(s.md_settings, s.preopt_settings):
+        preopt += md
+        del preopt.input.motion.md
+        preopt.input['global'].run_type = 'geometry_optimization'
+
+
+def _parse_param(s: Settings, job: str) -> None:
     """Reshape and post-process the ``"param"`` block in the validated ARMC settings.
 
     Parameters
@@ -253,38 +249,58 @@ def _reshape_param(s: Settings) -> None:
         General function for reshaping and post-processing validated ARMC settings.
 
     """
-    if s.param.prm_file is None:
-        s.job.md_settings.input.force_eval.mm.forcefield.parmtype = 'OFF'
-        del s.param.prm_file
+    param = s.param
+    md_settings = s.md_settings
+    path = job['path']
+
+    if param.prm_file is None:
+        md_settings.input.force_eval.mm.forcefield.parmtype = 'OFF'
+        del param.prm_file
     else:
-        prm_file = s.param.pop('prm_file')
-        prm_file_ = abspath(prm_file) if isfile(abspath(prm_file)) else join(s.job.path, prm_file)
-        s.job.md_settings.input.force_eval.mm.forcefield.parm_file_name = prm_file_
+        prm_file = param.pop('prm_file')
+        prm_file_ = abspath(prm_file) if isfile(abspath(prm_file)) else join(path, prm_file)
+        md_settings.input.force_eval.mm.forcefield.parm_file_name = prm_file_
 
     # Create a copy of s.param with just all frozen settings
     prm_frozen = Settings()
-    for k, v in s.param.items():
+    job['guess'] = {}
+    for k, v in param.items():
+        if 'guess' in v:
+            job['guess'][k] = {'mode': v.guess, 'frozen': False}
+            del v.guess
+
         if 'frozen' not in v:
             continue
         if 'keys' in v:
             prm_frozen[k]['keys'] = v['keys']
         if 'unit' in v:
             prm_frozen[k].unit = v.unit
+        if 'guess' in v.frozen:
+            job['guess'][k] = {'mode': v.frozen.guess, 'frozen': True}
+            del v.frozen.guess
         prm_frozen[k].update(v.pop('frozen'))
+
     if prm_frozen:
         df_frozen = dict_to_pandas(prm_frozen, 'param')
-        set_keys(s.job.md_settings, df_frozen)
+        set_keys(md_settings, df_frozen)
 
-    s.param = param = dict_to_pandas(s.param, 'param')
+    param = s.param = dict_to_pandas(s.param, 'param')
     param['param_old'] = np.nan
-    set_keys(s.job.md_settings, param)
+    set_keys(md_settings, param)
     if 'constraints' not in param.columns:
         param['constraints'] = None
 
 
-def _generate_psf(path: str, mol: MultiMolecule, md_settings: Settings,
-                  psf_s: Settings, param: pd.DataFrame,
-                  i: int) -> Tuple[Optional[PSFContainer], Settings]:
+def _generate_psf(s: Settings, path: str, i: int) -> Optional[PSFContainer]:
+    mol = s.molecule[i]
+    md_settings = s.md_settings[i]
+    param = s.param
+    psf_s = s.psf
+
+    if psf_s.psf_file:
+        psf_file = psf_s.psf_file if isinstance(psf_s.psf_file, str) else psf_s.psf_file[i]
+        return _read_psf(psf_file, param, md_settings)
+
     not_None = (psf_s.str_file or psf_s.rtf_file) and psf_s.ligand_atoms
     if not_None:
         atom_subset = set(mol.atoms).intersection(psf_s.ligand_atoms)
@@ -303,15 +319,15 @@ def _generate_psf(path: str, mol: MultiMolecule, md_settings: Settings,
     psf.generate_impropers(plams_mol)
     psf.generate_atoms(plams_mol)
 
-    md_settings = md_settings.copy()
+    # Overlay the PSFContainer instance with either the .rtf or .str file
     if not_None:
-        psf.filename = psf_file = join(path, f'mol.{i}.psf')
-        str_file, rtf_file = psf_s.str_file, psf_s.rtf_file
-        if str_file:
-            overlay_str_file(psf, str_file) if isinstance(str_file, str) else str_file[i]
+        psf.filename = join(path, f'mol.{i}.psf')
+        str_, rtf = psf_s.str_file, psf_s.rtf_file
+        if str_:
+            overlay_str_file(psf, str_) if isinstance(str_, str) else str_[i]
         else:
-            overlay_rtf_file(psf, rtf_file) if isinstance(rtf_file, str) else rtf_file[i]
-        md_settings.input.force_eval.subsys.topology.conn_file_name = psf_file
+            overlay_rtf_file(psf, rtf) if isinstance(rtf, str) else rtf[i]
+        md_settings.input.force_eval.subsys.topology.conn_file_name = psf.filename
         md_settings.input.force_eval.subsys.topology.conn_file_format = 'PSF'
 
     # Update atomic charges
@@ -320,10 +336,23 @@ def _generate_psf(path: str, mol: MultiMolecule, md_settings: Settings,
 
     # Calculate the number of pairs
     param['count'] = get_atom_count(param.index, psf.atom_type)
-    if not_None:
-        return psf, md_settings
-    else:
-        return None, md_settings
+    return psf if not_None else None
+
+
+def _read_psf(psf_file: str, param: pd.DataFrame, s: Settings) -> PSFContainer:
+    psf = PSFContainer.read(psf_file)
+
+    # Update the CP2K Settings
+    s.input.force_eval.subsys.topology.conn_file_name = psf.filename
+    s.input.force_eval.subsys.topology.conn_file_format = 'PSF'
+
+    # Update atomic charges
+    for at, charge in param.loc['charge', 'param'].items():
+        psf.update_atom_charge(at, charge)
+
+    # Calculate the number of pairs
+    param['count'] = get_atom_count(param.index, psf.atom_type)
+    return psf
 
 
 def _assign_residues(plams_mol: Molecule, res_list: Iterable[Iterable[int]]) -> None:

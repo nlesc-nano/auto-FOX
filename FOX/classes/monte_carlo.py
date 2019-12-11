@@ -180,6 +180,8 @@ class MonteCarlo(AbstractDataClass, abc.Mapping):
         """Return whether or not :attr:`MonteCarlo.history_dict` contains the specified key."""
         return key in self.history_dict
 
+    def __eq__(self, value: Any) -> bool: return object.__eq__(self, value)
+
     def keys(self) -> KeysView:
         """Return a view of :attr:`MonteCarlo.history_dict`'s keys."""
         return self.history_dict.keys()

@@ -98,16 +98,17 @@ The algorithm
 Arguments
 ---------
 
-========================== ================== ===========================================================================================================
+========================== ================== =================================================================================================================
  Parameter                  Default            Parameter description
-========================== ================== ===========================================================================================================
+========================== ================== =================================================================================================================
  param.prm_file             -                  The path+filename of a CHARMM parameter file.
  param.charge               -                  A dictionary with atoms and matching atomic charges.
  param.epsilon              -                  A dictionary with atom-pairs and the matching Lennard-Jones :math:`\epsilon` parameter.
  param.sigma                -                  A dictionary with atom-pairs and the matching Lennard-Jones :math:`\sigma` parameter.
 
- psf.str_file               -                  The path+filename to a stream file; used for assigning atom types and charges to ligands.
- psf.rtf_file               -                  The path+filename to a MATCH-produced rtf file; used for assigning atom types and charges to ligands.
+ psf.str_file               -                  The path+filename to one or more stream file; used for assigning atom types and charges to ligands.
+ psf.rtf_file               -                  The path+filename to one or more MATCH-produced rtf file; used for assigning atom types and charges to ligands.
+ psf.psf_file               -                  The path+filename to one or more psf files; used for assigning atom types and charges to ligands.
  psf.ligand_atoms           -                  All atoms within a ligand, used for defining residues.
 
  pes                        -                  A dictionary holding one or more functions for constructing PES descriptors.
@@ -134,7 +135,7 @@ Arguments
  move.range.start           0.005              Controls the minimum stepsize of Monte Carlo moves.
  move.range.stop            0.1                Controls the maximum stepsize of Monte Carlo moves.
  move.range.step            0.005              Controls the allowed stepsize values between the minima and maxima.
-========================== ================== ===========================================================================================================
+========================== ================== =================================================================================================================
 
 Once a the .yaml file with the ARMC settings has been sufficiently customized
 the parameter optimization can be started via the command prompt with:
@@ -203,8 +204,8 @@ as type object, as long as the following requirements are fulfilled:
 * The supplied callable *must* be able to operate on NumPy arrays or
   instances of its :class:`.MultiMolecule` subclass.
 * Arguments and keyword argument can be provided with the
-  ``"arg"`` and ``"kwarg"`` keys, respectively.
-  The ``"arg"`` and ``"kwarg"`` keys are entirely optional and
+  ``"args"`` and ``"kwargs"`` keys, respectively.
+  The ``"args"`` and ``"kwargs"`` keys are entirely optional and
   can be skipped if desired.
 
 An example of a custom, albit rather nonsensical, PES descriptor involving the
@@ -296,7 +297,66 @@ Additional (more elaborate) constrainst are currently already available for
 atomic charges in the ``move.charge_constraints`` block (see below).
 
 
-State averaged ARMC
+Parameter Guessing
+------------------
+
+::
+
+    param:
+        epsilon:
+            unit: kjmol
+            keys: [input, force_eval, mm, forcefield, nonbonded, lennard-jones]
+            Cs Cs: 0.1882
+            Cs Pb: 0.7227
+            Pb Pb: 2.7740
+            guess: rdf
+        sigma:
+            unit: nm
+            keys: [input, force_eval, mm, forcefield, nonbonded, lennard-jones]
+            frozen:
+                guess: uff
+
+.. math::
+
+    V_{LJ} = 4 \varepsilon
+    \left(
+        \left(
+            \frac{\sigma}{r}
+        \right )^{12} -
+        \left(
+            \frac{\sigma}{r}
+        \right )^6
+    \right )
+
+Non-bonded interactions (*i.e.* the Lennard-Jones :math:`\varepsilon` and
+:math:`\sigma` values) can be guessed if they're not explicitly by the user.
+There are currently two implemented guessing procedures: ``"uff"`` and
+``"rdf"``.
+Parameter guessing for parameters other than :math:`\varepsilon` and
+:math:`\sigma` is not supported as of the moment.
+
+The ``"uff"`` approach simply takes all missing parameters from
+the Universal Force Field (UFF)[2_].
+Pair-wise parameters are construcetd using the standard combinatorial rules:
+the arithmetic mean for :math:`\sigma` and the geometric mean for
+:math:`\varepsilon`.
+
+The ``"rdf"`` approach utilizes the radial distribution function for
+estimating :math:`\sigma` and :math:`\varepsilon`.
+:math:`\sigma` is taken as the base of the first RDF peak,
+while the first minimum of the Boltzmann-inverted RDF is taken as
+:math:`\varepsilon`.
+
+If ``"guess"`` is placed within the ``"frozen"`` block, than the guessed
+parameters will be treated as constants rather than to-be optimized variables.
+
+.. admonition:: Note
+
+    The guessing procedure requires the presence of both a .prm and .psf file.
+    See the ``"prm_file"`` and ``"psf"`` blocks, respectively.
+
+
+State-averaged ARMC
 -------------------
 
 ::
@@ -341,6 +401,7 @@ FOX.ARMC API
 
 
 .. _1: https://dx.doi.org/10.1021/acs.jctc.6b01089
+.. _2: https://doi.org/10.1021/ja00051a040
 .. _YAML: https://yaml.org/
 .. _HDF5: https://www.h5py.org/
 .. _Job: https://www.scm.com/doc/plams/components/jobs.html#scm.plams.core.basejob.Job

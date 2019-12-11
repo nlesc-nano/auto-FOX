@@ -1,0 +1,74 @@
+input:
+  force_eval:
+    method: FIST
+    mm:
+      forcefield:
+        charge:
+        - atom: CG2O3
+          charge: '0.452400'
+        - atom: Cd
+          charge: '0.976800'
+        - atom: OG2D2
+          charge: '-0.470400'
+        - atom: Se
+          charge: '-0.976800'
+        do_nonbonded: ''
+        ignore_missing_critical_params: ''
+        nonbonded:
+          lennard-jones:
+          - atoms: Cd Cd
+            epsilon: '[kjmol] 0.310100'
+            sigma: '[nm] 0.123400'
+          - atoms: Cd OG2D2
+            epsilon: '[kjmol] 1.834000'
+            sigma: '[nm] 0.247100'
+          - atoms: Cd Se
+            epsilon: '[kjmol] 1.522500'
+            sigma: '[nm] 0.294000'
+          - atoms: Se OG2D2
+            epsilon: '[kjmol] 1.613500'
+            sigma: '[nm] 0.352600'
+          - atoms: Se Se
+            epsilon: '[kjmol] 0.426600'
+            sigma: '[nm] 0.485200'
+        parmtype: CHM
+        shift_cutoff: .TRUE.
+        spline:
+          emax_spline: 10e10
+      poisson:
+        ewald:
+          alpha: 0.44
+          ewald_type: spme
+          gmax: 24
+    subsys:
+      cell:
+        abc: '[angstrom] 50.0 50.0 50.0'
+        periodic: NONE
+      kind CG2O3:
+        element: C
+      kind Cd:
+        element: Cd
+      kind HGR52:
+        element: H
+      kind OG2D2:
+        element: O
+      kind Se:
+        element: Se
+      topology:
+        center_coordinates:
+          center_point: 0.0 0.0 0.0
+        conn_file_format: PSF
+        coord_file_format: 'OFF'
+  global:
+    run_type: MD
+  motion:
+    md:
+      ensemble: NVT
+      steps: 10000
+      temperature: 300.0
+      thermostat:
+        csvr:
+          timecon: 1250
+        type: CSVR
+      time_start_val: 5000
+      timestep: 1.0

@@ -80,20 +80,25 @@ class LJDataFrame(pd.DataFrame):
                     unit_sigma, sigma = block['sigma'].split()
                 except ValueError:
                     unit_sigma, sigma = '[angstrom]', block['sigma']
-                unit_sigma = unit_sigma[1:-1]
-                unit_sigma = self.UNIT_MAPPING.get(unit_sigma, unit_sigma)
-                sigma = float(sigma)
+                except KeyError:
+                    unit_sigma = sigma = None
 
                 try:
                     unit_eps, epsilon = block['epsilon'].split()
                 except ValueError:
                     unit_eps, epsilon = '[kcalmol]', block['sigma']
+                except KeyError:
+                    unit_eps = epsilon = None
+
+            if sigma is not None:
+                unit_sigma = unit_sigma[1:-1]
+                unit_sigma = self.UNIT_MAPPING.get(unit_sigma, unit_sigma)
+                sigma_s[unit_sigma][atoms] = float(sigma)
+
+            if epsilon is not None:
                 unit_eps = unit_eps[1:-1]
                 unit_eps = self.UNIT_MAPPING.get(unit_eps, unit_eps)
-                epsilon = float(epsilon)
-
-            sigma_s[unit_sigma][atoms] = sigma
-            epsilon_s[unit_eps][atoms] = epsilon
+                epsilon_s[unit_eps][atoms] = float(epsilon)
 
         self.set_charge(charge_dict)
         for unit, dct in epsilon_s.items():

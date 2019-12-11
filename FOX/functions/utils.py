@@ -1,12 +1,13 @@
 """A module with miscellaneous functions."""
 
 import warnings
+from collections import abc
 from os.path import join, isfile
 from functools import wraps
 from pkg_resources import resource_filename
 from typing import (
     Iterable, Tuple, Callable, Hashable, Sequence, Optional, List, Any, TypeVar, Dict,
-    Type, MutableMapping
+    Type, Mapping
 )
 
 import yaml
@@ -724,9 +725,8 @@ def str_to_callable(string: str) -> Callable:
             return eval('.'.join([class_, method]))
 
 
-def group_by_values(iterable: Iterable[Tuple[Any, Hashable]],
-                    mapping_type: Type[MutableMapping] = dict
-                    ) -> MutableMapping[Hashable, List[Any]]:
+def group_by_values(iterable: Iterable[Tuple[Any, Hashable]], mapping_type: Type[Mapping] = dict
+                    ) -> Mapping[Hashable, List[Any]]:
     """Take an iterable, yielding 2-tuples, and group all first elements by the second.
 
     Exameple
@@ -760,7 +760,13 @@ def group_by_values(iterable: Iterable[Tuple[Any, Hashable]],
         A grouped dictionary.
 
     """
-    ret: MutableMapping[Hashable, List[Any]] = mapping_type()
+    if isinstance(mapping_type, abc.MutableMapping):
+        ret = mapping_type()
+        mutable = True
+    else:
+        ret = {}
+        mutable = False
+
     list_append: Dict[Hashable, list.append] = {}
     for value, key in iterable:
         try:
@@ -768,7 +774,8 @@ def group_by_values(iterable: Iterable[Tuple[Any, Hashable]],
         except KeyError:
             ret[key] = [value]
             list_append[key] = ret[key].append
-    return ret
+
+    return ret if mutable else mapping_type(ret)
 
 
 def read_rtf_file(filename: str) -> Optional[Tuple[Sequence[str], Sequence[float]]]:

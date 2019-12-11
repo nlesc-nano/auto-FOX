@@ -20,19 +20,29 @@ API
 """
 
 import os
-from typing import Tuple, Dict, Any, Optional, Iterable, Callable
+import io
+from typing import Tuple, Dict, Any, Optional, Iterable, Callable, Mapping, Union, AnyStr
 from contextlib import AbstractContextManager
 
+import yaml
 import numpy as np
 
-from scm.plams import init, finish, config
+from scm.plams import init, finish, config, Settings
 
 from .monte_carlo import MonteCarlo
 from ..io.hdf5_utils import create_hdf5, to_hdf5, create_xyz_hdf5, _get_filename_xyz
+from ..io.file_container import NullContext
 from ..functions.utils import get_template
 from ..armc_functions.sanitization import init_armc_sanitization
+from ..armc_functions.df_to_dict import df_to_dict
+from ..armc_functions.guess import guess_param
 
 __all__ = ['ARMC', 'run_armc']
+
+try:
+    Dumper = yaml.CDumper
+except AttributeError:
+    Dumper = yaml.Dumper
 
 
 class Init(AbstractContextManager):
@@ -47,19 +57,30 @@ class Init(AbstractContextManager):
         finish()
 
 
-def run_armc(armc: 'ARMC', path: Optional[str] = None, folder: Optional[str] = None,
-             logfile: Optional[str] = None, psf: Optional[Iterable['PSFContainer']] = None,
-             restart: bool = False) -> None:
+def run_armc(armc: 'ARMC',
+             path: Optional[str] = None,
+             folder: Optional[str] = None,
+             logfile: Optional[str] = None,
+             psf: Optional[Iterable['PSFContainer']] = None,
+             restart: bool = False,
+             guess: Optional[Mapping[str, Mapping]] = None) -> None:
     """A wrapper arround :class:`ARMC` for handling the JobManager."""
+    # Create a .psf file if specified
+    if psf is not None:
+        for item in psf:
+            item.write(None)
+
+    # Guess the remaining unspecified parameters based on either UFF or the RDF
+    if guess is not None:
+        for k, v in guess.items():
+            frozen = (k if v['frozen'] else None)
+            guess_param(armc, mode=v['mode'], columns=k, frozen=frozen)
+
+    # Initialize the ARMC procedure
     with Init(path=path, folder=folder):
         if logfile is not None:
             config.default_jobmanager.logfile = logfile
             config.log.file = 3
-
-        # Create a .psf file if specified
-        if psf is not None:
-            for item in psf:
-                item.write(None)
 
         # To restart or not? That's the question
         if not restart:
@@ -149,6 +170,90 @@ class ARMC(MonteCarlo):
         for name, options in pes_kwarg.items():
             self.add_pes_evaluator(name, options.func, options.args, options.kwargs)
         return self, job_kwarg
+
+    def to_yaml(self, filename: Union[AnyStr, os.PathLike, io.IOBase],
+                logfile: Optional[str] = None, path: Optional[str] = None,
+                folder: Optional[str] = None) -> None:
+        """Convert an :class:`ARMC` instance into a .yaml readable by :class:`ARMC.from_yaml`.
+
+        Parameters
+        ----------
+        filename : :class:`str`, :class:`bytes`, :class:`os.pathlike` or :class:`io.IOBase`
+            A filename or a file-like object.
+
+        """
+        try:  # is filename an actual filename or a file-like object?
+            assert callable(filename.write)
+        except (AttributeError, AssertionError):
+            manager = open
+        else:
+            manager = NullContext
+
+        # The armc block
+        s = Settings()
+        s.armc.iter_len = self.iter_len
+        s.armc.sub_iter_len = self.sub_iter_len
+        s.armc.gamma = self.gamma
+        s.armc.a_target = self.a_target
+        s.armc.phi = self.phi
+
+        # The hdf5 block
+        s.hdf5_file = self.hdf5_file
+
+        # The pram block
+        s.param = df_to_dict(self.param)
+
+        # The job block
+        s.job.path = os.getcwd() if path is None else str(path)
+        if logfile is not None:
+            s.job.logfile = logfile
+        if folder is not None:
+            s.job.folder = folder
+        s.job.keep_files = self.keep_files
+        s.job.rmsd_threshold = self.rmsd_threshold
+        s.job.job_type = f'{self.job_type.func.__module__}.{self.job_type.func.__qualname__}'
+        s.job.name = self.job_type.keywords['name']
+        s.job.preopt_settings = self.preopt_settings[0] if self.preopt_settings else None
+        s.job.md_settings = self.md_settings[0]
+
+        s.psf = {}
+        with Settings.supress_missing():
+            try:
+                s.psf.psf_file = [s.input.force_eval.subsys.topology.conn_file_name for
+                                  s in self.md_settings]
+                del s.job.md_settings.input.force_eval.subsys.topology.conn_file_name
+            except KeyError:
+                pass
+
+            try:
+                del s.job.preopt_settings.input.force_eval.subsys.topology.conn_file_name
+            except (AttributeError, KeyError):
+                pass
+
+        # The molecule block
+        s.molecule = []
+        for i, mol in enumerate(self.molecule):
+            name = os.path.join(s.job.path, f'mol.{i}.xyz')
+            s.molecule.append(name)
+            mol.as_xyz(name)
+
+        # The pes block
+        for name, func_list in self.pes.items():
+            pes_dict = s.pes[name]
+            pes_dict.func = f'{func_list[0].func.__module__}.{func_list[0].func.__qualname__}'
+            pes_dict.args = list(func_list[0].args)
+            pes_dict.kwargs = []
+            for func in func_list:
+                pes_dict.kwargs.append(func.keywords)
+
+        # The move block
+        s.move.range.stop = round(float(self.move_range.max() - 1), 8)
+        s.move.range.step = round(float(abs(self.move_range[-1] - self.move_range[-2])), 8)
+        s.move.range.start = round(float(self.move_range[len(self.move_range) // 2] - 1), 8)
+
+        # Write the file
+        with manager(filename, 'w') as f:
+            f.write(yaml.dump(s.as_dict(), Dumper=Dumper))
 
     def __call__(self, start: int = 0, key_new: Optional[Tuple[float, ...]] = None) -> None:
         """Initialize the Addaptive Rate Monte Carlo procedure."""

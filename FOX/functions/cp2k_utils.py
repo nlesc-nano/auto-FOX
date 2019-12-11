@@ -54,8 +54,9 @@ def set_subsys_kind(settings: Settings, df: pd.DataFrame) -> None:
     """
     subsys = settings.input.force_eval.subsys
     for at_name, at_type in df[['atom name', 'atom type']].values:
-        if not subsys[f'kind {at_type}']:
-            subsys[f'kind {at_type}'] = {'element': at_name}
+        at_type = f'kind {at_type}'
+        if not subsys[at_type]:
+            subsys[at_type] = {'element': at_name}
 
 
 def set_keys(settings: Settings, param: pd.DataFrame) -> None:
@@ -184,7 +185,7 @@ def _populate_keys(settings: Settings, param: pd.DataFrame) -> None:
             atom = 'atom'
 
         # Evaluate if **param** consists of intersecting or disjoint sets of input blocks
-        nested_value = settings.get_nested(keys)
+        nested_value: list = settings.get_nested(keys)
         idx = None
         for i, j in enumerate(nested_value):
             if atom in j and at == j[atom]:
