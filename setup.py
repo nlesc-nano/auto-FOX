@@ -43,6 +43,7 @@ setup(
     include_package_data=True,
     entry_points={'console_scripts': [
         'init_armc=FOX.entry_points:main_armc',
+        'armc2yaml=FOX.entry_points:main_armc2yaml',
         'plot_pes=FOX.entry_points:main_plot_pes',
         'plot_param=FOX.entry_points:main_plot_param',
         'plot_dset=FOX.entry_points:main_plot_dset',

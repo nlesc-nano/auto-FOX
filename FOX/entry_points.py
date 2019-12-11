@@ -25,12 +25,14 @@ API
 
 """
 
+import os
 import argparse
-from os.path import isfile
+from os.path import isfile, join
 from typing import Optional
 
 from .classes.armc import ARMC, run_armc
 from .armc_functions.csv import dset_to_csv
+from .armc_functions.guess import guess_param
 from .armc_functions.plotting import plot_pes_descriptors, plot_param, plot_dset
 
 try:
@@ -50,10 +52,10 @@ __all__: list = []
 
 
 def main_armc(args: Optional[list] = None) -> None:
-    """Entrypoint for :meth:`FOX.classes.armc.ARMC.init_armc`."""
+    """Entrypoint for :func:`FOX.classes.armc.run_armc`."""
     parser = argparse.ArgumentParser(
          prog='FOX',
-         usage='init_armc filename',
+         usage='init_armc filename -r restart',
          description=("Initalize the Auto-FOX Addaptive Rate Monte Carlo (ARMC) "
                       "parameter optimizer."
                       "See 'https://auto-fox.readthedocs.io/en/latest/4_monte_carlo.html' for "
@@ -77,6 +79,56 @@ def main_armc(args: Optional[list] = None) -> None:
 
     armc, kwargs = ARMC.from_yaml(filename)
     run_armc(armc, restart=restart, **kwargs)
+
+
+def main_armc2yaml(args: Optional[list] = None) -> None:
+    """Entrypoint for :meth:`FOX.classes.armc.ARMC.to_yaml`."""
+    parser = argparse.ArgumentParser(
+         prog='FOX',
+         usage='init_armc filename -o output',
+         description=("Convert an ARMC .yaml file into a pre-processed .yaml file")
+    )
+
+    parser.add_argument(
+        'filename', nargs=1, type=str, help='A .yaml file with ARMC settings.'
+    )
+
+    parser.add_argument(
+        '-o', '--output', nargs=1, type=str, metavar='output', required=False, default=[None],
+        help=('Optional: the path+filename of the output .yaml file; '
+              'will default to current working directory if not specified')
+    )
+
+    args_parsed = parser.parse_args(args)
+    filename: str = args_parsed.filename[0]
+    if not isfile(filename):
+        raise FileNotFoundError("[Errno 2] No such file: '{}'".format(filename))
+
+    if args_parsed.filename[0] is not None:
+        output: str = args_parsed.output[0]
+    else:  # Avoid duplicate names
+        _output: str = join(os.getcwd(), 'armc.{:d}.yaml')
+        i = 0
+        while True:
+            output: str = _output.format(i)
+            if not isfile(filename):
+                break
+            i += 1
+
+    armc, kwargs = ARMC.from_yaml(filename)
+
+    # Create the .psf files
+    if kwargs['psf'] is not None:
+        for item in kwargs['psf']:
+            item.write(None)
+
+    # Guess the remaining unspecified parameters based on either UFF or the RDF
+    if kwargs['guess'] is not None:
+        for k, v in kwargs['guess'].items():
+            frozen = (k if v['frozen'] else None)
+            guess_param(armc, mode=v['mode'], columns=k, frozen=frozen)
+
+    armc.to_yaml(output, path=kwargs['path'], logfile=kwargs['logfile'], folder=kwargs['folder'])
 
 
 def main_plot_pes(args: Optional[list] = None) -> None:
