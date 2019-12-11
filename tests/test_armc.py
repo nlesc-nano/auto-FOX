@@ -9,7 +9,6 @@ from assertionlib import assertion
 from FOX import ARMC
 
 PATH = Path('tests') / 'test_files' / 'armc'
-PATH = Path('/Users/bvanbeek/Documents/GitHub/auto-FOX/tests/test_files/armc')
 
 
 def test_to_yaml() -> None:
