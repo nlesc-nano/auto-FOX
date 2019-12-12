@@ -319,6 +319,7 @@ def _generate_psf(s: Settings, path: str, i: int) -> Optional[PSFContainer]:
     psf.generate_dihedrals(plams_mol)
     psf.generate_impropers(plams_mol)
     psf.generate_atoms(plams_mol)
+    psf.charge = 0.0
 
     # Overlay the PSFContainer instance with either the .rtf or .str file
     if not_None:
@@ -331,10 +332,6 @@ def _generate_psf(s: Settings, path: str, i: int) -> Optional[PSFContainer]:
         md_settings.input.force_eval.subsys.topology.conn_file_name = psf.filename
         md_settings.input.force_eval.subsys.topology.conn_file_format = 'PSF'
 
-    # Update atomic charges
-    for at, charge in param.loc['charge', 'param'].items():
-        psf.update_atom_charge(at, charge)
-
     # Calculate the number of pairs
     param['count'].update(get_atom_count(param.index, psf.atom_type))
     return psf if not_None else None
@@ -346,10 +343,6 @@ def _read_psf(psf_file: str, param: pd.DataFrame, s: Settings) -> PSFContainer:
     # Update the CP2K Settings
     s.input.force_eval.subsys.topology.conn_file_name = psf.filename
     s.input.force_eval.subsys.topology.conn_file_format = 'PSF'
-
-    # Update atomic charges
-    for at, charge in param.loc['charge', 'param'].items():
-        psf.update_atom_charge(at, charge)
 
     # Calculate the number of pairs
     param['count'].update(get_atom_count(param.index, psf.atom_type))
