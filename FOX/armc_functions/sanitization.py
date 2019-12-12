@@ -326,9 +326,9 @@ def _generate_psf(s: Settings, path: str, i: int) -> Optional[PSFContainer]:
         psf.filename = join(path, f'mol.{i}.psf')
         str_, rtf = psf_s.str_file, psf_s.rtf_file
         if str_:
-            overlay_str_file(psf, str_) if isinstance(str_, str) else str_[i]
+            overlay_str_file(psf, (str_ if isinstance(str_, str) else str_[i]))
         else:
-            overlay_rtf_file(psf, rtf) if isinstance(rtf, str) else rtf[i]
+            overlay_rtf_file(psf, (rtf if isinstance(rtf, str) else rtf[i]))
         md_settings.input.force_eval.subsys.topology.conn_file_name = psf.filename
         md_settings.input.force_eval.subsys.topology.conn_file_format = 'PSF'
 
