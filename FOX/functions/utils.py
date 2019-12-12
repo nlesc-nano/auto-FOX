@@ -60,8 +60,8 @@ def append_docstring(item: Callable) -> Callable:
     return decorator
 
 
-def assert_error(error_msg: str = '') -> Callable:
-    """Take an error message, if not ``false`` then cause a function or class to raise a ModuleNotFoundError upon being called.
+def assert_error(error_msg: Optional[str] = None) -> Callable:
+    """Take an error message, if evaluating ``True`` then cause a function or class to raise a ModuleNotFoundError upon being called.
 
     Indended for use as a decorater:
 
@@ -78,7 +78,7 @@ def assert_error(error_msg: str = '') -> Callable:
 
     Parameters
     ----------
-    error_msg : str
+    error_msg : str, optional
         A to-be printed error message.
         If available, a single set of curly brackets will be replaced
         with the function or class name.

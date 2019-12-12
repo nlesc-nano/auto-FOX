@@ -44,7 +44,7 @@ API
 
 from os import remove
 from time import sleep
-from typing import (Dict, Iterable, Optional, Union, Hashable, List, Tuple, Any)
+from typing import Dict, Iterable, Optional, Union, Hashable, List, Tuple
 from os.path import isfile
 from collections import abc
 
@@ -54,13 +54,13 @@ from pandas.core.generic import NDFrame
 
 from scm.plams import Settings, Molecule
 
-from ..functions.utils import (get_shape, assert_error, array_to_index)
+from ..functions.utils import get_shape, assert_error, array_to_index
 
 try:
     import h5py
     __all__ = ['create_hdf5', 'create_xyz_hdf5', 'to_hdf5', 'from_hdf5']
     H5pyFile = h5py.File
-    H5PY_ERROR = ''
+    H5PY_ERROR = None
 except ImportError:
     __all__ = []
     H5pyFile = 'h5py.File'
@@ -152,9 +152,9 @@ def create_xyz_hdf5(filename: str, mol_list: Iterable[Molecule], iter_len: int) 
     kwarg_list = []
     for mol in mol_list:
         kwarg = {
-            'shape': (iter_len, 0, len(mol), 3),
+            'shape': (iter_len, 0, mol.shape[1], 3),
             'dtype': float,
-            'maxshape': (iter_len, None, len(mol), 3),
+            'maxshape': (iter_len, None, mol.shape[1], 3),
             'fillvalue': np.nan
         }
         kwarg_list.append(kwarg)
@@ -373,7 +373,7 @@ def to_hdf5(filename: str, dset_dict: Dict[str, np.ndarray],
 
 @assert_error(H5PY_ERROR)
 def _xyz_to_hdf5(filename: str, omega: int,
-                 mol_list: Union[Iterable['FOX.MultiMolecule'], float, np.float]) -> None:
+                 mol_list: Union[Iterable['FOX.MultiMolecule'], Iterable[float], float]) -> None:
     r"""Export **mol** to the hdf5 file **filename**.
 
     Parameters
@@ -388,8 +388,8 @@ def _xyz_to_hdf5(filename: str, omega: int,
         All to-be exported :class:`MultiMolecule` instance(s) or float (*e.g.* ``np.nan``).
 
     """
-    with h5py.File(filename, 'a', libver='latest') as f:
-        if not isinstance(mol_list, abc.Iterable):
+    with h5py.File(filename, 'r+', libver='latest') as f:
+        if not isinstance(mol_list, abc.Iterable):  # Check if mol_list is a scalar (np.nan)
             i = 0
             while True:
                 try:
@@ -399,21 +399,23 @@ def _xyz_to_hdf5(filename: str, omega: int,
                     return None
 
         for i, mol in enumerate(mol_list):
-            shape = mol.shape
-            key = f'xyz.{i}'
-            try:
-                f[key][omega, 0:shape[0]] = mol
-            except ValueError:  # Resize and try again
-                f[key].resize(shape + (f[key].shape[0],))
-                f[key][omega] = mol
+            dset = f[f'xyz.{i}']
+            if not isinstance(mol, abc.Iterable):  # Check if mol is a scalar (np.nan)
+                dset[omega] = mol
+                continue
+
+            if len(mol) <= dset.shape[1]:
+                dset[omega, 0:len(mol)] = mol
+            else:  # Resize and try again
+                dset.resize(len(mol), axis=1)
+                dset[omega] = mol
 
     return None
 
 
 """#################################### Reading .hdf5 files ####################################"""
 
-
-DataSets = Optional[Union[Hashable, Iterable[Hashable]]]
+DataSets = Union[None, Hashable, Iterable[Hashable]]
 
 
 @assert_error(H5PY_ERROR)
