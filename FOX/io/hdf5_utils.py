@@ -393,7 +393,7 @@ def _xyz_to_hdf5(filename: str, omega: int,
             i = 0
             while True:
                 try:
-                    f[f'xyz.{i}'][omega] = mol_list
+                    f[f'xyz.{i}'][omega] = mol_list if mol_list is not None else np.nan
                     i += 1
                 except KeyError:
                     return None
@@ -401,7 +401,7 @@ def _xyz_to_hdf5(filename: str, omega: int,
         for i, mol in enumerate(mol_list):
             dset = f[f'xyz.{i}']
             if not isinstance(mol, abc.Iterable):  # Check if mol is a scalar (np.nan)
-                dset[omega] = mol
+                dset[omega] = mol if mol is not None else np.nan
                 continue
 
             if len(mol) <= dset.shape[1]:
