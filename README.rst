@@ -53,8 +53,7 @@ Using **Auto-FOX**
 
 ::
 
-         from FOX import get_example_xyz
-         example_xyz_filename = get_example_xyz()
+         from FOX import example_xyz
 
 - Further examples and more detailed descriptions are
   available in the documentation_.
