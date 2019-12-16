@@ -16,6 +16,7 @@ This project adheres to `Semantic Versioning <http://semver.org/>`_.
   into ``np.nan``.
   Contrary to NumPy or Pandas, h5py will *not* automatically convert ``None`` to ``np.nan``
   when assigning items to a Dataset.
+* Raise a ``RuntimeError`` if a job hard-crashes in the first ARMC iteration.
 
 
 0.6.11
