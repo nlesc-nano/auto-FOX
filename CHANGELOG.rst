@@ -7,9 +7,9 @@ This project adheres to `Semantic Versioning <http://semver.org/>`_.
 
 0.6.12
 ******
-* The ARMC input parcer no longer expects ``ARMC.param`` and the .psf file(s) to form sets.
+* The ARMC input parser no longer expects ``ARMC.param`` and the .psf file(s) to form identical sets.
 * All atomic charges in the ARMC .psf files are now set to 0.0.
-  Charges are now handled, exclusively, by the cp2k input file.
+  Charges are handled, exclusively, by the cp2k input file.
 * Fixed an issue where atom-types were not properly updated in the .psf file.
 * Fixed an issue where the ARMC .xyz.hdf5 file was not properly updated.
 * Ensure that ``None`` object encountered during the ARMC procedure are always converted
