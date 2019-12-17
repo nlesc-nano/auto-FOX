@@ -110,8 +110,12 @@ def get_intra_non_bonded(mol: Union[str, MultiMolecule], psf: Union[str, PSFCont
         dist_slice = dist[:, np.all(symbol == idx_hash, axis=1)]
 
         charge, epsilon, sigma = items
-        prm_df.at[idx, 'elstat'] = get_V_elstat(items['charge'], dist_slice)
-        prm_df.at[idx, 'lj'] = get_V_lj(sigma, epsilon, dist_slice)
+        prm_df.at[idx, 'elstat'] = get_V_elstat(items['charge'], dist_slice) / len(mol)
+        prm_df.at[idx, 'lj'] = get_V_lj(sigma, epsilon, dist_slice) / len(mol)
+
+        # Prevent double counting when an atom-pair consists of identical atoms
+        if idx[0] == idx[1]:
+            prm_df.loc[idx, ['elstat', 'lj']] /= 2
 
     return prm_df[['elstat', 'lj']]
 
