@@ -106,6 +106,8 @@ def get_rdf_lowmem(dist: np.ndarray,
         An array with the resulting radial distribution function.
 
     """
+    if dist.ndim == 2:
+        dist = dist.reshape((1,) + dist.shape)
     idx_max = 1 + int(r_max / dr)
     dist_int = np.array(dist / dr, dtype=int).ravel()
 
