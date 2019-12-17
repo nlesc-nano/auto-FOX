@@ -5,6 +5,7 @@ Change Log
 All notable changes to this project will be documented in this file.
 This project adheres to `Semantic Versioning <http://semver.org/>`_.
 
+
 0.6.12
 ******
 * The ARMC input parser no longer expects ``ARMC.param`` and the .psf file(s) to form identical sets.
@@ -17,6 +18,14 @@ This project adheres to `Semantic Versioning <http://semver.org/>`_.
   Contrary to NumPy or Pandas, h5py will *not* automatically convert ``None`` to ``np.nan``
   when assigning items to a Dataset.
 * Raise a ``RuntimeError`` if a job hard-crashes in the first ARMC iteration.
+* Corrected the name of .prm (``PRMContainer()``) "IMPROPER" section.
+* Always create a shallow copy of (to-be mutated) input parameters when
+  calculating (forcefield-based) interactions.
+* Fixed the atom-pair hashing in ``get_bonded()``.
+* Prevent double counting non-bonded interactions when i == j in ``get_intra_non_bonded()``.
+* Potentials are now (properly) averaged over all molecules within an MD trajectory in ``get_intra_non_bonded()``.
+* Import scipy's ``fftconvolve()`` with a try/except approach; importing has a tendancy of raising RecursionErrors.
+* Log the super- & sub-iteration upon ``ARMC()`` restarts.
 
 
 0.6.11
