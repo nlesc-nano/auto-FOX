@@ -49,11 +49,12 @@ class PRMContainer(AbstractDataClass, AbstractFileContainer):
 
     #: A tuple of supported .psf headers.
     HEADERS: Tuple[str] = (
-        'ATOMS', 'BONDS', 'ANGLES', 'DIHEDRALS', 'NBFIX', 'HBOND', 'NONBONDED', 'IMPROPER', 'END'
+        'ATOMS', 'BONDS', 'ANGLES', 'DIHEDRALS', 'NBFIX', 'HBOND', 'NONBONDED', 'IMPROPERS',
+        'IMPROPER', 'END'
     )
 
     def __init__(self, filename=None, atoms=None, bonds=None, angles=None, dihedrals=None,
-                 improper=None, nonbonded=None, nonbonded_header=None, nbfix=None,
+                 impropers=None, nonbonded=None, nonbonded_header=None, nbfix=None,
                  hbond=None) -> None:
         """Initialize a :class:`PRMContainer` instance."""
         super().__init__()
@@ -63,7 +64,7 @@ class PRMContainer(AbstractDataClass, AbstractFileContainer):
         self.bonds: pd.DataFrame = bonds
         self.angles: pd.DataFrame = angles
         self.dihedrals: pd.DataFrame = dihedrals
-        self.improper: pd.DataFrame = improper
+        self.impropers: pd.DataFrame = impropers
         self.nonbonded_header: str = nonbonded_header
         self.nonbonded: pd.DataFrame = nonbonded
         self.nbfix: pd.DataFrame = nbfix
@@ -142,6 +143,7 @@ class PRMContainer(AbstractDataClass, AbstractFileContainer):
 
             key = i.split(maxsplit=1)[0]
             if key in cls.HEADERS:
+                key = 'IMPROPERS' if key == 'IMPROPER' else key
                 ret[key.lower()] = value = []
                 ret[key.lower() + '_comment'] = value_comment = []
                 if key in ('HBOND', 'NONBONDED'):
@@ -204,7 +206,7 @@ class PRMContainer(AbstractDataClass, AbstractFileContainer):
 
     @AbstractFileContainer.inherit_annotations()
     def _write_iterate(self, write, **kwargs) -> None:
-        for key in self.HEADERS[:-1]:
+        for key in self.HEADERS[:-2]:
             key_low = key.lower()
             df = getattr(self, key_low)
             if key_low == 'hbond':

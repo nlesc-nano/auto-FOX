@@ -18,7 +18,6 @@ This project adheres to `Semantic Versioning <http://semver.org/>`_.
   Contrary to NumPy or Pandas, h5py will *not* automatically convert ``None`` to ``np.nan``
   when assigning items to a Dataset.
 * Raise a ``RuntimeError`` if a job hard-crashes in the first ARMC iteration.
-* Corrected the name of .prm (``PRMContainer()``) "IMPROPER" section.
 * Always create a shallow copy of (to-be mutated) input parameters when
   calculating (forcefield-based) interactions.
 * Fixed the atom-pair hashing in ``get_bonded()``.

@@ -128,14 +128,14 @@ def process_prm(prm: Union[PRMContainer, str]):
         dihedrals[6] *= np.radians(1)
         dihedrals['V'] = np.nan
 
-    improper = prm.improper
-    if improper is not None:
-        improper = improper.set_index([0, 1, 2, 3])[[4, 6]]
-        improper[:] = improper.astype(float)
-        improper[6] *= np.radians(1)
-        improper['V'] = np.nan
+    impropers = prm.impropers
+    if impropers is not None:
+        impropers = impropers.set_index([0, 1, 2, 3])[[4, 6]]
+        impropers[:] = impropers.astype(float)
+        impropers[6] *= np.radians(1)
+        impropers['V'] = np.nan
 
-    return bonds, angles, dihedrals, improper
+    return bonds, angles, dihedrals, impropers
 
 
 def set_V_bonds(df: pd.DataFrame, mol: MultiMolecule, bond_idx: np.ndarray) -> None:
