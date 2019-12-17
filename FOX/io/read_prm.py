@@ -49,11 +49,11 @@ class PRMContainer(AbstractDataClass, AbstractFileContainer):
 
     #: A tuple of supported .psf headers.
     HEADERS: Tuple[str] = (
-        'ATOMS', 'BONDS', 'ANGLES', 'DIHEDRALS', 'NBFIX', 'HBOND', 'NONBONDED', 'IMPROPERS', 'END'
+        'ATOMS', 'BONDS', 'ANGLES', 'DIHEDRALS', 'NBFIX', 'HBOND', 'NONBONDED', 'IMPROPER', 'END'
     )
 
     def __init__(self, filename=None, atoms=None, bonds=None, angles=None, dihedrals=None,
-                 impropers=None, nonbonded=None, nonbonded_header=None, nbfix=None,
+                 improper=None, nonbonded=None, nonbonded_header=None, nbfix=None,
                  hbond=None) -> None:
         """Initialize a :class:`PRMContainer` instance."""
         super().__init__()
@@ -63,7 +63,7 @@ class PRMContainer(AbstractDataClass, AbstractFileContainer):
         self.bonds: pd.DataFrame = bonds
         self.angles: pd.DataFrame = angles
         self.dihedrals: pd.DataFrame = dihedrals
-        self.impropers: pd.DataFrame = impropers
+        self.improper: pd.DataFrame = improper
         self.nonbonded_header: str = nonbonded_header
         self.nonbonded: pd.DataFrame = nonbonded
         self.nbfix: pd.DataFrame = nbfix
@@ -106,7 +106,7 @@ class PRMContainer(AbstractDataClass, AbstractFileContainer):
 
                 v2 = getattr(value, k)
                 if isinstance(v2, pd.DataFrame):
-                    assert (v1 == v2).all().all()
+                    assert (v1 == v2).values.all()
                 else:
                     assert v1 == v2
         except (AttributeError, AssertionError):
@@ -136,11 +136,11 @@ class PRMContainer(AbstractDataClass, AbstractFileContainer):
         value = None
 
         for i in iterator:
-            j = i.rstrip('\n')
-            if j.startswith('!') or j.startswith('*') or j.isspace() or not j:
+            i = i.rstrip('\n')
+            if i.startswith('!') or i.startswith('*') or i.isspace() or not i:
                 continue  # Ignore comment lines and empty lines
 
-            key = j.split(maxsplit=1)[0]
+            key = i.split(maxsplit=1)[0]
             if key in cls.HEADERS:
                 ret[key.lower()] = value = []
                 ret[key.lower() + '_comment'] = value_comment = []
@@ -148,7 +148,7 @@ class PRMContainer(AbstractDataClass, AbstractFileContainer):
                     value.append(i.split()[1:])
                 continue
 
-            v, _, comment = j.partition('!')
+            v, _, comment = i.partition('!')
             value.append(v.split())
             value_comment.append(comment.strip())
 

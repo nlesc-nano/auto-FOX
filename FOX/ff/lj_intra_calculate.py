@@ -75,7 +75,7 @@ def get_intra_non_bonded(mol: Union[str, MultiMolecule], psf: Union[str, PSFCont
     if not isinstance(mol, MultiMolecule):
         mol = MultiMolecule.from_xyz(mol)
     else:
-        mol = mol.copy()
+        mol = mol.copy(deep=False)
 
     # Define the various non-bonded atom-pairs
     core_atoms = psf.atoms.index[psf.residue_id == 1] - 1
@@ -92,6 +92,8 @@ def get_intra_non_bonded(mol: Union[str, MultiMolecule], psf: Union[str, PSFCont
     prm_df['lj'] = 0.0
     prm_df.columns.name = 'au'
     prm_df.dropna(inplace=True)
+    if not ij.any():
+        return prm_df[['elstat', 'lj']]
 
     # Map each atom-index pair (ij) to a pair of atomic symbols (more specifically: their hashes)
     mol.atoms = {hash(k): v for k, v in mol.atoms.items()}
@@ -104,7 +106,7 @@ def get_intra_non_bonded(mol: Union[str, MultiMolecule], psf: Union[str, PSFCont
 
     # Calculate the potential energies
     for idx, items in prm_df[['charge', 'epsilon', 'sigma']].iterrows():
-        idx_hash = sorted(hash(i) for i in ij)
+        idx_hash = sorted(hash(i) for i in idx)
         dist_slice = dist[:, np.all(symbol == idx_hash, axis=1)]
 
         charge, epsilon, sigma = items
