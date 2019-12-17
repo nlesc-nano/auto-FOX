@@ -1,7 +1,7 @@
 """A module for testing functions in the :mod:`FOX.io.hdf5_utils` module."""
 
 from os import remove
-from os.path import join
+from os.path import join, isfile
 
 import h5py
 import numpy as np
@@ -44,7 +44,7 @@ def test_create_hdf5():
                 assertion.shape_eq(value, ref_dict[key])
                 assertion.isinstance(value[:].item(0), ref_dict[key].dtype)
     finally:
-        remove(hdf5_file)
+        remove(hdf5_file) if isfile(hdf5_file) else None
 
 
 def test_to_hdf5():
@@ -68,7 +68,7 @@ def test_to_hdf5():
 
     try:
         create_hdf5(hdf5_file, armc)
-        create_xyz_hdf5(hdf5_file, [armc.molecule[0].as_Molecule(0)[0]], 100)
+        create_xyz_hdf5(hdf5_file, armc.molecule, 100)
         to_hdf5(hdf5_file, hdf5_dict, kappa, omega)
 
         with h5py.File(hdf5_file, 'r') as f:
@@ -87,8 +87,9 @@ def test_to_hdf5():
                 except ValueError:
                     np.testing.assert_allclose(value, f[key][dset_slice])
     finally:
-        remove(hdf5_file)
-        remove(hdf5_file.replace('.hdf5', '.xyz.hdf5'))
+        xyz_hdf5 = hdf5_file.replace('.hdf5', '.xyz.hdf5')
+        remove(hdf5_file) if isfile(hdf5_file) else None
+        remove(xyz_hdf5) if isfile(xyz_hdf5) else None
 
 
 def test_from_hdf5():
@@ -112,7 +113,7 @@ def test_from_hdf5():
 
     try:
         create_hdf5(hdf5_file, armc)
-        create_xyz_hdf5(hdf5_file, [armc.molecule[0].as_Molecule(0)[0]], 100)
+        create_xyz_hdf5(hdf5_file, armc.molecule, 100)
         to_hdf5(hdf5_file, hdf5_dict, kappa, omega)
         out = from_hdf5(hdf5_file)
 
@@ -123,5 +124,6 @@ def test_from_hdf5():
         np.testing.assert_allclose(hdf5_dict['param'], out['param'].values[0])
         np.testing.assert_allclose(hdf5_dict['rdf.0'], out['rdf.0'][0].values)
     finally:
-        remove(hdf5_file)
-        remove(hdf5_file.replace('.hdf5', '.xyz.hdf5'))
+        xyz_hdf5 = hdf5_file.replace('.hdf5', '.xyz.hdf5')
+        remove(hdf5_file) if isfile(hdf5_file) else None
+        remove(xyz_hdf5) if isfile(xyz_hdf5) else None

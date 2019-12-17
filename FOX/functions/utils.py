@@ -7,7 +7,7 @@ from functools import wraps
 from pkg_resources import resource_filename
 from typing import (
     Iterable, Tuple, Callable, Hashable, Sequence, Optional, List, Any, TypeVar, Dict,
-    Type, Mapping
+    Type, Mapping, Union
 )
 
 import yaml
@@ -60,8 +60,8 @@ def append_docstring(item: Callable) -> Callable:
     return decorator
 
 
-def assert_error(error_msg: str = '') -> Callable:
-    """Take an error message, if not ``false`` then cause a function or class to raise a ModuleNotFoundError upon being called.
+def assert_error(error_msg: Optional[str] = None) -> Callable:
+    """Take an error message, if evaluating ``True`` then cause a function or class to raise a ModuleNotFoundError upon being called.
 
     Indended for use as a decorater:
 
@@ -78,7 +78,7 @@ def assert_error(error_msg: str = '') -> Callable:
 
     Parameters
     ----------
-    error_msg : str
+    error_msg : str, optional
         A to-be printed error message.
         If available, a single set of curly brackets will be replaced
         with the function or class name.
@@ -564,7 +564,8 @@ def slice_str(str_: str, intervals: List[Optional[int]], strip_spaces: bool = Tr
     return [str_[i:j] for i, j in zip(iter1, iter2)]
 
 
-def get_atom_count(iterable: Iterable[Sequence[str]], mol: 'FOX.MultiMolecule') -> List[int]:
+def get_atom_count(iterable: pd.MultiIndex,
+                   mol: Union[pd.Series, 'FOX.MultiMolecule']) -> pd.Series:
     """Count the occurences of each atom/atom-pair (from **iterable**) in **mol**.
 
     Duplicate values are removed if when evaluating atom pairs when atom-pairs consist of
@@ -609,15 +610,19 @@ def get_atom_count(iterable: Iterable[Sequence[str]], mol: 'FOX.MultiMolecule') 
 
     def _get_atom_count(at):
         atoms = at.split()
-        if len(atoms) == 2 and atoms[0] == atoms[1]:
-            at1, _ = [len(at_list[i]) for i in atoms]
-            return (at1**2 - at1) // 2
-        elif len(atoms) == 2:
-            return np.product([len(at_list[i]) for i in atoms])
-        else:
-            return len(at_list[at])
+        try:
+            if len(atoms) == 2 and atoms[0] == atoms[1]:
+                at1, _ = [len(at_list[i]) for i in atoms]
+                return (at1**2 - at1) // 2
+            elif len(atoms) == 2:
+                return np.product([len(at_list[i]) for i in atoms])
+            else:
+                return len(at_list[at])
+        except KeyError:
+            return -1
 
-    return [_get_atom_count(at) for *_, at in iterable]
+    ret = pd.Series({(i, at): _get_atom_count(at) for i, at in iterable}, dtype=int, name='count')
+    return ret[ret >= 0]
 
 
 def get_nested_element(iterable: Iterable) -> Any:

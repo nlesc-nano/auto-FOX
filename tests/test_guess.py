@@ -6,6 +6,8 @@ import yaml
 import numpy as np
 from assertionlib import assertion
 
+from scm.plams import Settings
+
 from FOX import ARMC as ARMCType
 from FOX.armc_functions.guess import guess_param
 
@@ -23,20 +25,26 @@ def test_guess_param() -> None:
     guess_param(armc, mode='rdf')
     param1 = armc.param['param']
     ref1 = np.load(PATH / 'guess_param_rdf.npy')
-    np.testing.assert_allclose(param1, ref1)
+    np.testing.assert_allclose(param1, ref1, rtol=1e-06)
     with open(PATH / 'guess_param_rdf.yaml', 'r') as f:
         s1 = armc.md_settings[0].input.force_eval.mm.forcefield.nonbonded
-        s1_ref = yaml.load(f, Loader=yaml.Loader)
+        for i in s1['lennard-jones']:
+            i.epsilon = i.epsilon[:-2]
+            i.sigma = i.sigma[:-2]
+        s1_ref = Settings(yaml.load(f, Loader=yaml.Loader))
         assertion.eq(s1, s1_ref)
 
     armc = ARMC.copy(deep=True)
     guess_param(armc, mode='uff')
     param2 = armc.param['param']
     ref2 = np.load(PATH / 'guess_param_uff.npy')
-    np.testing.assert_allclose(param2, ref2)
+    np.testing.assert_allclose(param2, ref2, rtol=1e-06)
     with open(PATH / 'guess_param_uff.yaml', 'r') as f:
         s2 = armc.md_settings[0].input.force_eval.mm.forcefield.nonbonded
-        s2_ref = yaml.load(f, Loader=yaml.Loader)
+        for i in s2['lennard-jones']:
+            i.epsilon = i.epsilon[:-2]
+            i.sigma = i.sigma[:-2]
+        s2_ref = Settings(yaml.load(f, Loader=yaml.Loader))
         assertion.eq(s2, s2_ref)
 
     armc = ARMC.copy(deep=True)

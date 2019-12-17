@@ -15,7 +15,7 @@
 
 
 ##################################################
-Automated Forcefield Optimization Extension 0.6.11
+Automated Forcefield Optimization Extension 0.6.12
 ##################################################
 
 **Auto-FOX** is a library for analyzing potential energy surfaces (PESs) and
@@ -53,8 +53,7 @@ Using **Auto-FOX**
 
 ::
 
-         from FOX import get_example_xyz
-         example_xyz_filename = get_example_xyz()
+         from FOX import example_xyz
 
 - Further examples and more detailed descriptions are
   available in the documentation_.

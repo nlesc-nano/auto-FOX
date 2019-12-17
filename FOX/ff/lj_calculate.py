@@ -93,10 +93,13 @@ def get_non_bonded(mol: Union[str, MultiMolecule],
         Calculate all non-covalent interactions averaged over all molecules in **mol**.
 
     """
-    psf = PSFContainer.read(psf)
+    if not isinstance(psf, PSFContainer):
+        psf = PSFContainer.read(psf)
 
     if not isinstance(mol, MultiMolecule):
         mol = MultiMolecule.from_xyz(mol)
+    else:
+        mol = mol.copy(deep=False)
     mol.atoms = mol_atoms = psf.to_atom_dict()
 
     prm_df = LJDataFrame(index=mol_atoms.keys())

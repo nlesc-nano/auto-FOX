@@ -470,7 +470,14 @@ class MonteCarlo(AbstractDataClass, abc.Mapping):
 
         return True
 
-    def get_pes_descriptors(self, key: Tuple[float]
+    def clear_job_cache(self) -> None:
+        """Clear :attr:`MonteCarlo.job_cache` and, optionally, delete all cp2k output files."""
+        if not self.keep_files:
+            for job in self.job_cache:
+                shutil.rmtree(job.path)
+        self.job_cache = []
+
+    def get_pes_descriptors(self, key: Tuple[float], get_first_key: bool = False,
                             ) -> Tuple[List[Dict[str, np.ndarray]], Optional[List[MultiMolecule]]]:
         """Check if a **key** is already present in **history_dict**.
 
@@ -483,6 +490,10 @@ class MonteCarlo(AbstractDataClass, abc.Mapping):
         ----------
         key : tuple [float]
             A key in **history_dict**.
+
+        get_first_key : :class:`bool`
+            Keep the both the files and the job_cache if this is the first ARMC iteration.
+            Usefull for manual inspection in case cp2k hard-crashes at this point.
 
         Returns
         -------
@@ -503,10 +514,7 @@ class MonteCarlo(AbstractDataClass, abc.Mapping):
             )
             ret = [{k: func(mol) for k, func in zip(keys, funcs)} for mol, keys, *funcs in iterator]
 
-        # Delete the output directory and return
-        if not self.keep_files:
-            for job in self.job_cache:
-                shutil.rmtree(job.path)
-        self.job_cache = []
+        if not get_first_key:
+            self.clear_job_cache()
 
         return ret, mol_list

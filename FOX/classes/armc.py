@@ -27,7 +27,7 @@ from contextlib import AbstractContextManager
 import yaml
 import numpy as np
 
-from scm.plams import init, finish, config, Settings
+from scm.plams import init, finish, config, Settings, log
 
 from .monte_carlo import MonteCarlo
 from ..io.hdf5_utils import create_hdf5, to_hdf5, create_xyz_hdf5, _get_filename_xyz
@@ -46,6 +46,8 @@ except AttributeError:
 
 
 class Init(AbstractContextManager):
+    """A context manager for calling :func:`init` and :func:`finish`."""
+
     def __init__(self, path=None, folder=None) -> None:
         self.path = path
         self.folder = folder
@@ -259,7 +261,13 @@ class ARMC(MonteCarlo):
         """Initialize the Addaptive Rate Monte Carlo procedure."""
         if start == 0:
             create_hdf5(self.hdf5_file, self)  # Construct the HDF5 file
+
             key_new = self._get_first_key()  # Initialize the first MD calculation
+            if np.inf in self[key_new]:
+                raise RuntimeError('One or more jobs crashed in the first ARMC iteration; '
+                                   'manual inspection of the cp2k output is recomended')
+            self.clear_job_cache()
+
         elif key_new is None:
             raise TypeError("'key_new' cannot be 'None' if 'start' is larger than 0")
 
@@ -339,7 +347,7 @@ class ARMC(MonteCarlo):
 
         """
         key = tuple(self.param['param'].values)
-        pes, _ = self.get_pes_descriptors(key)
+        pes, _ = self.get_pes_descriptors(key, get_first_key=True)
 
         self[key] = self.get_aux_error(pes)
         self.param['param_old'] = self.param['param']
@@ -460,6 +468,7 @@ class ARMC(MonteCarlo):
             i, j = f.attrs['super-iteration'], f.attrs['sub-iteration']
             if i < 0:
                 raise ValueError(f'i: {i.__class__.__name__} = {i}')
+            log(f'Restarting ARMC procedure from super-iteration {i} & sub-iteration {j}', level=1)
 
             self.phi = f['phi'][i]
             self.param['param'] = self.param['param_old'] = f['param'][i, j]

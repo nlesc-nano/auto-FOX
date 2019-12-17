@@ -74,6 +74,8 @@ def get_bonded(mol: Union[str, MultiMolecule],
     # Read the molecule
     if not isinstance(mol, MultiMolecule):
         mol = MultiMolecule.from_xyz(mol)
+    else:
+        mol = mol.copy(deep=False)
     mol.atoms = psf.to_atom_dict()
 
     # Extract parameters from the .prm file
