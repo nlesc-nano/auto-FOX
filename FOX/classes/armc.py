@@ -27,7 +27,7 @@ from contextlib import AbstractContextManager
 import yaml
 import numpy as np
 
-from scm.plams import init, finish, config, Settings
+from scm.plams import init, finish, config, Settings, log
 
 from .monte_carlo import MonteCarlo
 from ..io.hdf5_utils import create_hdf5, to_hdf5, create_xyz_hdf5, _get_filename_xyz
@@ -468,6 +468,7 @@ class ARMC(MonteCarlo):
             i, j = f.attrs['super-iteration'], f.attrs['sub-iteration']
             if i < 0:
                 raise ValueError(f'i: {i.__class__.__name__} = {i}')
+            log(f'Restarting ARMC procedure from super-iteration {i} & sub-iteration {j}', level=1)
 
             self.phi = f['phi'][i]
             self.param['param'] = self.param['param_old'] = f['param'][i, j]
