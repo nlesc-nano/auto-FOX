@@ -27,7 +27,11 @@ from typing import (
 
 import numpy as np
 import pandas as pd
-from scipy import signal, constants
+from scipy import constants
+try:
+    from scipy.signal import fftconvolve
+except RecursionError as ex:  # Importing fftconvolve() has a tendancy of raising RecursionErrors
+    fftconvolve = ex
 from scipy.spatial import cKDTree
 from scipy.fftpack import fft
 from scipy.spatial.distance import cdist
@@ -1373,11 +1377,14 @@ class MultiMolecule(_MultiMolecule):
             **atom_subset**.
 
         """
+        if isinstance(fftconvolve, RecursionError):
+            raise fftconvolve
+
         # Get atomic velocities
         v = self.get_velocity(1e-15, mol_subset=mol_subset, atom_subset=atom_subset)  # A / s
 
         # Construct the velocity autocorrelation function
-        vacf = signal.fftconvolve(v, v[::-1], axes=0)[len(v)-1:]
+        vacf = fftconvolve(v, v[::-1], axes=0)[len(v)-1:]
         dv = v - v.mean(axis=0)
         return vacf / np.einsum('ij,ij->j', dv, dv)
 
