@@ -23,7 +23,7 @@ def test_guess_param() -> None:
     guess_param(armc, mode='rdf')
     param1 = armc.param['param']
     ref1 = np.load(PATH / 'guess_param_rdf.npy')
-    np.testing.assert_allclose(param1, ref1)
+    np.testing.assert_allclose(param1, ref1, rtol=1e-06)
     with open(PATH / 'guess_param_rdf.yaml', 'r') as f:
         s1 = armc.md_settings[0].input.force_eval.mm.forcefield.nonbonded
         s1_ref = yaml.load(f, Loader=yaml.Loader)
@@ -33,7 +33,7 @@ def test_guess_param() -> None:
     guess_param(armc, mode='uff')
     param2 = armc.param['param']
     ref2 = np.load(PATH / 'guess_param_uff.npy')
-    np.testing.assert_allclose(param2, ref2)
+    np.testing.assert_allclose(param2, ref2, rtol=1e-06)
     with open(PATH / 'guess_param_uff.yaml', 'r') as f:
         s2 = armc.md_settings[0].input.force_eval.mm.forcefield.nonbonded
         s2_ref = yaml.load(f, Loader=yaml.Loader)
