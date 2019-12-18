@@ -157,7 +157,7 @@ def get_best(hdf5_file: str, name: str = 'rdf', i: int = 0) -> pd.DataFrame:
         aux_error, prop = hdf5_dict['aux_error'], hdf5_dict[full_name]
 
     # Return the best DataFrame (or Series)
-    j: int = aux_error.sum(axis=1).idxmin()
+    j: int = aux_error.sum(axis=1, skipna=False).idxmin()
     df = prop[j] if not isinstance(prop, NDFrame) else prop.iloc[j]
     if isinstance(df, pd.DataFrame):
         df.columns.name = full_name
@@ -194,7 +194,7 @@ def overlay_descriptor(hdf5_file: str, name: str = 'rdf', i: int = 0) -> Dict[st
     hdf5_dict = from_hdf5(hdf5_file, ['aux_error', mm_name, qm_name])
     aux_error, mm, qm = hdf5_dict['aux_error'], hdf5_dict[mm_name], hdf5_dict[qm_name]
 
-    j: int = aux_error.sum(axis=1).idxmin()
+    j: int = aux_error.sum(axis=1, skipna=False).idxmin()
     mm = mm[j]
     qm = qm[0]
 
