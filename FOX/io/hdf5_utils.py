@@ -253,17 +253,21 @@ def _get_kwarg_dict(armc: 'FOX.ARMC') -> Settings:
     ret = Settings()
     ret.phi.shape = (shape[0], )
     ret.phi.dtype = float
+    ret.phi.fillvalue = np.nan
 
     ret.param.shape = shape + (len(armc.param), )
     ret.param.dtype = float
+    ret.param.fillvalue = np.nan
 
     ret.acceptance.shape = shape
     ret.acceptance.dtype = bool
 
     ret.aux_error.shape = shape + (len(armc.molecule), len(armc.pes))
     ret.aux_error.dtype = float
+    ret.aux_error.fillvalue = np.nan
     ret.aux_error_mod.shape = shape + (1 + len(armc.param), )
     ret.aux_error_mod.dtype = float
+    ret.aux_error_mod.fillvalue = np.nan
 
     for _key, partial_list in armc.pes.items():
         for i, partial in enumerate(partial_list):
@@ -272,10 +276,12 @@ def _get_kwarg_dict(armc: 'FOX.ARMC') -> Settings:
 
             ret[key].shape = shape + get_shape(ref)
             ret[key].dtype = float
+            ret[key].fillvalue = np.nan
 
             ret[key + '.ref'].shape = get_shape(ref)
             ret[key + '.ref'].dtype = float
             ret[key + '.ref'].data = ref
+            ret[key + '.ref'].fillvalue = np.nan
 
     return ret
 
