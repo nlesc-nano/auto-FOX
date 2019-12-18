@@ -484,10 +484,10 @@ class ARMC(MonteCarlo):
 
         # Finish the current set of sub-iterations
         j += 1
-        i += 1
         for omega in range(j, self.sub_iter_len):
             key = self.do_inner(i, omega, acceptance, key)
         self.update_phi(acceptance)
+        i += 1
 
         # And continue
         self(start=i, key_new=key)
