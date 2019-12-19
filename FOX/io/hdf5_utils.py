@@ -42,6 +42,7 @@ API
 
 """
 
+import subprocess
 from os import remove
 from time import sleep
 from typing import Dict, Iterable, Optional, Union, Hashable, List, Tuple
@@ -301,6 +302,17 @@ def _get_kwarg_dict(armc: 'FOX.ARMC') -> Settings:
 
 
 @assert_error(H5PY_ERROR)
+def hdf5_clear_status(filename: str) -> bool:
+    """Run the :code:`h5clear filename` command if **filename** refuses to open."""
+    try:
+        with h5py.File(filename, 'r+', libver='latest'):
+            return True
+    except OSError:
+        subprocess.run(['h5clear', '-s', 'repr(filename)'])
+        return False
+
+
+@assert_error(H5PY_ERROR)
 def hdf5_availability(filename: str, timeout: float = 5.0,
                       max_attempts: Optional[int] = 10) -> None:
     """Check if a .hdf5 file is opened by another process; return once it is not.
@@ -329,12 +341,12 @@ def hdf5_availability(filename: str, timeout: float = 5.0,
         Raised if **max_attempts** is exceded.
 
     """
-    warning = "OSWarning: '{}' is currently unavailable; repeating attempt in {:.0f} seconds"
+    warning = "WARNING: '{}' is currently unavailable; repeating attempt in {:.0f} seconds"
     i = max_attempts or np.inf
 
     while i:
         try:
-            with h5py.File(filename, 'r+', libver='latest') as _:
+            with h5py.File(filename, 'r+', libver='latest'):
                 return  # the .hdf5 file can safely be opened
         except OSError as ex:  # the .hdf5 file cannot be safely opened yet
             print((warning).format(filename, timeout))
@@ -405,6 +417,9 @@ def _xyz_to_hdf5(filename: str, omega: int,
         All to-be exported :class:`MultiMolecule` instance(s) or float (*e.g.* ``np.nan``).
 
     """
+    # Check if the hdf5 file is already opened. If opened: wait for 5 sec and try again.
+    hdf5_availability(filename)
+
     with h5py.File(filename, 'r+', libver='latest') as f:
         if not isinstance(mol_list, abc.Iterable):  # Check if mol_list is a scalar (np.nan)
             i = 0
