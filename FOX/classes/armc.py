@@ -21,15 +21,17 @@ API
 
 import os
 import io
+import logging
 from typing import Tuple, Dict, Any, Optional, Iterable, Callable, Mapping, Union, AnyStr
-from contextlib import AbstractContextManager
+from contextlib import AbstractContextManager, redirect_stdout
 
 import yaml
 import numpy as np
 
-from scm.plams import init, finish, config, Settings, log
+from scm.plams import init, finish, config, Settings
 
 from .monte_carlo import MonteCarlo
+from ..logger import Plams2Logger, get_logger
 from ..io.hdf5_utils import create_hdf5, to_hdf5, create_xyz_hdf5, _get_filename_xyz
 from ..io.file_container import NullContext
 from ..functions.utils import get_template
@@ -80,15 +82,39 @@ def run_armc(armc: 'ARMC',
 
     # Initialize the ARMC procedure
     with Init(path=path, folder=folder):
-        if logfile is not None:
-            config.default_jobmanager.logfile = logfile
-            config.log.file = 3
+        armc.logger = _get_armc_logger(logfile, armc.__class__.__name__)
+        writer = Plams2Logger(armc.logger,
+                              lambda n: 'STARTED' in n,
+                              lambda n: 'Renaming' in n,
+                              lambda n: 'Trying to obtain results of crashed or failed job' in n)
 
-        # To restart or not? That's the question
-        if not restart:
-            armc()
-        else:
-            armc.restart()
+        with redirect_stdout(writer):
+            if not restart:  # To restart or not? That's the question
+                armc()
+            else:
+                armc.restart()
+
+
+def _get_armc_logger(logfile: Optional[str], name: str, **kwargs) -> logging.Logger:
+    """Substitute the PLAMS .log file for one created by a :class:`Logger<logging.Logger>`."""
+    # Define filenames
+    plams_logfile = config.default_jobmanager.logfile
+    logfile = os.path.abspath(logfile) if logfile is not None else plams_logfile
+
+    # Modify the plams logger
+    config.log.time = False
+    config.log.file = 0
+
+    # Replace the plams logger with a proper logging.Logger instance
+    os.remove(plams_logfile)
+    logger = get_logger(name, filename=logfile, **kwargs)
+    if plams_logfile != logfile:
+        try:
+            os.symlink(logfile, plams_logfile)
+        except OSError:
+            pass
+
+    return logger
 
 
 class ARMC(MonteCarlo):
@@ -264,12 +290,16 @@ class ARMC(MonteCarlo):
 
             key_new = self._get_first_key()  # Initialize the first MD calculation
             if np.inf in self[key_new]:
-                raise RuntimeError('One or more jobs crashed in the first ARMC iteration; '
-                                   'manual inspection of the cp2k output is recomended')
+                ex = RuntimeError('One or more jobs crashed in the first ARMC iteration; '
+                                  'manual inspection of the cp2k output is recomended')
+                self.logger.critical(f'{ex.__class__.__name__}: {ex}', exc_info=True)
+                raise ex
             self.clear_job_cache()
 
         elif key_new is None:
-            raise TypeError("'key_new' cannot be 'None' if 'start' is larger than 0")
+            ex = TypeError("'key_new' cannot be 'None' if 'start' is larger than 0")
+            self.logger.critical(f'{ex.__class__.__name__}: {ex}', exc_info=True)
+            raise ex
 
         # Start the main loop
         for kappa in range(start, self.super_iter_len):
@@ -313,14 +343,19 @@ class ARMC(MonteCarlo):
         # Step 3: Evaluate the auxiliary error; accept if the new parameter set lowers the error
         aux_new = self.get_aux_error(pes_new)
         aux_old = self[key_old]
-        accept = (aux_new - aux_old).sum() < 0
+        error_change = (aux_new - aux_old).sum()
+        accept = error_change < 0
 
         # Step 4: Update the auxiliary error history, apply phi & update job settings
         acceptance[omega] = accept
         if accept:
+            self.logger.info(f"Accepting move {(kappa, omega)}; "
+                             f"total error change: {round(error_change, 4)}\n")
             self[key_new] = self.apply_phi(aux_new, self.phi)
             self.param['param_old'] = self.param['param']
         else:
+            self.logger.info(f"Rejecting move {(kappa, omega)}; "
+                             f"total error change: {round(error_change, 4)}\n")
             self[key_new] = aux_new
             self[key_old] = self.apply_phi(aux_old, self.phi)
             key_new = key_old
@@ -457,7 +492,9 @@ class ARMC(MonteCarlo):
 
         """
         sign = np.sign(self.a_target - np.mean(acceptance))
+        phi_old = self.phi
         self.phi *= self.gamma**sign
+        self.logger.info(f"Updating phi: {phi_old} -> {self.phi}")
 
     def restart(self) -> None:
         r"""Restart a previously started Addaptive Rate Monte Carlo procedure."""
@@ -468,7 +505,8 @@ class ARMC(MonteCarlo):
             i, j = f.attrs['super-iteration'], f.attrs['sub-iteration']
             if i < 0:
                 raise ValueError(f'i: {i.__class__.__name__} = {i}')
-            log(f'Restarting ARMC procedure from super-iteration {i} & sub-iteration {j}', level=1)
+            self.logger.info('Restarting ARMC procedure from super-iteration '
+                             f'{i} & sub-iteration {j}')
 
             self.phi = f['phi'][i]
             self.param['param'] = self.param['param_old'] = f['param'][i, j]

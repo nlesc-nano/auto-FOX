@@ -52,21 +52,23 @@ import numpy as np
 import pandas as pd
 from pandas.core.generic import NDFrame
 
-from scm.plams import Settings, Molecule
+from scm.plams import Settings
 
-from ..functions.utils import get_shape, assert_error, array_to_index
+from ..functions.utils import get_shape, assert_error, array_to_index, group_by_values
 
 try:
     import h5py
     __all__ = ['create_hdf5', 'create_xyz_hdf5', 'to_hdf5', 'from_hdf5']
-    H5pyFile = h5py.File
-    H5PY_ERROR = None
+    H5pyFile: Union[type, str] = h5py.File
+    H5PY_ERROR: Optional[str] = None
 except ImportError:
     __all__ = []
-    H5pyFile = 'h5py.File'
-    H5PY_ERROR = ("Use of the FOX.{} function requires the 'h5py' package."
-                  "\n'h5py' can be installed via anaconda with the following command:"
-                  "\n\tconda install --name FOX -y -c conda-forge h5py")
+    H5pyFile: Union[type, str] = 'h5py.File'
+    H5PY_ERROR: Optional[str] = (
+        "Use of the FOX.{} function requires the 'h5py' package."
+        "\n'h5py' can be installed via anaconda with the following command:"
+        "\n\tconda install --name FOX -y -c conda-forge h5py"
+    )
 
 
 """################################### Creating .hdf5 files ####################################"""
@@ -129,8 +131,8 @@ def create_hdf5(filename: str, armc: 'FOX.ARMC') -> None:
 
 
 @assert_error(H5PY_ERROR)
-def create_xyz_hdf5(filename: str, mol_list: Iterable[Molecule], iter_len: int) -> None:
-    """Create the ``"xyz"`` dataset for :func:`create_hdf5` in the hdf5 file ``filename+".xyz"``.
+def create_xyz_hdf5(filename: str, mol_list: Iterable['FOX.MultiMolecule'], iter_len: int) -> None:
+    """Create the ``"xyz"`` datasets for :func:`create_hdf5` in the hdf5 file ``filename+".xyz"``.
 
     The ``"xyz"`` dataset is to contain Cartesian coordinates collected over the course of the
     current ARMC super-iteration.
@@ -141,11 +143,12 @@ def create_xyz_hdf5(filename: str, mol_list: Iterable[Molecule], iter_len: int) 
         The path+filename of the hdf5 file.
         **filename** will be appended with ``".xyz"``.
 
-    mol_list : |list|_ [|plams.Molecule|_]
-        An iterable consisting of PLAMS Molecule(s).
+    mol_list : :class:`Iterable<collections.abc.Iterable>` [:class:`MultiMolecule`]
+        An iterable consisting of MultiMolecule instances.
 
     iter_len: int
         The length of an ARMC sub-iterations.
+        Determines how many MD trajectories can be stored in the .hdf5 file.
 
     """
     # Prepare hdf5 dataset arguments
@@ -168,8 +171,16 @@ def create_xyz_hdf5(filename: str, mol_list: Iterable[Molecule], iter_len: int) 
     with h5py.File(filename_xyz, 'w-', libver='latest') as f:
         for i, kwargs in enumerate(kwarg_list):
             key = f'xyz.{i}'
-            f.create_dataset(name=key, compression='gzip', **kwargs)
-            f[key].attrs['atoms'] = np.array([at.symbol for at in mol], dtype='S')
+            f.create_dataset(
+                name=key,
+                compression='gzip',
+                shape=(iter_len, 0, mol.shape[1], 3),
+                dtype=float,
+                maxshape=(iter_len, None, mol.shape[1], 3),
+                fillvalue=np.nan
+            )
+            f[key].attrs['atoms'] = mol.symbol.astype('S')
+            f[key].attrs['bonds'] = mol.bonds
 
 
 @assert_error(H5PY_ERROR)
@@ -253,17 +264,21 @@ def _get_kwarg_dict(armc: 'FOX.ARMC') -> Settings:
     ret = Settings()
     ret.phi.shape = (shape[0], )
     ret.phi.dtype = float
+    ret.phi.fillvalue = np.nan
 
     ret.param.shape = shape + (len(armc.param), )
     ret.param.dtype = float
+    ret.param.fillvalue = np.nan
 
     ret.acceptance.shape = shape
     ret.acceptance.dtype = bool
 
     ret.aux_error.shape = shape + (len(armc.molecule), len(armc.pes))
     ret.aux_error.dtype = float
+    ret.aux_error.fillvalue = np.nan
     ret.aux_error_mod.shape = shape + (1 + len(armc.param), )
     ret.aux_error_mod.dtype = float
+    ret.aux_error_mod.fillvalue = np.nan
 
     for _key, partial_list in armc.pes.items():
         for i, partial in enumerate(partial_list):
@@ -272,10 +287,12 @@ def _get_kwarg_dict(armc: 'FOX.ARMC') -> Settings:
 
             ret[key].shape = shape + get_shape(ref)
             ret[key].dtype = float
+            ret[key].fillvalue = np.nan
 
             ret[key + '.ref'].shape = get_shape(ref)
             ret[key + '.ref'].dtype = float
             ret[key + '.ref'].data = ref
+            ret[key + '.ref'].fillvalue = np.nan
 
     return ret
 
@@ -701,3 +718,41 @@ def _aux_err_to_df(f: H5pyFile, key: Hashable) -> Union[pd.DataFrame, List[pd.Da
     ret = pd.DataFrame(data, columns=columns)
     ret.index.name = f[key].attrs['name'][0].decode()
     return ret
+
+
+Tuple3 = Tuple[np.ndarray, Dict[str, List[int]], np.ndarray]
+
+
+@assert_error(H5PY_ERROR)
+def mol_from_hdf5(filename: str, i: int = -1, j: int = 0) -> Tuple3:
+    """Read a single dataset from a (multi) .xyz.hdf5 file.
+
+    Returns values for the :class:`MultiMolecule` ``coords``, ``atoms`` and ``bonds`` parameters.
+
+    Parameters
+    ----------
+    filename : :class:`str`
+        The path+name of the .xyz.hdf5 file.
+
+    i : :class:`int`
+        The (sub-)iteration number of the to-be returned trajectory.
+
+    j : :class:`int`
+        The index of the to-be returned dataset.
+        For example: :code:`j=0`is equivalent to the :code:`'xyz.0'` dataset.
+
+    Returns
+    -------
+    :class:`numpy.ndarray`, :class:`dict` [:class:`str`, :class:`list` [:class:`int`]] and :class:`numpy.ndarray`.
+        * A 3D array with Cartesian coordinates of :math:`m` molecules with :math:`n` atoms.
+        * A dictionary with atomic symbols as keys and lists of matching atomic indices as values.
+        * A 2D array of bonds and bond-orders.
+
+    """  # noqa
+    with h5py.File(filename, 'r', libver='latest') as f:
+        dset = f[f'xyz.{j}']
+        return (
+            dset[i],
+            group_by_values(enumerate(dset.attrs['atoms'].astype(str).tolist())),
+            dset.attrs['bonds']
+        )
