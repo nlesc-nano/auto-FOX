@@ -554,8 +554,8 @@ if version_info.minor < 7:
         dct = vars(ret)
         for k, v in dct.items():
             try:
-                dct[k] = copy.deepcopy(v)
+                dct[k] = pycopy.deepcopy(v)
             except TypeError:
-                dct[k] = copy.copy(v)
+                dct[k] = pycopy.copy(v)
 
         return ret
