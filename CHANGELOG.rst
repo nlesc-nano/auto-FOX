@@ -5,6 +5,12 @@ Change Log
 All notable changes to this project will be documented in this file.
 This project adheres to `Semantic Versioning <http://semver.org/>`_.
 
+0.6.13
+******
+* Introduced a new logger; see https://github.com/nlesc-nano/auto-FOX/issues/33.
+* Change the fillvalue of all float-based .hdf5 Datasets to np.nan.
+* Atoms and bonds are now, again, properly stored in the .xyz.hdf5 file.
+
 
 0.6.12
 ******

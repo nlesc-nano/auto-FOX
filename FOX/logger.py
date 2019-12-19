@@ -71,7 +71,7 @@ def get_logger(name: str,
     \**kwargs : :data:`Any<typing.Any>`
         Further keyword arguments specific to the provided **handler_type**.
         The relevant arguments for :class:`FileHandler<logging.FileHandler>` are
-        ``filename``, ``mode``, ``encoding`` and ``delay``.
+        ``filename`` (positional), ``mode``, ``encoding`` and ``delay``.
 
     Returns
     -------
@@ -129,10 +129,14 @@ class Plams2Logger:
     """  # noqa
 
     @property
-    def info(self) -> logging.Logger.info: return self.logger.info
+    def info(self) -> Callable[[str], None]:
+        """Return the :meth:`Logger.info<logging.Logger.info>` method of :attr:`Plams2Logger.logger.`."""  # noqa
+        return self.logger.info
 
     @property
-    def warning(self) -> logging.Logger.warning: return self.logger.warning
+    def warning(self) -> Callable[[str], None]:
+        """Return the :meth:`Logger.warning<logging.Logger.warning>` method of :attr:`Plams2Logger.logger.`."""  # noqa
+        return self.logger.warning
 
     def __init__(self, logger: logging.Logger, *filters: Callable[[str], bool]) -> None:
         self.logger = logger
@@ -147,10 +151,10 @@ class Plams2Logger:
             if func(item):
                 return
 
-        if 'WARNING: Job' in item:  # Remove the prepended 'WARNING'
+        if 'WARNING: ' in item:  # Remove the prepended 'WARNING'
             item = item[9:]
             self.warning(item)
-        elif 'CRASHED' in item:
+        elif 'CRASHED' in item or 'Obtaining results of' in item:
             self.warning(item)
         else:
             self.info(item)

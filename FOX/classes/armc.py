@@ -83,7 +83,10 @@ def run_armc(armc: 'ARMC',
     # Initialize the ARMC procedure
     with Init(path=path, folder=folder):
         armc.logger = _get_armc_logger(logfile, armc.__class__.__name__)
-        writer = Plams2Logger(armc.logger, lambda n: 'STARTED' in n, lambda n: 'Renaming' in n)
+        writer = Plams2Logger(armc.logger,
+                              lambda n: 'STARTED' in n,
+                              lambda n: 'Renaming' in n,
+                              lambda n: 'Trying to obtain results of crashed or failed job' in n)
 
         with redirect_stdout(writer):
             if not restart:  # To restart or not? That's the question
