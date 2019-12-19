@@ -32,7 +32,9 @@ from scm.plams import init, finish, config, Settings
 
 from .monte_carlo import MonteCarlo
 from ..logger import Plams2Logger, get_logger
-from ..io.hdf5_utils import create_hdf5, to_hdf5, create_xyz_hdf5, _get_filename_xyz
+from ..io.hdf5_utils import (
+    create_hdf5, to_hdf5, create_xyz_hdf5, _get_filename_xyz, hdf5_clear_status
+)
 from ..io.file_container import NullContext
 from ..functions.utils import get_template
 from ..armc_functions.sanitization import init_armc_sanitization
@@ -519,6 +521,16 @@ class ARMC(MonteCarlo):
         xyz = _get_filename_xyz(self.hdf5_file)
         if not os.path.isfile(xyz):
             create_xyz_hdf5(self.hdf5_file, self.molecule, iter_len=self.sub_iter_len)
+
+        # Check that both .hdf5 files can be opened; clear their status if not
+        closed = hdf5_clear_status(xyz)
+        if not closed:
+            self.logger.warning(f"Unable to open ...{os.sep}{os.path.basename(xyz)}, "
+                                "file status was forcibly reset")
+        closed = hdf5_clear_status(self.hdf5_file)
+        if not closed:
+            self.logger.warning(f"Unable to open ...{os.sep}{os.path.basename(self.hdf5_file)}, "
+                                "file status was forcibly reset")
 
         # Finish the current set of sub-iterations
         j += 1
