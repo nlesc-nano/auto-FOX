@@ -341,7 +341,7 @@ def hdf5_availability(filename: str, timeout: float = 5.0,
         Raised if **max_attempts** is exceded.
 
     """
-    warning = "OSWarning: '{}' is currently unavailable; repeating attempt in {:.0f} seconds"
+    warning = "WARNING: '{}' is currently unavailable; repeating attempt in {:.0f} seconds"
     i = max_attempts or np.inf
 
     while i:
