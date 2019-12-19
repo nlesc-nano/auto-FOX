@@ -20,6 +20,7 @@ API
 """
 
 import shutil
+import logging
 import functools
 from types import MappingProxyType
 from itertools import repeat
@@ -37,6 +38,7 @@ from scm.plams.core.basejob import Job
 from assertionlib.dataclass import AbstractDataClass
 
 from .multi_mol import MultiMolecule
+from ..logger import get_logger
 from ..functions.utils import _get_move_range
 from ..functions.charge_utils import update_charge
 
@@ -114,6 +116,18 @@ class MonteCarlo(AbstractDataClass, abc.Mapping):
         except AttributeError:  # A functools.partial object
             return self.job_type.func.__name__.lower()
 
+    @property
+    def logger(self) -> logging.Logger:
+        """Get or set the logger."""
+        return self._logger
+
+    @logger.setter
+    def logger(self, value: Optional[logging.Logger]) -> None:
+        if value is not None:
+            self._logger = value
+        else:
+            self._logger = get_logger(self.__class__.__name__, handler_type=logging.StreamHandler)
+
     _PRIVATE_ATTR = frozenset('_plams_molecule')
 
     def __init__(self, molecule: Union[MultiMolecule, Iterable[MultiMolecule]],
@@ -125,7 +139,8 @@ class MonteCarlo(AbstractDataClass, abc.Mapping):
                  hdf5_file: str = 'ARMC.hdf5',
                  apply_move: Callable[[float, float], float] = np.multiply,
                  move_range: Optional[np.ndarray] = None,
-                 keep_files: bool = False) -> None:
+                 keep_files: bool = False,
+                 logger: Optional[logging.Logger] = None) -> None:
         """Initialize a :class:`MonteCarlo` instance."""
         super().__init__()
 
@@ -147,6 +162,9 @@ class MonteCarlo(AbstractDataClass, abc.Mapping):
         # Settings for generating Monte Carlo moves
         self.apply_move: Callable[[float, float], float] = apply_move
         self.move_range = move_range
+
+        # Logging settings
+        self.logger = logger
 
         # Internally set attributes
         self.history_dict = {}
@@ -309,6 +327,7 @@ class MonteCarlo(AbstractDataClass, abc.Mapping):
 
         # Ensure that the moved value does not exceed the user-specified minimum and maximum
         value = self.clip_move(idx, _value)
+        self.logger.info(f"Moving {idx[0]} ({idx[1]}): {x1:.4f} -> {value:.4f}")
 
         # Enforce all user-specified constraints
         param_type, atom = idx
@@ -385,6 +404,7 @@ class MonteCarlo(AbstractDataClass, abc.Mapping):
         # Preoptimize
         mol_list = []
         for job in job_list:
+            job.name += '.opt'
             self.job_cache.append(job)
             results = job.run()
             try:  # Construct and return a MultiMolecule object
@@ -423,6 +443,7 @@ class MonteCarlo(AbstractDataClass, abc.Mapping):
         # Run MD
         mol_list = []
         for job in jobs:
+            job.name += '.MD'
             self.job_cache.append(job)
             results = job.run()
             try:  # Construct and return a MultiMolecule object
