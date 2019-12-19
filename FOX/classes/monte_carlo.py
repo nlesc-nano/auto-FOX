@@ -22,6 +22,8 @@ API
 import shutil
 import logging
 import functools
+from sys import version_info
+from copy import deepcopy
 from types import MappingProxyType
 from itertools import repeat
 from collections import abc
@@ -539,3 +541,15 @@ class MonteCarlo(AbstractDataClass, abc.Mapping):
             self.clear_job_cache()
 
         return ret, mol_list
+
+
+# Fix for TypeErrors raised during deep copying prior to python 3.7
+if version_info.minor < 7:
+    @add_to_class(MonteCarlo)
+    def copy(self, deep: bool = False) -> MonteCarlo:
+        ret = super().copy(deep=False)
+        if not deep:
+            return ret
+
+        ret.__dict__ = {k: (deepcopy(v) if k != 'logger' else v) for k, v in vars(ret).items()}
+        return ret
