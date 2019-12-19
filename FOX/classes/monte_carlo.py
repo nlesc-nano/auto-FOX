@@ -547,7 +547,7 @@ class MonteCarlo(AbstractDataClass, abc.Mapping):
 if version_info.minor < 7:
     @add_to_class(MonteCarlo)
     def copy(self, deep: bool = False) -> MonteCarlo:
-        ret = super().copy(deep=False)
+        ret = AbstractDataClass.copy(self, deep=False)
         if not deep:
             return ret
 
