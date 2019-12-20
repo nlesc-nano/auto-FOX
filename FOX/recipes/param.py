@@ -74,6 +74,22 @@ An workflow for plotting parameters as a function of ARMC iterations.
     :scale: 20 %
     :align: center
 
+This approach can also be used for the plotting of other properties such as the auxiliary error.
+
+.. code:: python
+
+    >>> ...
+
+    >>> err: pd.DataFrame = from_hdf5(hdf5_file, 'aux_error')
+    >>> err.index.name = 'ARMC iteration'
+    >>> err_dict = {'Auxiliary Error': err}
+
+    >>> plot_descriptor(err_dict)
+
+.. image:: err.png
+    :scale: 20 %
+    :align: center
+
 
 Index
 -----
@@ -236,14 +252,13 @@ def plot_descriptor(descriptor: Union[NDFrame, Iterable[NDFrame]],
         overlay it with the reference PES descriptor.
 
     """  # noqa
+    # Convert pd.Series into pd.DataFrame
     if isinstance(descriptor, pd.Series):
         descriptor = descriptor.to_frame()
 
-    if isinstance(descriptor, pd.DataFrame):
-        ncols = len(descriptor.columns)
-        iterator = descriptor.items()
-    elif isinstance(descriptor, abc.Mapping):
-        ncols = len(descriptor)
+    # Figure out the number of plots and construct an iterator of 2-tuples
+    if isinstance(descriptor, (abc.Mapping, pd.DataFrame)):
+        ncols = len(descriptor.keys())
         iterator = descriptor.items()
     else:
         try:
@@ -254,8 +269,11 @@ def plot_descriptor(descriptor: Union[NDFrame, Iterable[NDFrame]],
         iterator = enumerate(descriptor)
 
     figsize = (4 * ncols, 6)
-
     fig, ax_tup = plt.subplots(ncols=ncols, sharex=True, sharey=False)
+    if ncols == 1:  # Ensure ax_tup is actually a tuple
+        ax_tup = (ax_tup,)
+
+    # Construct the actual plots
     for (key, df), ax in zip(iterator, ax_tup):
         if isinstance(key, tuple):
             key = ' '.join(repr(i) for i in key)
