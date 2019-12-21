@@ -28,10 +28,6 @@ from typing import (
 import numpy as np
 import pandas as pd
 from scipy import constants
-try:
-    from scipy.signal import fftconvolve
-except RecursionError as ex:  # Importing fftconvolve() has a tendancy of raising RecursionErrors
-    fftconvolve = ex
 from scipy.spatial import cKDTree
 from scipy.fftpack import fft
 from scipy.spatial.distance import cdist
@@ -48,9 +44,9 @@ from ..functions.molecule_utils import fix_bond_orders, separate_mod
 
 try:
     import dask
-    DASK_EX: Optional[ImportError] = None
-except ImportError as ex:
-    DASK_EX: Optional[ImportError] = ex
+    DASK_EX: Optional[Exception] = None
+except Exception as ex:
+    DASK_EX: Optional[Exception] = ex
 
 __all__ = ['MultiMolecule']
 
@@ -1377,8 +1373,7 @@ class MultiMolecule(_MultiMolecule):
             **atom_subset**.
 
         """
-        if isinstance(fftconvolve, RecursionError):
-            raise fftconvolve
+        from scipy.signal import fftconvolve
 
         # Get atomic velocities
         v = self.get_velocity(1e-15, mol_subset=mol_subset, atom_subset=atom_subset)  # A / s
