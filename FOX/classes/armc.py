@@ -517,6 +517,19 @@ class ARMC(MonteCarlo):
                 self[key] = err
             acceptance = f['acceptance'][i]
 
+            # Find the last error which is not np.nan
+            i_ = i
+            while np.isnan(err):
+                if i_ < 0:
+                    raise RuntimeError('Not a single successful MD-calculation was found; '
+                                       'restarting is not possible')
+                aux_error = f['aux_error'][i_]
+                aux_nan = np.isnan(aux_error)
+                try:
+                    err = aux_error[~aux_nan][-1]
+                except IndexError:
+                    i_ -= 1
+
         # Validate the xyz .hdf5 file; create a new one if required
         xyz = _get_filename_xyz(self.hdf5_file)
         if not os.path.isfile(xyz):

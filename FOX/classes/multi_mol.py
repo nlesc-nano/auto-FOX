@@ -57,7 +57,7 @@ AtomSubset = Union[
 
 
 def neg_exp(x: np.ndarray) -> np.ndarray:
-    """Return :math:`e^{-x}`"""
+    """Return :math:`e^{-x}`."""
     return np.exp(-x)
 
 
