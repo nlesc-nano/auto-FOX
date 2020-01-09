@@ -524,11 +524,14 @@ class ARMC(MonteCarlo):
                     raise RuntimeError('Not a single successful MD-calculation was found; '
                                        'restarting is not possible')
                 aux_error = f['aux_error'][i_]
+                param_old = f['param'][i_]
                 aux_nan = np.isnan(aux_error)
                 try:
-                    err = aux_error[~aux_nan][-1]
+                    key = param_old[~aux_nan][-1]
                 except IndexError:
                     i_ -= 1
+                else:
+                    err = aux_error[~aux_nan][-1]  # Its no longer np.nan
 
         # Validate the xyz .hdf5 file; create a new one if required
         xyz = _get_filename_xyz(self.hdf5_file)
