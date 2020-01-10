@@ -527,7 +527,7 @@ class ARMC(MonteCarlo):
                 param_old = f['param'][i_]
                 aux_nan = np.isnan(aux_error).any(axis=(1, 2))
                 try:
-                    key = param_old[~aux_nan][-1]
+                    key = tuple(param_old[~aux_nan][-1])
                 except IndexError:
                     i_ -= 1
                 else:
