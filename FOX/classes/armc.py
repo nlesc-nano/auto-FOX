@@ -525,7 +525,7 @@ class ARMC(MonteCarlo):
                                        'restarting is not possible')
                 aux_error = f['aux_error'][i_]
                 param_old = f['param'][i_]
-                aux_nan = np.isnan(aux_error)
+                aux_nan = np.isnan(aux_error).any(axis=(1, 2))
                 try:
                     key = param_old[~aux_nan][-1]
                 except IndexError:
