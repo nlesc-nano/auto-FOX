@@ -519,7 +519,7 @@ class ARMC(MonteCarlo):
 
             # Find the last error which is not np.nan
             i_ = i
-            while np.isnan(err):
+            while np.isnan(err).any():
                 if i_ < 0:
                     raise RuntimeError('Not a single successful MD-calculation was found; '
                                        'restarting is not possible')
