@@ -152,17 +152,6 @@ def create_xyz_hdf5(filename: str, mol_list: Iterable['FOX.MultiMolecule'], iter
         Determines how many MD trajectories can be stored in the .hdf5 file.
 
     """
-    # Prepare hdf5 dataset arguments
-    kwarg_list = []
-    for mol in mol_list:
-        kwarg = {
-            'shape': (iter_len, 0, mol.shape[1], 3),
-            'dtype': float,
-            'maxshape': (iter_len, None, mol.shape[1], 3),
-            'fillvalue': np.nan
-        }
-        kwarg_list.append(kwarg)
-
     # Remove previous hdf5 xyz files
     filename_xyz = _get_filename_xyz(filename)
     if isfile(filename_xyz):
@@ -170,13 +159,13 @@ def create_xyz_hdf5(filename: str, mol_list: Iterable['FOX.MultiMolecule'], iter
 
     # Create a new hdf5 xyz files
     with h5py.File(filename_xyz, 'w-', libver='latest') as f:
-        for i, kwargs in enumerate(kwarg_list):
+        for i, mol in enumerate(mol_list):
             key = f'xyz.{i}'
             f.create_dataset(
                 name=key,
                 compression='gzip',
                 shape=(iter_len, 0, mol.shape[1], 3),
-                dtype=float,
+                dtype=np.dtype('float16'),
                 maxshape=(iter_len, None, mol.shape[1], 3),
                 fillvalue=np.nan
             )
