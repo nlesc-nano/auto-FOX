@@ -88,7 +88,10 @@ def read_multi_xyz(filename: str,
     shape = int(mol_count), atom_count, 3
     with open(filename, 'r') as f:
         iterator = chain.from_iterable(_xyz_generator(f, atom_count))
-        xyz = np.fromiter(iterator, dtype=float, count=np.product(shape))
+        try:
+            xyz = np.fromiter(iterator, dtype=float, count=np.product(shape))
+        except ValueError as ex:  # Failed to parse the .xyz file
+            raise XYZError(str(ex)).with_traceback(ex.__traceback__)
     xyz.shape = shape  # From 1D to 3D array
 
     if return_comment:

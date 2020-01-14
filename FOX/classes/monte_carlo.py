@@ -19,6 +19,7 @@ API
 
 """
 
+import os
 import copy as pycopy
 import shutil
 import logging
@@ -41,6 +42,7 @@ from assertionlib.dataclass import AbstractDataClass
 
 from .multi_mol import MultiMolecule
 from ..logger import get_logger
+from ..io.read_xyz import XYZError
 from ..functions.utils import _get_move_range
 from ..functions.charge_utils import update_charge
 
@@ -178,6 +180,8 @@ class MonteCarlo(AbstractDataClass, abc.Mapping):
         iterator = ((k.strip('_'), v) for k, v in super()._str_iterator())
         return sorted(iterator)
 
+    def __eq__(self, value: Any) -> bool: return object.__eq__(self, value)
+
     # Ensure compatibility with collections.abc.Mapping
 
     def __setitem__(self, key: Hashable, value: Any) -> None:
@@ -199,8 +203,6 @@ class MonteCarlo(AbstractDataClass, abc.Mapping):
     def __contains__(self, key: Hashable) -> bool:
         """Return whether or not :attr:`MonteCarlo.history_dict` contains the specified key."""
         return key in self.history_dict
-
-    def __eq__(self, value: Any) -> bool: return object.__eq__(self, value)
 
     def keys(self) -> KeysView:
         """Return a view of :attr:`MonteCarlo.history_dict`'s keys."""
@@ -449,9 +451,13 @@ class MonteCarlo(AbstractDataClass, abc.Mapping):
             self.job_cache.append(job)
             results = job.run()
             try:  # Construct and return a MultiMolecule object
-                mol = MultiMolecule.from_xyz(results.get_xyz_path())
+                path = results.get_xyz_path()
+                mol = MultiMolecule.from_xyz()
                 mol.round(3)
             except TypeError:  # The MD simulation crashed
+                return None
+            except XYZError:  # The .xyz file is unreadable for some reason
+                self.logger.warning(f"Failed to parse ...{os.sep}{os.path.basename(path)}")
                 return None
 
             mol_list.append(mol)
