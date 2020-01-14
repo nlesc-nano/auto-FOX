@@ -452,7 +452,7 @@ class MonteCarlo(AbstractDataClass, abc.Mapping):
             results = job.run()
             try:  # Construct and return a MultiMolecule object
                 path = results.get_xyz_path()
-                mol = MultiMolecule.from_xyz()
+                mol = MultiMolecule.from_xyz(path)
                 mol.round(3)
             except TypeError:  # The MD simulation crashed
                 return None
