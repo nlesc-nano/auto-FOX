@@ -143,6 +143,7 @@ class Plams2Logger:
         self.filters = filters
 
     def write(self, item: str) -> None:
+        """Write **item** to the logger."""
         if item == '\n':  # Empty string
             return
 
@@ -158,3 +159,7 @@ class Plams2Logger:
             self.warning(item)
         else:
             self.info(item)
+
+    def flush(self) -> None:
+        """Dummy method for ensuring this instances' compatibility as a pseudo-filelike object."""
+        return None
