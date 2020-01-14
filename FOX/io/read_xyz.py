@@ -30,7 +30,7 @@ API
 
 import os
 import reprlib
-from typing import Tuple, Dict, Iterable, List, Union, Iterator, Generator
+from typing import Tuple, Dict, Iterable, List, Union, Iterator, Generator, AnyStr
 from itertools import islice, chain
 
 import numpy as np
@@ -44,8 +44,11 @@ class XYZError(OSError):
     """Raise when there are issues related to parsing .xyz files."""
 
 
-def read_multi_xyz(filename: str,
-                   return_comment: bool = True) -> Tuple[np.ndarray, Dict[str, List[int]]]:
+XYZoutput = Union[Tuple[np.ndarray, Dict[str, List[int]]],
+                  Tuple[np.ndarray, Dict[str, List[int]], np.ndarray]]
+
+
+def read_multi_xyz(filename: Union[AnyStr, os.PathLike], return_comment: bool = True) -> XYZoutput:
     r"""Read a (multi) .xyz file.
 
     Parameters
@@ -107,7 +110,7 @@ def _xyz_generator(f: Iterable[str], atom_count: int) -> Generator[Iterator[int]
         yield chain.from_iterable(at.split()[1:] for at in islice(f, 1, stop))
 
 
-def get_comments(filename: str, atom_count: int) -> np.ndarray:
+def get_comments(filename: Union[AnyStr, os.PathLike], atom_count: int) -> np.ndarray:
     """Read and returns all comment lines in an xyz file.
 
     A single comment line should be located under the atom count of each molecule.

@@ -43,9 +43,9 @@ API
 """
 
 import subprocess
-from os import remove
+from os import remove, PathLike
 from time import sleep
-from typing import Dict, Iterable, Optional, Union, Hashable, List, Tuple
+from typing import Dict, Iterable, Optional, Union, Hashable, List, Tuple, AnyStr
 from os.path import isfile
 from collections import abc
 
@@ -76,7 +76,7 @@ except ImportError:
 
 
 @assert_error(H5PY_ERROR)
-def create_hdf5(filename: str, armc: 'FOX.ARMC') -> None:
+def create_hdf5(filename: Union[AnyStr, PathLike], armc: 'FOX.ARMC') -> None:
     r"""Create a hdf5 file to hold all addaptive rate Mone Carlo results (:class:`FOX.ARMC`).
 
     Datasets are created to hold a number of results following results over the course of the
@@ -132,7 +132,8 @@ def create_hdf5(filename: str, armc: 'FOX.ARMC') -> None:
 
 
 @assert_error(H5PY_ERROR)
-def create_xyz_hdf5(filename: str, mol_list: Iterable['FOX.MultiMolecule'], iter_len: int) -> None:
+def create_xyz_hdf5(filename: Union[AnyStr, PathLike],
+                    mol_list: Iterable['FOX.MultiMolecule'], iter_len: int) -> None:
     """Create the ``"xyz"`` datasets for :func:`create_hdf5` in the hdf5 file ``filename+".xyz"``.
 
     The ``"xyz"`` dataset is to contain Cartesian coordinates collected over the course of the
@@ -174,7 +175,7 @@ def create_xyz_hdf5(filename: str, mol_list: Iterable['FOX.MultiMolecule'], iter
 
 
 @assert_error(H5PY_ERROR)
-def index_to_hdf5(filename: str, pd_dict: Dict[str, NDFrame]) -> None:
+def index_to_hdf5(filename: Union[AnyStr, PathLike], pd_dict: Dict[str, NDFrame]) -> None:
     """Store the ``index`` and ``columns`` / ``name`` attributes of **pd_dict** in hdf5 format.
 
     Attributes are exported for all dataframes/series in **pd_dict** and skipped otherwise.
@@ -291,7 +292,7 @@ def _get_kwarg_dict(armc: 'FOX.ARMC') -> Settings:
 
 
 @assert_error(H5PY_ERROR)
-def hdf5_clear_status(filename: str) -> bool:
+def hdf5_clear_status(filename: Union[AnyStr, PathLike]) -> bool:
     """Run the :code:`h5clear filename` command if **filename** refuses to open."""
     try:
         with h5py.File(filename, 'r+', libver='latest'):
@@ -302,7 +303,7 @@ def hdf5_clear_status(filename: str) -> bool:
 
 
 @assert_error(H5PY_ERROR)
-def hdf5_availability(filename: str, timeout: float = 5.0,
+def hdf5_availability(filename: Union[AnyStr, PathLike], timeout: float = 5.0,
                       max_attempts: Optional[int] = 10) -> None:
     """Check if a .hdf5 file is opened by another process; return once it is not.
 
@@ -346,7 +347,7 @@ def hdf5_availability(filename: str, timeout: float = 5.0,
 
 
 @assert_error(H5PY_ERROR)
-def to_hdf5(filename: str, dset_dict: Dict[str, np.ndarray],
+def to_hdf5(filename: Union[AnyStr, PathLike], dset_dict: Dict[str, np.ndarray],
             kappa: int, omega: int) -> None:
     r"""Export results from **dset_dict** to the hdf5 file **filename**.
 
@@ -390,7 +391,7 @@ def to_hdf5(filename: str, dset_dict: Dict[str, np.ndarray],
 
 
 @assert_error(H5PY_ERROR)
-def _xyz_to_hdf5(filename: str, omega: int,
+def _xyz_to_hdf5(filename: Union[AnyStr, PathLike], omega: int,
                  mol_list: Union[Iterable['FOX.MultiMolecule'], Iterable[float], float]) -> None:
     r"""Export **mol** to the hdf5 file **filename**.
 
@@ -440,7 +441,7 @@ DataSets = Union[None, Hashable, Iterable[Hashable]]
 
 
 @assert_error(H5PY_ERROR)
-def from_hdf5(filename: str,
+def from_hdf5(filename: Union[AnyStr, PathLike],
               datasets: DataSets = None) -> Union[NDFrame, Dict[Hashable, NDFrame]]:
     """Retrieve all user-specified datasets from **name**.
 
@@ -489,8 +490,7 @@ def from_hdf5(filename: str,
 
 
 @assert_error(H5PY_ERROR)
-def _get_dset(f: H5pyFile,
-              key: Hashable) -> Union[pd.Series, pd.DataFrame, List[pd.DataFrame]]:
+def _get_dset(f: H5pyFile, key: Hashable) -> Union[pd.Series, pd.DataFrame, List[pd.DataFrame]]:
     """Take a h5py dataset and convert it into either a Series or DataFrame.
 
     See :func:`FOX.dset_to_df` and :func:`FOX.dset_to_series` for more details.
@@ -571,7 +571,7 @@ def _get_xyz_dset(f: H5pyFile) -> Tuple[np.ndarray, Dict[str, List[int]]]:
 """###################################### hdf5 utilities #######################################"""
 
 
-def _get_filename_xyz(filename: str) -> str:
+def _get_filename_xyz(filename: Union[AnyStr, PathLike]) -> str:
     """Construct a filename for the xyz-containing .hdf5 file.
 
     Parameters
@@ -587,6 +587,11 @@ def _get_filename_xyz(filename: str) -> str:
         The filename of the xyz-containing .hdf5 file.
 
     """
+    if isinstance(filename, bytes):
+        filename = filename.decode()
+    elif isinstance(filename, PathLike):
+        filename = str(filename)
+
     if '.hdf5' in filename:
         return filename.replace('.hdf5', '.xyz.hdf5')
     return filename + '.xyz'
@@ -728,7 +733,7 @@ Tuple3 = Tuple[np.ndarray, Dict[str, List[int]], np.ndarray]
 
 
 @assert_error(H5PY_ERROR)
-def mol_from_hdf5(filename: str, i: int = -1, j: int = 0) -> Tuple3:
+def mol_from_hdf5(filename: Union[AnyStr, PathLike], i: int = -1, j: int = 0) -> Tuple3:
     """Read a single dataset from a (multi) .xyz.hdf5 file.
 
     Returns values for the :class:`MultiMolecule` ``coords``, ``atoms`` and ``bonds`` parameters.
