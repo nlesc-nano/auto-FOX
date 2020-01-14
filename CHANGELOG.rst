@@ -5,6 +5,23 @@ Change Log
 All notable changes to this project will be documented in this file.
 This project adheres to `Semantic Versioning <http://semver.org/>`_.
 
+
+0.6.14
+******
+* Fixed an issue where valid .xyz files were not properly read during the ARMC procedure.
+* Added a precaution against reading faulty .xyz files.
+* Fixed an issue where some of datasets in the armc.xyz.hdf5 file were of incorrect shape.
+* Change the datatype from the armc.xyz.hdf5's datasets from ``np.float64`` to ``np.float16``
+  in order to reduce disk space.
+* Added a precaution against reading faulty .xyz files.
+* https://github.com/nlesc-nano/auto-FOX/pull/60: .hdf5 files are now forcibly closed (if necessary)
+  upon restarting an ARMC procedure.
+* https://github.com/nlesc-nano/auto-FOX/pull/61: Updated the recipe examples;
+  ``plot_descriptor()`` no longer crashes when encountering a ``DataFrame()`` with a single column.
+* https://github.com/nlesc-nano/auto-FOX/pull/62 & https://github.com/nlesc-nano/auto-FOX/pull/63:
+  Ensure that the ARMC restarting starts from the last iteration whose error is not ``np.nan``.
+
+
 0.6.13
 ******
 * Introduced a new logger; see https://github.com/nlesc-nano/auto-FOX/issues/33.
