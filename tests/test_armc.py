@@ -92,7 +92,7 @@ def _dir_to_results(directory: Union[AnyStr, os.PathLike]) -> List[Tuple[Results
 def test_run_armc() -> None:
     """Test :func:`run_armc`."""
     try:
-        armc, job_kwarg = ARMC.from_yaml(PATH / 'run_armc.yaml')
+        armc, job_kwarg = ARMC.from_yaml(PATH / 'ligand_armc.yaml')
 
         results_list = _dir_to_results(PATH / 'results')
         armc.md_iterator = iter(results_list)
