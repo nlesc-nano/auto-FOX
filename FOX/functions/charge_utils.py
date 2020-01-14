@@ -173,19 +173,33 @@ def invert_partial_ufunc(ufunc: functools.partial) -> Callable:
 
 
 def assign_constraints(constraints: Union[str, Iterable[str]], param: pd.DataFrame, idx_key: str):
+    operator_set = {'>', '<', '>=', '<=', '*', '=='}
+
     # Parse integers and floats
-    constraints = [constraints] if isinstance(constraints, str) else constraints
-    constrain_list = [i.split() for i in constraints]
-    for i in constrain_list:
-        for j, k in enumerate(i):
+    if isinstance(constraints, str):
+        constraints = [constraints]
+
+    constrain_list = []
+    for item in constraints:
+        intersect = operator_set.intersection(item)  # Identify all operators
+        if not intersect:
+            continue
+
+        for i in intersect:  # Sanitize all operators
+            item = f' {i} '.join(item.split(i))
+
+        item_list = item.split()
+        for i, j in enumerate(item_list):  # Convert strings to floats where possible
             try:
-                i[j] = float(k)
+                item_list[i] = float(j)
             except ValueError:
                 pass
 
+        constrain_list.append(item_list)
+
     # Set values in **param**
     for constrain in constrain_list:
-        if '==' in i:
+        if '==' in constrain:
             _eq_constraints(constrain, param, idx_key)
         else:
             _gt_lt_constraints(constrain, param, idx_key)

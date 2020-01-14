@@ -322,7 +322,7 @@ class ARMC(MonteCarlo):
             The super-iteration, :math:`\kappa`, in :meth:`ARMC.__call__`.
 
         omega : int
-            The sub-iteration, :math:`\imega`, in :meth:`ARMC.__call__`.
+            The sub-iteration, :math:`\omega`, in :meth:`ARMC.__call__`.
 
         history_dict : |dict|_ [|tuple|_ [|float|_], |np.ndarray|_ [|np.float64|_]]
             A dictionary with parameters as keys and a list of PES descriptors as values.

@@ -1,12 +1,21 @@
 """A module for testing :class:`FOX.classes.armc.ARMC`."""
 
 import os
+import shutil
+from typing import Union, List, AnyStr, Tuple
 from pathlib import Path
+from os.path import isfile, isdir
 
+import dill
+import h5py
 import numpy as np
+
+from scm.plams import add_to_instance
+from scm.plams.core.results import Results
 from assertionlib import assertion
 
-from FOX import ARMC
+from FOX import ARMC, run_armc
+from FOX.armc_functions.monte_carlo_test import _md
 
 PATH = Path('tests') / 'test_files' / 'armc'
 
@@ -63,6 +72,55 @@ def test_to_yaml() -> None:
         assertion.allclose(armc1.a_target, armc2.a_target)
 
     finally:
-        os.remove(PATH / 'mol.0.xyz') if os.path.isfile(PATH / 'mol.0.xyz') else None
-        os.remove(PATH / 'mol.0.psf') if os.path.isfile(PATH / 'mol.0.psf') else None
-        os.remove(PATH / 'armc2.yaml') if os.path.isfile(PATH / 'armc2.yaml') else None
+        os.remove(PATH / 'mol.0.xyz') if isfile(PATH / 'mol.0.xyz') else None
+        os.remove(PATH / 'mol.0.psf') if isfile(PATH / 'mol.0.psf') else None
+        os.remove(PATH / 'armc2.yaml') if isfile(PATH / 'armc2.yaml') else None
+
+
+def _dir_to_results(directory: Union[AnyStr, os.PathLike]) -> List[Tuple[Results]]:
+    """Grab and return all :class:`Results` from **directory**."""
+    ret = []
+    ret_append = ret.append
+    for file in os.listdir(directory):
+        dill_path = Path(os.abspath(file)) / f'{file}.dill'
+        with open(dill_path, 'r') as f:
+            results = (dill.loads(f),)
+            ret_append(results)
+    return ret
+
+
+def test_run_armc() -> None:
+    """Test :func:`run_armc`."""
+    return None
+
+    try:
+        armc, job_kwarg = ARMC.from_yaml(PATH / 'ligand_armc.yaml')
+
+        results_list = _dir_to_results(PATH / 'results')
+        armc.md_iterator = iter(results_list)
+        add_to_instance(armc)(_md)
+
+        run_armc(armc, restart=False, **job_kwarg)
+
+        with h5py.File(PATH / 'run_armc.hdf5', 'r', libver='latest') as f:
+            for name, dset in f.items():
+                ar = dset[:]
+                ar_ref = np.load(PATH / f'{name}.npy')
+                if ar.dtype == float:
+                    np.testing.assert_allclose(ar, ar_ref, err_msg=f'Dataset name: {repr(name)}')
+                else:
+                    np.testing.assert_array_equal(ar, ar_ref, err_msg=f'Dataset name: {repr(name)}')
+
+        with h5py.File(PATH / 'run_armc.xyz.hdf5', 'r', libver='latest') as f:
+            for name, dset in f.items():
+                ar = dset[:]
+                assertion.eq(ar.dtype, np.dtype('float16'))
+                ar_ref = np.load(PATH / f'{name}.npy')
+                np.testing.assert_allclose(ar, ar_ref, err_msg=f'Dataset name: "{name}"')
+
+    finally:
+        os.remove(PATH / 'run_armc.hdf5') if isfile(PATH / 'run_armc.hdf5') else None
+        os.remove(PATH / 'run_armc.xyz.hdf5') if isfile(PATH / 'run_armc.xyz.hdf5') else None
+        os.remove(PATH / 'mol.0.psf') if isfile(PATH / 'mol.0.psf') else None
+        os.remove(PATH / 'armc.log') if isfile(PATH / 'armc.log') else None
+        shutil.rmtree(PATH / 'MM_MD_workdir') if isdir(PATH / 'MM_MD_workdir') else None
