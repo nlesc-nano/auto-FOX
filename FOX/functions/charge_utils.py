@@ -185,15 +185,17 @@ def assign_constraints(constraints: Union[str, Iterable[str]], param: pd.DataFra
         if not intersect:
             continue
 
-        for i in intersect:  # Sanitize all operators
-            item = f' {i} '.join(item.split(i))
+        for i in intersect:  # Sanitize all operators; ensure they are surrounded by spaces
+            item = item.replace(i, f' {i} ')
 
         item_list = item.split()
         for i, j in enumerate(item_list):  # Convert strings to floats where possible
             try:
-                item_list[i] = float(j)
+                float_j = float(j)
             except ValueError:
                 pass
+            else:
+                item_list[i] = float_j
 
         constrain_list.append(item_list)
 
@@ -206,7 +208,7 @@ def assign_constraints(constraints: Union[str, Iterable[str]], param: pd.DataFra
 
 
 _INVERT = MappingProxyType({'max': 'min', 'min': 'max'})
-_OPPERATOR_MAPPING = MappingProxyType({'<': 'min', '=<': 'min', '>': 'max', '>=': 'max'})
+_OPPERATOR_MAPPING = MappingProxyType({'<': 'min', '<=': 'min', '>': 'max', '>=': 'max'})
 
 
 def _gt_lt_constraints(constrain: list, param: pd.DataFrame, idx_key: str) -> None:

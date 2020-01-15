@@ -59,7 +59,7 @@ job:
                         csvr:
                             timecon: 1250
 
-hdf5_file: armc.hdf5
+hdf5_file: run_armc.hdf5
 
 armc:
     iter_len: 300

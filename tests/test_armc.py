@@ -102,21 +102,24 @@ def test_run_armc() -> None:
 
         run_armc(armc, restart=False, **job_kwarg)
 
-        with h5py.File(PATH / 'run_armc.hdf5', 'r', libver='latest') as f:
-            for name, dset in f.items():
+        path1, path2 = PATH / 'run_armc.hdf5', PATH / 'ref.hdf5'
+        with h5py.File(path1, 'r') as f1, h5py.File(path2, 'r') as f2:
+            for name, dset in f1.items():
                 ar = dset[:]
-                ar_ref = np.load(PATH / f'{name}.npy')
+                ar_ref = f2[name][:]
                 if ar.dtype == float:
                     np.testing.assert_allclose(ar, ar_ref, err_msg=f'Dataset name: {repr(name)}')
                 else:
                     np.testing.assert_array_equal(ar, ar_ref, err_msg=f'Dataset name: {repr(name)}')
 
-        with h5py.File(PATH / 'run_armc.xyz.hdf5', 'r', libver='latest') as f:
-            for name, dset in f.items():
-                ar = dset[:]
-                assertion.eq(ar.dtype, np.dtype('float16'))
-                ar_ref = np.load(PATH / f'{name}.npy')
-                np.testing.assert_allclose(ar, ar_ref, err_msg=f'Dataset name: "{name}"')
+        path3, path4 = PATH / 'run_armc.xyz.hdf5', PATH / 'ref.xyz.hdf5'
+        with h5py.File(path3, 'r') as f1, h5py.File(path4, 'r') as f2:
+            for name, dset in f1.items():
+                for i in range(10):
+                    ar = dset[i:10+i]
+                    assertion.eq(ar.dtype, np.dtype('float16'))
+                    ar_ref = f2[name][i:10+i]
+                    np.testing.assert_allclose(ar, ar_ref, err_msg=f'Dataset name: "{name}"')
 
     finally:
         os.remove(PATH / 'run_armc.hdf5') if isfile(PATH / 'run_armc.hdf5') else None
