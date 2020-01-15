@@ -7,11 +7,9 @@ Various functions/methods for the testing of :class:`.MonteCarlo` class.
 """
 
 import os
-from typing import List, Optional, Iterable, Tuple
+from typing import List, Optional, Iterable
 
-import numpy as np
-
-from FOX import MultiMolecule, ARMC
+from FOX import MultiMolecule
 from FOX.io.read_xyz import XYZError
 
 
@@ -79,32 +77,3 @@ def _md(self, mol_preopt: Iterable[MultiMolecule]) -> Optional[List[MultiMolecul
 
     self.job_cache = []
     return mol_list
-
-
-def do_inner(self, kappa: int, omega: int, acceptance: np.ndarray,
-             key_old: Tuple[float, ...]) -> Tuple[Tuple[float, ...], ...]:
-    r"""Run the inner loop of the :meth:`ARMC.__call__` method.
-
-    Parameters
-    ----------
-    kappa : int
-        The super-iteration, :math:`\kappa`, in :meth:`ARMC.__call__`.
-
-    omega : int
-        The sub-iteration, :math:`\omega`, in :meth:`ARMC.__call__`.
-
-    history_dict : |dict|_ [|tuple|_ [|float|_], |np.ndarray|_ [|np.float64|_]]
-        A dictionary with parameters as keys and a list of PES descriptors as values.
-
-    key_new : tuple [float]
-        A tuple with the latest set of forcefield parameters.
-
-    Returns
-    -------
-    |tuple|_ [|float|_]:
-        The latest set of parameters.
-
-    """
-    key_new = ARMC.do_inner(self, kappa, omega, acceptance, key_old)
-    ...  # Insert some testing function here
-    return key_new

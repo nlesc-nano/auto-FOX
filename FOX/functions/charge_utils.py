@@ -172,7 +172,8 @@ def invert_partial_ufunc(ufunc: functools.partial) -> Callable:
     return functools.partial(func, x2**-1)
 
 
-def assign_constraints(constraints: Union[str, Iterable[str]], param: pd.DataFrame, idx_key: str):
+def assign_constraints(constraints: Union[str, Iterable[str]],
+                       param: pd.DataFrame, idx_key: str) -> None:
     operator_set = {'>', '<', '>=', '<=', '*', '=='}
 
     # Parse integers and floats
@@ -207,11 +208,15 @@ def assign_constraints(constraints: Union[str, Iterable[str]], param: pd.DataFra
             _gt_lt_constraints(constrain, param, idx_key)
 
 
+#: Map ``"min"`` to ``"max"`` and *vice versa*.
 _INVERT = MappingProxyType({'max': 'min', 'min': 'max'})
+
+#: Map :math:`>`, :math:`<`, :math:`\ge` and :math:`\le` to either ``"min"`` or ``"max"``.
 _OPPERATOR_MAPPING = MappingProxyType({'<': 'min', '<=': 'min', '>': 'max', '>=': 'max'})
 
 
 def _gt_lt_constraints(constrain: list, param: pd.DataFrame, idx_key: str) -> None:
+    r"""Parse :math:`>`, :math:`<`, :math:`\ge` and :math:`\le`-type constraints."""
     for i, j in enumerate(constrain):
         if j not in _OPPERATOR_MAPPING:
             continue
@@ -223,7 +228,8 @@ def _gt_lt_constraints(constrain: list, param: pd.DataFrame, idx_key: str) -> No
         param.at[(idx_key, at), operator] = value
 
 
-def _find_float(iterable: Iterable[str]) -> Tuple[str, float]:
+def _find_float(iterable: Tuple[str, str]) -> Tuple[str, float]:
+    """Take an iterable of 2 strings and identify which element can be converted into a float."""
     i, j = iterable
     try:
         return j, float(i)
@@ -232,6 +238,7 @@ def _find_float(iterable: Iterable[str]) -> Tuple[str, float]:
 
 
 def _eq_constraints(constrain: list, param: pd.DataFrame, idx_key: str) -> None:
+    """Parse :math:`a = i * b`-type constraints."""
     constrain_dict: Dict[str, functools.partial] = {}
     constrain = ''.join(str(i) for i in constrain).split('==')
     iterator = iter(constrain)
