@@ -2,9 +2,9 @@
 
 import os
 import shutil
-from typing import Union, List, AnyStr, Tuple
+from typing import Union, Generator, AnyStr, Tuple
 from pathlib import Path
-from os.path import isfile, isdir
+from os.path import isfile, isdir, abspath
 
 import dill
 import h5py
@@ -77,45 +77,60 @@ def test_to_yaml() -> None:
         os.remove(PATH / 'armc2.yaml') if isfile(PATH / 'armc2.yaml') else None
 
 
-def _dir_to_results(directory: Union[AnyStr, os.PathLike]) -> List[Tuple[Results]]:
-    """Grab and return all :class:`Results` from **directory**."""
-    ret = []
-    ret_append = ret.append
-    for file in os.listdir(directory):
-        dill_path = Path(os.abspath(file)) / f'{file}.dill'
-        with open(dill_path, 'r') as f:
-            results = (dill.loads(f),)
-            ret_append(results)
-    return ret
+def _directory_sorter(name: str) -> int:
+    """Sort PLAMS output directories."""
+    try:
+        return int(name.rsplit('.', maxsplit=1)[1])
+    except ValueError:
+        return 0
+
+
+def _results_iter(directory: Union[AnyStr, os.PathLike]) -> Generator[Tuple[Results], None, None]:
+    """Grab and yield all :class:`Results` from **directory**."""
+    dir_abs = Path(abspath(directory))
+    for file in sorted(os.listdir(dir_abs), key=_directory_sorter):
+        dill_path = dir_abs / file / f'{file}.dill'
+        if not isfile(dill_path):
+            continue
+        with open(dill_path, 'rb') as f:
+            job = dill.load(f)
+            job.path = str(dir_abs / file)
+            yield (job.results,)
 
 
 def test_run_armc() -> None:
     """Test :func:`run_armc`."""
-    return None
-
     try:
         armc, job_kwarg = ARMC.from_yaml(PATH / 'ligand_armc.yaml')
 
-        results_list = _dir_to_results(PATH / 'results')
-        armc.md_iterator = iter(results_list)
+        armc.md_iterator = _results_iter(PATH / 'MM_MD_workdir_ref')
         add_to_instance(armc)(_md)
 
         run_armc(armc, restart=False, **job_kwarg)
 
-        with h5py.File(PATH / 'run_armc.hdf5', 'r', libver='latest') as f:
-            for name, dset in f.items():
+        path1, path2 = PATH / 'run_armc.hdf5', PATH / 'ref.hdf5'
+        with h5py.File(path1, 'r') as f1, h5py.File(path2, 'r') as f2:
+            for name, dset in f1.items():
                 ar = dset[:]
-                ar_ref = np.load(PATH / f'{name}.npy')
+                ar_ref = f2[name][:]
+
+                if name == 'aux_error_mod':
+                    ar = ar[..., -1]
+                    ar_ref = ar_ref[..., -1]
+                elif name == 'param':
+                    continue
+
                 if ar.dtype == float:
                     np.testing.assert_allclose(ar, ar_ref, err_msg=f'Dataset name: {repr(name)}')
                 else:
                     np.testing.assert_array_equal(ar, ar_ref, err_msg=f'Dataset name: {repr(name)}')
 
-        with h5py.File(PATH / 'run_armc.xyz.hdf5', 'r', libver='latest') as f:
-            for name, dset in f.items():
+        path3, path4 = PATH / 'run_armc.xyz.hdf5', PATH / 'ref.xyz.hdf5'
+        with h5py.File(path3, 'r') as f1, h5py.File(path4, 'r') as f2:
+            for name, dset in f1.items():
                 ar = dset[:]
                 assertion.eq(ar.dtype, np.dtype('float16'))
-                ar_ref = np.load(PATH / f'{name}.npy')
+                ar_ref = f2[name][:]
                 np.testing.assert_allclose(ar, ar_ref, err_msg=f'Dataset name: "{name}"')
 
     finally:
