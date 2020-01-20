@@ -66,7 +66,7 @@ copyright = f'{year}, {author}'
 # The version info for the project you're documenting, acts as replacement for
 # |version| and |release|, also used in various other places throughout the
 # built documents.
-release = '0.6.14'  # The full version, including alpha/beta/rc tags.
+release = '0.6.15'  # The full version, including alpha/beta/rc tags.
 version = release.rsplit('.', maxsplit=1)[0]  # The short X.Y version.
 
 
@@ -188,7 +188,8 @@ intersphinx_mapping = {
     'python': ('https://docs.python.org/3/', None),
     'pandas': ('https://pandas.pydata.org/pandas-docs/stable/', None),
     'numpy': ('https://docs.scipy.org/doc/numpy/', None),
-    'matplotlib': ('http://matplotlib.org', None)
+    'matplotlib': ('http://matplotlib.org', None),
+    'plams': ('https://www.scm.com/doc/plams/', None)
 }
 
 
