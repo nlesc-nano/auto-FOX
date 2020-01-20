@@ -6,6 +6,14 @@ All notable changes to this project will be documented in this file.
 This project adheres to `Semantic Versioning <http://semver.org/>`_.
 
 
+0.6.15
+******
+* Added recipes for generating .psf files in ``FOX.recipes``.
+* https://github.com/nlesc-nano/auto-FOX/pull/65: Fixed a bug where ARMC parameter constraints
+  were not properly parsed.
+* https://github.com/nlesc-nano/auto-FOX/pull/66: Added new ARMC tests.
+
+
 0.6.14
 ******
 * Fixed an issue where valid .xyz files were not properly read during the ARMC procedure.

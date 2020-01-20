@@ -124,6 +124,7 @@ def generate_psf(qd: Union[str, Molecule], ligand: Union[str, Molecule],
 
     # Manually add bonds to the quantum dot
     ligand_len = len(ligand)
+    qd.delete_all_bonds()
     while True:
         try:
             qd[bonds[0, 0]]
