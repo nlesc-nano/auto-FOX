@@ -13,6 +13,7 @@ PATH: str = join('tests', 'test_files')
 STR_FILE: str = join(PATH, 'ligand.str')
 QD: Molecule = Molecule(join(PATH, 'Cd68Se55_26COO_MD_trajec.xyz'))
 
+
 def test_extract_ligand() -> None:
     """Tests for :func:`extract_ligand`."""
     ligand = extract_ligand(QD, 4, {'C', 'H', 'O'})

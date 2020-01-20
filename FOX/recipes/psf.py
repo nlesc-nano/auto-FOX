@@ -49,6 +49,7 @@ This is demonstrated below with oleate (:math:`C_{18} H_{33} O_{2}^{-}`).
     >>> psf: PSFContainer = generate_psf(qd, ligand, rtf_file=rtf_file)
     >>> psf.write(...)
 
+
 Index
 -----
 .. currentmodule:: FOX.recipes.psf
