@@ -307,7 +307,7 @@ def generate_psf2(qd: Union[str, Molecule],
 
         for ref, k in rdmol_dict.items():
             k = 0 if ref is ref_j else k
-            atoms_del = new.atoms[:-k]
+            atoms_del = new.atoms[-k:] if k != 0 else []
             for at in atoms_del:
                 new.delete_atom(at)
             new.guess_bonds()
@@ -365,7 +365,7 @@ def _overlay(psf: PSFContainer,
 
 def _items_sorted(dct: Mapping) -> Iterator[Tuple[Hashable, Any]]:
     """Return a :meth:`dict.items()` iterator whose items are sorted by the dictionary values."""
-    return iter(sorted(dct.items(), key=lambda kv: kv[1]))
+    return iter(sorted(dct.items(), key=lambda kv: kv[1], reverse=True))
 
 
 def _get_matches(mol: Molecule, ref: Chem.Mol) -> bool:
