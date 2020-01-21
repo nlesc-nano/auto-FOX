@@ -214,8 +214,8 @@ def _parse_psf(s: Settings, path: str) -> Optional[PSFContainer]:
     psf = [_generate_psf(s, path, i) for i, _ in enumerate(s.molecule)]
     del s.psf
 
-    if psf is None:
-        return psf
+    if all(i is None for i in psf):
+        return None
 
     for md_settings, i in zip(s.md_settings, psf):
         set_subsys_kind(md_settings, i.atoms)
