@@ -21,7 +21,8 @@ API
 
 import reprlib
 import inspect
-from typing import Dict, Optional, Any, Set, Iterator, Iterable, Callable, AnyStr, List
+from typing import (Dict, Optional, Any, Set, Iterator, Iterable, Callable,
+                    AnyStr, List, Mapping, Hashable)
 from itertools import chain
 from types import MappingProxyType
 
@@ -36,6 +37,17 @@ from ..functions.utils import read_str_file, read_rtf_file, group_by_values
 from ..functions.molecule_utils import get_bonds, get_angles, get_dihedrals, get_impropers
 
 __all__ = ['PSFContainer']
+
+
+class DummyGetter:
+    def __init__(self, return_value: Any) -> None:
+        self.return_value = return_value
+
+    def __getitem__(self, key: Any) -> Any:
+        return self.return_value
+
+    def get(self, key: Any, default: Optional[Any] = None) -> Any:
+        return self.return_value
 
 
 class PSFContainer(AbstractDataClass, AbstractFileContainer):
@@ -773,7 +785,8 @@ class PSFContainer(AbstractDataClass, AbstractFileContainer):
         """  # noqa
         self.impropers = get_impropers(mol)
 
-    def generate_atoms(self, mol: Molecule) -> None:
+    def generate_atoms(self, mol: Molecule,
+                       id_map: Optional[Mapping[int, Hashable]] = None) -> None:
         """Update :attr:`PSFContainer.atoms` with the all properties from **mol**.
 
         DataFrame keys in :attr:`PSFContainer.atoms` are set based on the following values in **mol**:
@@ -798,6 +811,11 @@ class PSFContainer(AbstractDataClass, AbstractFileContainer):
         ----------
         mol : |plams.Molecule|
             A PLAMS Molecule.
+
+        id_map : :class:`Mapping<collection.abc.Mapping>` [:class:`int`, :data:`Hashable<typing.Hashable>`], optional
+            A mapping of ligand residue ID's to a custom (Hashable) descriptor.
+            Can be used for generating residue names for quantum dots with
+            multiple different ligands.
 
         """  # noqa
         def get_res_id(at: Atom) -> int:
@@ -828,23 +846,28 @@ class PSFContainer(AbstractDataClass, AbstractFileContainer):
         df['mass'] = [at.mass for at in mol]
         df['0'] = 0
 
-        df['segment name'] = self._construct_segment_name()
+        df['segment name'] = self._construct_segment_name(id_map)
 
-    def _construct_segment_name(self) -> List[str]:
+    def _construct_segment_name(self, id_map: Optional[Mapping[int, str]] = None) -> List[str]:
         """Generate a list for the :attr:`PSF.atoms` ``["segment name"]`` column."""
         ret = []
-        type_dict = {}
+        ret_append = ret.append
 
-        for at_type, res_name in zip(self.atom_type, self.residue_name):
+        type_dict = {}
+        id_map = id_map if id_map is not None else DummyGetter('LIG')
+        id_map_get = id_map.get
+
+        iterator = zip(self.atom_type, self.residue_name, self.residue_id)
+        for at_type, res_name, res_id in iterator:
             if res_name == 'LIG':
-                at_type = 'LIG'
+                at_type = id_map_get(res_id, 'LIG')
 
             try:
                 value = type_dict[at_type]
             except KeyError:
                 type_dict[at_type] = value = 'MOL{:d}'.format(1 + len(type_dict))
 
-            ret.append(value)
+            ret_append(value)
 
         return ret
 
@@ -861,7 +884,8 @@ class PSFContainer(AbstractDataClass, AbstractFileContainer):
         return group_by_values(enumerate(self.atom_type))
 
 
-def overlay_str_file(psf: PSFContainer, filename: str) -> None:
+def overlay_str_file(psf: PSFContainer, filename: str,
+                     id_range: Optional[Iterable[int]] = None) -> None:
     """Update all ligand atom types and atomic charges in :attr:`PSF.atoms`.
 
     Performs an inplace update of the ``"charge"`` and ``"atom type"`` columns
@@ -875,12 +899,17 @@ def overlay_str_file(psf: PSFContainer, filename: str) -> None:
     filename : str
         The path+filename of a .str file containing ligand charges and atom types.
 
+    id_range : :class:`Iterable<collections.abc.Iterable>` [:class:`int`], optional
+        An iterable with the residue IDs of to-be updated residues.
+        If ``None``, update the atoms in all residues.
+
     """
     at_type, charge = read_str_file(filename)
-    _overlay(psf, at_type, charge)
+    _overlay(psf, at_type, charge, id_range)
 
 
-def overlay_rtf_file(psf: PSFContainer, filename: str) -> None:
+def overlay_rtf_file(psf: PSFContainer, filename: str,
+                     id_range: Optional[Iterable[int]] = None) -> None:
     """Update all ligand atom types and atomic charges in :attr:`PSF.atoms`.
 
     Performs an inplace update of the ``"charge"`` and ``"atom type"`` columns
@@ -894,13 +923,18 @@ def overlay_rtf_file(psf: PSFContainer, filename: str) -> None:
     filename : str
         The path+filename of a .rtf file containing ligand charges and atom types.
 
+    id_range : :class:`Iterable<collections.abc.Iterable>` [:class:`int`], optional
+        An iterable with the residue IDs of to-be updated residues.
+        If ``None``, update the atoms in all residues.
+
     """
     at_type, charge = read_rtf_file(filename)
-    _overlay(psf, at_type, charge)
+    _overlay(psf, at_type, charge, id_range)
 
 
-def _overlay(psf: PSFContainer, at_type: Iterable[str], charge: Iterable[float]) -> None:
-    id_range = range(2, 1 + max(psf.residue_id))
+def _overlay(psf: PSFContainer, at_type: Iterable[str], charge: Iterable[float],
+             id_range: Optional[Iterable[int]] = None) -> None:
+    id_range = range(2, 1 + max(psf.residue_id)) if id_range is None else id_range
     for i in id_range:
         j = psf.residue_id == i
         psf.atoms.loc[j, 'atom type'] = at_type

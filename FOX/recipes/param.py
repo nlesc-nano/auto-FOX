@@ -6,7 +6,7 @@ A set of functions for analyzing and plotting ARMC results.
 
 Examples
 --------
-A General overview of the functions within this module.
+A general overview of the functions within this module.
 
 .. code:: python
 
@@ -29,7 +29,7 @@ A General overview of the functions within this module.
 
 Examples
 --------
-An small workflow for calculating for calculating free energies using distribution functions
+A small workflow for calculating for calculating free energies using distribution functions
 such as the radial distribution function (RDF).
 
 .. code:: python
@@ -54,10 +54,11 @@ such as the radial distribution function (RDF).
 
 Examples
 --------
-An workflow for plotting parameters as a function of ARMC iterations.
+A workflow for plotting parameters as a function of ARMC iterations.
 
 .. code:: python
 
+    >>> import numpy as np
     >>> import pandas as pd
     >>> from FOX import from_hdf5
     >>> from FOX.recipes import plot_descriptor
@@ -89,6 +90,19 @@ This approach can also be used for the plotting of other properties such as the 
 .. image:: err.png
     :scale: 20 %
     :align: center
+
+On occasion it might be desirable to only print the error of, for example, accepted iterations.
+Given a sequence of booleans (``bool_seq``), one can slice a DataFrame or Series (``df``) using
+:code:`df.loc[bool_seq]`.
+
+.. code:: python
+
+    >>> ...
+
+    >>> acceptance: np.ndarray = from_hdf5(hdf5_file, 'acceptance')  # Boolean array
+    >>> err_slice_dict = {key: df.loc[acceptance], value for key, df in err_dict.items()}
+
+    >>> plot_descriptor(err_slice_dict)
 
 
 Index

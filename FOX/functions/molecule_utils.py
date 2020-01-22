@@ -39,9 +39,9 @@ def fix_bond_orders(mol: Molecule) -> None:
     for b1 in mol.bonds:
         at1, at2 = b1
         at1_saturation = sum([b2.order for b2 in at1.bonds])
-        at1_saturation += -1 * at1.properties.charge - at1.connectors
+        at1_saturation += -at1.properties.charge - at1.connectors
         at2_saturation = sum([b3.order for b3 in at2.bonds])
-        at2_saturation += -1 * at2.properties.charge - at2.connectors
+        at2_saturation += -at2.properties.charge - at2.connectors
         if at1_saturation == at2_saturation != 0:
             b1.order += np.abs(at1_saturation)
         else:

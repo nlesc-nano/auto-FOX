@@ -351,13 +351,13 @@ class ARMC(MonteCarlo):
         # Step 4: Update the auxiliary error history, apply phi & update job settings
         acceptance[omega] = accept
         if accept:
-            self.logger.info(f"Accepting move {(kappa, omega)}; "
-                             f"total error change: {round(error_change, 4)}\n")
+            self.logger.info(f"Accepting move {(kappa, omega)}; total error change / error: "
+                             f"{round(error_change, 4)} / {round(aux_new.sum(), 4)}\n")
             self[key_new] = self.apply_phi(aux_new, self.phi)
             self.param['param_old'] = self.param['param']
         else:
-            self.logger.info(f"Rejecting move {(kappa, omega)}; "
-                             f"total error change: {round(error_change, 4)}\n")
+            self.logger.info(f"Rejecting move {(kappa, omega)}; total error change / error: "
+                             f"{round(error_change, 4)} / {round(aux_new.sum(), 4)}\n")
             self[key_new] = aux_new
             self[key_old] = self.apply_phi(aux_old, self.phi)
             key_new = key_old
