@@ -368,12 +368,15 @@ def generate_psf2(qd: Union[str, Molecule],
 
 MolType = TypeVar('MolType', Molecule, str, Mol)
 
-#: Map a :class:`type` object to a callable for creating :class:`rdkit.Chem.Mol` instances.
-MOL_MAPPING: Mapping[Type[MolType], Callable[[MolType], Mol]] = MappingProxyType({
-    str: lambda mol: to_rdmol(from_smiles(mol)),
-    Molecule: to_rdmol,
-    Mol: lambda mol: mol
-})
+try:
+    #: Map a :class:`type` object to a callable for creating :class:`rdkit.Chem.Mol` instances.
+    MOL_MAPPING: Mapping[Type[MolType], Callable[[MolType], Mol]] = MappingProxyType({
+        str: lambda mol: to_rdmol(from_smiles(mol)),
+        Molecule: to_rdmol,
+        Mol: lambda mol: mol
+    })
+except NameError:
+    MOL_MAPPING = None  # rdkit is not installed
 
 
 def _overlay(psf: PSFContainer, mode: str, id_ranges: Iterable[Iterable[int]],
@@ -400,6 +403,7 @@ def _items_sorted(dct: Mapping) -> Iterator[Tuple[Hashable, Any]]:
     return iter(sorted(dct.items(), key=lambda kv: kv[1], reverse=True))
 
 
+@assert_error(RDKIT_ERROR)
 def _get_matches(mol: Molecule, ref: Mol) -> bool:
     """Check if the structures of **mol** and **ref** match."""
     try:
@@ -411,6 +415,7 @@ def _get_matches(mol: Molecule, ref: Mol) -> bool:
     return match_set == set(range(len(mol))) and len(match_set) == len(mol)
 
 
+@assert_error(RDKIT_ERROR)
 def _get_rddict(ligands: Iterable[Union[str, Molecule, Mol]]) -> MutableMapping[Mol, int]:
     """Create an ordered dict with rdkit molecules and delta atom counts for :func:`generate_psf`."""  # noqa
     tmp_dct = {MOL_MAPPING[type(lig)](lig): 0 for lig in ligands}
