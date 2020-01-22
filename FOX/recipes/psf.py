@@ -296,6 +296,7 @@ def generate_psf2(qd: Union[str, Molecule],
 
     # Identify all bonds and residues
     res_list = [np.arange(i)]
+    res_dict = {}
     while True:
         ref_j, j = next(iter(rdmol_dict.items()))
         new = Molecule()
@@ -318,6 +319,7 @@ def generate_psf2(qd: Union[str, Molecule],
                 bonds = new.bonds
                 qd.bonds += [Bond(atom1=qd[at1.id], atom2=qd[at1.id], mol=qd) for at1, at2 in bonds]
                 res_list.append(np.arange(i, i+j))
+                res_dict[len(res_list)] = id(ref)
                 break
             else:
                 continue
@@ -333,7 +335,7 @@ def generate_psf2(qd: Union[str, Molecule],
     psf.generate_angles(qd)
     psf.generate_dihedrals(qd)
     psf.generate_impropers(qd)
-    psf.generate_atoms(qd)
+    psf.generate_atoms(qd, res_dict)
     _overlay(psf, rtf_files) if rtf_files is not None else None
     _overlay(psf, str_files) if str_files is not None else None
 
