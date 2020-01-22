@@ -63,7 +63,7 @@ Example for multiple ligands.
     >>> ligands = ('C[O-]', 'CC[O-]', 'CCC[O-]')
     >>> rtf_files = (..., ..., ...)
 
-    >>> psf: PSFContainer = generate_psf2(qd, *ligands, rtf_files=rtf_files)
+    >>> psf: PSFContainer = generate_psf2(qd, *ligands, rtf_file=rtf_files)
     >>> psf.write(...)
 
 Index
@@ -81,6 +81,8 @@ API
 .. autofunction:: extract_ligand
 
 """
+import math
+import heapq
 from os import PathLike
 from sys import version_info
 from types import MappingProxyType
@@ -257,7 +259,7 @@ def extract_ligand(qd: Union[str, Molecule], ligand_len: int,
 
 
 def generate_psf2(qd: Union[str, Molecule],
-                  *ligands: Union[str, Molecule, Chem.Mol],
+                  *ligands: Union[str, Molecule, Mol],
                   rtf_file: Union[None, str, Iterable[str]] = None,
                   str_file: Union[None, str, Iterable[str]] = None) -> PSFContainer:
     r"""Generate a :class:`PSFContainer` instance for **qd** with multiple different **ligands**.
@@ -324,20 +326,21 @@ def generate_psf2(qd: Union[str, Molecule],
             atoms_del = new.atoms[k:] if k != 0 else []
             for at in atoms_del:
                 new.delete_atom(at)
-            new.guess_bonds()
+            guess_bonds(new)
             fix_bond_orders(new)
 
             j += k
             if _get_matches(new, ref):
-                bonds = new.bonds
-                qd.bonds += [Bond(atom1=qd[at1.id], atom2=qd[at1.id], mol=qd) for at1, at2 in bonds]
+                qd.bonds += [Bond(atom1=qd[bond.atom1.id],
+                                  atom2=qd[bond.atom2.id],
+                                  order=bond.order, mol=qd) for bond in new.bonds]
                 res_list.append(np.arange(i, i+j))
                 res_dict[len(res_list)] = id(ref)
                 break
             else:
                 continue
         else:
-            raise MoleculeError('Failed to identify any ligands within the range '
+            raise MoleculeError(f'Failed to identify any ligands {ligands} within the range '
                                 f'[{i}:{i + next(iter(rdmol_dict.items()))[1]}]')
         i += j
 
@@ -367,7 +370,7 @@ MolType = TypeVar('MolType', Molecule, str, Mol)
 MOL_MAPPING: Mapping[Type[MolType], Callable[[MolType], Mol]] = MappingProxyType({
     str: lambda mol: to_rdmol(from_smiles(mol)),
     Molecule: to_rdmol,
-    Chem.Mol: lambda mol: mol
+    Mol: lambda mol: mol
 })
 
 
@@ -418,3 +421,103 @@ def _get_rddict(ligands: Iterable[Union[str, Molecule, Mol]]) -> MutableMapping[
         rdmol_dict[k] = v - v_old
         v_old = v
     return rdmol_dict
+
+
+def guess_bonds(mol: Molecule) -> None:
+    """Modified version of :meth:`Molecule.guess_bonds`.
+
+    Bond orders for "aromatic" systems are no longer set to `1.5`, thus remaining integer.
+
+    """
+    class HeapElement:
+        def __init__(self, order, ratio, atom1, atom2):
+            eff_ord = order
+            if order == 1.5:  # effective order for aromatic bonds
+                eff_ord = 1.15
+            elif order == 1 and {atom1.symbol, atom2.symbol} == {'C', 'N'}:
+                eff_ord = 1.11  # effective order for single C-N bond
+            value = (eff_ord + 0.9) * ratio
+            self.data = (value, order, ratio)
+            self.atoms = (atom1, atom2)
+
+        def unpack(self):
+            val, o, r = self.data
+            at1, at2 = self.atoms
+            return val, o, r, at1, at2
+
+        def __lt__(self, other): return self.data < other.data
+        def __le__(self, other): return self.data <= other.data
+        def __eq__(self, other): return self.data == other.data
+        def __ne__(self, other): return self.data != other.data
+        def __gt__(self, other): return self.data > other.data
+        def __ge__(self, other): return self.data >= other.data
+
+    mol.delete_all_bonds()
+
+    dmax = 1.28
+
+    atom_list = mol
+    cubesize = dmax*2.1*max([at.radius for at in atom_list])
+
+    cubes = {}
+    for i, at in enumerate(atom_list, 1):
+        at._id = i
+        at.free = at.connectors
+        at.cube = tuple(map(lambda x: int(math.floor(x/cubesize)), at.coords))
+        if at.cube in cubes:
+            cubes[at.cube].append(at)
+        else:
+            cubes[at.cube] = [at]
+
+    neighbors = {}
+    for cube in cubes:
+        neighbors[cube] = []
+        for i in range(cube[0]-1, cube[0]+2):
+            for j in range(cube[1]-1, cube[1]+2):
+                for k in range(cube[2]-1, cube[2]+2):
+                    if (i, j, k) in cubes:
+                        neighbors[cube] += cubes[(i, j, k)]
+
+    heap = []
+    for at1 in atom_list:
+        if at1.free > 0:
+            for at2 in neighbors[at1.cube]:
+                if (at2.free > 0) and (at1._id < at2._id):
+                    ratio = at1.distance_to(at2) / (at1.radius + at2.radius)
+                    if (ratio < dmax):
+                        heap.append(HeapElement(0, ratio, at1, at2))
+                        if (at1.atnum == 16 and at2.atnum == 8):
+                            at1.free = 6
+                        elif (at2.atnum == 16 and at1.atnum == 8):
+                            at2.free = 6
+                        elif (at1.atnum == 7):
+                            at1.free += 1
+                        elif (at2.atnum == 7):
+                            at2.free += 1
+    heapq.heapify(heap)
+
+    for at in atom_list:
+        if at.atnum == 7:
+            if at.free > 6:
+                at.free = 4
+            else:
+                at.free = 3
+
+    step = 1
+    while heap:
+        val, o, r, at1, at2 = heapq.heappop(heap).unpack()
+        if at1.free >= step and at2.free >= step:
+            o += step
+            at1.free -= step
+            at2.free -= step
+            if o < 3:
+                heapq.heappush(heap, HeapElement(o, r, at1, at2))
+            else:
+                mol.add_bond(at1, at2, o)
+        elif o > 0:
+            if o == 1.5:
+                o = Bond.AR
+            mol.add_bond(at1, at2, o)
+
+    for at in atom_list:
+        del at.cube, at.free, at._id
