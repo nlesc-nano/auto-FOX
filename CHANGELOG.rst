@@ -11,29 +11,30 @@ This project adheres to `Semantic Versioning <http://semver.org/>`_.
 * The total error (not just the error change) is now printed in the ARMC log.
 * Added a new example to the param recipes for slicing DataFrames.
 * Added a new workflow for creating .psf files for quantum dots with multiple different ligands.
-* https://github.com/nlesc-nano/auto-FOX/commit/28abcb10726069ca8d6eda4cd747630f5d8a0442:
+* https://github.com/nlesc-nano/auto-FOX/commit/28abcb10726069ca8d6eda4cd747630f5d8a0442 :
   Ensure that ARMC jobs without .psf file do not crash.
-* https://github.com/nlesc-nano/auto-FOX/commit/7a9f313be3f4deef2449394dae0b5b3bea013288:
+* https://github.com/nlesc-nano/auto-FOX/commit/7a9f313be3f4deef2449394dae0b5b3bea013288 :
   Added the ``mol_subset`` keyword to ``MultiMolecule.init_rdf()``.
-* https://github.com/nlesc-nano/auto-FOX/commit/a5ab4bfc3f21e5795cf5c80e81aae7abdb8bf030,
-  https://github.com/nlesc-nano/auto-FOX/commit/ed5acd504963c4511a2d75c23d970636e51e60f6 &
-* https://github.com/nlesc-nano/auto-FOX/commit/c5b38c6dddac70523b73e1019a203345bfe4b1c7:
+* https://github.com/nlesc-nano/auto-FOX/commit/a5ab4bfc3f21e5795cf5c80e81aae7abdb8bf030 &
+  https://github.com/nlesc-nano/auto-FOX/commit/ed5acd504963c4511a2d75c23d970636e51e60f6 :
+  Fixed a number of issues regarding AMRC input parsing.
+* https://github.com/nlesc-nano/auto-FOX/commit/c5b38c6dddac70523b73e1019a203345bfe4b1c7 :
   Fixed an issue where ``assign_constraints()`` failed to parse ``"=="`` characters.
 
 
 0.6.16
 ******
 * Added recipes for generating .psf files for quantum dot with multiple different ligands in ``FOX.recipes``.
-* https://github.com/nlesc-nano/auto-FOX/commit/28abcb10726069ca8d6eda4cd747630f5d8a0442:
+* https://github.com/nlesc-nano/auto-FOX/commit/28abcb10726069ca8d6eda4cd747630f5d8a0442 :
   Ensure that ARMC jobs without .psf file actually return None instead of raising an ``AttributeError``.
 
 
 0.6.15
 ******
 * Added recipes for generating .psf files in ``FOX.recipes``.
-* https://github.com/nlesc-nano/auto-FOX/pull/65: Fixed a bug where ARMC parameter constraints
+* https://github.com/nlesc-nano/auto-FOX/pull/65 : Fixed a bug where ARMC parameter constraints
   were not properly parsed.
-* https://github.com/nlesc-nano/auto-FOX/pull/66: Added new ARMC tests.
+* https://github.com/nlesc-nano/auto-FOX/pull/66 : Added new ARMC tests.
 
 
 0.6.14
@@ -44,11 +45,11 @@ This project adheres to `Semantic Versioning <http://semver.org/>`_.
 * Change the datatype from the armc.xyz.hdf5's datasets from ``np.float64`` to ``np.float16``
   in order to reduce disk space.
 * Added a precaution against reading faulty .xyz files.
-* https://github.com/nlesc-nano/auto-FOX/pull/60: .hdf5 files are now forcibly closed (if necessary)
+* https://github.com/nlesc-nano/auto-FOX/pull/60 : .hdf5 files are now forcibly closed (if necessary)
   upon restarting an ARMC procedure.
-* https://github.com/nlesc-nano/auto-FOX/pull/61: Updated the recipe examples;
+* https://github.com/nlesc-nano/auto-FOX/pull/61 : Updated the recipe examples;
   ``plot_descriptor()`` no longer crashes when encountering a ``DataFrame()`` with a single column.
-* https://github.com/nlesc-nano/auto-FOX/pull/62 & https://github.com/nlesc-nano/auto-FOX/pull/63:
+* https://github.com/nlesc-nano/auto-FOX/pull/62 & https://github.com/nlesc-nano/auto-FOX/pull/63 :
   Ensure that the ARMC restarting starts from the last iteration whose error is not ``np.nan``.
 
 
