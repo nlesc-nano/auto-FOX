@@ -144,6 +144,13 @@ def test_rdf():
     np.testing.assert_allclose(rdf2, ref)
     np.testing.assert_allclose(rdf3, ref)
 
+    rdf4 = mol.init_rdf(mol_subset=slice(None, None, 10), mem_level=1).values
+    rdf5 = mol.init_rdf(mol_subset=slice(None, None, 100), mem_level=1).values
+    ref4 = np.load(join(PATH, 'rdf_10.npy'))
+    ref5 = np.load(join(PATH, 'rdf_100.npy'))
+    np.testing.assert_allclose(rdf4, ref4)
+    np.testing.assert_allclose(rdf5, ref5)
+
 
 def test_rmsf():
     """Test :meth:`.MultiMolecule.init_rmsf`."""

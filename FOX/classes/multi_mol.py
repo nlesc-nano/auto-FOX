@@ -1074,7 +1074,7 @@ class MultiMolecule(_MultiMolecule):
         mol_cp.atoms['origin'] = [mol_cp.shape[1] - 1]
         at_subset = ('origin', ) + at_subset
         with np.errstate(divide='ignore', invalid='ignore'):
-            rdf = mol_cp.init_rdf(at_subset)
+            rdf = mol_cp.init_rdf(atom_subset=at_subset)
         del rdf['origin origin']
         rdf = rdf.loc[rdf.index >= rdf_cutoff, [i for i in rdf.columns if 'origin' in i]]
 
@@ -1158,7 +1158,7 @@ class MultiMolecule(_MultiMolecule):
 
     """#############################  Radial Distribution Functions  ##########################"""
 
-    def init_rdf(self, atom_subset: AtomSubset = None,
+    def init_rdf(self, mol_subset: MolSubset = None, atom_subset: AtomSubset = None,
                  dr: float = 0.05, r_max: float = 12.0, mem_level: int = 2):
         """Initialize the calculation of radial distribution functions (RDFs).
 
@@ -1167,6 +1167,11 @@ class MultiMolecule(_MultiMolecule):
 
         Parameters
         ----------
+        mol_subset : slice
+            Perform the calculation on a subset of molecules in this instance, as
+            determined by their moleculair index.
+            Include all :math:`m` molecules in this instance if ``None``.
+
         atom_subset : |Sequence|_
             Perform the calculation on a subset of atoms in this instance, as
             determined by their atomic index or atomic symbol.
@@ -1181,12 +1186,13 @@ class MultiMolecule(_MultiMolecule):
 
         mem_level : int
             Set the level of to-be consumed memory and, by extension, the execution speed.
-            Given a molecule subset of size :math:`m` and atom subsets of (up to) size :math:`n`,
+            Given a molecule subset of size :math:`m`, atom subsets of (up to) size :math:`n`
+            and the resulting RDF with :math:`p` points (:code:`p = r_max / dr`),
             the **mem_level** values can be interpreted as following:
 
-            * ``0``: Slow; memory scaling: :math:`n`
-            * ``1``: Medium; memory scaling: :math:`m * n`
-            * ``2``: Fast; memory scaling: :math:`m * n^2`
+            * ``0``: Slow; memory scaling: :math:`n^2`
+            * ``1``: Medium; memory scaling: :math:`n^2 + m * p`
+            * ``2``: Fast; memory scaling: :math:`n^2 * m`
 
         Returns
         -------
@@ -1212,8 +1218,13 @@ class MultiMolecule(_MultiMolecule):
         # Construct an empty dataframe with appropiate dimensions, indices and keys
         df = get_rdf_df(atom_pairs, dr, r_max)
 
+        # Define the subset
+        m_subset = self._get_mol_subset(mol_subset)
+        mol_range = range(m_subset.start or 0,
+                          m_subset.stop or len(self),
+                          m_subset.step or 1)
+
         # Fill the dataframe with RDF's, averaged over all conformations in this instance
-        mol_range = range(self.shape[0])
         if mem_level == 0:  # Slow speed approach; mem scaling: n
             for i in mol_range:
                 for key, at in atom_pairs.items():
@@ -1229,7 +1240,7 @@ class MultiMolecule(_MultiMolecule):
 
         else:  # High speed approach; mem scaling: m * n**2
             for key, at in atom_pairs.items():
-                dist_mat = self.get_dist_mat(atom_subset=at)
+                dist_mat = self.get_dist_mat(mol_subset=mol_subset, atom_subset=at)
                 df[key] = get_rdf(dist_mat, dr=dr, r_max=r_max)
 
         return df
