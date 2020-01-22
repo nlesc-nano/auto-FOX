@@ -17,6 +17,7 @@ QD: Molecule = Molecule(join(PATH, 'Cd68Se55_26COO_MD_trajec.xyz'))
 def test_extract_ligand() -> None:
     """Tests for :func:`extract_ligand`."""
     qd = QD.copy()
+    ligand = extract_ligand(qd, 4, {'C', 'H', 'O'})
     ref = np.array([[5.47492504, -3.54070096, -3.91403079],
                     [6.25736402, -3.70922481, -4.71302813],
                     [4.31834322, -3.0473366, -4.20026909],
