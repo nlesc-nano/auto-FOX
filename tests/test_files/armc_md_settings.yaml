@@ -25,7 +25,7 @@ input:
           - atoms: Cd Se
             epsilon: '[kjmol] 1.522500'
             sigma: '[nm] 0.294000'
-          - atoms: Se OG2D2
+          - atoms: OG2D2 Se
             epsilon: '[kjmol] 1.613500'
             sigma: '[nm] 0.352600'
           - atoms: Se Se
