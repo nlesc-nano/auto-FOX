@@ -1,4 +1,4 @@
-"""A module for testing :mod:`FOX.functions.lj_calculate`."""
+"""A module for testing :mod:`FOX.recipes.param`."""
 
 import os
 from pathlib import Path

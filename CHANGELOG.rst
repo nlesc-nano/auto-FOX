@@ -8,6 +8,17 @@ This project adheres to `Semantic Versioning <http://semver.org/>`_.
 
 0.6.17
 ******
+* The total error (not just the error change) is now printed in the ARMC log.
+* Added a new example to the param recipes for slicing DataFrames.
+* Added a new workflow for creating .psf files for quantum dots with multiple different ligands.
+* https://github.com/nlesc-nano/auto-FOX/commit/28abcb10726069ca8d6eda4cd747630f5d8a0442:
+  Ensure that ARMC jobs without .psf file do not crash.
+* https://github.com/nlesc-nano/auto-FOX/commit/7a9f313be3f4deef2449394dae0b5b3bea013288:
+  Added the ``mol_subset`` keyword to ``MultiMolecule.init_rdf()``.
+* https://github.com/nlesc-nano/auto-FOX/commit/a5ab4bfc3f21e5795cf5c80e81aae7abdb8bf030,
+  https://github.com/nlesc-nano/auto-FOX/commit/ed5acd504963c4511a2d75c23d970636e51e60f6 &
+* https://github.com/nlesc-nano/auto-FOX/commit/c5b38c6dddac70523b73e1019a203345bfe4b1c7:
+  Fixed an issue where ``assign_constraints()`` failed to parse ``"=="`` characters.
 
 
 0.6.16
