@@ -75,6 +75,7 @@ A workflow for plotting parameters as a function of ARMC iterations.
     :scale: 20 %
     :align: center
 
+|
 This approach can also be used for the plotting of other properties such as the auxiliary error.
 
 .. code:: python
@@ -91,6 +92,7 @@ This approach can also be used for the plotting of other properties such as the 
     :scale: 20 %
     :align: center
 
+|
 On occasion it might be desirable to only print the error of, for example, accepted iterations.
 Given a sequence of booleans (``bool_seq``), one can slice a DataFrame or Series (``df``) using
 :code:`df.loc[bool_seq]`.

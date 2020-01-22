@@ -27,6 +27,7 @@ to be ordered, even when using canonical SMILES strings.
     >>> psf: PSFContainer = generate_psf(qd_xyz, ligand_xyz, rtf_file=rtf_file)
     >>> psf.write(psf_file)
 
+
 Examples
 --------
 If no ligand .xyz is on hand, or its atoms are in the wrong order, it is possible the
@@ -49,6 +50,7 @@ This is demonstrated below with oleate (:math:`C_{18} H_{33} O_{2}^{-}`).
     >>> psf: PSFContainer = generate_psf(qd, ligand, rtf_file=rtf_file)
     >>> psf.write(...)
 
+
 Examples
 --------
 Example for multiple ligands.
@@ -65,6 +67,7 @@ Example for multiple ligands.
 
     >>> psf: PSFContainer = generate_psf2(qd, *ligands, rtf_file=rtf_files)
     >>> psf.write(...)
+
 
 Index
 -----
