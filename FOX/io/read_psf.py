@@ -884,7 +884,8 @@ class PSFContainer(AbstractDataClass, AbstractFileContainer):
         return group_by_values(enumerate(self.atom_type))
 
 
-def overlay_str_file(psf: PSFContainer, filename: str) -> None:
+def overlay_str_file(psf: PSFContainer, filename: str,
+                     id_range: Optional[Iterable[int]] = None) -> None:
     """Update all ligand atom types and atomic charges in :attr:`PSF.atoms`.
 
     Performs an inplace update of the ``"charge"`` and ``"atom type"`` columns
@@ -898,12 +899,17 @@ def overlay_str_file(psf: PSFContainer, filename: str) -> None:
     filename : str
         The path+filename of a .str file containing ligand charges and atom types.
 
+    id_range : :class:`Iterable<collections.abc.Iterable>` [:class:`int`], optional
+        An iterable with the residue IDs of to-be updated residues.
+        If ``None``, update the atoms in all residues.
+
     """
     at_type, charge = read_str_file(filename)
-    _overlay(psf, at_type, charge)
+    _overlay(psf, at_type, charge, id_range)
 
 
-def overlay_rtf_file(psf: PSFContainer, filename: str) -> None:
+def overlay_rtf_file(psf: PSFContainer, filename: str,
+                     id_range: Optional[Iterable[int]] = None) -> None:
     """Update all ligand atom types and atomic charges in :attr:`PSF.atoms`.
 
     Performs an inplace update of the ``"charge"`` and ``"atom type"`` columns
@@ -917,13 +923,18 @@ def overlay_rtf_file(psf: PSFContainer, filename: str) -> None:
     filename : str
         The path+filename of a .rtf file containing ligand charges and atom types.
 
+    id_range : :class:`Iterable<collections.abc.Iterable>` [:class:`int`], optional
+        An iterable with the residue IDs of to-be updated residues.
+        If ``None``, update the atoms in all residues.
+
     """
     at_type, charge = read_rtf_file(filename)
-    _overlay(psf, at_type, charge)
+    _overlay(psf, at_type, charge, id_range)
 
 
-def _overlay(psf: PSFContainer, at_type: Iterable[str], charge: Iterable[float]) -> None:
-    id_range = range(2, 1 + max(psf.residue_id))
+def _overlay(psf: PSFContainer, at_type: Iterable[str], charge: Iterable[float],
+             id_range: Optional[Iterable[int]] = None) -> None:
+    id_range = range(2, 1 + max(psf.residue_id)) if id_range is None else id_range
     for i in id_range:
         j = psf.residue_id == i
         psf.atoms.loc[j, 'atom type'] = at_type

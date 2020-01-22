@@ -94,6 +94,7 @@ from scm.plams import Molecule, Atom, Bond, MoleculeError, PT
 
 from FOX import PSFContainer
 from FOX.io.read_psf import overlay_rtf_file, overlay_str_file
+from FOX.functions.utils import group_by_values
 from FOX.functions.molecule_utils import fix_bond_orders
 from FOX.armc_functions.sanitization import _assign_residues
 
@@ -105,9 +106,26 @@ else:  # Dictionaries are ordered starting from python 3.7
 try:
     from rdkit import Chem
     from scm.plams import from_smiles, to_rdmol
+
+    Mol: Union[str, type] = Chem.Mol
     RDKIT: Optional[ImportError] = None
+
+    # A somewhat contrived way of loading :exc:`ArgumentError<Boost.Python.ArgumentError>`
+    _MOL = Molecule()
+    _MOL.atoms = [Atom(symbol='H', coords=[0, 0, 0], mol=_MOL)]
+    _MOL[1].properties.charge = -0.5
+    try:
+        to_rdmol(_MOL)
+    except Exception as ex:
+        ArgumentError: Optional[Type[Exception]] = type(ex)
+    del _MOL
+
 except ImportError as ex:
+    Mol: Union[str, type] = 'rdkit.Chem.rdchem.Mol'
     RDKIT: Optional[ImportError] = ex
+    ArgumentError: Optional[Type[Exception]] = None
+
+__all__ = ['generate_psf', 'generate_psf2', 'extract_ligand']
 
 
 def generate_psf(qd: Union[str, Molecule], ligand: Union[str, Molecule],
@@ -240,8 +258,8 @@ def extract_ligand(qd: Union[str, Molecule], ligand_len: int,
 
 def generate_psf2(qd: Union[str, Molecule],
                   *ligands: Union[str, Molecule, Chem.Mol],
-                  rtf_files: Union[None, str, Iterable[str]] = None,
-                  str_files: Union[None, str, Iterable[str]] = None) -> PSFContainer:
+                  rtf_file: Union[None, str, Iterable[str]] = None,
+                  str_file: Union[None, str, Iterable[str]] = None) -> PSFContainer:
     r"""Generate a :class:`PSFContainer` instance for **qd** with multiple different **ligands**.
 
     Parameters
@@ -275,12 +293,6 @@ def generate_psf2(qd: Union[str, Molecule],
         raise RDKIT
     if not isinstance(qd, Molecule):
         qd = Molecule(qd)
-    if rtf_files is not None and len(rtf_files) != len(ligands):
-        raise ValueError(f"The number of files in 'rtf_file' (len(rtf_files)) should be "
-                         f"the same as '*ligands' (len(ligands))")
-    if str_files is not None and len(str_files) != len(ligands):
-        raise ValueError(f"The number of files in 'str_file' (len(str_files)) should be "
-                         f"the same as '*ligands' (len(ligands))")
 
     # Create a dictionary with RDKit molecules and the number of atoms contained therein
     rdmol_dict = _get_rddict(ligands)
@@ -303,18 +315,19 @@ def generate_psf2(qd: Union[str, Molecule],
         new.atoms = [Atom(atnum=at.atnum, coords=at.coords, mol=new) for at in qd.atoms[i:i+j]]
         if not new:
             break
-        else:
-            new.set_atoms_id(start=i+1)
+        elif len(new) != j:  # Pad with dummy atoms
+            new.atoms += [Atom(atnum=0, coords=[0, 0, 0], mol=new) for _ in range(j - len(new))]
+        new.set_atoms_id(start=i+1)
 
         for ref, k in rdmol_dict.items():
             k = 0 if ref is ref_j else k
-            atoms_del = new.atoms[-k:] if k != 0 else []
+            atoms_del = new.atoms[k:] if k != 0 else []
             for at in atoms_del:
                 new.delete_atom(at)
             new.guess_bonds()
             fix_bond_orders(new)
 
-            j -= k
+            j += k
             if _get_matches(new, ref):
                 bonds = new.bonds
                 qd.bonds += [Bond(atom1=qd[at1.id], atom2=qd[at1.id], mol=qd) for at1, at2 in bonds]
@@ -336,33 +349,45 @@ def generate_psf2(qd: Union[str, Molecule],
     psf.generate_dihedrals(qd)
     psf.generate_impropers(qd)
     psf.generate_atoms(qd, res_dict)
-    _overlay(psf, rtf_files) if rtf_files is not None else None
-    _overlay(psf, str_files) if str_files is not None else None
+
+    if not (rtf_file is str_file is None):
+        _id_dict = group_by_values(res_dict.items())
+        id_range = (_id_dict[id(k)] for k in rdmol_dict.keys())
+        _overlay(psf, 'rtf', id_range, rtf_file) if rtf_file is not None else None
+        _overlay(psf, 'str', id_range, str_file) if str_file is not None else None
 
     # Set the charge to zero and return
     psf.charge = 0.0
     return psf
 
 
-Mol = TypeVar('Mol', Molecule, str, Chem.Mol)
+MolType = TypeVar('MolType', Molecule, str, Mol)
 
 #: Map a :class:`type` object to a callable for creating :class:`rdkit.Chem.Mol` instances.
-MOL_MAPPING: Mapping[Type[Mol], Callable[[Mol], Chem.Mol]] = MappingProxyType({
+MOL_MAPPING: Mapping[Type[MolType], Callable[[MolType], Mol]] = MappingProxyType({
     str: lambda mol: to_rdmol(from_smiles(mol)),
     Molecule: to_rdmol,
     Chem.Mol: lambda mol: mol
 })
 
 
-def _overlay(psf: PSFContainer,
+def _overlay(psf: PSFContainer, mode: str, id_ranges: Iterable[Iterable[int]],
              files: Union[AnyStr, PathLike, Iterable[AnyStr], Iterable[PathLike]]) -> None:
+    """Overlay one or more .str or .rtf files."""
     if not isinstance(files, abc.Iterable) or isinstance(files, (str, bytes)):
         files_iter = (files,)
     else:
         files_iter = files
 
-    for file in files_iter:
-        overlay_rtf_file(psf, file)
+    if mode == 'rtf':
+        func = overlay_rtf_file
+    elif mode == 'str':
+        func = overlay_str_file
+    else:
+        raise ValueError(f"'mode' expected either 'rtf' or 'str'; supplied value: {repr(mode)}")
+
+    for file, id_range in zip(files_iter, id_ranges):
+        func(psf, file, id_range=id_range)
 
 
 def _items_sorted(dct: Mapping) -> Iterator[Tuple[Hashable, Any]]:
@@ -370,15 +395,18 @@ def _items_sorted(dct: Mapping) -> Iterator[Tuple[Hashable, Any]]:
     return iter(sorted(dct.items(), key=lambda kv: kv[1], reverse=True))
 
 
-def _get_matches(mol: Molecule, ref: Chem.Mol) -> bool:
+def _get_matches(mol: Molecule, ref: Mol) -> bool:
     """Check if the structures of **mol** and **ref** match."""
-    rdmol = to_rdmol(mol)
+    try:
+        rdmol = to_rdmol(mol)
+    except ArgumentError:
+        return False
     matches = rdmol.GetSubstructMatches(ref)
     match_set = set(chain.from_iterable(matches))
     return match_set == set(range(len(mol))) and len(match_set) == len(mol)
 
 
-def _get_rddict(ligands: Iterable[Union[str, Molecule, Chem.Mol]]) -> MutableMapping[Chem.Mol, int]:
+def _get_rddict(ligands: Iterable[Union[str, Molecule, Mol]]) -> MutableMapping[Mol, int]:
     """Create an ordered dict with rdkit molecules and delta atom counts for :func:`generate_psf`."""  # noqa
     tmp_dct = {MOL_MAPPING[type(lig)](lig): 0 for lig in ligands}
     for rdmol in tmp_dct:
