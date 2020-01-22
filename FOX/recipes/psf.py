@@ -94,7 +94,7 @@ from itertools import chain
 import numpy as np
 from scm.plams import Molecule, Atom, Bond, MoleculeError, PT
 
-from FOX import PSFContainer
+from FOX import PSFContainer, assert_error
 from FOX.io.read_psf import overlay_rtf_file, overlay_str_file
 from FOX.functions.utils import group_by_values
 from FOX.functions.molecule_utils import fix_bond_orders
@@ -110,7 +110,7 @@ try:
     from scm.plams import from_smiles, to_rdmol
 
     Mol: Union[str, type] = Chem.Mol
-    RDKIT: Optional[ImportError] = None
+    RDKIT_ERROR = None
 
     # A somewhat contrived way of loading :exc:`ArgumentError<Boost.Python.ArgumentError>`
     _MOL = Molecule()
@@ -122,10 +122,13 @@ try:
         ArgumentError: Optional[Type[Exception]] = type(ex)
     del _MOL
 
-except ImportError as ex:
+except ImportError:
     Mol: Union[str, type] = 'rdkit.Chem.rdchem.Mol'
-    RDKIT: Optional[ImportError] = ex
     ArgumentError: Optional[Type[Exception]] = None
+    RDKIT_ERROR = ("Use of the FOX.{} function requires the 'rdkit' package."
+                   "\n'rdkit' can be installed via conda with the following command:"
+                   "\n\tconda install -n FOX -c conda-forge rdkit")
+
 
 __all__ = ['generate_psf', 'generate_psf2', 'extract_ligand']
 
@@ -258,6 +261,7 @@ def extract_ligand(qd: Union[str, Molecule], ligand_len: int,
     return ligand
 
 
+@assert_error(RDKIT_ERROR)
 def generate_psf2(qd: Union[str, Molecule],
                   *ligands: Union[str, Molecule, Mol],
                   rtf_file: Union[None, str, Iterable[str]] = None,
@@ -291,8 +295,6 @@ def generate_psf2(qd: Union[str, Molecule],
         A single ligand Molecule.
 
     """
-    if RDKIT is not None:
-        raise RDKIT
     if not isinstance(qd, Molecule):
         qd = Molecule(qd)
 
