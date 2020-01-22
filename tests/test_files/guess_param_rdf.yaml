@@ -8,7 +8,7 @@ lennard-jones:
 - atoms: Cd Se
   epsilon: '[kjmol] 1.5225'
   sigma: '[nm] 0.2940'
-- atoms: Se OG2D2
+- atoms: OG2D2 Se
   epsilon: '[kjmol] 1.6135'
   sigma: '[nm] 0.3526'
 - atoms: Se Se

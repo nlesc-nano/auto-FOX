@@ -174,7 +174,7 @@ def invert_partial_ufunc(ufunc: functools.partial) -> Callable:
 
 def assign_constraints(constraints: Union[str, Iterable[str]],
                        param: pd.DataFrame, idx_key: str) -> None:
-    operator_set = {'>', '<', '>=', '<=', '*', '=='}
+    operator_set = {'>', '<', '*', '=='}
 
     # Parse integers and floats
     if isinstance(constraints, str):
@@ -182,14 +182,13 @@ def assign_constraints(constraints: Union[str, Iterable[str]],
 
     constrain_list = []
     for item in constraints:
-        intersect = operator_set.intersection(item)  # Identify all operators
-        if not intersect:
+        for i in operator_set:  # Sanitize all operators; ensure they are surrounded by spaces
+            item = item.replace(i, f'~{i}~')
+
+        item_list = [i.strip().rstrip() for i in item.split('~')]
+        if len(item_list) == 1:
             continue
 
-        for i in intersect:  # Sanitize all operators; ensure they are surrounded by spaces
-            item = item.replace(i, f' {i} ')
-
-        item_list = item.split()
         for i, j in enumerate(item_list):  # Convert strings to floats where possible
             try:
                 float_j = float(j)
@@ -225,22 +224,29 @@ def _gt_lt_constraints(constrain: list, param: pd.DataFrame, idx_key: str) -> No
         if isinstance(at, float):
             at, value = value, at
             operator = _INVERT[operator]
+        if (idx_key, at) not in param.index:
+            raise KeyError(f"Assigning invalid constraint '({' '.join(str(i) for i in constrain)})'"
+                           f"; no parameter available of type ({repr(idx_key)}, {repr(at)})")
         param.at[(idx_key, at), operator] = value
 
 
 def _find_float(iterable: Tuple[str, str]) -> Tuple[str, float]:
     """Take an iterable of 2 strings and identify which element can be converted into a float."""
-    i, j = iterable
+    try:
+        i, j = iterable
+    except ValueError:
+        return iterable[0], 1.0
+
     try:
         return j, float(i)
     except ValueError:
         return i, float(j)
 
 
-def _eq_constraints(constrain: list, param: pd.DataFrame, idx_key: str) -> None:
+def _eq_constraints(constrain_: list, param: pd.DataFrame, idx_key: str) -> None:
     """Parse :math:`a = i * b`-type constraints."""
     constrain_dict: Dict[str, functools.partial] = {}
-    constrain = ''.join(str(i) for i in constrain).split('==')
+    constrain = ''.join(str(i) for i in constrain_).split('==')
     iterator = iter(constrain)
 
     # Set the first item; remove any prefactor and compensate al other items if required
@@ -262,5 +268,9 @@ def _eq_constraints(constrain: list, param: pd.DataFrame, idx_key: str) -> None:
 
     # Update the dataframe
     param['constraints'] = None
+    for k in constrain_dict:
+        if (idx_key, k) not in param.index:
+            raise KeyError(f"Assigning invalid constraint '({' '.join(str(i) for i in constrain_)})"
+                           f"'; no parameter available of type ({repr(idx_key)}, {repr(at)})")
     for at, _ in param.loc[idx_key].iterrows():
         param.at[(idx_key, at), 'constraints'] = constrain_dict

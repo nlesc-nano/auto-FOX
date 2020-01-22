@@ -80,14 +80,14 @@ class LJDataFrame(pd.DataFrame):
                     unit_sigma, sigma = block['sigma'].split()
                 except ValueError:
                     unit_sigma, sigma = '[angstrom]', block['sigma']
-                except KeyError:
+                except (TypeError, KeyError):
                     unit_sigma = sigma = None
 
                 try:
                     unit_eps, epsilon = block['epsilon'].split()
                 except ValueError:
                     unit_eps, epsilon = '[kcalmol]', block['sigma']
-                except KeyError:
+                except (TypeError, KeyError):
                     unit_eps = epsilon = None
 
             if sigma is not None:

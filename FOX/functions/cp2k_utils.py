@@ -134,7 +134,20 @@ def set_keys(settings: Settings, param: pd.DataFrame) -> None:
 
     param['keys'] = key_list
     param['param'] = param['param'].astype(float)
+    param.index = _sort_index(param.index)
     _populate_keys(settings, param)
+
+
+def _sort_index(index: pd.MultiIndex) -> pd.MultiIndex:
+    ret = []
+    for i, j in index:
+        j_split = j.split()
+        if len(j_split) == 2:
+            ret.append((i, ' '.join(k for k in sorted(j_split))))
+        else:
+            ret.append((i, j))
+
+    return pd.MultiIndex.from_tuples(ret, names=index.names)
 
 
 def _populate_keys(settings: Settings, param: pd.DataFrame) -> None:

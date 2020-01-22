@@ -370,9 +370,9 @@ State-averaged ARMC
 
     psf:
         rtf_file:
-            acetate.rtf
-            phosphate.rtf
-            sulfate.rtf
+            - acetate.rtf
+            - phosphate.rtf
+            - sulfate.rtf
         ligand_atoms: [S, P, O, C, H]
 
     pes:
