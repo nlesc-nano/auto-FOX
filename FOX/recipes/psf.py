@@ -502,43 +502,52 @@ def _get_rddict(ligands: Iterable[Union[str, Molecule, Mol]]) -> MutableMapping[
 
 
 AddOrSub = Callable[[float, float], float]
+FUNC_MAP: Mapping[AddOrSub, AddOrSub] = MappingProxyType({
+    operator.__add__: operator.__sub__,
+    operator.__sub__: operator.__add__
+})
+
 
 def guess_bonds(mol: Molecule) -> None:
     """Modified version of :meth:`Molecule.guess_bonds`.
 
     Bond orders for "aromatic" systems are no longer set to ``1.5``,
-    instead addopting the more Kekulé-esque bond orders of ``1.0`` and ``2.0``.
+    instead addopting the more Kekulé-esque bond orders of ``1`` and ``2``.
 
     """
-    def dfs(atom: Atom, sign: int) -> None:
+    def dfs(atom: Atom, func: AddOrSub) -> None:
         """Depth-first search algorithm for fixing the fixing the bond orders."""
         for b2 in atom.bonds:
             if b2.visited:
                 continue
 
             b2.visited = True
-            b2.order += sign * 0.5  # Add or substract 0.5
+            b2.order = int(func(b2.order, 0.5))  # Add or substract 0.5
             bonds.remove(b2)
 
             atom_new = b2.atom1 if b2.atom1 is not atom else b2.atom2
-            dfs(atom_new, sign=-sign)
+            dfs(atom_new, func=FUNC_MAP[func])
 
     mol.guess_bonds()
 
     bonds = set()
     for b in mol.bonds:
-        if hasattr(b.order, 'is_integer') and not b.order.is_integer():
-            b.visited = False
-            bonds.add(b)
+        if hasattr(b.order, 'is_integer'):
+            if not b.order.is_integer():
+                b.visited = False
+                bonds.add(b)
+            else:
+                b.visited = True
+                b.order = int(b.order)
         else:
             b.visited = True
 
     while bonds:
         b1 = bonds.pop()
-        b1.order += 0.5
+        b1.order = int(b1.order + 0.5)
         b1.visited = True
-        dfs(b1.atom1, sign=-1)
-        dfs(b1.atom2, sign=-1)
+        dfs(b1.atom1, func=operator.__sub__)
+        dfs(b1.atom2, func=operator.__sub__)
 
     for b in mol.bonds:
         delattr(b, 'visited')
