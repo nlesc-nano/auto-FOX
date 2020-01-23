@@ -95,8 +95,7 @@ API
 .. autofunction:: extract_ligand
 
 """
-import math
-import heapq
+import operator
 import warnings
 from os import PathLike
 from sys import version_info
@@ -502,101 +501,53 @@ def _get_rddict(ligands: Iterable[Union[str, Molecule, Mol]]) -> MutableMapping[
     return rdmol_dict
 
 
+AddOrSub = Callable[[float, float], float]
+FUNC_MAP: Mapping[AddOrSub, AddOrSub] = MappingProxyType({
+    operator.__add__: operator.__sub__,
+    operator.__sub__: operator.__add__
+})
+
+
 def guess_bonds(mol: Molecule) -> None:
     """Modified version of :meth:`Molecule.guess_bonds`.
 
-    Bond orders for "aromatic" systems are no longer set to `1.5`, thus remaining integer.
+    Bond orders for "aromatic" systems are no longer set to ``1.5``,
+    instead addopting the more Kekulé-esque bond orders of ``1`` and ``2``.
 
     """
-    class HeapElement:
-        def __init__(self, order, ratio, atom1, atom2):
-            eff_ord = order
-            if order == 1.5:  # effective order for aromatic bonds
-                eff_ord = 1.15
-            elif order == 1 and {atom1.symbol, atom2.symbol} == {'C', 'N'}:
-                eff_ord = 1.11  # effective order for single C-N bond
-            value = (eff_ord + 0.9) * ratio
-            self.data = (value, order, ratio)
-            self.atoms = (atom1, atom2)
+    def dfs(atom: Atom, func: AddOrSub) -> None:
+        """Depth-first search algorithm for fixing the fixing the bond orders."""
+        for b2 in atom.bonds:
+            if b2.visited:
+                continue
 
-        def unpack(self):
-            val, o, r = self.data
-            at1, at2 = self.atoms
-            return val, o, r, at1, at2
+            b2.visited = True
+            b2.order = int(func(b2.order, 0.5))  # Add or substract 0.5
+            bonds.remove(b2)
 
-        def __lt__(self, other): return self.data < other.data
-        def __le__(self, other): return self.data <= other.data
-        def __eq__(self, other): return self.data == other.data
-        def __ne__(self, other): return self.data != other.data
-        def __gt__(self, other): return self.data > other.data
-        def __ge__(self, other): return self.data >= other.data
+            atom_new = b2.atom1 if b2.atom1 is not atom else b2.atom2
+            dfs(atom_new, func=FUNC_MAP[func])
 
-    mol.delete_all_bonds()
+    mol.guess_bonds()
 
-    dmax = 1.28
-
-    atom_list = mol
-    cubesize = dmax*2.1*max([at.radius for at in atom_list])
-
-    cubes = {}
-    for i, at in enumerate(atom_list, 1):
-        at._id = i
-        at.free = at.connectors
-        at.cube = tuple(map(lambda x: int(math.floor(x/cubesize)), at.coords))
-        if at.cube in cubes:
-            cubes[at.cube].append(at)
+    bonds = set()
+    for b in mol.bonds:
+        if hasattr(b.order, 'is_integer'):
+            if not b.order.is_integer():
+                b.visited = False
+                bonds.add(b)
+            else:
+                b.visited = True
+                b.order = int(b.order)
         else:
-            cubes[at.cube] = [at]
+            b.visited = True
 
-    neighbors = {}
-    for cube in cubes:
-        neighbors[cube] = []
-        for i in range(cube[0]-1, cube[0]+2):
-            for j in range(cube[1]-1, cube[1]+2):
-                for k in range(cube[2]-1, cube[2]+2):
-                    if (i, j, k) in cubes:
-                        neighbors[cube] += cubes[(i, j, k)]
+    while bonds:
+        b1 = bonds.pop()
+        b1.order = int(b1.order + 0.5)
+        b1.visited = True
+        dfs(b1.atom1, func=operator.__sub__)
+        dfs(b1.atom2, func=operator.__sub__)
 
-    heap = []
-    for at1 in atom_list:
-        if at1.free > 0:
-            for at2 in neighbors[at1.cube]:
-                if (at2.free > 0) and (at1._id < at2._id):
-                    ratio = at1.distance_to(at2) / (at1.radius + at2.radius)
-                    if (ratio < dmax):
-                        heap.append(HeapElement(0, ratio, at1, at2))
-                        if (at1.atnum == 16 and at2.atnum == 8):
-                            at1.free = 6
-                        elif (at2.atnum == 16 and at1.atnum == 8):
-                            at2.free = 6
-                        elif (at1.atnum == 7):
-                            at1.free += 1
-                        elif (at2.atnum == 7):
-                            at2.free += 1
-    heapq.heapify(heap)
-
-    for at in atom_list:
-        if at.atnum == 7:
-            if at.free > 6:
-                at.free = 4
-            else:
-                at.free = 3
-
-    step = 1
-    while heap:
-        val, o, r, at1, at2 = heapq.heappop(heap).unpack()
-        if at1.free >= step and at2.free >= step:
-            o += step
-            at1.free -= step
-            at2.free -= step
-            if o < 3:
-                heapq.heappush(heap, HeapElement(o, r, at1, at2))
-            else:
-                mol.add_bond(at1, at2, o)
-        elif o > 0:
-            if o == 1.5:
-                o = Bond.AR
-            mol.add_bond(at1, at2, o)
-
-    for at in atom_list:
-        del at.cube, at.free, at._id
+    for b in mol.bonds:
+        delattr(b, 'visited')
