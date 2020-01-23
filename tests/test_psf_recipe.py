@@ -45,8 +45,12 @@ def test_generate_psf() -> None:
 def test_generate_psf2() -> None:
     """Tests for :func:`extract_ligand`."""
     qd = QD.copy()
-    ligand = 'C(=O)[O-]'
-    psf = generate_psf2(qd, ligand)
+    psf = generate_psf2(qd, 'C(=O)[O-]')
     ref = np.load(join(PATH, 'generate_psf_bonds2.npy'))
 
     np.testing.assert_array_equal(psf.bonds, ref)
+
+    qd = QD.copy()
+    mol_list = generate_psf2(qd, 'CC(=O)[O-]', ret_failed_lig=True)
+    assertion.len_eq(mol_list, 1)
+    assertion.eq(mol_list[0].get_formula(), 'C2H2O3')
