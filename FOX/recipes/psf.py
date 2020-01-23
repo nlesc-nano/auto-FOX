@@ -527,7 +527,7 @@ def guess_bonds(mol: Molecule) -> None:
 
     bonds = set()
     for b in mol.bonds:
-        if isinstance(b.order, float) and not b.order.is_integer():
+        if hasattr(b.order, 'is_integer') and not b.order.is_integer():
             b.visited = False
             bonds.add(b)
         else:
