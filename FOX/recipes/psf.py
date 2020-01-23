@@ -503,37 +503,31 @@ def _get_rddict(ligands: Iterable[Union[str, Molecule, Mol]]) -> MutableMapping[
 
 AddOrSub = Callable[[float, float], float]
 
-#: Turn ``+`` into ``-`` and *vice versa*.
-IVERT: Mapping[AddOrSub, AddOrSub] = MappingProxyType({
-    operator.__sub__: operator.__add__,
-    operator.__add__: operator.__sub__
-})
-
-
 def guess_bonds(mol: Molecule) -> None:
     """Modified version of :meth:`Molecule.guess_bonds`.
 
-    Bond orders for "aromatic" systems are no longer set to `1.5`, thus remaining integer.
+    Bond orders for "aromatic" systems are no longer set to ``1.5``,
+    instead addopting the more Kekulé-esque bond orders of ``1.0`` and ``2.0``.
 
     """
-    def dfs(b1: Bond, func: Callable[[float, float], float], atom: str = 'atom1') -> None:
+    def dfs(atom: Atom, sign: int) -> None:
         """Depth-first search algorithm for fixing the fixing the bond orders."""
-        for b2 in getattr(b1, atom).bonds:
+        for b2 in atom.bonds:
             if b2.visited:
                 continue
 
             b2.visited = True
-            b2.order = int(func(b2.order, 0.5))  # Add or substract 0.5
+            b2.order += sign * 0.5  # Add or substract 0.5
             bonds.remove(b2)
 
-            atom_new = 'atom1' if b2.atom1 is not getattr(b1, atom) else 'atom2'
-            dfs(b2, func=IVERT[func], atom=atom_new)
+            atom_new = b2.atom1 if b2.atom1 is not atom else b2.atom2
+            dfs(atom_new, sign=-sign)
 
     mol.guess_bonds()
 
     bonds = set()
     for b in mol.bonds:
-        if isinstance(b.order, float):
+        if isinstance(b.order, float) and not b.order.is_integer():
             b.visited = False
             bonds.add(b)
         else:
@@ -541,10 +535,10 @@ def guess_bonds(mol: Molecule) -> None:
 
     while bonds:
         b1 = bonds.pop()
-        b1.order = int(b1.order + 0.5)
+        b1.order += 0.5
         b1.visited = True
-        dfs(b1, func=operator.__sub__, atom='atom1')
-        dfs(b1, func=operator.__sub__, atom='atom2')
+        dfs(b1.atom1, sign=-1)
+        dfs(b1.atom2, sign=-1)
 
     for b in mol.bonds:
         delattr(b, 'visited')
