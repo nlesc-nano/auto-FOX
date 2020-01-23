@@ -57,6 +57,7 @@ Example for multiple ligands.
 
 .. code:: python
 
+    >>> from typing import List
     >>> from scm.plams import Molecule
     >>> from FOX import PSFContainer
     >>> from FOX.recipes import generate_psf2
@@ -67,6 +68,16 @@ Example for multiple ligands.
 
     >>> psf: PSFContainer = generate_psf2(qd, *ligands, rtf_file=rtf_files)
     >>> psf.write(...)
+
+If the the psf construction with :func:`generate_psf2` failes to identify a particular ligand,
+it is possible to return all (failed) potential ligands with the **ret_failed_lig** parameter.
+
+.. code:: python
+
+    >>> ...
+
+    >>> ligands = ('CCCCCCCCC[O-]', 'CCCCBr')
+    >>> failed_mol_list: List[Molecule] = generate_psf2(qd, *ligands, ret_failed_lig=True)
 
 
 Index
@@ -86,13 +97,14 @@ API
 """
 import math
 import heapq
+import warnings
 from os import PathLike
 from sys import version_info
 from types import MappingProxyType
 from typing import (Union, Iterable, Optional, TypeVar, Callable, Mapping, Type, Iterator,
-                    Hashable, Any, Tuple, MutableMapping, AnyStr)
-from collections import abc
+                    Hashable, Any, Tuple, MutableMapping, AnyStr, List)
 from itertools import chain
+from collections import abc
 
 import numpy as np
 from scm.plams import Molecule, Atom, Bond, MoleculeError, PT
@@ -268,7 +280,8 @@ def extract_ligand(qd: Union[str, Molecule], ligand_len: int,
 def generate_psf2(qd: Union[str, Molecule],
                   *ligands: Union[str, Molecule, Mol],
                   rtf_file: Union[None, str, Iterable[str]] = None,
-                  str_file: Union[None, str, Iterable[str]] = None) -> PSFContainer:
+                  str_file: Union[None, str, Iterable[str]] = None,
+                  ret_failed_lig: bool = False) -> PSFContainer:
     r"""Generate a :class:`PSFContainer` instance for **qd** with multiple different **ligands**.
 
     Parameters
@@ -292,10 +305,23 @@ def generate_psf2(qd: Union[str, Molecule],
         Used for assigning atom types.
         Alternativelly, one can supply a .rtf file with the **rtf_file** argument.
 
+    ret_failed_lig : :class:`bool`
+        If ``True``, return a list of all failed (potential) ligands
+        if the function cannot identify any ligands within a certain range.
+        Usefull for debugging.
+        If ``False``, raise a :exc:`MoleculeError`.
+
     Returns
     -------
     :class:`Molecule`
         A single ligand Molecule.
+
+    Raises
+    ------
+    :exc:`MoleculeError`
+        Raised if the function fails to identify any ligands within a certain range.
+        If ``ret_failed_lig = True``, return a list of failed (potential) ligands instead and
+        issue a warning.
 
     """
     if not isinstance(qd, Molecule):
@@ -317,24 +343,16 @@ def generate_psf2(qd: Union[str, Molecule],
     res_list = [np.arange(i)]
     res_dict = {}
     while True:
-        ref_j, j = next(iter(rdmol_dict.items()))
-        new = Molecule()
-        new.atoms = [Atom(atnum=at.atnum, coords=at.coords, mol=new) for at in qd.atoms[i:i+j]]
-        if not new:
+        new, j = _get_initial_lig(qd, rdmol_dict, i)
+        if new is None:
             break
-        elif len(new) != j:  # Pad with dummy atoms
-            new.atoms += [Atom(atnum=0, coords=[0, 0, 0], mol=new) for _ in range(j - len(new))]
-        new.set_atoms_id(start=i+1)
 
+        ref0, _ = next(iter(rdmol_dict.items()))
         for ref, k in rdmol_dict.items():
-            k = 0 if ref is ref_j else k
-            atoms_del = new.atoms[k:] if k != 0 else []
-            for at in atoms_del:
-                new.delete_atom(at)
-            guess_bonds(new)
-            fix_bond_orders(new)
-
+            k = 0 if ref is ref0 else k
+            new = _update_lig(new, k, copy=False)
             j += k
+
             if _get_matches(new, ref):
                 qd.bonds += [Bond(atom1=qd[bond.atom1.id],
                                   atom2=qd[bond.atom2.id],
@@ -344,9 +362,15 @@ def generate_psf2(qd: Union[str, Molecule],
                 break
             else:
                 continue
+
         else:
-            raise MoleculeError(f'Failed to identify any ligands {ligands} within the range '
-                                f'[{i}:{i + next(iter(rdmol_dict.items()))[1]}]')
+            err = (f'Failed to identify any ligands {ligands} within the range '
+                   f'[{i}:{i + next(iter(rdmol_dict.items()))[1]}]')
+            if not ret_failed_lig:
+                raise MoleculeError(err)
+            else:
+                warnings.warn(err, category=MoleculeWarning)
+                return _return_failed_ligs(qd, rdmol_dict, i)
         i += j
 
     # Create the .psf file
@@ -367,6 +391,51 @@ def generate_psf2(qd: Union[str, Molecule],
     # Set the charge to zero and return
     psf.charge = 0.0
     return psf
+
+
+def _get_initial_lig(qd: Molecule, rdmol_dict: Mapping[Mol, int], i: int
+                     ) -> Tuple[Union[None, Molecule], int]:
+    """Construct a new ligand at the begining of the :func:`generate_psf2` ``while`` loop."""
+    _, j = next(iter(rdmol_dict.items()))
+    new = Molecule()
+    new.atoms = [Atom(atnum=at.atnum, coords=at.coords, mol=new) for at in qd.atoms[i:i+j]]
+
+    if not new:
+        return None, j
+    elif len(new) != j:  # Pad with dummy atoms
+        new.atoms += [Atom(atnum=0, coords=[0, 0, 0], mol=new) for _ in range(j - len(new))]
+
+    new.set_atoms_id(start=i+1)
+    return new, j
+
+
+def _update_lig(ligand: Molecule, k: int, copy: bool = False) -> Molecule:
+    """Update a ligand by removing the last **k** atoms."""
+    ligand = ligand.copy() if copy else ligand
+    atoms_del = ligand.atoms[k:] if k != 0 else []
+    for at in atoms_del:
+        ligand.delete_atom(at)
+    guess_bonds(ligand)
+    fix_bond_orders(ligand)
+    return ligand
+
+
+def _return_failed_ligs(qd: Molecule, rdmol_dict: Mapping[Mol, int], i: int) -> List[Molecule]:
+    """Return a list of failed ligands in case :func:`generate_psf2` fails to identify ligands."""
+    new, j = _get_initial_lig(qd, rdmol_dict, i)
+    ret = []
+
+    ref0, _ = next(iter(rdmol_dict.items()))
+    for ref, k in rdmol_dict.items():
+        k = 0 if ref is ref0 else k
+        new = _update_lig(new, k, copy=True)
+        ret.append(new)
+        j += k
+    return ret
+
+
+class MoleculeWarning(RuntimeWarning):  # Molecule related warnings
+    pass
 
 
 MolType = TypeVar('MolType', Molecule, str, Mol)
