@@ -19,13 +19,23 @@ An example for generating a ligand center of mass RDF.
     >>> start = 123  # Start of the ligands
     >>> step = 4  # Size of the ligands
 
-    >>> lig_centra: np.ndarray = get_lig_center(mol, start, stop)
+    >>> lig_centra: np.ndarray = get_lig_center(mol, start, step)
     >>> mol_new: MultiMolecule = mol.add_atoms(lig_centra, symbols='Xx')
     >>> rdf: pd.DataFrame = mol_new.init_rdf(atom_subset=['Xx'])
+
+Or the ADF.
+
+.. code:: python
+
+    >>> ...
+
+    >>> adf: pd.DataFrame = mol_new.init_rdf(atom_subset=['Xx'])
 
 Focus on a specific ligand subset is possible by slicing the new ligand Cartesian coordinate array.
 
 .. code:: python
+
+    >>> ...
 
     >>> keep_lig = [0, 5, 13, 16]  # Keep these ligands; disgard the rest
     >>> lig_centra_subset = lig_centra[:, keep_lig]
