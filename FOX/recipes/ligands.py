@@ -1,8 +1,8 @@
 """
-FOX.recipes.rdf
-===============
+FOX.recipes.ligands
+===================
 
-A set of functions for creating radial distribution functions.
+A set of functions for analyzing ligands.
 
 Examples
 --------
@@ -23,30 +23,44 @@ An example for generating a ligand center of mass RDF.
     >>> mol_new: MultiMolecule = mol.add_atoms(lig_centra, symbols='Xx')
     >>> rdf: pd.DataFrame = mol_new.init_rdf(atom_subset=['Xx'])
 
+.. image:: ligand_rdf.png
+    :scale: 20 %
+    :align: center
+
+|
 Or the ADF.
 
 .. code:: python
 
     >>> ...
 
-    >>> adf: pd.DataFrame = mol_new.init_rdf(atom_subset=['Xx'])
+    >>> adf: pd.DataFrame = mol_new.init_rdf(atom_subset=['Xx'], r_max=np.inf)
 
+.. image:: ligand_adf.png
+    :scale: 20 %
+    :align: center
+
+|
 Focus on a specific ligand subset is possible by slicing the new ligand Cartesian coordinate array.
 
 .. code:: python
 
     >>> ...
 
-    >>> keep_lig = [0, 5, 13, 16]  # Keep these ligands; disgard the rest
+    >>> keep_lig = [0, 1, 2, 3]  # Keep these ligands; disgard the rest
     >>> lig_centra_subset = lig_centra[:, keep_lig]
 
     >>> mol_new2: MultiMolecule = mol.add_atoms(lig_centra_subset, symbols='Xx')
     >>> rdf: pd.DataFrame = mol_new2.init_rdf(atom_subset=['Xx'])
 
+.. image:: ligand_rdf_subset.png
+    :scale: 20 %
+    :align: center
+
 
 Index
 -----
-.. currentmodule:: FOX.recipes.rdf
+.. currentmodule:: FOX.recipes.ligands
 .. autosummary::
     get_lig_center
 
@@ -62,6 +76,8 @@ import numpy as np
 
 from FOX import MultiMolecule
 
+__all__ = ['get_lig_center']
+
 
 def get_lig_center(mol: MultiMolecule, start: int, step: int, stop: Optional[int] = None,
                    mass_weighted: bool = True) -> np.ndarray:
@@ -69,7 +85,7 @@ def get_lig_center(mol: MultiMolecule, start: int, step: int, stop: Optional[int
 
     Parameters
     ----------
-    mol : :class:`MultiMolecule`
+    mol : :class:`MultiMolecule<FOX.classes.multi_mol.MultiMolecule>`
         A MultiMolecule instance.
 
     start : :class:`int`

@@ -9,8 +9,8 @@ This project adheres to `Semantic Versioning <http://semver.org/>`_.
 0.6.18
 ******
 * Added the ``MultiMolecule.add_atoms()`` method.
-* Added a new recipe (``FOX.recipes.rdf``) for generating radial distribution functions
-  using the center of mass of ligands (`doc <https://auto-fox.readthedocs.io/en/latest/7_recipes.html#fox-recipes-rdf>`_).
+* Added a new recipe (``FOX.recipes.ligands``) for generating radial distribution functions
+  using the center of mass of ligands (`doc <https://auto-fox.readthedocs.io/en/latest/7_recipes.html#fox-recipes-ligands>`_).
 
 
 0.6.17
