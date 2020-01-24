@@ -1683,7 +1683,7 @@ class MultiMolecule(_MultiMolecule):
         with np.errstate(divide='ignore', invalid='ignore'):
             vec = ((coords13 - coords2) / dist[..., None])
             ang = np.arccos(np.einsum('jkl,jml->jkm', vec, vec))
-            dist = np.exp(-np.maximum(dist[..., None], dist[..., None, :]))
+            dist = np.maximum(dist[..., None], dist[..., None, :])
         ang[np.isnan(ang)] = 0.0
         ang = np.degrees(ang).astype(int)  # Radian (float) to degrees (int)
 
