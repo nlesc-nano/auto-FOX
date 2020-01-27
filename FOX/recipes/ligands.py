@@ -19,6 +19,7 @@ An example for generating a ligand center of mass RDF.
     >>> start = 123  # Start of the ligands
     >>> step = 4  # Size of the ligands
 
+    # Add dummy atoms to the ligand-center of mass and calculate the RDF
     >>> lig_centra: np.ndarray = get_lig_center(mol, start, step)
     >>> mol_new: MultiMolecule = mol.add_atoms(lig_centra, symbols='Xx')
     >>> rdf: pd.DataFrame = mol_new.init_rdf(atom_subset=['Xx'])
@@ -41,6 +42,27 @@ Or the ADF.
     :align: center
 
 |
+Or the potential of mean force (*i.e.* Boltzmann-inverted RDF).
+
+.. code:: python
+
+    >>> ...
+
+    >>> from scipy import constants
+    >>> from scm.plams import Units
+
+    >>> RT: float = 298.15 * constants.Boltzmann
+    >>> kj_to_kcal: float = Units.conversion_ratio('kj/mol', 'kcal/mol')
+
+    >>> with np.errstate(divide='ignore'):
+    >>>     rdf_invert: pd.DataFrame = -RT * np.log(rdf) * kj_to_kcal
+    >>>     rdf_invert[rdf_invert == np.inf] = np.nan  # Set all infinities to not-a-number
+
+.. image:: ligand_rdf_inv.png
+    :scale: 20 %
+    :align: center
+
+|
 Focus on a specific ligand subset is possible by slicing the new ligand Cartesian coordinate array.
 
 .. code:: python
@@ -50,6 +72,7 @@ Focus on a specific ligand subset is possible by slicing the new ligand Cartesia
     >>> keep_lig = [0, 1, 2, 3]  # Keep these ligands; disgard the rest
     >>> lig_centra_subset = lig_centra[:, keep_lig]
 
+    # Add dummy atoms to the ligand-center of mass and calculate the RDF
     >>> mol_new2: MultiMolecule = mol.add_atoms(lig_centra_subset, symbols='Xx')
     >>> rdf: pd.DataFrame = mol_new2.init_rdf(atom_subset=['Xx'])
 
@@ -80,8 +103,10 @@ A .psf file will herein be used as starting point.
     # Use the .psf segment names as symbols
     >>> symbols = [psf.segment_name[i].iloc[0] for i in idx_dict.values()]
 
+    # Add dummy atoms to the ligand-center of mass and calculate the RDF
     >>> lig_centra: np.ndarray = get_multi_lig_center(mol, idx_dict.values())
     >>> mol_new: MultiMolecule = mol.add_atoms(lig_centra, symbols=symbols)
+    >>> rdf = mol_new.init_rdf(atom_subset=set(symbols))
 
 
 Index
