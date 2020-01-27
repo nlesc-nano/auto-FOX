@@ -23,7 +23,7 @@ import copy
 from collections import abc
 from itertools import chain, combinations_with_replacement, zip_longest, islice, repeat
 from typing import (
-    Sequence, Optional, Union, List, Hashable, Callable, Iterable, Dict, Tuple, Any
+    Sequence, Optional, Union, List, Hashable, Callable, Iterable, Dict, Tuple, Any, Mapping
 )
 
 import numpy as np
@@ -1355,8 +1355,9 @@ class MultiMolecule(_MultiMolecule):
             ret[k] = cdist(a, b)
         return ret
 
-    @staticmethod
-    def get_pair_dict(atom_subset: AtomSubset, r: int = 2) -> Dict[str, str]:
+    def get_pair_dict(self, atom_subset: Union[Sequence[AtomSubset],
+                                               Mapping[Hashable, Sequence[AtomSubset]]],
+                      r: int = 2) -> Dict[str, Tuple[np.ndarray, ...]]:
         """Take a subset of atoms and return a dictionary.
 
         Parameters
@@ -1370,15 +1371,16 @@ class MultiMolecule(_MultiMolecule):
             The length of the to-be returned subsets.
 
         """
-        values = list(combinations_with_replacement(atom_subset, r))
-
-        if not isinstance(next(iter(atom_subset)), str):
-            str_ = 'series' + ''.join(' {:d}' for _ in values[0])
-            return {str_.format(*[i.index(j) for j in i]): i for i in values}
-
+        if isinstance(atom_subset, abc.Mapping):
+            key_iter = (str(i) for i in atom_subset.keys())
+            value_iter = (self._get_atom_subset(i) for i in atom_subset.values())
         else:
-            str_ = ''.join(' {}' for _ in values[0])[1:]
-            return {str_.format(*i): i for i in values}
+            key_iter = ((j if isinstance(j, abc.Hashable) else i) for i, j in enumerate(atom_subset))  # noqa
+            value_iter = (self._get_atom_subset(i) for i in atom_subset)
+
+        key_gen = combinations_with_replacement(key_iter, r)
+        value_gen = combinations_with_replacement(value_iter, r)
+        return {' '.join(str(i) for i in k): v for k, v in zip(key_gen, value_gen)}
 
     """####################################  Power spectrum  ###################################"""
 
@@ -1600,12 +1602,10 @@ class MultiMolecule(_MultiMolecule):
         m_subset = self._get_mol_subset(mol_subset)
         at_subset = self._get_atom_subset(atom_subset, as_array=True)
 
-        # Construct a dictionary unique atom-pair identifiers as keys
-        atom_pairs = self.get_pair_dict(atom_subset or sorted(self.atoms, key=str), r=3)
-
         # Slice this MultiMolecule instance based on **atom_subset** and **mol_subset**
         del_atom = np.arange(0, self.shape[1])[~at_subset]
         mol = self.delete_atoms(del_atom)[m_subset]
+        atom_pairs = mol.get_pair_dict(atom_subset or sorted(mol.atoms, key=str), r=3)
         for k, v in atom_pairs.items():
             v_new = []
             for at in v:
