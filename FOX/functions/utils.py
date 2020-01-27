@@ -765,7 +765,7 @@ def group_by_values(iterable: Iterable[Tuple[Any, Hashable]], mapping_type: Type
         A grouped dictionary.
 
     """
-    if isinstance(mapping_type, abc.MutableMapping):
+    if issubclass(mapping_type, abc.MutableMapping):
         ret = mapping_type()
         mutable = True
     else:

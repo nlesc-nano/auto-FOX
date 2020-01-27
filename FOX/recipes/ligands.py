@@ -58,25 +58,53 @@ Focus on a specific ligand subset is possible by slicing the new ligand Cartesia
     :align: center
 
 
+Examples
+--------
+An example for generating a ligand center of mass RDF from a quantum dot with multiple unique
+ligands.
+A .psf file will herein be used as starting point.
+
+.. code:: python
+
+    >>> import numpy as np
+    >>> from FOX import PSFContainer, MultiMolecule, group_by_values
+    >>> from FOX.recipes import get_multi_lig_center
+
+    >>> mol = MultiMolecule.from_xyz(...)
+    >>> psf = PSFContainer.read(...)
+
+    # Gather the indices of each ligand
+    >>> idx_dict: dict = group_by_values(enumerate(psf.residue_id, start=1))
+    >>> del idx_dict[1]  # Delete the core
+
+    # Use the .psf segment names as symbols
+    >>> symbols = [psf.segment_name[i].iloc[0] for i in idx_dict.values()]
+
+    >>> lig_centra: np.ndarray = get_multi_lig_center(mol, idx_dict.values())
+    >>> mol_new: MultiMolecule = mol.add_atoms(lig_centra, symbols=symbols)
+
+
 Index
 -----
 .. currentmodule:: FOX.recipes.ligands
 .. autosummary::
     get_lig_center
+    get_multi_lig_center
 
 API
 ---
 .. autofunction:: get_lig_center
+.. autofunction:: get_multi_lig_center
 
 """
 
-from typing import Optional
+from typing import Optional, Iterable, Sequence
 
 import numpy as np
 
 from FOX import MultiMolecule
 
-__all__ = ['get_lig_center']
+__all__ = ['get_lig_center', 'get_multi_lig_center']
 
 
 def get_lig_center(mol: MultiMolecule, start: int, step: int, stop: Optional[int] = None,
@@ -121,3 +149,48 @@ def get_lig_center(mol: MultiMolecule, start: int, step: int, stop: Optional[int
     mass.shape = 1, n // step, step, 1
     ligands *= mass
     return np.asarray(ligands.sum(axis=2) / mass.sum(axis=2))
+
+
+def get_multi_lig_center(mol: MultiMolecule, idx_iter: Iterable[Sequence[int]],
+                         mass_weighted: bool = True) -> np.ndarray:
+    """Return an array with the (mass-weighted) mean position of each ligands in **mol**.
+
+    Contrary to :func:`get_lig_center`, this function can handle molecules with multiple
+    non-unique ligands.
+
+    Parameters
+    ----------
+    mol : :class:`MultiMolecule<FOX.classes.multi_mol.MultiMolecule>`
+        A MultiMolecule instance.
+
+    idx_iter : :class:`Iterable<collections.abc.Iterable>` [:class:`Sequence<collections.abc.Sequence>` [:class:`int`]]
+        An iterable consisting of integer sequences.
+        Each integer sequence represents a single ligand (by its atomic indices).
+
+    mass_weighted : :class:`bool`
+        If ``True``, return the mass-weighted mean ligand position rather than
+        its unweighted counterpart.
+
+    Returns
+    -------
+    :class:`numpy.ndarray`
+        A new array with the ligand's centra of mass.
+        If ``mol.shape == (m, n, 3)`` then, given ``k`` new ligands (aka the length of **idx_iter**)
+        , the to-be returned array's shape is ``(m, k, 3)``.
+
+    """  # noqa
+    mass_ = mol.mass
+    ret = []
+    ret_append = ret.append
+
+    for idx in idx_iter:
+        ligand = mol[:, idx]
+        if not mass_weighted:
+            ret_append(ligand.mean(axis=1))
+            continue
+
+        mass = mass_[idx][None, ..., None]
+        ligand *= mass
+        ret_append(ligand.sum(axis=1) / mass.sum(axis=1))
+
+    return np.array(ret)

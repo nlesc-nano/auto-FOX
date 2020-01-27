@@ -16,7 +16,7 @@ from os.path import join
 from .__version__ import __version__
 
 from .functions import (
-    assert_error, get_example_xyz
+    assert_error, get_example_xyz, group_by_values
 )
 
 from .io import (
@@ -47,7 +47,7 @@ example_xyz: str = join(__path__[0], 'data', 'Cd68Se55_26COO_MD_trajec.xyz')
 __all__ = [
     '__version__',
 
-    'get_example_xyz', 'example_xyz', 'assert_error',
+    'get_example_xyz', 'example_xyz', 'assert_error', 'group_by_values',
 
     'PSFContainer',
     'PRMContainer',

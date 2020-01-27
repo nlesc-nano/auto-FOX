@@ -51,7 +51,7 @@ class DummyGetter:
 
 
 class PSFContainer(AbstractDataClass, AbstractFileContainer):
-    """A container for managing protein structure files.
+    r"""A container for managing protein structure files.
 
     The :class:`PSFContainer` class has access to three general sets of methods.
 
@@ -168,12 +168,12 @@ class PSFContainer(AbstractDataClass, AbstractFileContainer):
         interactions should be ignored.
         Indices are expected to be 1-based.
 
-    np_printoptions : :class:`dict` [:class:`str`, :class:`object`], private
-        A dictionary with Numpy print options.
+    np_printoptions : :class:`Mapping<collections.abc.Mapping>` [:class:`str`, :class:`object`]
+        A mapping with Numpy print options.
         See `np.set_printoptions <https://docs.scipy.org/doc/numpy/reference/generated/numpy.set_printoptions.html>`_.
 
-    pd_printoptions : :class:`dict` [:class:`str`, :class:`object`], private
-        A dictionary with Pandas print options.
+    pd_printoptions : :class:`Mapping<collections.abc.Mapping>` [:class:`str`, :class:`object`]
+        A mapping with Pandas print options.
         See `Options and settings <https://pandas.pydata.org/pandas-docs/stable/user_guide/options.html>`_.
 
     """  # noqa
@@ -197,7 +197,7 @@ class PSFContainer(AbstractDataClass, AbstractFileContainer):
     })
 
     #: A dictionary mapping .psf headers to :class:`PSFContainer` attribute names
-    _HEADER_DICT = MappingProxyType({
+    _HEADER_DICT: Mapping[str, str] = MappingProxyType({
         '!NTITLE': 'title',
         '!NATOM': 'atoms',
         '!NBOND': 'bonds',
@@ -257,9 +257,7 @@ class PSFContainer(AbstractDataClass, AbstractFileContainer):
             return super().__repr__()
 
     @AbstractDataClass.inherit_annotations()
-    def _str_iterator(self):
-        ret = super()._str_iterator()
-        return ((k.strip('_'), v) for k, v in ret)
+    def _str_iterator(self): return ((k.strip('_'), v) for k, v in super()._str_iterator())
 
     @AbstractDataClass.inherit_annotations()
     def __eq__(self, value):
@@ -304,7 +302,7 @@ class PSFContainer(AbstractDataClass, AbstractFileContainer):
 
     @property
     def title(self) -> np.ndarray:
-        """Get :attr:`PSFContainer.title` or assign an array-like object as a 2D array."""
+        """Get :attr:`PSFContainer.title` or assign an array-like object as a 1D array."""
         return self._title
 
     @title.setter
@@ -854,8 +852,7 @@ class PSFContainer(AbstractDataClass, AbstractFileContainer):
         ret_append = ret.append
 
         type_dict = {}
-        id_map = id_map if id_map is not None else DummyGetter('LIG')
-        id_map_get = id_map.get
+        id_map_get = id_map.get if id_map is not None else DummyGetter('LIG').get
 
         iterator = zip(self.atom_type, self.residue_name, self.residue_id)
         for at_type, res_name, res_id in iterator:
