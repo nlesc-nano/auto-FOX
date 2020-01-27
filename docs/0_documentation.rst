@@ -8,4 +8,5 @@ Auto-FOX Documentation
     4_monte_carlo
     5_xyz_reader
     6_estimate_lj
+    8_psf
     7_recipes

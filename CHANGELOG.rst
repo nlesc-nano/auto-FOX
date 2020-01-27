@@ -6,6 +6,13 @@ All notable changes to this project will be documented in this file.
 This project adheres to `Semantic Versioning <http://semver.org/>`_.
 
 
+0.6.18
+******
+* Added the ``MultiMolecule.add_atoms()`` method.
+* Added a new recipe (``FOX.recipes.ligands``) for generating radial distribution functions
+  using the center of mass of ligands (`doc <https://auto-fox.readthedocs.io/en/latest/7_recipes.html#fox-recipes-ligands>`_).
+
+
 0.6.17
 ******
 * The total error (not just the error change) is now printed in the ARMC log.
@@ -24,9 +31,7 @@ This project adheres to `Semantic Versioning <http://semver.org/>`_.
 
 0.6.16
 ******
-* Added recipes for generating .psf files for quantum dot with multiple different ligands in ``FOX.recipes``.
-* https://github.com/nlesc-nano/auto-FOX/commit/28abcb10726069ca8d6eda4cd747630f5d8a0442 :
-  Ensure that ARMC jobs without .psf file actually return None instead of raising an ``AttributeError``.
+* There is no v0.6.16.
 
 
 0.6.15

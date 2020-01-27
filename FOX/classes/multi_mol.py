@@ -19,8 +19,9 @@ API
 
 """
 
+import copy
 from collections import abc
-from itertools import chain, combinations_with_replacement, zip_longest, islice
+from itertools import chain, combinations_with_replacement, zip_longest, islice, repeat
 from typing import (
     Sequence, Optional, Union, List, Hashable, Callable, Iterable, Dict, Tuple, Any
 )
@@ -154,6 +155,73 @@ class MultiMolecule(_MultiMolecule):
         # Update :attr:`.MultiMolecule.atoms`
         symbols = self.symbol[idx]
         ret.atoms = group_by_values(enumerate(symbols))
+        return ret
+
+    def add_atoms(self, coords: np.ndarray, symbols: Union[str, Iterable[str]] = 'Xx'
+                  ) -> 'MultiMolecule':
+        """Create a copy of this instance with all atoms in **atom_subset** appended.
+
+        Examples
+        --------
+        .. code:: python
+
+            >>> import numpy as np
+            >>> from FOX import MultiMolecule, example_xyz
+
+            >>> mol = MultiMolecule.from_xyz(example_xyz)
+            >>> coords: np.ndarray = np.random.rand(73, 3)  # Add 73 new atoms with random coords
+            >>> symbols = 'Br'
+
+            >>> mol_new: MultiMolecule = mol.add_atoms(coords, symbols)
+
+            >>> print(repr(mol))
+            MultiMolecule(..., shape=(4905, 227, 3), dtype='float64')
+            >>> print(repr(mol_new))
+            MultiMolecule(..., shape=(4905, 300, 3), dtype='float64')
+
+        Parameters
+        ----------
+        coords : array-like
+            A :math:`(3,)`, :math:`(n, 3)`, :math:`(m, 3)` or :math:`(m, n, 3)` array-like object
+            with :code:`m == len(self)`.
+            Represents the Cartesian coordinates of the to-be added atoms.
+
+        symbols : :class:`str` or :class:`Iterable<collections.abc.Iterable>` [:class:`str`]
+            One or more atomic symbols of the to-be added atoms.
+
+        Returns
+        -------
+        |FOX.MultiMolecule|_
+            A new :class:`.MultiMolecule` instance with all atoms in **atom_subset** appended.
+
+        """
+        # Reshape the passed coordinates
+        coords = np.array(coords, dtype=float, ndmin=3, copy=False)
+        i, j, k = coords.shape
+        if i == len(self):
+            coords_ = coords.reshape(len(self), 1, 3) if k == 1 else coords
+        elif i == 3 and j == k == 1:
+            coords_ = np.empty((len(self), 1, 3))
+            coords_[:] = coords.reshape(1, 1, 3)
+        else:
+            coords_ = np.empty((len(self), i, 3))
+            coords_[:] = coords.reshape(1, i, 3)
+        j = coords_.shape[1]
+
+        # Append
+        ret = MultiMolecule(np.hstack([self, coords_]))
+        ret.__dict__ = copy.deepcopy(self.__dict__)
+
+        # Update atomic symbols & indices
+        symbols = repeat(symbols, j) if isinstance(symbols, str) else islice(symbols, j)
+        atoms_append = {k: v.append for k, v in ret.atoms.items()}
+        for i, item in enumerate(symbols, self.shape[1]):
+            try:
+                atoms_append[item](i)
+            except KeyError:
+                ret.atoms[item] = list_ = [i]
+                atoms_append[item] = list_.append
+
         return ret
 
     def guess_bonds(self, atom_subset: AtomSubset = None) -> None:
@@ -1615,7 +1683,7 @@ class MultiMolecule(_MultiMolecule):
         with np.errstate(divide='ignore', invalid='ignore'):
             vec = ((coords13 - coords2) / dist[..., None])
             ang = np.arccos(np.einsum('jkl,jml->jkm', vec, vec))
-            dist = np.exp(-np.maximum(dist[..., None], dist[..., None, :]))
+            dist = np.maximum(dist[..., None], dist[..., None, :])
         ang[np.isnan(ang)] = 0.0
         ang = np.degrees(ang).astype(int)  # Radian (float) to degrees (int)
 
