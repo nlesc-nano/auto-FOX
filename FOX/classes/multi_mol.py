@@ -182,7 +182,7 @@ class MultiMolecule(_MultiMolecule):
         Parameters
         ----------
         coords : array-like
-            A :math:`(3,)`, :math:`(n, 3)` or :math:`(n, 3)` array-like object
+            A :math:`(3,)`, :math:`(n, 3)`, :math:`(m, 3)` or :math:`(m, n, 3)` array-like object
             with :code:`m == len(self)`.
             Represents the Cartesian coordinates of the to-be added atoms.
 
