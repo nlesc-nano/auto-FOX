@@ -1,6 +1,6 @@
 import textwrap
 from types import MappingProxyType
-from typing import Union, Iterable, Mapping, Dict, Tuple
+from typing import Union, Iterable, Mapping, Dict, Tuple, Callable
 from itertools import combinations_with_replacement
 from collections import abc
 
@@ -55,9 +55,9 @@ class LJDataFrame(pd.DataFrame):
         return f'{self.__class__.__name__}(\n{textwrap.indent(ret, indent)}\n)'
 
     @property
-    def _constructor_expanddim(self) -> 'LJDataFrame':
+    def _constructor_expanddim(self) -> Callable:
         """Construct a :class:`.LJDataFrame` instance."""
-        def _df(*args, **kwargs) -> LJDataFrame:
+        def _df(*args, **kwargs) -> 'LJDataFrame':
             return LJDataFrame(*args, **kwargs).__finalize__(self)
         return _df
 
@@ -111,9 +111,12 @@ class LJDataFrame(pd.DataFrame):
         if not isinstance(prm, PRMContainer):
             prm = PRMContainer.read(prm)
 
-        nonbonded = prm.nonbonded.set_index(0)
-        epsilon = nonbonded[2].astype(float, copy=False)
-        sigma = nonbonded[3].astype(float, copy=False)
+        nonbonded = prm.nonbonded
+        if nonbonded is None:
+            return None
+
+        epsilon = nonbonded[2]
+        sigma = nonbonded[3]
         self.set_epsilon(epsilon, unit='kcal/mol')
         self.set_sigma(sigma, unit='angstrom')
 

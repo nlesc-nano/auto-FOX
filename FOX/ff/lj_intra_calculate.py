@@ -137,6 +137,9 @@ def _get_idx(mol: MultiMolecule, core_atoms: np.ndarray) -> np.ndarray:
             dfs(at, id_list, i, set())
             yield id_list
 
+    if not core_atoms.any():
+        return np.zeros((0, 2), dtype=int)
+
     _mol = mol.delete_atoms(core_atoms)
     _mol.bonds -= len(core_atoms)
     molecule = _mol.as_Molecule(0)[0]

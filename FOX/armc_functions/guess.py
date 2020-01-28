@@ -139,8 +139,7 @@ def _transform_df(df: pd.DataFrame) -> pd.DataFrame:
 def _process_prm(armc: ARMC) -> pd.DataFrame:
     r"""Extract a DataFrame from a .prm file with all :math:`\varepsilon` and :math:`\sigma` values."""  # noqa
     prm = PRMContainer.read(armc.md_settings[0].input.force_eval.mm.forcefield.parm_file_name)
-    nonbonded = prm.nonbonded.set_index(0)
-    nonbonded = nonbonded[[2, 3]].astype(float)
+    nonbonded = prm.nonbonded[[2, 3]].copy()
     nonbonded.columns = ['epsilon', 'sigma']
     return nonbonded
 

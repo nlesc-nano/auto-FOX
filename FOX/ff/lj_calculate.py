@@ -109,7 +109,12 @@ def get_non_bonded(mol: Union[str, MultiMolecule],
     if cp2k_settings is not None:
         prm_df.overlay_cp2k_settings(cp2k_settings)
 
-    slice_dict = {(i, j): (mol_atoms[i], mol_atoms[j]) for i, j in prm_df.index}
+    slice_dict = {}
+    for i, j in prm_df.index:
+        try:
+            slice_dict[i, j] = mol_atoms[i], mol_atoms[j]
+        except KeyError:
+            pass
     core_atoms = set(psf.atom_type[psf.residue_id == 1])
     ligand_count = psf.residue_id.max() - 1
     return get_V(mol, slice_dict, prm_df.loc, ligand_count, core_atoms=core_atoms)

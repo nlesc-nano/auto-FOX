@@ -20,10 +20,12 @@ API
 """
 
 import inspect
-from typing import Any, Iterator, Dict, Tuple, Set, Mapping
+from types import MappingProxyType
+from typing import Any, Iterator, Dict, Tuple, Set, Mapping, List, Union, Hashable
 from itertools import chain
 from collections import abc
 
+import numpy as np
 import pandas as pd
 from assertionlib.dataclass import AbstractDataClass
 
@@ -53,6 +55,28 @@ class PRMContainer(AbstractDataClass, AbstractFileContainer):
         'IMPROPER', 'END'
     )
 
+    #: Define the columns for each DataFrame which hold its index
+    INDEX: Mapping[str, List[int]] = MappingProxyType({
+        'atoms': [2],
+        'bonds': [0, 1],
+        'angles': [0, 1, 2],
+        'dihedrals': [0, 1, 2, 3],
+        'nbfix': [0, 1],
+        'nonbonded': [0],
+        'impropers': [0, 1, 2, 3],
+    })
+
+    #: Placeholder values for DataFrame columns
+    COLUMNS: Mapping[str, Tuple[Union[None, int, float], ...]] = MappingProxyType({
+        'atoms': (None, -1, None, np.nan),
+        'bonds': (None, None, np.nan, np.nan),
+        'angles': (None, None, None, np.nan, np.nan, np.nan, np.nan),
+        'dihedrals': (None, None, None, None, np.nan, -1, np.nan),
+        'nbfix': (None, None, np.nan, np.nan),
+        'nonbonded': (None, np.nan, np.nan, np.nan, np.nan, np.nan, np.nan),
+        'impropers': (None, None, None, None, np.nan, -1, np.nan)
+    })
+
     def __init__(self, filename=None, atoms=None, bonds=None, angles=None, dihedrals=None,
                  impropers=None, nonbonded=None, nonbonded_header=None, nbfix=None,
                  hbond=None) -> None:
@@ -74,7 +98,7 @@ class PRMContainer(AbstractDataClass, AbstractFileContainer):
         self.pd_printoptions: Dict[str, Any] = {'display.max_rows': 20}
 
     @property
-    def pd_printoptions(self) -> Iterator:
+    def pd_printoptions(self) -> Iterator[Union[Hashable, Any]]:
         return chain.from_iterable(self._pd_printoptions.items())
 
     @pd_printoptions.setter
@@ -127,11 +151,6 @@ class PRMContainer(AbstractDataClass, AbstractFileContainer):
 
     @classmethod
     @AbstractFileContainer.inherit_annotations()
-    def write(cls, filename=None, encoding=None, **kwargs):
-        return super().write(filename, encoding, **kwargs)
-
-    @classmethod
-    @AbstractFileContainer.inherit_annotations()
     def _read_iterate(cls, iterator):
         ret = {}
         value = None
@@ -157,8 +176,8 @@ class PRMContainer(AbstractDataClass, AbstractFileContainer):
         cls._read_post_iterate(ret)
         return ret
 
-    @staticmethod
-    def _read_post_iterate(kwargs: dict) -> None:
+    @classmethod
+    def _read_post_iterate(cls, kwargs: dict) -> None:
         """Post process the dictionary produced by :meth:`PRMContainer._read_iterate`."""
         if 'end' in kwargs:
             del kwargs['end']
@@ -173,9 +192,11 @@ class PRMContainer(AbstractDataClass, AbstractFileContainer):
                 kwargs[k] = ' '.join(chain.from_iterable(v)).split('!')[0].rstrip()
             elif k == 'nonbonded':
                 nonbonded_header = ' '.join(chain.from_iterable(v[0:2])).rstrip()
-                kwargs[k] = pd.DataFrame(v[2:])
+                kwargs[k] = df = pd.DataFrame(v[2:])
+                cls._process_df(df, k)
             else:
-                kwargs[k] = pd.DataFrame(v)
+                kwargs[k] = df = pd.DataFrame(v)
+                cls._process_df(df, k)
 
         try:
             kwargs['nonbonded_header'] = nonbonded_header
@@ -189,6 +210,21 @@ class PRMContainer(AbstractDataClass, AbstractFileContainer):
             if k == 'hbond_comment':
                 continue
             kwargs[k.rstrip('_comment')]['comment'] = v
+
+        for k, v in kwargs.items():
+            if isinstance(v, pd.DataFrame) and not v.values.any():
+                kwargs[k] = None
+
+    @classmethod
+    def _process_df(cls, df: pd.DataFrame, key: str) -> None:
+        for i, default in enumerate(cls.COLUMNS[key]):
+            if i not in df:
+                df[i] = default
+            else:
+                default_type = str if default is None else type(default)
+                df[i] = df[i].astype(default_type, copy=False)
+        df['comment'] = None
+        df.set_index(cls.INDEX[key], inplace=True)
 
     @AbstractFileContainer.inherit_annotations()
     def _read_postprocess(self, filename, encoding=None, **kwargs):
@@ -206,14 +242,18 @@ class PRMContainer(AbstractDataClass, AbstractFileContainer):
 
     @AbstractFileContainer.inherit_annotations()
     def _write_iterate(self, write, **kwargs) -> None:
+        isnull = pd.isnull
+
         for key in self.HEADERS[:-2]:
             key_low = key.lower()
             df = getattr(self, key_low)
+
             if key_low == 'hbond':
                 write(f'\n{key} {df}\n')
                 continue
             elif not isinstance(df, pd.DataFrame):
                 continue
+            df = df.reset_index()
 
             iterator = range(df.shape[1] - 1)
             df_str = ' '.join('{:8}' for _ in iterator) + ' !{}\n'
@@ -224,7 +264,7 @@ class PRMContainer(AbstractDataClass, AbstractFileContainer):
                 header = '-\n'.join(i for i in self.nonbonded_header.split('-'))
                 write(f'\n{key} {header}\n')
             for _, row_value in df.iterrows():
-                write_str = df_str.format(*(('' if i is None else i) for i in row_value))
+                write_str = df_str.format(*(('' if isnull(i) else i) for i in row_value))
                 write(write_str)
 
         write('\nEND\n')
