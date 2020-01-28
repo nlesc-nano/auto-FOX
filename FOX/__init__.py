@@ -40,13 +40,13 @@ from .ff import (
 
 __author__ = "Bas van Beek"
 __email__ = 'b.f.van.beek@vu.nl'
+__version__ = __version__
 
 #: The path+filename of the example multi-xyz file.
 example_xyz: str = join(__path__[0], 'data', 'Cd68Se55_26COO_MD_trajec.xyz')
+del join
 
 __all__ = [
-    '__version__',
-
     'get_example_xyz', 'example_xyz', 'assert_error', 'group_by_values',
 
     'PSFContainer',
