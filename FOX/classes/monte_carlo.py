@@ -137,6 +137,19 @@ class MonteCarlo(AbstractDataClass, abc.Mapping):
         else:
             self._logger = get_logger(self.__class__.__name__, handler_type=logging.StreamHandler)
 
+    @property
+    def pes_post_process(self) -> Tuple[Callable, ...]:
+        return self._pes_post_process
+
+    @pes_post_process.setter
+    def pes_post_process(self, value: Optional[Callable, Iterable[Callable]]) -> None:
+        if value is None:
+            self._pes_post_process = ()
+        elif isinstance(value, abc.Iterable):
+            self._pes_post_process = tuple(value)
+        else:
+            self._pes_post_process = (value,)
+
     _PRIVATE_ATTR = frozenset({'_plams_molecule'})
 
     def __init__(self, molecule: Union[MultiMolecule, Iterable[MultiMolecule]],
@@ -149,7 +162,8 @@ class MonteCarlo(AbstractDataClass, abc.Mapping):
                  apply_move: Callable[[float, float], float] = np.multiply,
                  move_range: Optional[np.ndarray] = None,
                  keep_files: bool = False,
-                 logger: Optional[logging.Logger] = None) -> None:
+                 logger: Optional[logging.Logger] = None,
+                 pes_post_process: Optional[Callable, Iterable[Callable]] = None) -> None:
         """Initialize a :class:`MonteCarlo` instance."""
         super().__init__()
 
