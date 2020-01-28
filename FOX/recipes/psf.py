@@ -95,10 +95,10 @@ API
 .. autofunction:: extract_ligand
 
 """
-import operator
 import warnings
 from os import PathLike
 from sys import version_info
+from math import ceil, floor
 from types import MappingProxyType
 from typing import (Union, Iterable, Optional, TypeVar, Callable, Mapping, Type, Iterator,
                     Hashable, Any, Tuple, MutableMapping, AnyStr, List)
@@ -414,7 +414,9 @@ def _update_lig(ligand: Molecule, k: int, copy: bool = False) -> Molecule:
     atoms_del = ligand.atoms[k:] if k != 0 else []
     for at in atoms_del:
         ligand.delete_atom(at)
-    guess_bonds(ligand)
+
+    ligand.guess_bonds()
+    dekekulize(ligand)
     fix_bond_orders(ligand)
     return ligand
 
@@ -501,38 +503,39 @@ def _get_rddict(ligands: Iterable[Union[str, Molecule, Mol]]) -> MutableMapping[
     return rdmol_dict
 
 
-AddOrSub = Callable[[float, float], float]
-FUNC_MAP: Mapping[AddOrSub, AddOrSub] = MappingProxyType({
-    operator.__add__: operator.__sub__,
-    operator.__sub__: operator.__add__
+MinOrMax = Callable[[float, float], float]
+FUNC_MAP: Mapping[MinOrMax, MinOrMax] = MappingProxyType({
+    min: max, min: max
 })
 
 
-def guess_bonds(mol: Molecule) -> None:
-    """Modified version of :meth:`Molecule.guess_bonds`.
+def dekekulize(mol: Molecule) -> None:
+    """Convert non-integer bond orders into integers.
 
     Bond orders for "aromatic" systems are no longer set to ``1.5``,
     instead addopting the more Kekulé-esque bond orders of ``1`` and ``2``.
 
     """
-    def dfs(atom: Atom, func: AddOrSub) -> None:
+    def dfs(atom: Atom, func: MinOrMax) -> None:
         """Depth-first search algorithm for fixing the fixing the bond orders."""
         for b2 in atom.bonds:
             if b2.visited:
                 continue
 
             b2.visited = True
-            b2.order = int(func(b2.order, 0.5))  # Add or substract 0.5
+            b2.order = int(b2.order + func(get_delta(b2.order)))  # Add or substract
             bonds.remove(b2)
 
             atom_new = b2.atom1 if b2.atom1 is not atom else b2.atom2
             dfs(atom_new, func=FUNC_MAP[func])
 
-    mol.guess_bonds()
+    def get_delta(order: float) -> Tuple[int, int]:
+        """Return the difference between **order** and the nearest two integers."""
+        return ceil(order) - order, floor(order) - order
 
     bonds = set()
     for b in mol.bonds:
-        if hasattr(b.order, 'is_integer'):
+        if hasattr(b.order, 'is_integer'):  # This catches both float and np.float instances
             if not b.order.is_integer():
                 b.visited = False
                 bonds.add(b)
@@ -544,10 +547,13 @@ def guess_bonds(mol: Molecule) -> None:
 
     while bonds:
         b1 = bonds.pop()
-        b1.order = int(b1.order + 0.5)
+        delta = get_delta(b1.order)  # Equal to +- 0.5 in case of half-integer bond orders
+        func = max if abs(delta[0]) < abs(delta[1]) else min
+
+        b1.order = int(b1.order + func(delta))
         b1.visited = True
-        dfs(b1.atom1, func=operator.__sub__)
-        dfs(b1.atom2, func=operator.__sub__)
+        dfs(b1.atom1, func=FUNC_MAP[func])
+        dfs(b1.atom2, func=FUNC_MAP[func])
 
     for b in mol.bonds:
         delattr(b, 'visited')
