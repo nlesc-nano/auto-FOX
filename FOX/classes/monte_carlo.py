@@ -150,7 +150,7 @@ class MonteCarlo(AbstractDataClass, abc.Mapping):
         else:
             self._pes_post_process = (value,)
 
-    _PRIVATE_ATTR = frozenset({'_plams_molecule'})
+    _PRIVATE_ATTR = frozenset({'_plams_molecule', 'job_cache'})
 
     def __init__(self, molecule: Union[MultiMolecule, Iterable[MultiMolecule]],
                  param: pd.DataFrame,
