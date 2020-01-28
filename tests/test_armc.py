@@ -41,10 +41,9 @@ def test_to_yaml() -> None:
 
         for k, v1 in armc1.pes.items():
             v2 = armc2.pes[k]
-            for p1, p2 in zip(v1, v2):
-                assertion.is_(p1.func, p2.func)
-                assertion.eq(p1.keywords, p2.keywords)
-                np.testing.assert_allclose(p1.ref.values, p2.ref.values)
+            assertion.is_(v1.func, v2.func)
+            assertion.eq(v1.keywords, v2.keywords)
+            np.testing.assert_allclose(v1.ref.values, v2.ref.values)
 
         np.testing.assert_allclose(armc1.param['param'], armc2.param['param'])
         np.testing.assert_allclose(armc1.param['min'], armc2.param['min'])

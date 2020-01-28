@@ -157,9 +157,9 @@ class ARMC(MonteCarlo):
 
     def __init__(self, iter_len: int = 50000, sub_iter_len: int = 100, gamma: int = 200,
                  a_target: float = 0.25, phi: float = 1.0,
-                 apply_phi: Callable[[float, float], float] = np.add, **kwarg) -> None:
+                 apply_phi: Callable[[float, float], float] = np.add, **kwargs) -> None:
         """Initialize a :class:`ARMC` instance."""
-        super().__init__(**kwarg)
+        super().__init__(**kwargs)
 
         # Settings specific to addaptive rate Monte Carlo (ARMC)
         self.iter_len: int = iter_len
@@ -268,13 +268,13 @@ class ARMC(MonteCarlo):
             mol.as_xyz(name)
 
         # The pes block
-        for name, func_list in self.pes.items():
-            pes_dict = s.pes[name]
-            pes_dict.func = f'{func_list[0].func.__module__}.{func_list[0].func.__qualname__}'
-            pes_dict.args = list(func_list[0].args)
-            pes_dict.kwargs = []
-            for func in func_list:
-                pes_dict.kwargs.append(func.keywords)
+        for name, partial in self.pes.items():
+            pes_dict = s.pes[name.rsplit('.', maxsplit=1)[0]]
+            pes_dict.func = f'{partial.func.__module__}.{partial.func.__qualname__}'
+            pes_dict.args = list(partial.args)
+            if 'kwargs' not in pes_dict:
+                pes_dict.kwargs = []
+            pes_dict.kwargs.append(partial.keywords)
 
         # The move block
         s.move.range.stop = round(float(self.move_range.max() - 1), 8)
@@ -285,7 +285,7 @@ class ARMC(MonteCarlo):
         with manager(filename, 'w') as f:
             f.write(yaml.dump(s.as_dict(), Dumper=Dumper))
 
-    def __call__(self, start: int = 0, key_new: Optional[Tuple[float, ...]] = None) -> None:
+    def __call__(self, start: int = 0, key_new: Optional[Tuple[np.ndarray, ...]] = None) -> None:
         """Initialize the Addaptive Rate Monte Carlo procedure."""
         if start == 0:
             create_hdf5(self.hdf5_file, self)  # Construct the HDF5 file
@@ -313,7 +313,7 @@ class ARMC(MonteCarlo):
             self.update_phi(acceptance)
 
     def do_inner(self, kappa: int, omega: int, acceptance: np.ndarray,
-                 key_old: Tuple[float]) -> Tuple[Tuple[float, ...], ...]:
+                 key_old: Tuple[np.ndarray, ...]) -> Tuple[np.ndarray, ...]:
         r"""Run the inner loop of the :meth:`ARMC.__call__` method.
 
         Parameters
@@ -369,7 +369,7 @@ class ARMC(MonteCarlo):
             self.param['param'] = self.param['param_old']
         return key_new
 
-    def _get_first_key(self) -> Tuple[Tuple[float, ...], ...]:
+    def _get_first_key(self) -> Tuple[np.ndarray, ...]:
         """Create a the ``history_dict`` variable and its first key.
 
         The to-be returned key servers as the starting argument for :meth:`.do_inner`,
@@ -377,10 +377,8 @@ class ARMC(MonteCarlo):
 
         Returns
         -------
-        |dict|_ [|tuple|_ [|float|_], |np.ndarray|_ [|np.float64|_]] and |tuple|_ [|float|_]
-            Returns two items:
-            * A dictionary with parameters as keys and a list of PES descriptors as values.
-            * A tuple with the latest set of forcefield parameters.
+        |tuple|_ [|np.ndarray|_ [|float|_]]
+            A tuple of Numpy arrays.
 
         """
         key = tuple(self.param['param'].values)
@@ -390,9 +388,9 @@ class ARMC(MonteCarlo):
         self.param['param_old'] = self.param['param']
         return key
 
-    def _hdf5_kwarg(self, mol_list: Iterable[Optional['FOX.MultiMolecule']],
+    def _hdf5_kwarg(self, mol_list: Optional[Iterable['FOX.MultiMolecule']],
                     accept: bool, aux_new: np.ndarray,
-                    pes_new: Dict[str, np.ndarray]) -> Dict[str, Any]:
+                    pes_new: Mapping[str, np.ndarray]) -> Dict[str, Any]:
         """Construct a dictionary with the **hdf5_kwarg** argument for :func:`.to_hdf5`.
 
         Parameters
@@ -424,15 +422,11 @@ class ARMC(MonteCarlo):
             'aux_error': aux_new,
             'aux_error_mod': np.append(self.param[param_key].values, self.phi)
         }
-
-        for i, dct in enumerate(pes_new):
-            for k, v in dct.items():
-                k += f'.{i}'
-                hdf5_kwarg[k] = v
+        hdf5_kwarg.update(pes_new)
 
         return hdf5_kwarg
 
-    def get_aux_error(self, pes_list: Iterable[Dict[str, np.ndarray]]) -> np.ndarray:
+    def get_aux_error(self, pes_dict: Dict[str, np.ndarray]) -> np.ndarray:
         r"""Return the auxiliary error :math:`\Delta \varepsilon_{QM-MM}`.
 
         The auxiliary error is constructed using the PES descriptors in **values**
@@ -448,8 +442,8 @@ class ARMC(MonteCarlo):
 
         Parameters
         ----------
-        pes_list : |list|_ [|dict|_ [str, |np.ndarray|_ [|np.float64|_]]]
-            An iterable consisting of :math:`m` dictionaries with :math:`n` PES descriptors each.
+        pes_dict : [|dict|_ [str, |np.ndarray|_ [|np.float64|_]]
+            An dictionary with :math:`m*n` PES descriptors each.
 
         Returns
         -------
@@ -457,18 +451,18 @@ class ARMC(MonteCarlo):
             An array with :math:`m*n` auxilary errors
 
         """
-        def norm_mean(key: str, mm_pes: np.ndarray, i: int) -> float:
-            qm_pes = self.pes[key][i].ref
-            A, B = np.asarray(qm_pes, dtype=float), np.asarray(mm_pes, dtype=float)
-            ret = (A - B)**2
-            return ret.sum() / A.sum()
+        def norm_mean(key: str, mm_pes: np.ndarray) -> float:
+            qm_pes = self.pes[key].ref
+            QM, MM = np.asarray(qm_pes, dtype=float), np.asarray(mm_pes, dtype=float)
+            ret = (QM - MM)**2
+            return ret.sum() / QM.sum()
 
-        ret = np.array([
-            norm_mean(k, v, i) for i, dct in enumerate(pes_list) for k, v in dct.items()
-        ])
+        length = 1 + max(int(k.rsplit('.')[-1]) for k in pes_dict.keys())
 
-        ret.shape = len(pes_list), len(ret) // len(pes_list)
-        return ret
+        generator = (norm_mean(k, v) for k, v in pes_dict.items())
+        ret = np.fromiter(generator, dtype=float, count=len(pes_dict))
+        ret.shape = length, -1
+        return ret.T
 
     def update_phi(self, acceptance: np.ndarray) -> None:
         r"""Update the variable :math:`\phi`.
@@ -500,9 +494,37 @@ class ARMC(MonteCarlo):
 
     def restart(self) -> None:
         r"""Restart a previously started Addaptive Rate Monte Carlo procedure."""
+        i, j, key, acceptance = self._restart_from_hdf5()
+
+        # Validate the xyz .hdf5 file; create a new one if required
+        xyz = _get_filename_xyz(self.hdf5_file)
+        if not os.path.isfile(xyz):
+            create_xyz_hdf5(self.hdf5_file, self.molecule, iter_len=self.sub_iter_len)
+
+        # Check that both .hdf5 files can be opened; clear their status if not
+        closed = hdf5_clear_status(xyz)
+        if not closed:
+            self.logger.warning(f"Unable to open ...{os.sep}{os.path.basename(xyz)}, "
+                                "file status was forcibly reset")
+        closed = hdf5_clear_status(self.hdf5_file)
+        if not closed:
+            self.logger.warning(f"Unable to open ...{os.sep}{os.path.basename(self.hdf5_file)}, "
+                                "file status was forcibly reset")
+
+        # Finish the current set of sub-iterations
+        j += 1
+        for omega in range(j, self.sub_iter_len):
+            key = self.do_inner(i, omega, acceptance, key)
+        self.update_phi(acceptance)
+        i += 1
+
+        # And continue
+        self(start=i, key_new=key)
+
+    def _restart_from_hdf5(self) -> Tuple[int, int, Tuple[np.ndarray, ...], np.ndarray]:
+        r"""Read and process the .hdf5 file for :meth:`ARMC.restart`."""
         import h5py
 
-        # Initialize the first MD calculation
         with h5py.File(self.hdf5_file, 'r', libver='latest') as f:
             i, j = f.attrs['super-iteration'], f.attrs['sub-iteration']
             if i < 0:
@@ -533,27 +555,4 @@ class ARMC(MonteCarlo):
                 else:
                     err = aux_error[~aux_nan][-1]  # Its no longer np.nan
 
-        # Validate the xyz .hdf5 file; create a new one if required
-        xyz = _get_filename_xyz(self.hdf5_file)
-        if not os.path.isfile(xyz):
-            create_xyz_hdf5(self.hdf5_file, self.molecule, iter_len=self.sub_iter_len)
-
-        # Check that both .hdf5 files can be opened; clear their status if not
-        closed = hdf5_clear_status(xyz)
-        if not closed:
-            self.logger.warning(f"Unable to open ...{os.sep}{os.path.basename(xyz)}, "
-                                "file status was forcibly reset")
-        closed = hdf5_clear_status(self.hdf5_file)
-        if not closed:
-            self.logger.warning(f"Unable to open ...{os.sep}{os.path.basename(self.hdf5_file)}, "
-                                "file status was forcibly reset")
-
-        # Finish the current set of sub-iterations
-        j += 1
-        for omega in range(j, self.sub_iter_len):
-            key = self.do_inner(i, omega, acceptance, key)
-        self.update_phi(acceptance)
-        i += 1
-
-        # And continue
-        self(start=i, key_new=key)
+        return i, j, key, acceptance
