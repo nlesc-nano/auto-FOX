@@ -6,6 +6,14 @@ All notable changes to this project will be documented in this file.
 This project adheres to `Semantic Versioning <http://semver.org/>`_.
 
 
+0.6.19
+******
+* Cleaned up the ``PRMContainer()`` class.
+* Cleaned up the main __init__.py file.
+* https://github.com/nlesc-nano/auto-FOX/commit/b583af768b047c70565d9ed3fabfc091c94debf0:
+  Increased the flexibility of ``MultiMolecule.get_pair_dict()``.
+
+
 0.6.18
 ******
 * Added the ``MultiMolecule.add_atoms()`` method.

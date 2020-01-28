@@ -110,28 +110,24 @@ def process_prm(prm: Union[PRMContainer, str]):
 
     bonds = prm.bonds
     if bonds is not None:
-        bonds = bonds.set_index([0, 1])[[2, 3]]
-        bonds[:] = bonds.astype(float)
+        bonds = bonds[[2, 3]].copy()
         bonds['V'] = np.nan
 
     angles = prm.angles
     if angles is not None:
-        angles = angles.set_index([0, 1, 2])[[3, 4]]
-        angles[:] = angles.astype(float)
+        angles = angles[[3, 4]].copy()
         angles[4] *= np.radians(1)
         angles['V'] = np.nan
 
     dihedrals = prm.dihedrals
     if dihedrals is not None:
-        dihedrals = dihedrals.set_index([0, 1, 2, 3])[[4, 5, 6]]
-        dihedrals[:] = dihedrals.astype(float)
+        dihedrals = dihedrals[[4, 5, 6]].copy()
         dihedrals[6] *= np.radians(1)
         dihedrals['V'] = np.nan
 
     impropers = prm.impropers
     if impropers is not None:
-        impropers = impropers.set_index([0, 1, 2, 3])[[4, 6]]
-        impropers[:] = impropers.astype(float)
+        impropers = impropers[[4, 6]].copy()
         impropers[6] *= np.radians(1)
         impropers['V'] = np.nan
 

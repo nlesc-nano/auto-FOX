@@ -242,17 +242,18 @@ class PRMContainer(AbstractDataClass, AbstractFileContainer):
 
     @AbstractFileContainer.inherit_annotations()
     def _write_iterate(self, write, **kwargs) -> None:
+        isnull = pd.isnull
+
         for key in self.HEADERS[:-2]:
             key_low = key.lower()
             df = getattr(self, key_low)
-            if df is None:
-                continue
 
             if key_low == 'hbond':
                 write(f'\n{key} {df}\n')
                 continue
             elif not isinstance(df, pd.DataFrame):
                 continue
+            df = df.reset_index()
 
             iterator = range(df.shape[1] - 1)
             df_str = ' '.join('{:8}' for _ in iterator) + ' !{}\n'
@@ -263,7 +264,7 @@ class PRMContainer(AbstractDataClass, AbstractFileContainer):
                 header = '-\n'.join(i for i in self.nonbonded_header.split('-'))
                 write(f'\n{key} {header}\n')
             for _, row_value in df.iterrows():
-                write_str = df_str.format(*(('' if i is None else i) for i in row_value))
+                write_str = df_str.format(*(('' if isnull(i) else i) for i in row_value))
                 write(write_str)
 
         write('\nEND\n')
