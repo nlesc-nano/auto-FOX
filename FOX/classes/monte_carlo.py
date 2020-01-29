@@ -153,9 +153,6 @@ class MonteCarlo(AbstractDataClass, abc.Mapping):
         else:
             self._pes_post_process = (value,)
 
-        for func in self._pes_post_process:
-            func(self.molecule, self)
-
     _PRIVATE_ATTR = frozenset({'_plams_molecule', 'job_cache'})
 
     def __init__(self, molecule: Union[MultiMolecule, Iterable[MultiMolecule]],
@@ -282,10 +279,14 @@ class MonteCarlo(AbstractDataClass, abc.Mapping):
             molecule in :attr:`MonteCarlo.molecule`.
 
         """
+        mol_list = [m.copy() for m in self.molecule]
+        for func in self.pes_post_process:
+            func(mol_list, self)
+
         if not isinstance(kwargs, abc.Mapping):
-            iterator = zip(self.molecule, kwargs)
+            iterator = zip(mol_list, kwargs)
         else:
-            iterator = zip(self.molecule, repeat(kwargs, len(self.molecule)))
+            iterator = zip(mol_list, repeat(kwargs, len(self.molecule)))
 
         for i, (mol, kwarg) in enumerate(iterator):
             partial = functools.partial(func, *args, **kwarg)
