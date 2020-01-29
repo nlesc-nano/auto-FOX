@@ -562,6 +562,8 @@ class MonteCarlo(AbstractDataClass, abc.Mapping):
         if mol_list is None:  # The MD simulation crashed
             ret = {key: np.inf for key in self.pes.keys()}
         else:
+            for func in self.pes_post_process:
+                func(mol_list, self)  # Post-process the MultiMolecules
             iterator = zip(self.pes.items(), cycle(mol_list))
             ret = {k: func(mol) for (k, func), mol in iterator}
 
