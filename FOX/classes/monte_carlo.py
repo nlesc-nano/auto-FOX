@@ -280,8 +280,8 @@ class MonteCarlo(AbstractDataClass, abc.Mapping):
 
         """
         mol_list = [m.copy() for m in self.molecule]
-        for func in self.pes_post_process:
-            func(mol_list, self)
+        for f in self.pes_post_process:
+            f(mol_list, self)
 
         if not isinstance(kwargs, abc.Mapping):
             iterator = zip(mol_list, kwargs)
