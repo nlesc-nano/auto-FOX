@@ -52,13 +52,13 @@ def test_reset_origin():
     mol = MOL.copy()
 
     mol.reset_origin()
-    assertion.allclose(mol.mean(axis=1).sum(), 0.0)
+    assertion.allclose(mol.mean(axis=1).sum(), 0.0, abs_tol=10**-8)
 
     mol_new = mol.reset_origin(mol_subset=1000, inplace=False)
-    assertion.allclose(mol_new[0:1000].mean(axis=1).sum(), 0.0)
+    assertion.allclose(mol_new[0:1000].mean(axis=1).sum(), 0.0, abs_tol=10**-8)
 
     mol_new = mol.reset_origin(atom_subset=slice(0, 100), inplace=False)
-    assertion.allclose(mol_new[:, 0:100].mean(axis=1).sum(), 0.0)
+    assertion.allclose(mol_new[:, 0:100].mean(axis=1).sum(), 0.0, abs_tol=10**-8)
 
 
 def test_sort():
@@ -99,7 +99,7 @@ def test_get_center_of_mass():
     center_of_mass = mol.get_center_of_mass()
     mol -= center_of_mass[:, None, :]
     center_of_mass = mol.get_center_of_mass()
-    assertion.allclose(np.abs(center_of_mass.mean()), 0.0)
+    assertion.allclose(np.abs(center_of_mass.mean()), 0.0, abs_tol=10**-8)
 
 
 def test_get_bonds_per_atom():
@@ -256,7 +256,7 @@ def test_from_mass_weighted():
 
     mol_new = mol.as_mass_weighted()
     mol_new.from_mass_weighted()
-    assertion.allclose(np.abs((mol_new - mol).mean()), 0.0)
+    assertion.allclose(np.abs((mol_new - mol).mean()), 0.0, abs_tol=10**-8)
 
 
 def test_as_Molecule():

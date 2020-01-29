@@ -15,7 +15,7 @@
 
 
 ##################################################
-Automated Forcefield Optimization Extension 0.6.20
+Automated Forcefield Optimization Extension 0.6.21
 ##################################################
 
 **Auto-FOX** is a library for analyzing potential energy surfaces (PESs) and
