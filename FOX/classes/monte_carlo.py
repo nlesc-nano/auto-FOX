@@ -405,11 +405,11 @@ class MonteCarlo(AbstractDataClass, abc.Mapping):
 
             # Run an MD calculation
             if preopt_accept and preopt_mol_list is not None:
-                return self._md(preopt_mol_list)
+                return self._md(mol.as_Molecule(-1)[0] for mol in preopt_mol_list)
             return None
 
         else:  # preoptimization is disabled
-            return self._md(self.molecule)
+            return self._md(self._plams_molecule)
 
     def _md_preopt(self) -> Optional[List[MultiMolecule]]:
         """Peform a geometry optimization.
@@ -447,16 +447,15 @@ class MonteCarlo(AbstractDataClass, abc.Mapping):
             mol_list.append(mol)
         return mol_list
 
-    def _md(self, mol_preopt: Iterable[MultiMolecule]) -> Optional[List[MultiMolecule]]:
+    def _md(self, mol_preopt: Iterable[Molecule]) -> Optional[List[MultiMolecule]]:
         """Peform a molecular dynamics simulation (MD).
 
         Simulations are performed on all molecules in **mol_preopt**.
 
         Parameters
         ----------
-        mol_preopt : |list|_ [|FOX.MultiMolecule|_]
-            An iterable consisting of :class:`.MultiMolecule` instance(s) constructed from
-            geometry pre-optimization(s) (see :meth:`._md_preopt`).
+        mol_preopt : |list|_ [|Molecule|_]
+            An iterable consisting of PLAMS Molecules.
 
         Returns
         -------
@@ -467,9 +466,8 @@ class MonteCarlo(AbstractDataClass, abc.Mapping):
         """
         name = self.job_name
         job_type = self.job_type
-        mol_generator = (mol.as_Molecule(-1)[0] for mol in mol_preopt)
         jobs = [job_type(name=name, molecule=mol, settings=s) for
-                mol, s in zip(mol_generator, self.md_settings)]
+                mol, s in zip(mol_preopt, self.md_settings)]
 
         # Run MD
         mol_list = []
