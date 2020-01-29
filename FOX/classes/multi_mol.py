@@ -20,10 +20,12 @@ API
 """
 
 import copy
+from os import PathLike
 from collections import abc
 from itertools import chain, combinations_with_replacement, zip_longest, islice, repeat
 from typing import (
-    Sequence, Optional, Union, List, Hashable, Callable, Iterable, Dict, Tuple, Any, Mapping
+    Sequence, Optional, Union, List, Hashable, Callable, Iterable, Dict, Tuple, Any, Mapping,
+    AnyStr
 )
 
 import numpy as np
@@ -2199,7 +2201,7 @@ class MultiMolecule(_MultiMolecule):
         return cls(coords, **kwargs)
 
     @classmethod
-    def from_xyz(cls, filename: str,
+    def from_xyz(cls, filename: Union[AnyStr, PathLike],
                  bonds: Optional[np.ndarray] = None,
                  properties: Optional[dict] = None) -> 'MultiMolecule':
         """Construct a :class:`.MultiMolecule` instance from a (multi) .xyz file.
@@ -2229,10 +2231,13 @@ class MultiMolecule(_MultiMolecule):
 
         """
         coords, atoms, comments = read_multi_xyz(filename)
-        return cls(coords, atoms, bonds, {'comments': comments})
+        ret = cls(coords, atoms, bonds, properties)
+        ret.properties['comments'] = comments
+        ret.properties['filename'] = filename
+        return ret
 
     @classmethod
-    def from_kf(cls, filename: str,
+    def from_kf(cls, filename: Union[AnyStr, PathLike],
                 bonds: Optional[np.ndarray] = None,
                 properties: Optional[dict] = None) -> 'MultiMolecule':
         """Construct a :class:`.MultiMolecule` instance from a KF binary file.
@@ -2258,4 +2263,6 @@ class MultiMolecule(_MultiMolecule):
             A :class:`.MultiMolecule` instance constructed from **filename**.
 
         """
-        return cls(*read_kf(filename), bonds, properties)
+        ret = cls(*read_kf(filename), bonds, properties)
+        ret.properties['filename'] = filename
+        return ret

@@ -26,7 +26,7 @@ import logging
 import functools
 from sys import version_info
 from types import MappingProxyType
-from itertools import repeat
+from itertools import repeat, cycle
 from collections import abc
 from typing import (
     Tuple, List, Dict, Optional, Union, Iterable, Hashable, Iterator, Any, Mapping, Type, Callable,
@@ -46,7 +46,12 @@ from ..io.read_xyz import XYZError
 from ..functions.utils import _get_move_range
 from ..functions.charge_utils import update_charge
 
-__all__: List[str] = []
+if version_info.minor < 7:
+    from collections import OrderedDict  # noqa
+else:  # Dictionaries are ordered starting from python 3.7
+    OrderedDict = dict
+
+__all__ = []
 
 
 @add_to_class(Cp2kResults)
@@ -56,6 +61,9 @@ def get_xyz_path(self):
         if '-pos' in file and '.xyz' in file:
             return self[file]
     raise FileNotFoundError('No .xyz files found in ' + self.job.path)
+
+
+PostProcess = Callable[[Optional[Iterable[MultiMolecule]], Optional['MonteCarlo']], None]
 
 
 class MonteCarlo(AbstractDataClass, abc.Mapping):
@@ -132,7 +140,23 @@ class MonteCarlo(AbstractDataClass, abc.Mapping):
         else:
             self._logger = get_logger(self.__class__.__name__, handler_type=logging.StreamHandler)
 
-    _PRIVATE_ATTR = frozenset('_plams_molecule')
+    @property
+    def pes_post_process(self) -> Tuple[Callable, ...]:
+        return self._pes_post_process
+
+    @pes_post_process.setter
+    def pes_post_process(self, value: Union[PostProcess, Iterable[PostProcess]]) -> None:
+        if value is None:
+            self._pes_post_process = ()
+        elif isinstance(value, abc.Iterable):
+            self._pes_post_process = tuple(value)
+        else:
+            self._pes_post_process = (value,)
+
+        for func in self._pes_post_process:
+            func(self.molecule, self)
+
+    _PRIVATE_ATTR = frozenset({'_plams_molecule', 'job_cache'})
 
     def __init__(self, molecule: Union[MultiMolecule, Iterable[MultiMolecule]],
                  param: pd.DataFrame,
@@ -144,7 +168,8 @@ class MonteCarlo(AbstractDataClass, abc.Mapping):
                  apply_move: Callable[[float, float], float] = np.multiply,
                  move_range: Optional[np.ndarray] = None,
                  keep_files: bool = False,
-                 logger: Optional[logging.Logger] = None) -> None:
+                 logger: Optional[logging.Logger] = None,
+                 pes_post_process: Union[PostProcess, Iterable[PostProcess]] = None) -> None:
         """Initialize a :class:`MonteCarlo` instance."""
         super().__init__()
 
@@ -159,6 +184,7 @@ class MonteCarlo(AbstractDataClass, abc.Mapping):
         self.preopt_settings: Optional[Settings] = preopt_settings
         self.rmsd_threshold: float = rmsd_threshold
         self.keep_files: bool = keep_files
+        self.pes_post_process: Tuple[PostProcess, ...] = pes_post_process
 
         # HDF5 settings
         self.hdf5_file: str = hdf5_file
@@ -172,7 +198,7 @@ class MonteCarlo(AbstractDataClass, abc.Mapping):
 
         # Internally set attributes
         self.history_dict = {}
-        self.pes: Dict[str, List[Callable[[np.ndarray], np.ndarray]]] = {}
+        self.pes: Dict[str, Callable[[np.ndarray], np.ndarray]] = OrderedDict()
         self.job_cache: List[Job] = []
 
     @AbstractDataClass.inherit_annotations()
@@ -261,15 +287,12 @@ class MonteCarlo(AbstractDataClass, abc.Mapping):
         else:
             iterator = zip(self.molecule, repeat(kwargs, len(self.molecule)))
 
-        ret: List[functools.partial] = []
-        ret_append = ret.append
-        for mol, kwarg in iterator:
+        for i, (mol, kwarg) in enumerate(iterator):
             partial = functools.partial(func, *args, **kwarg)
             partial.__doc__ = func.__doc__
             partial.__name__ = func.__name__
             partial.ref = partial(mol)
-            ret_append(partial)
-        self.pes[name] = ret
+            self.pes[f'{name}.{i}'] = partial
 
     def move(self) -> Tuple[float]:
         """Update a random parameter in **self.param** by a random value from **self.move.range**.
@@ -358,7 +381,7 @@ class MonteCarlo(AbstractDataClass, abc.Mapping):
         else:
             return value
 
-    def run_md(self) -> Tuple[Optional[List[MultiMolecule]], List[str]]:
+    def run_md(self) -> Optional[List[MultiMolecule]]:
         """Run a geometry optimization followed by a molecular dynamics (MD) job.
 
         Returns a new :class:`.MultiMolecule` instance constructed from the MD trajectory and the
@@ -388,7 +411,7 @@ class MonteCarlo(AbstractDataClass, abc.Mapping):
         else:  # preoptimization is disabled
             return self._md(self.molecule)
 
-    def _md_preopt(self) -> List[Optional[MultiMolecule]]:
+    def _md_preopt(self) -> Optional[List[MultiMolecule]]:
         """Peform a geometry optimization.
 
         Optimizations are performed on all molecules in :attr:`MonteCarlo.job`[``"molecule"``].
@@ -412,9 +435,13 @@ class MonteCarlo(AbstractDataClass, abc.Mapping):
             self.job_cache.append(job)
             results = job.run()
             try:  # Construct and return a MultiMolecule object
-                mol = MultiMolecule.from_xyz(results.get_xyz_path())
+                path = results.get_xyz_path()
+                mol = MultiMolecule.from_xyz(path)
                 mol.round(3)
             except TypeError:  # The geometry optimization crashed
+                return None
+            except XYZError:  # The .xyz file is unreadable for some reason
+                self.logger.warning(f"Failed to parse ...{os.sep}{os.path.basename(path)}")
                 return None
 
             mol_list.append(mol)
@@ -507,7 +534,7 @@ class MonteCarlo(AbstractDataClass, abc.Mapping):
         self.job_cache = []
 
     def get_pes_descriptors(self, key: Tuple[float], get_first_key: bool = False,
-                            ) -> Tuple[List[Dict[str, np.ndarray]], Optional[List[MultiMolecule]]]:
+                            ) -> Tuple[Dict[str, np.ndarray], Optional[List[MultiMolecule]]]:
         """Check if a **key** is already present in **history_dict**.
 
         If ``True``, return the matching list of PES descriptors;
@@ -535,13 +562,10 @@ class MonteCarlo(AbstractDataClass, abc.Mapping):
         # Generate PES descriptors
         mol_list = self.run_md()
         if mol_list is None:  # The MD simulation crashed
-            mol_count = len(self.molecule)
-            ret = [{key: np.inf for key in self.pes}] * mol_count
+            ret = {key: np.inf for key in self.pes.keys()}
         else:
-            iterator: Iterator[Tuple[MultiMolecule, List[str], List[Callable]]] = zip(
-                mol_list, repeat(self.pes.keys(), len(mol_list)), *self.pes.values()
-            )
-            ret = [{k: func(mol) for k, func in zip(keys, funcs)} for mol, keys, *funcs in iterator]
+            iterator = zip(self.pes.items(), cycle(mol_list))
+            ret = {k: func(mol) for (k, func), mol in iterator}
 
         if not get_first_key:
             self.clear_job_cache()

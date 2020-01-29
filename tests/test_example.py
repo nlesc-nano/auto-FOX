@@ -105,9 +105,9 @@ def test_cp2k_md():
             np.testing.assert_array_equal(v1, v2)
 
     assertion.isinstance(armc.pes, dict)
-    assertion.contains(armc.pes, 'rdf')
-    assertion.is_(armc.pes['rdf'][0].func, MultiMolecule.init_rdf)
-    assertion.eq(armc.pes['rdf'][0].keywords, {'atom_subset': ['Cd', 'Se', 'O']})
+    assertion.contains(armc.pes, 'rdf.0')
+    assertion.is_(armc.pes['rdf.0'].func, MultiMolecule.init_rdf)
+    assertion.eq(armc.pes['rdf.0'].keywords, {'atom_subset': ['Cd', 'Se', 'O']})
 
     assertion.eq(armc.phi, 1.0)
     assertion.is_(armc.preopt_settings, None)

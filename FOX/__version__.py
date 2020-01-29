@@ -1,3 +1,3 @@
 """The Auto-FOX version."""
 
-__version__ = '0.6.19'
+__version__ = '0.6.20'

@@ -114,7 +114,7 @@ def create_hdf5(filename: Union[AnyStr, PathLike], armc: 'FOX.ARMC') -> None:
     # Store the *index*, *column* and *name* attributes of dataframes/series in the hdf5 file
     kappa = armc.iter_len // armc.sub_iter_len
     idx = armc.param['param'].index.append(pd.MultiIndex.from_tuples([('phi', '')]))
-    aux_error_idx = [f'{k}.{i}' for k, funcs in armc.pes.items() for i, _ in enumerate(funcs)]
+    aux_error_idx = list(armc.pes.keys())
     pd_dict = {
         'param': armc.param['param'],
         'phi': pd.Series(np.nan, index=np.arange(kappa), name='phi'),
@@ -122,12 +122,10 @@ def create_hdf5(filename: Union[AnyStr, PathLike], armc: 'FOX.ARMC') -> None:
         'aux_error_mod': pd.Series(np.nan, index=idx, name='aux_error_mod')
     }
 
-    for name, func_list in armc.pes.items():
-        for i, func in enumerate(func_list):
-            ref = func.ref
-            key = f'{name}.{i}'
-            pd_dict[key] = ref
-            pd_dict[key + '.ref'] = ref
+    for key, partial in armc.pes.items():
+        ref = partial.ref
+        pd_dict[key] = ref
+        pd_dict[key + '.ref'] = ref
     index_to_hdf5(filename, pd_dict)
 
 
@@ -271,19 +269,17 @@ def _get_kwarg_dict(armc: 'FOX.ARMC') -> Settings:
     ret.aux_error_mod.dtype = float
     ret.aux_error_mod.fillvalue = np.nan
 
-    for _key, partial_list in armc.pes.items():
-        for i, partial in enumerate(partial_list):
-            ref = partial.ref
-            key = f'{_key}.{i}'
+    for key, partial in armc.pes.items():
+        ref = partial.ref
 
-            ret[key].shape = shape + get_shape(ref)
-            ret[key].dtype = float
-            ret[key].fillvalue = np.nan
+        ret[key].shape = shape + get_shape(ref)
+        ret[key].dtype = float
+        ret[key].fillvalue = np.nan
 
-            ret[key + '.ref'].shape = get_shape(ref)
-            ret[key + '.ref'].dtype = float
-            ret[key + '.ref'].data = ref
-            ret[key + '.ref'].fillvalue = np.nan
+        ret[key + '.ref'].shape = get_shape(ref)
+        ret[key + '.ref'].dtype = float
+        ret[key + '.ref'].data = ref
+        ret[key + '.ref'].fillvalue = np.nan
 
     return ret
 

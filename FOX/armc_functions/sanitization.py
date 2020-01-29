@@ -17,14 +17,15 @@ import pandas as pd
 
 from scm.plams import Settings, Molecule
 
+from .mc_post_process import AtomsFromPSF
+from .schemas import (
+    get_pes_schema, schema_armc, schema_move, schema_job, schema_param, schema_hdf5, schema_psf
+)
 from ..io.read_psf import PSFContainer, overlay_str_file, overlay_rtf_file
 from ..classes.multi_mol import MultiMolecule
 from ..functions.utils import get_template, dict_to_pandas, get_atom_count, _get_move_range
 from ..functions.cp2k_utils import set_keys, set_subsys_kind
 from ..functions.molecule_utils import fix_bond_orders
-from ..armc_functions.schemas import (
-    get_pes_schema, schema_armc, schema_move, schema_job, schema_param, schema_hdf5, schema_psf
-)
 
 __all__ = ['init_armc_sanitization']
 
@@ -57,6 +58,9 @@ def init_armc_sanitization(dct: Mapping) -> Settings:
     _parse_param(s, job)
     job.psf = _parse_psf(s, job.path)
     _parse_preopt(s)
+
+    if job.get('psf', None) is not None:
+        s['pes_post_process'] = [AtomsFromPSF.from_psf(*job['psf'])]
     return s, pes, job
 
 

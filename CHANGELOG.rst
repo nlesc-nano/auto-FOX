@@ -5,6 +5,13 @@ Change Log
 All notable changes to this project will be documented in this file.
 This project adheres to `Semantic Versioning <http://semver.org/>`_.
 
+0.6.20
+******
+* Cleaned up how PES descriptors are generated & stored in the ``ARMC()`` class.
+* Atom names specified in .PSF files are now accessible by ``MultiMolecule()`` instances
+  during the ARMC procedure.
+* Generalized ``dekekulize()`` to work for all non-integer bond orders; not just ``1.5``.
+
 
 0.6.19
 ******
