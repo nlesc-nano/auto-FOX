@@ -35,11 +35,11 @@ from ..logger import Plams2Logger, get_logger
 from ..io.hdf5_utils import (
     create_hdf5, to_hdf5, create_xyz_hdf5, _get_filename_xyz, hdf5_clear_status
 )
-from ..io.file_container import NullContext
 from ..functions.utils import get_template
-from ..armc_functions.sanitization import init_armc_sanitization
-from ..armc_functions.df_to_dict import df_to_dict
+from ..io.file_container import NullContext
 from ..armc_functions.guess import guess_param
+from ..armc_functions.df_to_dict import df_to_dict
+from ..armc_functions.sanitization import init_armc_sanitization
 
 __all__ = ['ARMC', 'run_armc']
 
@@ -261,11 +261,7 @@ class ARMC(MonteCarlo):
                 pass
 
         # The molecule block
-        s.molecule = []
-        for i, mol in enumerate(self.molecule):
-            name = os.path.join(s.job.path, f'mol.{i}.xyz')
-            s.molecule.append(name)
-            mol.as_xyz(name)
+        s.molecule = [mol.properties.filename for mol in self.molecule]
 
         # The pes block
         for name, partial in self.pes.items():

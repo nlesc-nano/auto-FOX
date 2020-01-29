@@ -63,6 +63,9 @@ def get_xyz_path(self):
     raise FileNotFoundError('No .xyz files found in ' + self.job.path)
 
 
+PostProcess = Callable[[Optional[Iterable[MultiMolecule]], Optional['MonteCarlo']], None]
+
+
 class MonteCarlo(AbstractDataClass, abc.Mapping):
     r"""The base :class:`.MonteCarlo` class."""
 
@@ -142,13 +145,16 @@ class MonteCarlo(AbstractDataClass, abc.Mapping):
         return self._pes_post_process
 
     @pes_post_process.setter
-    def pes_post_process(self, value: Optional[Callable, Iterable[Callable]]) -> None:
+    def pes_post_process(self, value: Union[PostProcess, Iterable[PostProcess]]) -> None:
         if value is None:
             self._pes_post_process = ()
         elif isinstance(value, abc.Iterable):
             self._pes_post_process = tuple(value)
         else:
             self._pes_post_process = (value,)
+
+        for func in self._pes_post_process:
+            func(self.molecule, self)
 
     _PRIVATE_ATTR = frozenset({'_plams_molecule', 'job_cache'})
 
@@ -163,7 +169,7 @@ class MonteCarlo(AbstractDataClass, abc.Mapping):
                  move_range: Optional[np.ndarray] = None,
                  keep_files: bool = False,
                  logger: Optional[logging.Logger] = None,
-                 pes_post_process: Optional[Callable, Iterable[Callable]] = None) -> None:
+                 pes_post_process: Union[PostProcess, Iterable[PostProcess]] = None) -> None:
         """Initialize a :class:`MonteCarlo` instance."""
         super().__init__()
 
@@ -178,6 +184,7 @@ class MonteCarlo(AbstractDataClass, abc.Mapping):
         self.preopt_settings: Optional[Settings] = preopt_settings
         self.rmsd_threshold: float = rmsd_threshold
         self.keep_files: bool = keep_files
+        self.pes_post_process: Tuple[PostProcess, ...] = pes_post_process
 
         # HDF5 settings
         self.hdf5_file: str = hdf5_file
