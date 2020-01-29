@@ -12,7 +12,6 @@ from FOX.functions.utils import get_template
 
 MOL = MultiMolecule.from_xyz(example_xyz)
 PATH = join('tests', 'test_files')
-PATH = '/Users/basvanbeek/Documents/GitHub/auto-FOX/tests/test_files'
 
 
 def test_delete_atoms():
