@@ -101,7 +101,7 @@ from sys import version_info
 from math import ceil, floor
 from types import MappingProxyType
 from typing import (Union, Iterable, Optional, TypeVar, Callable, Mapping, Type, Iterator,
-                    Hashable, Any, Tuple, MutableMapping, AnyStr, List)
+                    Hashable, Any, Tuple, MutableMapping, AnyStr, List, SupportsFloat)
 from itertools import chain
 from collections import abc
 
@@ -503,9 +503,9 @@ def _get_rddict(ligands: Iterable[Union[str, Molecule, Mol]]) -> MutableMapping[
     return rdmol_dict
 
 
-MinOrMax = Callable[[float, float], float]
-FUNC_MAP: Mapping[MinOrMax, MinOrMax] = MappingProxyType({
-    min: max, min: max
+CeilOrFloor = Callable[[SupportsFloat], int]
+FUNC_MAP: Mapping[CeilOrFloor, CeilOrFloor] = MappingProxyType({
+    ceil: floor, floor: ceil
 })
 
 
@@ -515,23 +515,24 @@ def dekekulize(mol: Molecule) -> None:
     Bond orders for "aromatic" systems are no longer set to ``1.5``,
     instead addopting the more Kekulé-esque bond orders of ``1`` and ``2``.
 
+    The implemented function is a (depth-first search based) graph-walking algorithm,
+    integerifying bond orders by alternating calls to :func:`math.ceil` and :func:`math.floor`.
+    The implication herein is that :math:`i` and :math:`i+1` are considered valid (integer) values
+    for any bond order within the :math:`[i,i+1]` interval.
+
     """
-    def dfs(atom: Atom, func: MinOrMax) -> None:
+    def dfs(atom: Atom, func: CeilOrFloor) -> None:
         """Depth-first search algorithm for fixing the fixing the bond orders."""
         for b2 in atom.bonds:
             if b2.visited:
                 continue
 
             b2.visited = True
-            b2.order = int(b2.order + func(get_delta(b2.order)))  # Add or substract
+            b2.order = func(b2.order)  # Add or substract
             bonds.remove(b2)
 
             atom_new = b2.atom1 if b2.atom1 is not atom else b2.atom2
             dfs(atom_new, func=FUNC_MAP[func])
-
-    def get_delta(order: float) -> Tuple[int, int]:
-        """Return the difference between **order** and the nearest two integers."""
-        return ceil(order) - order, floor(order) - order
 
     bonds = set()
     for b in mol.bonds:
@@ -539,7 +540,7 @@ def dekekulize(mol: Molecule) -> None:
             if not b.order.is_integer():
                 b.visited = False
                 bonds.add(b)
-            else:
+            else:  # A float finite with integral value
                 b.visited = True
                 b.order = int(b.order)
         else:
@@ -547,13 +548,13 @@ def dekekulize(mol: Molecule) -> None:
 
     while bonds:
         b1 = bonds.pop()
-        delta = get_delta(b1.order)  # Equal to +- 0.5 in case of half-integer bond orders
-        func = max if abs(delta[0]) < abs(delta[1]) else min
+        delta_ceil, delta_floor = ceil(b1.order) - b1.order, floor(b1.order) - b1.order
+        func = ceil if abs(delta_ceil) < abs(delta_floor) else floor
 
-        b1.order = int(b1.order + func(delta))
+        b1.order = func(b1.order)
         b1.visited = True
         dfs(b1.atom1, func=FUNC_MAP[func])
         dfs(b1.atom2, func=FUNC_MAP[func])
 
     for b in mol.bonds:
-        delattr(b, 'visited')
+        del b.visited
