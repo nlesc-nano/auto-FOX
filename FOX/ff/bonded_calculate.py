@@ -12,7 +12,7 @@ A module for calculating bonded interactions using harmonic + cosine potentials.
 
     V_{Urey-Bradley} = k_{\hat{r}} (|hat{r} - \hat{r}_{0})^2
 
-    V_{diehdrals} = k_{\phi} [1 + \cos(n \phi - \delta)]
+    V_{dihedrals} = k_{\phi} [1 + \cos(n \phi - \delta)]
 
     V_{impropers} = k_{\omega} (\omega - \omega_{0})^2
 
