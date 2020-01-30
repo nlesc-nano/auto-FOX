@@ -234,8 +234,7 @@ class _MultiMolecule(np.ndarray):
 
     @property
     def atom12(self) -> '_MultiMolecule':
-        """Get or set the indices of the atoms for all bonds in
-        :attr:`.MultiMolecule.bonds` as 2D array."""
+        """Get or set the indices of the atoms for all bonds in :attr:`.MultiMolecule.bonds` as 2D array."""  # noqa
         return self.bonds[:, 0:2]
 
     @atom12.setter
@@ -244,8 +243,7 @@ class _MultiMolecule(np.ndarray):
 
     @property
     def atom1(self) -> '_MultiMolecule':
-        """Get or set the indices of the first atoms in all bonds of
-        :attr:`.MultiMolecule.bonds` as 1D array."""
+        """Get or set the indices of the first atoms in all bonds of :attr:`.MultiMolecule.bonds` as 1D array."""  # noqa
         return self.bonds[:, 0]
 
     @atom1.setter

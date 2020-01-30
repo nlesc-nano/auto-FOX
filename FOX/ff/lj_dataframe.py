@@ -106,8 +106,9 @@ class LJDataFrame(pd.DataFrame):
         for unit, dct in sigma_s.items():
             self.set_sigma_pairs(dct, unit=unit)
 
-    def overlay_prm(self, prm: Union[str, PRMContainer]) -> None:
+    def overlay_prm(self, prm: Union[str, PRMContainer], pairs14: bool = False) -> None:
         r"""Overlay **df** with all :math:`\sigma` and :math:`\varepsilon` values from **prm**."""
+        i, j = (2, 3) if not pairs14 else (4, 5)
         if not isinstance(prm, PRMContainer):
             prm = PRMContainer.read(prm)
 
@@ -115,10 +116,22 @@ class LJDataFrame(pd.DataFrame):
         if nonbonded is None:
             return None
 
-        epsilon = nonbonded[2]
-        sigma = nonbonded[3]
+        epsilon = nonbonded[i]
+        sigma = nonbonded[j]
         self.set_epsilon(epsilon, unit='kcal/mol')
         self.set_sigma(sigma, unit='angstrom')
+
+        # Check if non-bonded pairs have been explicitly specified in the ``nbfix`` block
+        nbfix = prm.nbfix
+        if nbfix is None:
+            return
+
+        is_null = nbfix[[i, j]].isnull().any(axis=1)
+        epsilon_pair = nbfix.loc[~is_null, i]
+        sigma_pair = nbfix.loc[~is_null, j]
+
+        self.set_epsilon_pairs(epsilon_pair, unit='kcal/mol')
+        self.set_sigma_pairs(sigma_pair, unit='angstrom')
 
     def overlay_rtf(self, rtf: str) -> None:
         r"""Overlay **df** with all :math:`q` values from **rtf**."""

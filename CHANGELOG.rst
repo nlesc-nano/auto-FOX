@@ -5,6 +5,16 @@ Change Log
 All notable changes to this project will be documented in this file.
 This project adheres to `Semantic Versioning <http://semver.org/>`_.
 
+0.7.0
+*****
+* Multiple updates to the ``FOX.ff`` modules:
+* Fixed a missing ``+1`` addition in the calculation of the dihedral potential.
+* Wildcard atoms (``"X"``) are now properly parsed.
+* 1,4-nonbonded interactions (intra-moleculair) are now calculated.
+* 1,3-nonbonded interactions (intra-moleculair), aka the Urey-Bradley terms, are now calculated.
+* Non-bonded interactions between explicitly specified atom-pairs are now calculated.
+* Fixed a number of issues introduced in https://github.com/nlesc-nano/auto-FOX/pull/74.
+
 
 0.6.21
 ******

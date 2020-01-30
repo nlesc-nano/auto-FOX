@@ -4,6 +4,9 @@ FOX.ff.lj_intra_calculate
 
 A module for calculating non-bonded intra-ligand interactions using Coulomb + Lennard-Jones potentials.
 
+See :mod:`lj_calculate<FOX.ff.lj_calculate>` for the calculation of non-covalent inter-moleculair
+interactions.
+
 .. math::
 
     V_{LJ} = 4 \varepsilon
@@ -20,10 +23,12 @@ A module for calculating non-bonded intra-ligand interactions using Coulomb + Le
 
 """  # noqa
 
-from typing import Set, Generator, List, Union
+import operator
+from typing import Set, Generator, List, Union, Callable
 from itertools import chain
 
 import numpy as np
+import pandas as pd
 
 from scm.plams import Atom, Molecule, Units
 
@@ -80,18 +85,30 @@ def get_intra_non_bonded(mol: Union[str, MultiMolecule], psf: Union[str, PSFCont
     # Define the various non-bonded atom-pairs
     core_atoms = psf.atoms.index[psf.residue_id == 1] - 1
     lig_atoms = psf.atoms.index[psf.residue_id != 1] - 1
-    mol.guess_bonds(atom_subset=lig_atoms)
-    ij = _get_idx(mol, core_atoms).T
+    mol.bonds = psf.bonds - 1
 
-    # Construct the parameter DataFrame
+    # Construct the parameter DataFrames
     mol.atoms = psf.to_atom_dict()
-    prm_df = LJDataFrame(index=set(mol.symbol[lig_atoms]))
-    prm_df.overlay_psf(psf)
-    prm_df.overlay_prm(prm)
-    prm_df['elstat'] = 0.0
-    prm_df['lj'] = 0.0
-    prm_df.columns.name = 'au'
-    prm_df.dropna(inplace=True)
+    prm_df = _construct_df(mol, lig_atoms, psf, prm, pairs14=False)
+    prm_df14 = _construct_df(mol, lig_atoms, psf, prm, pairs14=True)
+
+    # The .prm format allows one to specify special non-bonded interactions between
+    # atoms three bonds removed
+    # If not specified, do not distinguish between atoms removed 3 and >3 bonds
+    if prm_df14.isnull().values.all():
+        _fill_df(prm_df, mol, core_atoms, depth_comparison=operator.__ge__)
+    else:
+        _fill_df(prm_df, mol, core_atoms, depth_comparison=operator.__gt__)
+        _fill_df(prm_df14, mol, core_atoms, depth_comparison=operator.__eq__)
+        prm_df += prm_df14
+
+    return prm_df[['elstat', 'lj']]
+
+
+def _fill_df(prm_df: pd.DataFrame, mol: MultiMolecule, core_atoms: np.ndarray,
+             depth_comparison: Callable[[int, int], bool] = operator.__ge__) -> None:
+    """Construct the distance matrix; calculate the potential and update the **prm_df** with the energies."""  # noqa
+    ij = _get_idx(mol, core_atoms, depth_comparison=depth_comparison).T
     if not ij.any():
         return prm_df[['elstat', 'lj']]
 
@@ -100,7 +117,7 @@ def get_intra_non_bonded(mol: Union[str, MultiMolecule], psf: Union[str, PSFCont
     symbol = mol.symbol[ij].T
     symbol.sort(axis=1)
 
-    # Construct the distance array
+    # Construct the distance matrix
     dist = _dist(mol, ij.T)
     dist *= Units.conversion_ratio('angstrom', 'au')
 
@@ -117,17 +134,31 @@ def get_intra_non_bonded(mol: Union[str, MultiMolecule], psf: Union[str, PSFCont
         if idx[0] == idx[1]:
             prm_df.loc[idx, ['elstat', 'lj']] /= 2
 
-    return prm_df[['elstat', 'lj']]
+
+def _construct_df(mol: MultiMolecule, lig_atoms: np.ndarray,
+                  psf: Union[str, PSFContainer], prm: Union[str, PRMContainer],
+                  pairs14: bool = False) -> LJDataFrame:
+    """Construct the DataFrame for :func:`get_intra_non_bonded`."""
+    prm_df = LJDataFrame(index=set(mol.symbol[lig_atoms]))
+    prm_df.overlay_psf(psf)
+    prm_df.overlay_prm(prm, pairs14=pairs14)
+    prm_df['elstat'] = 0.0
+    prm_df['lj'] = 0.0
+    prm_df.columns.name = 'au'
+    prm_df.dropna(inplace=True)
+    return prm_df
 
 
-def _get_idx(mol: MultiMolecule, core_atoms: np.ndarray) -> np.ndarray:
+def _get_idx(mol: MultiMolecule, core_atoms: np.ndarray,
+             depth_comparison: Callable[[int, int], bool] = operator.__ge__) -> np.ndarray:
+    """Construct the array with all atom-pairs valid for intra-moleculair non-covalent interactions."""  # noqa
     def dfs(at1: Atom, id_list: list, i: int, exclude: Set[Atom], depth: int = 0):
         exclude.add(at1)
         for bond in at1.bonds:
             at2 = bond.other_end(at1)
             if at2 in exclude:
                 continue
-            elif depth >= 3:
+            elif depth_comparison(depth, 3):
                 id_list += [i, at2.id]
             dfs(at2, id_list, i, exclude, depth=1+depth)
 
@@ -140,11 +171,13 @@ def _get_idx(mol: MultiMolecule, core_atoms: np.ndarray) -> np.ndarray:
     if not core_atoms.any():
         return np.zeros((0, 2), dtype=int)
 
+    # Prepare the molecule for the dfs
     _mol = mol.delete_atoms(core_atoms)
     _mol.bonds -= len(core_atoms)
     molecule = _mol.as_Molecule(0)[0]
     molecule.set_atoms_id(start=0)
 
+    # Construct the indice-pairs
     idx = np.fromiter(chain.from_iterable(gather_idx(molecule)), dtype=int)
     idx += len(mol._get_atom_subset(core_atoms, as_array=True))
     idx.shape = -1, 2
