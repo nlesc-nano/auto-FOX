@@ -21,7 +21,7 @@ API
 
 import inspect
 from types import MappingProxyType
-from typing import Any, Iterator, Dict, Tuple, Set, Mapping, List, Union, Hashable
+from typing import Any, Iterator, Dict, Tuple, Set, Mapping, List, Union, Hashable, Optional
 from itertools import chain
 from collections import abc
 
@@ -50,7 +50,7 @@ class PRMContainer(AbstractDataClass, AbstractFileContainer):
     _PRIVATE_ATTR: Set[str] = frozenset({'_pd_printoptions'})
 
     #: A tuple of supported .psf headers.
-    HEADERS: Tuple[str] = (
+    HEADERS: Tuple[str, ...] = (
         'ATOMS', 'BONDS', 'ANGLES', 'DIHEDRALS', 'NBFIX', 'HBOND', 'NONBONDED', 'IMPROPERS',
         'IMPROPER', 'END'
     )
@@ -76,6 +76,15 @@ class PRMContainer(AbstractDataClass, AbstractFileContainer):
         'nonbonded': (None, np.nan, np.nan, np.nan, np.nan, np.nan, np.nan),
         'impropers': (None, None, None, None, np.nan, -1, np.nan)
     })
+
+    @property
+    def improper(self) -> Optional[pd.DataFrame]:
+        """Alias for :attr:`PRMContainer.impropers`."""
+        return self.impropers
+
+    @improper.setter
+    def improper(self, value: Optional[pd.DataFrame]) -> None:
+        self.impropers = value
 
     def __init__(self, filename=None, atoms=None, bonds=None, angles=None, dihedrals=None,
                  impropers=None, nonbonded=None, nonbonded_header=None, nbfix=None,
@@ -246,9 +255,10 @@ class PRMContainer(AbstractDataClass, AbstractFileContainer):
 
         for key in self.HEADERS[:-2]:
             key_low = key.lower()
+            key_low = 'improper' if key_low == 'impropers' else key_low
             df = getattr(self, key_low)
 
-            if key_low == 'hbond':
+            if key_low == 'hbond' and df is not None:
                 write(f'\n{key} {df}\n')
                 continue
             elif not isinstance(df, pd.DataFrame):
