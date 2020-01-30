@@ -398,5 +398,5 @@ def get_V_cos(phi: np.ndarray, k: float, n: int, delta: float = 0.0) -> float:
         The phase-correction :math:`\delta`; units should be in radian.
 
     """  # noqa
-    V = k * np.cos(n * phi - delta)
+    V = k * (1 + np.cos(n * phi - delta))
     return V.mean(axis=0)
