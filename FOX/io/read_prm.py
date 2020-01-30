@@ -72,7 +72,7 @@ class PRMContainer(AbstractDataClass, AbstractFileContainer):
         'bonds': (None, None, np.nan, np.nan),
         'angles': (None, None, None, np.nan, np.nan, np.nan, np.nan),
         'dihedrals': (None, None, None, None, np.nan, -1, np.nan),
-        'nbfix': (None, None, np.nan, np.nan),
+        'nbfix': (None, None, np.nan, np.nan, np.nan, np.nan),
         'nonbonded': (None, np.nan, np.nan, np.nan, np.nan, np.nan, np.nan),
         'impropers': (None, None, None, None, np.nan, -1, np.nan)
     })

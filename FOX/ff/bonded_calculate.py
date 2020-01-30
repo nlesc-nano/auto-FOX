@@ -18,24 +18,23 @@ A module for calculating bonded interactions using harmonic + cosine potentials.
 
 """
 
-from types import MappingProxyType
-from typing import Union, Tuple, Optional, Collection, Mapping, Callable, Set
-from itertools import permutations, product
+from typing import Union, Tuple, Optional
+from itertools import permutations
 
 import numpy as np
 import pandas as pd
 
 from scm.plams import Units
 
-from FOX.classes.multi_mol import MultiMolecule
-from FOX.io.read_psf import PSFContainer
-from FOX.io.read_prm import PRMContainer
+from .parse_wildcards import parse_wildcards
+from ..classes.multi_mol import MultiMolecule
+from ..io.read_psf import PSFContainer
+from ..io.read_prm import PRMContainer
 
 __all__ = ['get_bonded']
 
 
-def get_bonded(mol: Union[str, MultiMolecule],
-               psf: Union[str, PSFContainer],
+def get_bonded(mol: Union[str, MultiMolecule], psf: Union[str, PSFContainer],
                prm: Union[str, PRMContainer]) -> Tuple[Optional[pd.DataFrame], ...]:
     r"""Collect forcefield parameters and calculate all intra-ligand interactions in **mol**.
 
@@ -102,19 +101,19 @@ def get_bonded(mol: Union[str, MultiMolecule],
         urey_bradley = urey_bradley['V'] * Units.conversion_ratio('kcal/mol', 'au')
 
     if dihedrals is not None:
-        parse_wildcards(bonds, symbols)
+        parse_wildcards(bonds, symbols, prm_type='dihedrals')
         set_V_dihedrals(dihedrals, mol, psf.dihedrals, prm_type='dihedrals')
         dihedrals = dihedrals['V'] * Units.conversion_ratio('kcal/mol', 'au')
 
     if impropers is not None:
-        parse_wildcards(bonds, symbols)
+        parse_wildcards(bonds, symbols, prm_type='impropers')
         set_V_impropers(impropers, mol, psf.impropers, prm_type='impropers')
         impropers = impropers['V'] * Units.conversion_ratio('kcal/mol', 'au')
 
     return bonds, angles, urey_bradley, dihedrals, impropers
 
 
-def process_prm(prm: Union[PRMContainer, str]):
+def process_prm(prm: Union[PRMContainer, str]) -> tuple:
     """Extract all bond, angle, dihedral and improper parameters from **prm**."""
     if not isinstance(prm, PRMContainer):
         prm = PRMContainer.read(prm)
@@ -154,47 +153,6 @@ def process_prm(prm: Union[PRMContainer, str]):
         impropers['V'] = np.nan
 
     return bonds, angles, urey_bradley, dihedrals, impropers
-
-
-def parse_wildcards(df: pd.DataFrame, symbols: Collection[str], prm_type: str) -> None:
-    """Replace any wildcards (``"X"``) in **df** with explicit references to atom types."""
-    idx_list = df.index.tolist()
-    idx_array = np.array(idx_list)
-    if 'X' not in idx_array:
-        return
-
-    is_in_index = INTERSECTION_MAPPING[prm_type]
-    index = set(df.index)
-    for tup in idx_list:
-        if 'X' not in tup:
-            continue
-
-        seq = [([i] if i != 'X' else symbols) for i in tup]
-        seq_product = product(*seq)
-        for i in seq_product:
-            if not is_in_index(i, index):
-                df.loc[i] = df.loc[tup]
-
-
-def _invert(tup: tuple, tup_set: Set[tuple]) -> bool:
-    """Check if **tup_set** contains ``tup`` or ``tup[::-1]``."""
-    return bool(tup_set.intersection([tup, tup[::-1]]))
-
-
-def _all_comb(tup: tuple, tup_set: Set[tuple]) -> bool:
-    """Check if **tup_set** any combination of ``tup[0]`` and a permutation of ``tup[1:]``."""
-    i0 = tup[0]
-    iterable = ((i0,) + i for i in permutations(tup[1:]))
-    return bool(tup_set.intersection(iterable))
-
-
-INTERSECTION_MAPPING: Mapping[str, Callable[[tuple, Set[tuple]], None]] = MappingProxyType({
-    'bonds': _invert,
-    'angles': _invert,
-    'urey_bradley': _invert,
-    'dihedrals': _invert,
-    'impropers': _all_comb
-})
 
 
 def set_V_bonds(df: pd.DataFrame, mol: MultiMolecule, bond_idx: np.ndarray) -> None:

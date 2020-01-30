@@ -120,6 +120,18 @@ class LJDataFrame(pd.DataFrame):
         self.set_epsilon(epsilon, unit='kcal/mol')
         self.set_sigma(sigma, unit='angstrom')
 
+        # Check if non-bonded pairs have been explicitly specified in the ``nbfix`` block
+        nbfix = prm.nbfix
+        if nbfix is None:
+            return
+
+        is_null = nbfix[[2, 3]].isnull().any(axis=1)
+        epsilon_pair = nbfix.loc[~is_null, 2]
+        sigma_pair = nbfix.loc[~is_null, 3]
+
+        self.set_epsilon_pairs(epsilon_pair, unit='kcal/mol')
+        self.set_sigma_pairs(sigma_pair, unit='angstrom')
+
     def overlay_rtf(self, rtf: str) -> None:
         r"""Overlay **df** with all :math:`q` values from **rtf**."""
         charge_dict: Dict[str, float] = dict(zip(*read_rtf_file(rtf)))

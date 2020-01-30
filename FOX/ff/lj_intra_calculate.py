@@ -23,7 +23,8 @@ interactions.
 
 """  # noqa
 
-from typing import Set, Generator, List, Union
+import operator
+from typing import Set, Generator, List, Union, Callable
 from itertools import chain
 
 import numpy as np
@@ -83,18 +84,15 @@ def get_intra_non_bonded(mol: Union[str, MultiMolecule], psf: Union[str, PSFCont
     # Define the various non-bonded atom-pairs
     core_atoms = psf.atoms.index[psf.residue_id == 1] - 1
     lig_atoms = psf.atoms.index[psf.residue_id != 1] - 1
-    mol.guess_bonds(atom_subset=lig_atoms)
-    ij = _get_idx(mol, core_atoms).T
+    mol.bonds = psf.bonds - 1
 
     # Construct the parameter DataFrame
     mol.atoms = psf.to_atom_dict()
-    prm_df = LJDataFrame(index=set(mol.symbol[lig_atoms]))
-    prm_df.overlay_psf(psf)
-    prm_df.overlay_prm(prm)
-    prm_df['elstat'] = 0.0
-    prm_df['lj'] = 0.0
-    prm_df.columns.name = 'au'
-    prm_df.dropna(inplace=True)
+    prm_df = _construct_df(mol, lig_atoms, psf, prm)
+
+    import pdb; pdb.set_trace()
+
+    ij = _get_idx(mol, core_atoms).T
     if not ij.any():
         return prm_df[['elstat', 'lj']]
 
@@ -123,14 +121,27 @@ def get_intra_non_bonded(mol: Union[str, MultiMolecule], psf: Union[str, PSFCont
     return prm_df[['elstat', 'lj']]
 
 
-def _get_idx(mol: MultiMolecule, core_atoms: np.ndarray) -> np.ndarray:
+def _construct_df(mol, lig_atoms, psf, prm) -> LJDataFrame:
+    """Construct the DataFrame for :func:`get_intra_non_bonded`."""
+    prm_df = LJDataFrame(index=set(mol.symbol[lig_atoms]))
+    prm_df.overlay_psf(psf)
+    prm_df.overlay_prm(prm)
+    prm_df['elstat'] = 0.0
+    prm_df['lj'] = 0.0
+    prm_df.columns.name = 'au'
+    prm_df.dropna(inplace=True)
+    return prm_df
+
+
+def _get_idx(mol: MultiMolecule, core_atoms: np.ndarray,
+             depth_comparison: Callable[[int, int], bool] = operator.__ge__) -> np.ndarray:
     def dfs(at1: Atom, id_list: list, i: int, exclude: Set[Atom], depth: int = 0):
         exclude.add(at1)
         for bond in at1.bonds:
             at2 = bond.other_end(at1)
             if at2 in exclude:
                 continue
-            elif depth >= 3:
+            elif depth_comparison(depth, 3):
                 id_list += [i, at2.id]
             dfs(at2, id_list, i, exclude, depth=1+depth)
 
