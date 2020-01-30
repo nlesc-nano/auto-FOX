@@ -4,6 +4,9 @@ FOX.ff.lj_calculate
 
 A module for calculating non-bonded interactions using Coulomb + Lennard-Jones potentials.
 
+See :mod:`lj_intra_calculate<FOX.ff.lj_intra_calculate>` for the calculation of non-covalent
+intra-moleculair interactions.
+
 .. math::
 
     V_{LJ} = 4 \varepsilon
