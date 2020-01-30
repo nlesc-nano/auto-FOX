@@ -18,10 +18,12 @@ def test_get_bonded() -> None:
 
     ref1 = np.load(PATH / 'get_bonded.bonds.npy')
     ref2 = np.load(PATH / 'get_bonded.angles.npy')
-    ref4 = np.load(PATH / 'get_bonded.impropers.npy')
-    angles, bonds, dihedrals, impropers = get_bonded(mol, psf, prm)
+    ref3 = np.load(PATH / 'get_bonded.urey_bradley.npy')
+    ref5 = np.load(PATH / 'get_bonded.impropers.npy')
+    bonds, angles, urey_bradley, dihedrals, impropers = get_bonded(mol, psf, prm)
 
     np.testing.assert_allclose(bonds, ref1)
     np.testing.assert_allclose(angles, ref2)
+    np.testing.assert_allclose(urey_bradley, ref3)
     assertion.is_(dihedrals, None)
-    np.testing.assert_allclose(impropers, ref4)
+    np.testing.assert_allclose(impropers, ref5)

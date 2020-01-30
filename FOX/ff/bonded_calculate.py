@@ -102,12 +102,12 @@ def get_bonded(mol: Union[str, MultiMolecule], psf: Union[str, PSFContainer],
 
     if dihedrals is not None:
         parse_wildcards(bonds, symbols, prm_type='dihedrals')
-        set_V_dihedrals(dihedrals, mol, psf.dihedrals, prm_type='dihedrals')
+        set_V_dihedrals(dihedrals, mol, psf.dihedrals)
         dihedrals = dihedrals['V'] * Units.conversion_ratio('kcal/mol', 'au')
 
     if impropers is not None:
         parse_wildcards(bonds, symbols, prm_type='impropers')
-        set_V_impropers(impropers, mol, psf.impropers, prm_type='impropers')
+        set_V_impropers(impropers, mol, psf.impropers)
         impropers = impropers['V'] * Units.conversion_ratio('kcal/mol', 'au')
 
     return bonds, angles, urey_bradley, dihedrals, impropers
