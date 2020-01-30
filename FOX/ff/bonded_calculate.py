@@ -79,7 +79,7 @@ def get_bonded(mol: Union[str, MultiMolecule],
     mol.atoms = psf.to_atom_dict()
 
     # Extract parameters from the .prm file
-    bonds, angles, dihedrals, impropers = process_prm(prm)
+    bonds, angles, urey_bradley, dihedrals, impropers = process_prm(prm)
 
     # Calculate the various potential energies
     if bonds is not None:
@@ -98,7 +98,11 @@ def get_bonded(mol: Union[str, MultiMolecule],
         set_V_impropers(impropers, mol, psf.impropers)
         impropers = impropers['V'] * Units.conversion_ratio('kcal/mol', 'au')
 
-    return bonds, angles, dihedrals, impropers
+    if urey_bradley is not None:
+        set_V_UB(urey_bradley, mol, psf.bonds)
+        urey_bradley = urey_bradley['V'] * Units.conversion_ratio('kcal/mol', 'au')
+
+    return bonds, angles, urey_bradley, dihedrals, impropers
 
 
 def process_prm(prm: Union[PRMContainer, str]):
@@ -115,6 +119,14 @@ def process_prm(prm: Union[PRMContainer, str]):
 
     angles = prm.angles
     if angles is not None:
+        urey_bradley = angles[[5, 6]].copy()
+        urey_bradley['V'] = np.nan
+        is_null = urey_bradley.isnull()
+        if is_null.values.all():
+            urey_bradley = None
+        else:
+            urey_bradley[is_null] = 0.0
+
         angles = angles[[3, 4]].copy()
         angles[4] *= np.radians(1)
         angles['V'] = np.nan
@@ -131,7 +143,7 @@ def process_prm(prm: Union[PRMContainer, str]):
         impropers[6] *= np.radians(1)
         impropers['V'] = np.nan
 
-    return bonds, angles, dihedrals, impropers
+    return bonds, angles, urey_bradley, dihedrals, impropers
 
 
 def set_V_bonds(df: pd.DataFrame, mol: MultiMolecule, bond_idx: np.ndarray) -> None:
@@ -182,6 +194,32 @@ def set_V_angles(df: pd.DataFrame, mol: MultiMolecule, angle_idx: np.ndarray) ->
         j = np.all(symbol[angle_idx] == i, axis=1)
         j |= np.all(symbol[angle_idx[:, ::-1]] == i, axis=1)  # Consider all valid permutations
         df.at[i, 'V'] = get_V_harmonic(angle[:, j], *item).sum()
+
+
+def set_V_UB(df: pd.DataFrame, mol: MultiMolecule, angle_idx: np.ndarray) -> None:
+    """Calculate and set :math:`V_{Urey-Bradley}` in **df**.
+
+    Parameters
+    ----------
+    df : :class:`pd.DataFrame`
+        A DataFrame with atom pairs and parameters.
+
+    mol : :class:`MultiMolecule`
+        A MultiMolecule instance.
+
+    angle_idx : :math:`(i,3)` :class:`numpy.ndarray`
+         A 2D numpy array with all atom-pairs defining angles.
+
+    """
+    symbol = mol.symbol
+    bond_idx = angle_idx[:, 0::2]
+    distance = _dist(mol, bond_idx)
+
+    iterator = df.iloc[:, 0:2].iterrows()
+    for i, item in iterator:
+        j = np.all(symbol[bond_idx] == i, axis=1)
+        j |= np.all(symbol[bond_idx[:, ::-1]] == i, axis=1)  # Consider all valid permutations
+        df.at[i, 'V'] = get_V_harmonic(distance[:, j], *item).sum()
 
 
 def set_V_dihedrals(df: pd.DataFrame, mol: MultiMolecule, dihed_idx: np.ndarray) -> None:
