@@ -30,7 +30,7 @@ from itertools import chain
 import numpy as np
 import pandas as pd
 
-from scm.plams import Atom, Molecule, Units
+from scm.plams import Atom, Molecule, Units, PT
 
 from .lj_calculate import get_V_elstat, get_V_lj
 from .lj_dataframe import LJDataFrame
@@ -86,6 +86,10 @@ def get_intra_non_bonded(mol: Union[str, MultiMolecule], psf: Union[str, PSFCont
     core_atoms = psf.atoms.index[psf.residue_id == 1] - 1
     lig_atoms = psf.atoms.index[psf.residue_id != 1] - 1
     mol.bonds = psf.bonds - 1
+
+    # Ensure that PLAMS more or less recognizes the new (custom) atomic symbols
+    values = psf.atoms[['atom type', 'atom name']].values
+    PT.symtonum.update({k.capitalize(): PT.get_atomic_number(v) for k, v in values})
 
     # Construct the parameter DataFrames
     mol.atoms = psf.to_atom_dict()
