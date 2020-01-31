@@ -51,8 +51,8 @@ class PRMContainer(AbstractDataClass, AbstractFileContainer):
 
     #: A tuple of supported .psf headers.
     HEADERS: Tuple[str, ...] = (
-        'ATOMS', 'BONDS', 'ANGLES', 'DIHEDRALS', 'NBFIX', 'HBOND', 'NONBONDED', 'IMPROPERS',
-        'IMPROPER', 'END'
+        'ATOMS', 'BONDS', 'ANGLES', 'DIHEDRALS', 'NBFIX', 'HBOND', 'NONBONDED', 'IMPROPER',
+        'IMPROPERS', 'END'
     )
 
     #: Define the columns for each DataFrame which hold its index
@@ -63,7 +63,7 @@ class PRMContainer(AbstractDataClass, AbstractFileContainer):
         'dihedrals': [0, 1, 2, 3],
         'nbfix': [0, 1],
         'nonbonded': [0],
-        'impropers': [0, 1, 2, 3],
+        'improper': [0, 1, 2, 3],
     })
 
     #: Placeholder values for DataFrame columns
@@ -74,7 +74,7 @@ class PRMContainer(AbstractDataClass, AbstractFileContainer):
         'dihedrals': (None, None, None, None, np.nan, -1, np.nan),
         'nbfix': (None, None, np.nan, np.nan, np.nan, np.nan),
         'nonbonded': (None, np.nan, np.nan, np.nan, np.nan, np.nan, np.nan),
-        'impropers': (None, None, None, None, np.nan, -1, np.nan)
+        'improper': (None, None, None, None, np.nan, -1, np.nan)
     })
 
     @property
@@ -87,7 +87,7 @@ class PRMContainer(AbstractDataClass, AbstractFileContainer):
         self.impropers = value
 
     def __init__(self, filename=None, atoms=None, bonds=None, angles=None, dihedrals=None,
-                 impropers=None, nonbonded=None, nonbonded_header=None, nbfix=None,
+                 improper=None, impropers=None, nonbonded=None, nonbonded_header=None, nbfix=None,
                  hbond=None) -> None:
         """Initialize a :class:`PRMContainer` instance."""
         super().__init__()
@@ -97,7 +97,7 @@ class PRMContainer(AbstractDataClass, AbstractFileContainer):
         self.bonds: pd.DataFrame = bonds
         self.angles: pd.DataFrame = angles
         self.dihedrals: pd.DataFrame = dihedrals
-        self.impropers: pd.DataFrame = impropers
+        self.improper: pd.DataFrame = improper if improper is not None else impropers
         self.nonbonded_header: str = nonbonded_header
         self.nonbonded: pd.DataFrame = nonbonded
         self.nbfix: pd.DataFrame = nbfix
@@ -171,7 +171,6 @@ class PRMContainer(AbstractDataClass, AbstractFileContainer):
 
             key = i.split(maxsplit=1)[0]
             if key in cls.HEADERS:
-                key = 'IMPROPERS' if key == 'IMPROPER' else key
                 ret[key.lower()] = value = []
                 ret[key.lower() + '_comment'] = value_comment = []
                 if key in ('HBOND', 'NONBONDED'):
@@ -255,7 +254,6 @@ class PRMContainer(AbstractDataClass, AbstractFileContainer):
 
         for key in self.HEADERS[:-2]:
             key_low = key.lower()
-            key_low = 'improper' if key_low == 'impropers' else key_low
             df = getattr(self, key_low)
 
             if key_low == 'hbond' and df is not None:
