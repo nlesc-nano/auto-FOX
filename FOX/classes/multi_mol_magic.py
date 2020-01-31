@@ -218,9 +218,16 @@ class _MultiMolecule(np.ndarray):
     @bonds.setter
     def bonds(self, value: Optional[np.ndarray]) -> None:
         if value is None:
-            self._bonds = np.zeros((0, 3), dtype=int)
+            bonds = np.zeros((0, 3), dtype=int)
         else:
-            self._bonds = np.array(value, dtype=int, ndmin=2, copy=False)
+            bonds = np.array(value, dtype=int, ndmin=2, copy=False)
+
+        # Set bond orders to 1 (i.e. 10 / 10) if the order is not specified
+        if bonds.shape[1] == 2:
+            order = np.full(len(bonds), fill_value=10, dtype=int)[..., None]
+            self._bonds = np.hstack([bonds, order])
+        else:
+            self._bonds = bonds
 
     @property
     def properties(self) -> Settings:
@@ -235,38 +242,38 @@ class _MultiMolecule(np.ndarray):
     @property
     def atom12(self) -> '_MultiMolecule':
         """Get or set the indices of the atoms for all bonds in :attr:`.MultiMolecule.bonds` as 2D array."""  # noqa
-        return self.bonds[:, 0:2]
+        return self._bonds[:, 0:2]
 
     @atom12.setter
     def atom12(self, value: np.ndarray) -> None:
-        self.bonds[:, 0:2] = value
+        self._bonds[:, 0:2] = value
 
     @property
     def atom1(self) -> '_MultiMolecule':
         """Get or set the indices of the first atoms in all bonds of :attr:`.MultiMolecule.bonds` as 1D array."""  # noqa
-        return self.bonds[:, 0]
+        return self._bonds[:, 0]
 
     @atom1.setter
     def atom1(self, value: np.ndarray) -> None:
-        self.bonds[:, 0] = value
+        self._bonds[:, 0] = value
 
     @property
     def atom2(self) -> np.ndarray:
         """Get or set the indices of the second atoms in all bonds of :attr:`.MultiMolecule.bonds` as 1D array."""  # noqa
-        return self.bonds[:, 1]
+        return self._bonds[:, 1]
 
     @atom2.setter
     def atom2(self, value: np.ndarray) -> None:
-        self.bonds[:, 1] = value
+        self._bonds[:, 1] = value
 
     @property
     def order(self) -> np.ndarray:
         """Get or set the bond orders for all bonds in :attr:`.MultiMolecule.bonds` as 1D array."""
-        return self.bonds[:, 2] / 10.0
+        return self._bonds[:, 2] / 10.0
 
     @order.setter
     def order(self, value: np.ndarray) -> None:
-        self.bonds[:, 2] = value * 10
+        self._bonds[:, 2] = value * 10
 
     @property
     def x(self) -> '_MultiMolecule':
