@@ -512,13 +512,14 @@ FUNC_MAP: Mapping[CeilOrFloor, CeilOrFloor] = MappingProxyType({
 def dekekulize(mol: Molecule) -> None:
     """Convert non-integer bond orders into integers.
 
-    Bond orders for "aromatic" systems are no longer set to ``1.5``,
+    Bond orders for "aromatic" systems are no longer set to the non-integer value of ``1.5``,
     instead addopting the more Kekulé-esque bond orders of ``1`` and ``2``.
 
-    The implemented function is a (depth-first search based) graph-walking algorithm,
-    integerifying bond orders by alternating calls to :func:`math.ceil` and :func:`math.floor`.
-    The implication herein is that :math:`i` and :math:`i+1` are considered valid (integer) values
-    for any bond order within the :math:`[i,i+1]` interval.
+    The implemented function walks a set of graphs constructed from all non-integer bonds,
+    converting the orders of aforementioned bonds to integers by alternating calls to
+    :func:`math.ceil` and :func:`math.floor`.
+    The implication herein is that both :math:`i` and :math:`i+1` are considered valid
+    (integer) values for any bond order within the :math:`(i,i+1)` interval.
 
     """
     def dfs(atom: Atom, func: CeilOrFloor) -> None:
@@ -528,33 +529,34 @@ def dekekulize(mol: Molecule) -> None:
                 continue
 
             b2.visited = True
-            b2.order = func(b2.order)  # Add or substract
-            bonds.remove(b2)
+            b2.order = func(b2.order)  # ``ceil()`` or ``floor()``
+            bond_set.remove(b2)
 
             atom_new = b2.atom1 if b2.atom1 is not atom else b2.atom2
             dfs(atom_new, func=FUNC_MAP[func])
 
-    bonds = set()
-    for b in mol.bonds:
-        if hasattr(b.order, 'is_integer'):  # This catches both float and np.float instances
-            if not b.order.is_integer():
-                b.visited = False
-                bonds.add(b)
-            else:  # A float finite with integral value
-                b.visited = True
-                b.order = int(b.order)
+    # Mark all non-integer bonds; floats which can be represented exactly
+    # by an integer (e.g. 1.0 and 2.0) are herein treated as integers
+    bond_set = set()
+    for bond in mol.bonds:  # Checking for ``is_integer()`` catches both float and np.float
+        if hasattr(bond.order, 'is_integer') and not bond.order.is_integer():
+            bond._visited = False
+            bond_set.add(bond)
         else:
-            b.visited = True
+            bond._visited = True
 
-    while bonds:
-        b1 = bonds.pop()
-        delta_ceil, delta_floor = ceil(b1.order) - b1.order, floor(b1.order) - b1.order
+    while bond_set:
+        b1 = bond_set.pop()
+        order = b1.order
+
+        # Start with either ``ceil()`` or ``floor()``
+        delta_ceil, delta_floor = ceil(order) - order, floor(order) - order
         func = ceil if abs(delta_ceil) < abs(delta_floor) else floor
 
-        b1.order = func(b1.order)
+        b1.order = func(order)
         b1.visited = True
         dfs(b1.atom1, func=FUNC_MAP[func])
         dfs(b1.atom2, func=FUNC_MAP[func])
 
-    for b in mol.bonds:
-        del b.visited
+    for bond in mol.bonds:
+        del bond._visited
