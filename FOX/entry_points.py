@@ -31,7 +31,7 @@ from os.path import isfile, join
 from typing import Optional
 
 from .classes.armc import ARMC, run_armc
-from .armc_functions.csv import dset_to_csv
+from .armc_functions.csv_utils import dset_to_csv
 from .armc_functions.guess import guess_param
 from .armc_functions.plotting import plot_pes_descriptors, plot_param, plot_dset
 
