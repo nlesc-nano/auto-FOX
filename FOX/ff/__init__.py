@@ -4,6 +4,20 @@ FOX.ff
 
 Various forcefield-related modules.
 
+IndexIndex
+-----
+.. currentmodule:: FOX.ff
+.. autosummary::
+    get_bonded
+    get_non_bonded
+    get_intra_non_bonded
+
+API
+---
+.. autofunction:: get_bonded
+.. autofunction:: get_non_bonded
+.. autofunction:: get_intra_non_bonded
+
 """
 
 from .bonded_calculate import get_bonded
