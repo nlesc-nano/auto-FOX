@@ -43,7 +43,8 @@ __all__ = ['get_intra_non_bonded']
 
 
 def get_intra_non_bonded(mol: Union[str, MultiMolecule], psf: Union[str, PSFContainer],
-                         prm: Union[str, PRMContainer]) -> LJDataFrame:
+                         prm: Union[str, PRMContainer],
+                         scale_elstat: float = 0.0, scale_lj: float = 1.0) -> LJDataFrame:
     r"""Collect forcefield parameters and calculate all non-covalent intra-ligand interactions in **mol**.
 
     Forcefield parameters (*i.e.* charges and Lennard-Jones :math:`\sigma` and
@@ -63,6 +64,12 @@ def get_intra_non_bonded(mol: Union[str, MultiMolecule], psf: Union[str, PSFCont
     prm : :class:`str` or :class:`PRMContainer`
         A PRMContainer instance or the path+filename of a .prm file.
         Used for setting :math:`\sigma` and :math:`\varepsilon`.
+
+    scale_elstat : :class:`float`
+        Scale all 1,4-nonbonded electrostatic interactions by means of multiplication with a constant.
+
+    scale_elstat : :class:`float`
+        Scale all 1,4-nonbonded Lennard-Jones interactions by means of multiplication with a constant.
 
     Returns
     -------
@@ -100,11 +107,14 @@ def get_intra_non_bonded(mol: Union[str, MultiMolecule], psf: Union[str, PSFCont
     # atoms three bonds removed
     # If not specified, do not distinguish between atoms removed 3 and >3 bonds
     if prm_df14.isnull().values.all():
-        _fill_df(prm_df, mol, core_atoms, depth_comparison=operator.__ge__)
-    else:
-        _fill_df(prm_df, mol.copy(), core_atoms, depth_comparison=operator.__gt__)
-        _fill_df(prm_df14, mol, core_atoms, depth_comparison=operator.__eq__)
-        prm_df += prm_df14
+        prm_df14 = prm_df.copy()
+
+    # Calculate the potential energies
+    _fill_df(prm_df, mol.copy(), core_atoms, depth_comparison=operator.__gt__)
+    _fill_df(prm_df14, mol, core_atoms, depth_comparison=operator.__eq__)
+    prm_df14['elstat'] *= scale_elstat
+    prm_df14['lj'] *= scale_lj
+    prm_df += prm_df14
 
     return prm_df[['elstat', 'lj']] / 2  # Avoid double counting
 
