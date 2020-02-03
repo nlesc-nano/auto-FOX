@@ -102,7 +102,7 @@ def get_intra_non_bonded(mol: Union[str, MultiMolecule], psf: Union[str, PSFCont
     if prm_df14.isnull().values.all():
         _fill_df(prm_df, mol, core_atoms, depth_comparison=operator.__ge__)
     else:
-        _fill_df(prm_df, mol, core_atoms, depth_comparison=operator.__gt__)
+        _fill_df(prm_df, mol.copy(), core_atoms, depth_comparison=operator.__gt__)
         _fill_df(prm_df14, mol, core_atoms, depth_comparison=operator.__eq__)
         prm_df += prm_df14
 
