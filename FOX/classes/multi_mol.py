@@ -149,11 +149,14 @@ class MultiMolecule(_MultiMolecule):
         if atom_subset is None:
             raise TypeError("'None' is an invalid value for 'atom_subset'")
 
-        # Delete atoms
+        # Define subsets
         at_subset = self._get_atom_subset(atom_subset, as_array=True)
         bool_ar = np.ones(self.shape[1], dtype=bool)
         bool_ar[at_subset] = False
+
+        # Delete atoms
         ret = self[:, bool_ar]  # Boolean-array slicing always creates a copy
+        ret.__dict__ = copy.deepcopy(self.__dict__)
 
         # Update :attr:`.MultiMolecule.atoms`
         symbols = self.symbol[bool_ar]
