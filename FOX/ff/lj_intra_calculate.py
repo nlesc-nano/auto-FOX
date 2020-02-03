@@ -106,7 +106,7 @@ def get_intra_non_bonded(mol: Union[str, MultiMolecule], psf: Union[str, PSFCont
         _fill_df(prm_df14, mol, core_atoms, depth_comparison=operator.__eq__)
         prm_df += prm_df14
 
-    return prm_df[['elstat', 'lj']]
+    return prm_df[['elstat', 'lj']] / 2  # Avoid double counting
 
 
 def _fill_df(prm_df: pd.DataFrame, mol: MultiMolecule, core_atoms: np.ndarray,
@@ -156,7 +156,7 @@ def _construct_df(mol: MultiMolecule, lig_atoms: np.ndarray,
 def _get_idx(mol: MultiMolecule, core_atoms: np.ndarray,
              depth_comparison: Callable[[int, int], bool] = operator.__ge__) -> np.ndarray:
     """Construct the array with all atom-pairs valid for intra-moleculair non-covalent interactions."""  # noqa
-    def dfs(at1: Atom, id_list: list, i: int, exclude: Set[Atom], depth: int = 0):
+    def dfs(at1: Atom, id_list: list, i: int, exclude: Set[Atom], depth: int = 1):
         exclude.add(at1)
         for bond in at1.bonds:
             at2 = bond.other_end(at1)
@@ -172,17 +172,19 @@ def _get_idx(mol: MultiMolecule, core_atoms: np.ndarray,
             dfs(at, id_list, i, set())
             yield id_list
 
-    if not core_atoms.any():
-        return np.zeros((0, 2), dtype=int)
+    if core_atoms.any():
+        _mol = mol.delete_atoms(core_atoms)
+        _mol.bonds -= len(core_atoms)
+    else:
+        _mol = mol
 
     # Prepare the molecule for the dfs
-    _mol = mol.delete_atoms(core_atoms)
-    _mol.bonds -= len(core_atoms)
     molecule = _mol.as_Molecule(0)[0]
     molecule.set_atoms_id(start=0)
 
     # Construct the indice-pairs
     idx = np.fromiter(chain.from_iterable(gather_idx(molecule)), dtype=int)
-    idx += len(mol._get_atom_subset(core_atoms, as_array=True))
+    if core_atoms.any():
+        idx += len(mol._get_atom_subset(core_atoms, as_array=True))
     idx.shape = -1, 2
-    return idx
+    return idx  # Note: all index pairs are included twice
