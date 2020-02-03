@@ -151,11 +151,12 @@ class MultiMolecule(_MultiMolecule):
 
         # Delete atoms
         at_subset = self._get_atom_subset(atom_subset, as_array=True)
-        idx = np.arange(0, self.shape[1])[~at_subset]
-        ret = self[:, idx].copy()
+        bool_ar = np.ones(self.shape[1], dtype=bool)
+        bool_ar[at_subset] = False
+        ret = self[:, bool_ar]  # Boolean-array slicing always creates a copy
 
         # Update :attr:`.MultiMolecule.atoms`
-        symbols = self.symbol[idx]
+        symbols = self.symbol[bool_ar]
         ret.atoms = group_by_values(enumerate(symbols))
         return ret
 
