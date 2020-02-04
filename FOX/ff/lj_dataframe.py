@@ -25,7 +25,7 @@ from collections import abc
 
 import numpy as np
 import pandas as pd
-from scipy.stats import gmean
+import scipy
 
 from scm.plams import Settings, Units
 
@@ -171,9 +171,9 @@ class LJDataFrame(pd.DataFrame):
         charge_dict = charge.to_dict()
         self.set_charge(charge_dict)
 
-    def _set_value(self, atom_mapping: Mapping[str, float], key: str,
-                   func: Callable[[float, float], float],
-                   unit: Optional[str] = None) -> None:
+    def _set_prm(self, atom_mapping: Mapping[str, float], key: str,
+                 func: Callable[[Tuple[float, float]], float],
+                 unit: Optional[str] = None) -> None:
         unit2au = 1 if unit is None else Units.conversion_ratio(unit, 'au')
         atom_pairs = combinations_with_replacement(sorted(atom_mapping.keys()), 2)
         for at1, at2 in atom_pairs:
@@ -183,19 +183,19 @@ class LJDataFrame(pd.DataFrame):
 
     def set_charge(self, charge_mapping: Mapping[str, float]) -> None:
         """Set :math:`q_{i} * q_{j}`."""
-        self._set_value(charge_mapping, 'charge', func=np.product, unit=None)
+        self._set_prm(charge_mapping, 'charge', func=np.product, unit=None)
 
     def set_epsilon(self, epsilon_mapping: Mapping[str, float], unit: str = 'kj/mol') -> None:
         r"""Set :math:`\sqrt{\varepsilon_{i} * \varepsilon_{j}}`."""
-        self._set_value(epsilon_mapping, 'epsilon', func=gmean, unit='kj/mol')
+        self._set_prm(epsilon_mapping, 'epsilon', func=scipy.stats.gmean, unit='kj/mol')
 
     def set_sigma(self, sigma_mapping: Mapping[str, float],
                   unit: str = 'nm') -> None:
         r"""Set :math:`\frac{ \sigma_{i} * \sigma_{j} }{2}`."""
-        self._set_value(sigma_mapping, 'sigma', func=np.mean, unit='nm')
+        self._set_prm(sigma_mapping, 'sigma', func=np.mean, unit='nm')
 
-    def _set_pairs(self, atom_pair_mapping: Mapping[Tuple[str, str], float],
-                   key: str, unit: Optional[str] = None) -> None:
+    def _set_prm_pairs(self, atom_pair_mapping: Mapping[Tuple[str, str], float],
+                       key: str, unit: Optional[str] = None) -> None:
         unit2au = 1 if unit is None else Units.conversion_ratio(unit, 'au')
         for _at_tup, value in atom_pair_mapping.items():
             at_tup = tuple(sorted(_at_tup))
@@ -204,14 +204,14 @@ class LJDataFrame(pd.DataFrame):
 
     def set_charge_pairs(self, charge_mapping: Mapping[Tuple[str, str], float]) -> None:
         """Set :math:`q_{ij}`."""
-        self._set_pairs(charge_mapping, 'charge', unit=None)
+        self._set_prm_pairs(charge_mapping, 'charge', unit=None)
 
     def set_epsilon_pairs(self, epsilon_mapping: Mapping[Tuple[str, str], float],
                           unit: str = 'kj/mol') -> None:
         r"""Set :math:`\varepsilon_{ij}`."""
-        self._set_pairs(epsilon_mapping, 'epsilon', unit='kj/mol')
+        self._set_prm_pairs(epsilon_mapping, 'epsilon', unit='kj/mol')
 
     def set_sigma_pairs(self, sigma_mapping: Mapping[Tuple[str, str], float],
                         unit: str = 'nm') -> None:
         r"""Set :math:`\sigma_{ij}`."""
-        self._set_pairs(sigma_mapping, 'sigma', unit='nm')
+        self._set_prm_pairs(sigma_mapping, 'sigma', unit='nm')
