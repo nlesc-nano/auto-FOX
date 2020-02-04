@@ -1,11 +1,31 @@
+"""
+FOX.ff.lj_dataframe
+===================
+
+A module for holding the :class:`LJDataFrame` class.
+
+Index
+-----
+.. currentmodule:: FOX.ff.lj_dataframe
+.. autosummary::
+    LJDataFrame
+
+API
+---
+.. autoclass:: LJDataFrame
+    :members:
+
+"""
+
 import textwrap
 from types import MappingProxyType
-from typing import Union, Iterable, Mapping, Dict, Tuple, Callable
+from typing import Union, Iterable, Mapping, Dict, Tuple, Callable, Optional
 from itertools import combinations_with_replacement
 from collections import abc
 
 import numpy as np
 import pandas as pd
+from scipy.stats import gmean
 
 from scm.plams import Settings, Units
 
@@ -17,6 +37,7 @@ __all__ = ['LJDataFrame']
 
 
 class LJDataFrame(pd.DataFrame):
+    """A subclass of :class:`pandas.DataFrame` aimed at holding forcefield parameters."""
 
     def __init__(self, data: Union[None, float, Iterable] = None,
                  index: Iterable[str] = None,
@@ -24,6 +45,7 @@ class LJDataFrame(pd.DataFrame):
                  dtype: Union[None, str, type, np.dtype] = None,
                  copy: bool = False) -> None:
         """Initialize a :class:`LJDataFrame` instance."""
+        # Validate the index and columns
         if index is None:
             raise TypeError("The 'index' parameter expects an iterable of atom types; "
                             f"observed type: '{index.__class__.__name__}'")
@@ -32,14 +54,13 @@ class LJDataFrame(pd.DataFrame):
 
         # Create the DataFrame
         index = pd.MultiIndex.from_tuples(combinations_with_replacement(sorted(index), 2))
-        columns = ['charge', 'epsilon', 'sigma']
-        super().__init__(0.0, index=index, columns=columns)
+        super().__init__(0.0, index=index, columns=['charge', 'epsilon', 'sigma'])
 
-        if isinstance(data, abc.Mapping):
+        if callable(getattr(data, 'items', None)):
+            columns = set(self.columns)
             for k, v in data.items():
                 if k not in columns:
-                    raise KeyError(f"Invalid key {repr(k)}; allowed keys: "
-                                   "'charge', 'epsilon' and 'sigma'")
+                    raise KeyError(f"Invalid key {repr(k)}; allowed keys: {tuple(columns)}")
                 self[k] = v
 
         elif isinstance(data, abc.Iterable):
@@ -50,6 +71,7 @@ class LJDataFrame(pd.DataFrame):
             self.iloc[:, :] = data
 
     def __repr__(self) -> str:
+        """Return a string-representation of this instance."""
         ret = super().__repr__()
         indent = 4 * ' '
         return f'{self.__class__.__name__}(\n{textwrap.indent(ret, indent)}\n)'
@@ -108,6 +130,8 @@ class LJDataFrame(pd.DataFrame):
 
     def overlay_prm(self, prm: Union[str, PRMContainer], pairs14: bool = False) -> None:
         r"""Overlay **df** with all :math:`\sigma` and :math:`\varepsilon` values from **prm**."""
+        # In the .prm format nonbonded parameters are stored in columns 2 & 3
+        # Explicit 1,4-nonbonded parameters are stored in columns 4 & 5
         i, j = (2, 3) if not pairs14 else (4, 5)
         if not isinstance(prm, PRMContainer):
             prm = PRMContainer.read(prm)
@@ -121,7 +145,7 @@ class LJDataFrame(pd.DataFrame):
         self.set_epsilon(epsilon, unit='kcal/mol')
         self.set_sigma(sigma, unit='angstrom')
 
-        # Check if non-bonded pairs have been explicitly specified in the ``nbfix`` block
+        # Check if certain non-bonded pairs have been explicitly specified in the ``nbfix`` block
         nbfix = prm.nbfix
         if nbfix is None:
             return
@@ -147,51 +171,47 @@ class LJDataFrame(pd.DataFrame):
         charge_dict = charge.to_dict()
         self.set_charge(charge_dict)
 
+    def _set_value(self, atom_mapping: Mapping[str, float], key: str,
+                   func: Callable[[float, float], float],
+                   unit: Optional[str] = None) -> None:
+        unit2au = 1 if unit is None else Units.conversion_ratio(unit, 'au')
+        atom_pairs = combinations_with_replacement(sorted(atom_mapping.keys()), 2)
+        for at1, at2 in atom_pairs:
+            value = func([atom_mapping[at1], atom_mapping[at2]])
+            value *= unit2au
+            self.at[(at1, at2), key] = value
+
     def set_charge(self, charge_mapping: Mapping[str, float]) -> None:
         """Set :math:`q_{i} * q_{j}`."""
-        atom_pairs = combinations_with_replacement(sorted(charge_mapping.keys()), 2)
-        for i, j in atom_pairs:
-            charge = charge_mapping[i] * charge_mapping[j]
-            self.at[(i, j), 'charge'] = charge
+        self._set_value(charge_mapping, 'charge', func=np.product, unit=None)
 
     def set_epsilon(self, epsilon_mapping: Mapping[str, float], unit: str = 'kj/mol') -> None:
         r"""Set :math:`\sqrt{\varepsilon_{i} * \varepsilon_{j}}`."""
-        atom_pairs = combinations_with_replacement(sorted(epsilon_mapping.keys()), 2)
-        for i, j in atom_pairs:
-            epsilon = (epsilon_mapping[i] * epsilon_mapping[j])**0.5
-            epsilon *= Units.conversion_ratio(unit, 'au')
-            self.at[(i, j), 'epsilon'] = epsilon
+        self._set_value(epsilon_mapping, 'epsilon', func=gmean, unit='kj/mol')
 
     def set_sigma(self, sigma_mapping: Mapping[str, float],
                   unit: str = 'nm') -> None:
         r"""Set :math:`\frac{ \sigma_{i} * \sigma_{j} }{2}`."""
-        unit2au = Units.conversion_ratio(unit, 'au')
-        atom_pairs = combinations_with_replacement(sorted(sigma_mapping.keys()), 2)
-        for i, j in atom_pairs:
-            sigma = (sigma_mapping[i] + sigma_mapping[j]) / 2
-            sigma *= unit2au
-            self.at[(i, j), 'sigma'] = sigma
+        self._set_value(sigma_mapping, 'sigma', func=np.mean, unit='nm')
+
+    def _set_pairs(self, atom_pair_mapping: Mapping[Tuple[str, str], float],
+                   key: str, unit: Optional[str] = None) -> None:
+        unit2au = 1 if unit is None else Units.conversion_ratio(unit, 'au')
+        for _at_tup, value in atom_pair_mapping.items():
+            at_tup = tuple(sorted(_at_tup))
+            value *= unit2au
+            self.at[at_tup, key] = value
 
     def set_charge_pairs(self, charge_mapping: Mapping[Tuple[str, str], float]) -> None:
         """Set :math:`q_{ij}`."""
-        for _ij, charge in charge_mapping.items():
-            ij = tuple(sorted(_ij))
-            self.at[ij, 'charge'] = charge
+        self._set_pairs(charge_mapping, 'charge', unit=None)
 
     def set_epsilon_pairs(self, epsilon_mapping: Mapping[Tuple[str, str], float],
                           unit: str = 'kj/mol') -> None:
         r"""Set :math:`\varepsilon_{ij}`."""
-        unit2au = Units.conversion_ratio(unit, 'au')
-        for _ij, epsilon in epsilon_mapping.items():
-            ij = tuple(sorted(_ij))
-            epsilon *= unit2au
-            self.at[ij, 'epsilon'] = epsilon
+        self._set_pairs(epsilon_mapping, 'epsilon', unit='kj/mol')
 
     def set_sigma_pairs(self, sigma_mapping: Mapping[Tuple[str, str], float],
                         unit: str = 'nm') -> None:
         r"""Set :math:`\sigma_{ij}`."""
-        unit2au = Units.conversion_ratio(unit, 'au')
-        for _ij, sigma in sigma_mapping.items():
-            ij = tuple(sorted(_ij))
-            sigma *= unit2au
-            self.at[ij, 'sigma'] = sigma
+        self._set_pairs(sigma_mapping, 'sigma', unit='nm')
