@@ -66,10 +66,12 @@ def get_intra_non_bonded(mol: Union[str, MultiMolecule], psf: Union[str, PSFCont
         Used for setting :math:`\sigma` and :math:`\varepsilon`.
 
     scale_elstat : :class:`float`
-        Scale all 1,4-nonbonded electrostatic interactions by means of multiplication with a constant.
+        Scaling factor to apply to all 1,4-nonbonded electrostatic interactions.
+        Serves the same purpose as the cp2k ``EI_SCALE14`` keyword.
 
     scale_lj : :class:`float`
-        Scale all 1,4-nonbonded Lennard-Jones interactions by means of multiplication with a constant.
+        Scaling factor to apply to all 1,4-nonbonded Lennard-Jones interactions.
+        Serves the same purpose as the cp2k ``VDW_SCALE14`` keyword.
 
     Returns
     -------
