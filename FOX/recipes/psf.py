@@ -95,10 +95,10 @@ API
 .. autofunction:: extract_ligand
 
 """
+import math
 import warnings
 from os import PathLike
 from sys import version_info
-from math import ceil, floor
 from types import MappingProxyType
 from typing import (Union, Iterable, Optional, TypeVar, Callable, Mapping, Type, Iterator,
                     Hashable, Any, Tuple, MutableMapping, AnyStr, List, SupportsFloat)
@@ -416,7 +416,7 @@ def _update_lig(ligand: Molecule, k: int, copy: bool = False) -> Molecule:
         ligand.delete_atom(at)
 
     ligand.guess_bonds()
-    dekekulize(ligand)
+    set_integer_bonds(ligand)
     fix_bond_orders(ligand)
     return ligand
 
@@ -503,60 +503,127 @@ def _get_rddict(ligands: Iterable[Union[str, Molecule, Mol]]) -> MutableMapping[
     return rdmol_dict
 
 
-CeilOrFloor = Callable[[SupportsFloat], int]
-FUNC_MAP: Mapping[CeilOrFloor, CeilOrFloor] = MappingProxyType({
-    ceil: floor, floor: ceil
-})
-
-
-def dekekulize(mol: Molecule) -> None:
+def set_integer_bonds(self):
     """Convert non-integer bond orders into integers.
 
-    Bond orders for "aromatic" systems are no longer set to the non-integer value of ``1.5``,
-    instead addopting the more Kekulé-esque bond orders of ``1`` and ``2``.
+    For example, bond orders of aromatic systems are no longer set to the non-integer
+    value of ``1.5``, instead adopting bond orders of ``1`` and ``2``.
 
     The implemented function walks a set of graphs constructed from all non-integer bonds,
     converting the orders of aforementioned bonds to integers by alternating calls to
     :func:`math.ceil` and :func:`math.floor`.
     The implication herein is that both :math:`i` and :math:`i+1` are considered valid
-    (integer) values for any bond order within the :math:`(i,i+1)` interval.
+    (integer) values for any bond order within the :math:`(i, i+1)` interval.
+    Floats which can be represented exactly as an integer, *e.g.* :math:`1.0`,
+    are herein treated as integers.
+
+    Can be used for sanitizaing any Molecules passed to the
+    :mod:`rdkit<scm.plams.interfaces.molecule.rdkit>` module,
+    as its functions are generally unable to handle Molecules with non-integer bond orders.
+
+    ..code:: python
+
+        >>> from scm.plams import Molecule
+
+        >>> benzene = Molecule(...)
+        >>> print(benzene)
+            Atoms:
+            1         C      1.193860     -0.689276      0.000000
+            2         C      1.193860      0.689276      0.000000
+            3         C      0.000000      1.378551      0.000000
+            4         C     -1.193860      0.689276      0.000000
+            5         C     -1.193860     -0.689276      0.000000
+            6         C     -0.000000     -1.378551      0.000000
+            7         H      2.132911     -1.231437     -0.000000
+            8         H      2.132911      1.231437     -0.000000
+            9         H      0.000000      2.462874     -0.000000
+            10         H     -2.132911      1.231437     -0.000000
+            11         H     -2.132911     -1.231437     -0.000000
+            12         H     -0.000000     -2.462874     -0.000000
+            Bonds:
+            (3)--1.5--(4)
+            (5)--1.5--(6)
+            (1)--1.5--(6)
+            (2)--1.5--(3)
+            (4)--1.5--(5)
+            (1)--1.5--(2)
+            (3)--1.0--(9)
+            (6)--1.0--(12)
+            (5)--1.0--(11)
+            (4)--1.0--(10)
+            (2)--1.0--(8)
+            (1)--1.0--(7)
+
+        >>> benzene.set_integer_bonds()
+        >>> print(benzene)
+            Atoms:
+            1         C      1.193860     -0.689276      0.000000
+            2         C      1.193860      0.689276      0.000000
+            3         C      0.000000      1.378551      0.000000
+            4         C     -1.193860      0.689276      0.000000
+            5         C     -1.193860     -0.689276      0.000000
+            6         C     -0.000000     -1.378551      0.000000
+            7         H      2.132911     -1.231437     -0.000000
+            8         H      2.132911      1.231437     -0.000000
+            9         H      0.000000      2.462874     -0.000000
+            10         H     -2.132911      1.231437     -0.000000
+            11         H     -2.132911     -1.231437     -0.000000
+            12         H     -0.000000     -2.462874     -0.000000
+            Bonds:
+            (3)--1.0--(4)
+            (5)--1.0--(6)
+            (1)--2.0--(6)
+            (2)--2.0--(3)
+            (4)--2.0--(5)
+            (1)--1.0--(2)
+            (3)--1.0--(9)
+            (6)--1.0--(12)
+            (5)--1.0--(11)
+            (4)--1.0--(10)
+            (2)--1.0--(8)
+            (1)--1.0--(7)
 
     """
-    def dfs(atom: Atom, func: CeilOrFloor) -> None:
-        """Depth-first search algorithm for fixing the fixing the bond orders."""
+    ceil = math.ceil
+    floor = math.floor
+    func_invert = {ceil: floor, floor: ceil}
+
+    def dfs(atom, func) -> None:
+        """Depth-first search algorithm for integer-ifying the bond orders."""
         for b2 in atom.bonds:
-            if b2.visited:
+            if b2._visited:
                 continue
 
-            b2.visited = True
-            b2.order = func(b2.order)  # ``ceil()`` or ``floor()``
-            bond_set.remove(b2)
+            b2._visited = True
+            b2.order = func(b2.order)  # func = ``math.ceil()`` or ``math.floor()``
+            del bond_dict[b2]
 
             atom_new = b2.atom1 if b2.atom1 is not atom else b2.atom2
-            dfs(atom_new, func=FUNC_MAP[func])
+            dfs(atom_new, func=func_invert[func])
 
     # Mark all non-integer bonds; floats which can be represented exactly
     # by an integer (e.g. 1.0 and 2.0) are herein treated as integers
-    bond_set = set()
-    for bond in mol.bonds:  # Checking for ``is_integer()`` catches both float and np.float
+    bond_dict = OrderedDict()  # An improvised OrderedSet (as it does not exist)
+    for bond in self.bonds:
         if hasattr(bond.order, 'is_integer') and not bond.order.is_integer():
             bond._visited = False
-            bond_set.add(bond)
+            bond_dict[bond] = None
         else:
             bond._visited = True
 
-    while bond_set:
-        b1 = bond_set.pop()
+    while bond_dict:
+        b1, _ = bond_dict.popitem()
         order = b1.order
 
-        # Start with either ``ceil()`` or ``floor()``
+        # Start with either ``math.ceil()`` if the ceiling is closer than the floor;
+        # start with ``math.floor()`` otherwise
         delta_ceil, delta_floor = ceil(order) - order, floor(order) - order
         func = ceil if abs(delta_ceil) < abs(delta_floor) else floor
 
         b1.order = func(order)
-        b1.visited = True
-        dfs(b1.atom1, func=FUNC_MAP[func])
-        dfs(b1.atom2, func=FUNC_MAP[func])
+        b1._visited = True
+        dfs(b1.atom1, func=func_invert[func])
+        dfs(b1.atom2, func=func_invert[func])
 
-    for bond in mol.bonds:
+    for bond in self.bonds:
         del bond._visited
