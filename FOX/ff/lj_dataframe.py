@@ -19,13 +19,12 @@ API
 
 import textwrap
 from types import MappingProxyType
-from typing import Union, Iterable, Mapping, Dict, Tuple, Callable, Optional
+from typing import Union, Iterable, Mapping, Dict, Tuple, Callable, Optional, Union
 from itertools import combinations_with_replacement
 from collections import abc
 
 import numpy as np
 import pandas as pd
-import scipy
 
 from scm.plams import Settings, Units
 
@@ -34,6 +33,29 @@ from ..io.read_psf import PSFContainer
 from ..functions.utils import read_rtf_file
 
 __all__ = ['LJDataFrame']
+
+
+def gmean(x: Union[float, Iterable[float]]) -> float:
+    r"""Return the geometric mean of **x**.
+
+    .. math::
+
+        \left(
+            \prod_{i=0}^{n} x_{i}
+        \right)^{\frac{1}{n}}
+        \quad \text{with} \quad \boldsymbol{x} \in \mathbb{R}^{n}
+
+    """
+    try:
+        ar = np.array(x, dtype=float, ndmin=1, copy=False)
+    except TypeError as ex:
+        if isinstance(x, abc.Iterable):
+            ar = np.fromiter(x, dtype=float)
+        else:
+            raise ex
+
+    power = 1 / len(ar)
+    return ar.prod()**power
 
 
 class LJDataFrame(pd.DataFrame):
@@ -187,13 +209,12 @@ class LJDataFrame(pd.DataFrame):
 
     def set_epsilon(self, epsilon_mapping: Mapping[str, float], unit: str = 'kj/mol') -> None:
         r"""Set :math:`\sqrt{\varepsilon_{i} * \varepsilon_{j}}`."""
-        with np.errstate(divide='ignore'):  # gmean will raise RuntimeWarnings when 0 is encountered
-            self._set_prm(epsilon_mapping, 'epsilon', func=scipy.stats.gmean, unit='kj/mol')
+        self._set_prm(epsilon_mapping, 'epsilon', func=gmean, unit=unit)
 
     def set_sigma(self, sigma_mapping: Mapping[str, float],
                   unit: str = 'nm') -> None:
-        r"""Set :math:`\frac{ \sigma_{i} * \sigma_{j} }{2}`."""
-        self._set_prm(sigma_mapping, 'sigma', func=np.mean, unit='nm')
+        r"""Set :math:`\frac{ \sigma_{i} + \sigma_{j} }{2}`."""
+        self._set_prm(sigma_mapping, 'sigma', func=np.mean, unit=unit)
 
     def _set_prm_pairs(self, atom_pair_mapping: Mapping[Tuple[str, str], float],
                        key: str, unit: Optional[str] = None) -> None:
@@ -210,9 +231,9 @@ class LJDataFrame(pd.DataFrame):
     def set_epsilon_pairs(self, epsilon_mapping: Mapping[Tuple[str, str], float],
                           unit: str = 'kj/mol') -> None:
         r"""Set :math:`\varepsilon_{ij}`."""
-        self._set_prm_pairs(epsilon_mapping, 'epsilon', unit='kj/mol')
+        self._set_prm_pairs(epsilon_mapping, 'epsilon', unit=unit)
 
     def set_sigma_pairs(self, sigma_mapping: Mapping[Tuple[str, str], float],
                         unit: str = 'nm') -> None:
         r"""Set :math:`\sigma_{ij}`."""
-        self._set_prm_pairs(sigma_mapping, 'sigma', unit='nm')
+        self._set_prm_pairs(sigma_mapping, 'sigma', unit=unit)
