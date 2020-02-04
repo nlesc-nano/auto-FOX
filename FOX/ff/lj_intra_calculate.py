@@ -68,7 +68,7 @@ def get_intra_non_bonded(mol: Union[str, MultiMolecule], psf: Union[str, PSFCont
     scale_elstat : :class:`float`
         Scale all 1,4-nonbonded electrostatic interactions by means of multiplication with a constant.
 
-    scale_elstat : :class:`float`
+    scale_lj : :class:`float`
         Scale all 1,4-nonbonded Lennard-Jones interactions by means of multiplication with a constant.
 
     Returns
