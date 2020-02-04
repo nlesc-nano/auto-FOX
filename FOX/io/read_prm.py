@@ -64,6 +64,7 @@ class PRMContainer(AbstractDataClass, AbstractFileContainer):
         'nbfix': [0, 1],
         'nonbonded': [0],
         'improper': [0, 1, 2, 3],
+        'impropers': [0, 1, 2, 3]
     })
 
     #: Placeholder values for DataFrame columns
@@ -74,7 +75,8 @@ class PRMContainer(AbstractDataClass, AbstractFileContainer):
         'dihedrals': (None, None, None, None, np.nan, -1, np.nan),
         'nbfix': (None, None, np.nan, np.nan, np.nan, np.nan),
         'nonbonded': (None, np.nan, np.nan, np.nan, np.nan, np.nan, np.nan),
-        'improper': (None, None, None, None, np.nan, -1, np.nan)
+        'improper': (None, None, None, None, np.nan, -1, np.nan),
+        'impropers': (None, None, None, None, np.nan, -1, np.nan)
     })
 
     @property

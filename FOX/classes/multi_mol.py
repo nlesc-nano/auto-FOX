@@ -1819,13 +1819,17 @@ class MultiMolecule(_MultiMolecule):
             return ret
         elif isinstance(i, np.bool_):
             return ret if not as_array else np.arange(len(ret), dtype=int)[ret]
-        elif ret.dtype.name == 'object':
-            try:
-                return np.fromiter(chain.from_iterable(ret), dtype=int)
-            except ValueError as ex:
-                raise TypeError("'atom_subset' expected a (nested) sequence of integers, "
-                                "strings or booleans; observed value type: "
-                                f"'{i.__class__.__name__}'").with_traceback(ex.__traceback__)
+
+        # A Collection or Iterator; try harder
+        ret2 = np.array(list(chain.from_iterable(ret))).ravel()
+        j = ret2[0]
+        if isinstance(j, np.str_):
+            atoms = self.atoms
+            return np.fromiter(chain.from_iterable(atoms[j] for j in ret2), dtype=int)
+        elif isinstance(j, np.integer):
+            return ret2
+        elif isinstance(j, np.bool_):
+            return ret2 if not as_array else np.arange(len(ret2), dtype=int)[ret]
 
         raise TypeError(f"'atom_subset' is of invalid type: '{atom_subset.__class__.__name__}'")
 
