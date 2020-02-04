@@ -187,7 +187,7 @@ class LJDataFrame(pd.DataFrame):
 
     def set_epsilon(self, epsilon_mapping: Mapping[str, float], unit: str = 'kj/mol') -> None:
         r"""Set :math:`\sqrt{\varepsilon_{i} * \varepsilon_{j}}`."""
-        with np.errstate(divide='ignore'):
+        with np.errstate(divide='ignore'):  # gmean will raise RuntimeWarnings when 0 is encountered
             self._set_prm(epsilon_mapping, 'epsilon', func=scipy.stats.gmean, unit='kj/mol')
 
     def set_sigma(self, sigma_mapping: Mapping[str, float],
