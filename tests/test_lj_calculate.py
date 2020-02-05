@@ -9,7 +9,6 @@ from scm.plams import Settings
 from FOX import MultiMolecule, get_non_bonded
 
 PATH = Path('tests') / 'test_files'
-PATH = Path('/Users/basvanbeek/Documents/GitHub/auto-FOX/tests/test_files')
 
 
 def test_get_non_bonded() -> None:

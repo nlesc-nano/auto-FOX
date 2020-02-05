@@ -211,8 +211,7 @@ class LJDataFrame(pd.DataFrame):
         r"""Set :math:`\sqrt{\varepsilon_{i} * \varepsilon_{j}}`."""
         self._set_prm(epsilon_mapping, 'epsilon', func=gmean, unit=unit)
 
-    def set_sigma(self, sigma_mapping: Mapping[str, float],
-                  unit: str = 'nm') -> None:
+    def set_sigma(self, sigma_mapping: Mapping[str, float], unit: str = 'nm') -> None:
         r"""Set :math:`\frac{ \sigma_{i} + \sigma_{j} }{2}`."""
         self._set_prm(sigma_mapping, 'sigma', func=np.mean, unit=unit)
 
