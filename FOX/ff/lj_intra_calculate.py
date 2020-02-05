@@ -24,7 +24,7 @@ interactions.
 """  # noqa
 
 import operator
-from typing import Set, Generator, List, Union, Callable
+from typing import Set, Generator, List, Union, Callable, Tuple
 from itertools import chain
 
 import numpy as np
@@ -43,8 +43,8 @@ __all__ = ['get_intra_non_bonded']
 
 
 def get_intra_non_bonded(mol: Union[str, MultiMolecule], psf: Union[str, PSFContainer],
-                         prm: Union[str, PRMContainer],
-                         scale_elstat: float = 0.0, scale_lj: float = 1.0) -> LJDataFrame:
+                         prm: Union[str, PRMContainer], scale_elstat: float = 0.0,
+                         scale_lj: float = 1.0) -> Tuple[pd.DataFrame, pd.DataFrame]:
     r"""Collect forcefield parameters and calculate all non-covalent intra-ligand interactions in **mol**.
 
     Forcefield parameters (*i.e.* charges and Lennard-Jones :math:`\sigma` and
@@ -75,12 +75,12 @@ def get_intra_non_bonded(mol: Union[str, MultiMolecule], psf: Union[str, PSFCont
 
     Returns
     -------
-    :class:`pandas.DataFrame`
-        A DataFrame with the electrostatic and Lennard-Jones components of the
-        (inter-ligand) potential energy per atom-pair.
-        The potential energy is summed over atoms with matching atom types and
-        averaged over all molecules within **mol**.
+    :class:`pandas.DataFrame` & :class:`pandas.DataFrame`
+        Two DataFrames with, respectivelly, the electrostatic and Lennard-Jones components of the
+        (intra--ligand) potential energy per atom-pair.
+        The potential energy is summed over atoms with matching atom types.
         Units are in atomic units.
+
 
     """  # noqa
     if not isinstance(psf, PSFContainer):
@@ -111,18 +111,24 @@ def get_intra_non_bonded(mol: Union[str, MultiMolecule], psf: Union[str, PSFCont
     if prm_df14.isnull().values.all():
         prm_df14 = prm_df.copy()
 
-    # Calculate the potential energies
-    _fill_df(prm_df, mol.copy(), core_atoms, depth_comparison=operator.__gt__)
-    _fill_df(prm_df14, mol, core_atoms, depth_comparison=operator.__eq__)
-    prm_df14['elstat'] *= scale_elstat
-    prm_df14['lj'] *= scale_lj
-    prm_df += prm_df14
+    # Calculate the 1,4 - potential energies
+    elstat14_df, lj14_df = _fill_df(prm_df14, mol, core_atoms, depth_comparison=operator.__eq__)
+    elstat14_df *= scale_elstat
+    lj14_df *= scale_lj
 
-    return prm_df[['elstat', 'lj']] / 2  # Avoid double counting
+    # Calculate the total potential energies
+    elstat_df, lj_df = _fill_df(prm_df, mol.copy(), core_atoms, depth_comparison=operator.__gt__)
+    elstat_df += elstat14_df
+    elstat_df /= 2
+    lj_df += lj14_df
+    lj_df /= 2
+
+    return elstat_df, lj_df
 
 
 def _fill_df(prm_df: pd.DataFrame, mol: MultiMolecule, core_atoms: np.ndarray,
-             depth_comparison: Callable[[int, int], bool] = operator.__ge__) -> None:
+             depth_comparison: Callable[[int, int], bool] = operator.__ge__
+             ) -> Tuple[pd.DataFrame, pd.DataFrame]:
     """Construct the distance matrix; calculate the potential and update the **prm_df** with the energies."""  # noqa
     ij = _get_idx(mol, core_atoms, depth_comparison=depth_comparison).T
     if not ij.any():
@@ -137,18 +143,25 @@ def _fill_df(prm_df: pd.DataFrame, mol: MultiMolecule, core_atoms: np.ndarray,
     dist = _dist(mol, ij.T)
     dist *= Units.conversion_ratio('angstrom', 'au')
 
+    # Construct
+    index = pd.RangeIndex(0, len(mol), name='MD Iteration')
+    elstat_df = pd.DataFrame(0.0, index=index.copy(), columns=prm_df.index.copy())
+    lj_df = pd.DataFrame(0.0, index=index, columns=prm_df.index.copy())
+
     # Calculate the potential energies
     for idx, items in prm_df[['charge', 'epsilon', 'sigma']].iterrows():
         idx_hash = sorted(hash(i) for i in idx)
         dist_slice = dist[:, np.all(symbol == idx_hash, axis=1)]
 
         charge, epsilon, sigma = items
-        prm_df.at[idx, 'elstat'] = get_V_elstat(items['charge'], dist_slice) / len(mol)
-        prm_df.at[idx, 'lj'] = get_V_lj(sigma, epsilon, dist_slice) / len(mol)
+        elstat_df[idx] = get_V_elstat(charge, dist_slice)
+        lj_df[idx] = get_V_lj(sigma, epsilon, dist_slice)
 
         # Prevent double counting when an atom-pair consists of identical atoms
         if idx[0] == idx[1]:
-            prm_df.loc[idx, ['elstat', 'lj']] /= 2
+            elstat_df /= 2
+            lj_df /= 2
+    return elstat_df, lj_df
 
 
 def _construct_df(mol: MultiMolecule, lig_atoms: np.ndarray,
@@ -158,9 +171,6 @@ def _construct_df(mol: MultiMolecule, lig_atoms: np.ndarray,
     prm_df = LJDataFrame(index=set(mol.symbol[lig_atoms]))
     prm_df.overlay_psf(psf)
     prm_df.overlay_prm(prm, pairs14=pairs14)
-    prm_df['elstat'] = 0.0
-    prm_df['lj'] = 0.0
-    prm_df.columns.name = 'au'
     prm_df.dropna(inplace=True)
     return prm_df
 

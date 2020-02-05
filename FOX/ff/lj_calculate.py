@@ -46,7 +46,7 @@ def get_non_bonded(mol: Union[str, MultiMolecule],
                    psf: Union[str, PSFContainer],
                    prm: Union[None, str, PRMContainer] = None,
                    rtf: Optional[str] = None,
-                   cp2k_settings: Optional[Mapping] = None) -> pd.DataFrame:
+                   cp2k_settings: Optional[Mapping] = None) -> Tuple[pd.DataFrame, pd.DataFrame]:
     r"""Collect forcefield parameters and calculate all non-covalent interactions in **mol**.
 
     Forcefield parameters (*i.e.* charges and Lennard-Jones :math:`\sigma` and
@@ -84,10 +84,9 @@ def get_non_bonded(mol: Union[str, MultiMolecule],
     Returns
     -------
     :class:`pandas.DataFrame`
-        A DataFrame with the electrostatic and Lennard-Jones components of the
+        Two DataFrames with, respectivelly, the electrostatic and Lennard-Jones components of the
         (inter-ligand) potential energy per atom-pair.
-        The potential energy is summed over atoms with matching atom types and
-        averaged over all molecules within **mol**.
+        The potential energy is summed over atoms with matching atom types.
         Units are in atomic units.
 
     See Also
@@ -125,7 +124,7 @@ def get_non_bonded(mol: Union[str, MultiMolecule],
 
 def get_V(mol: MultiMolecule, slice_mapping: SliceMapping,
           prm_mapping: PrmMapping, ligand_count: int,
-          core_atoms: Optional[Iterable[str]] = None) -> pd.DataFrame:
+          core_atoms: Optional[Iterable[str]] = None) -> Tuple[pd.DataFrame, pd.DataFrame]:
     r"""Calculate all non-covalent interactions averaged over all molecules in **mol**.
 
     Parameters
@@ -149,22 +148,21 @@ def get_V(mol: MultiMolecule, slice_mapping: SliceMapping,
 
     Returns
     -------
-    :class:`pandas.DataFrame`
-        A DataFrame with the electrostatic and Lennard-Jones components of the
+    :class:`pandas.DataFrame` & :class:`pandas.DataFrame`
+        Two DataFrames with, respectivelly, the electrostatic and Lennard-Jones components of the
         (inter-ligand) potential energy per atom-pair.
-        The potential energy is summed over atoms with matching atom types and
-        averaged over all molecules within **mol**.
+        The potential energy is summed over atoms with matching atom types.
         Units are in atomic units.
 
     """
     core_atoms = set(core_atoms) if core_atoms is not None else set()
     mol = mol * Units.conversion_ratio('Angstrom', 'au')
 
-    df = pd.DataFrame(
-        0.0,
-        index=pd.MultiIndex.from_tuples(sorted(slice_mapping.keys())),
-        columns=pd.Index(['elstat', 'lj'], name='au')
-    )
+    index = pd.RangeIndex(0, len(mol), name='MD Iteration')
+    columns = pd.MultiIndex.from_tuples(sorted(slice_mapping.keys()), names=['atom1', 'atom2'])
+
+    elstat_df = pd.DataFrame(0.0, index=index.copy(), columns=columns.copy())
+    lj_df = pd.DataFrame(0.0, index=index, columns=columns)
 
     for atoms, ij in slice_mapping.items():
         dist = mol.get_dist_mat(atom_subset=ij)
@@ -176,17 +174,17 @@ def get_V(mol: MultiMolecule, slice_mapping: SliceMapping,
             dist[dist == 0.0] = np.nan
 
         charge, epsilon, sigma = prm_mapping[atoms]
-        df.at[atoms, 'elstat'] = get_V_elstat(charge, dist)
-        df.at[atoms, 'lj'] = get_V_lj(sigma, epsilon, dist)
+        elstat_df[atoms] = get_V_elstat(charge, dist)
+        lj_df[atoms] = get_V_lj(sigma, epsilon, dist)
 
         if atoms[0] == atoms[1]:  # Avoid double-counting
-            df.loc[atoms] /= 2
+            elstat_df[atoms] /= 2
+            lj_df[atoms] /= 2
 
-    df /= len(mol)
-    return df
+    return elstat_df, lj_df
 
 
-def get_V_elstat(q: float, dist: np.ndarray) -> float:
+def get_V_elstat(q: float, dist: np.ndarray) -> np.ndarray:
     r"""Calculate and sum the electrostatic potential energy given a distance matrix **dist**..
 
     .. math::
@@ -208,13 +206,16 @@ def get_V_elstat(q: float, dist: np.ndarray) -> float:
     Returns
     -------
     :class:`float`
-        The elctrostatic potential energy summed over all distance pairs in **dist**.
+        The elctrostatic potential energy summed over all distance pairs in **dist** along
+        axises ``>= 1``.
 
     """
-    return np.nansum(q / dist)
+    ret = q / dist
+    axis = tuple(range(1, ret.ndim))
+    return np.nansum(ret, axis=axis)
 
 
-def get_V_lj(sigma: float, epsilon: float, dist: np.ndarray) -> float:
+def get_V_lj(sigma: float, epsilon: float, dist: np.ndarray) -> np.ndarray:
     r"""Calculate and sum the Lennard-Jones potential given a distance matrix **dist**.
 
     .. math::
@@ -247,11 +248,13 @@ def get_V_lj(sigma: float, epsilon: float, dist: np.ndarray) -> float:
 
     Returns
     -------
-    :class:`float`
-        The Lennard-Jones potential energy summed over all distance pairs in **dist**.
+    :class:`numpy.ndarray`
+        The Lennard-Jones potential energy summed over all distance pairs in **dist** along
+        axises ``>= 1``.
 
     """
     sigma_dist = (sigma / dist)**6
     lj = sigma_dist**2 - sigma_dist
     lj *= epsilon * 4
-    return np.nansum(lj)
+    axis = tuple(range(1, lj.ndim))
+    return np.nansum(lj, axis=axis)

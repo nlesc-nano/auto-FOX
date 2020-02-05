@@ -28,6 +28,9 @@ def test_get_non_bonded() -> None:
         {'atoms': 'Se Cd', 'epsilon': '[kjmol] 1.522500', 'sigma': '[nm] 0.294000'}
     ]
 
-    ref = np.load(PATH / 'get_non_bonded.npy')
-    df = get_non_bonded(mol, psf, prm=prm, cp2k_settings=s)
-    np.testing.assert_allclose(df.values, ref)
+    elstat_df, lj_df = get_non_bonded(mol, psf, prm=prm, cp2k_settings=s)
+    elstat_ref = np.load(PATH / 'get_non_bonded_elstat.npy')
+    lj_ref = np.load(PATH / 'get_non_bonded_LJ.npy')
+
+    np.testing.assert_allclose(elstat_df, elstat_ref)
+    np.testing.assert_allclose(lj_df, lj_ref)
