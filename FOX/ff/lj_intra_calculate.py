@@ -30,7 +30,7 @@ from itertools import chain
 import numpy as np
 import pandas as pd
 
-from scm.plams import Atom, Molecule, Units
+from scm.plams import Atom, Molecule, Units, PT
 
 from .lj_calculate import get_V_elstat, get_V_lj
 from .lj_dataframe import LJDataFrame
@@ -43,7 +43,8 @@ __all__ = ['get_intra_non_bonded']
 
 
 def get_intra_non_bonded(mol: Union[str, MultiMolecule], psf: Union[str, PSFContainer],
-                         prm: Union[str, PRMContainer]) -> LJDataFrame:
+                         prm: Union[str, PRMContainer],
+                         scale_elstat: float = 0.0, scale_lj: float = 1.0) -> LJDataFrame:
     r"""Collect forcefield parameters and calculate all non-covalent intra-ligand interactions in **mol**.
 
     Forcefield parameters (*i.e.* charges and Lennard-Jones :math:`\sigma` and
@@ -63,6 +64,14 @@ def get_intra_non_bonded(mol: Union[str, MultiMolecule], psf: Union[str, PSFCont
     prm : :class:`str` or :class:`PRMContainer`
         A PRMContainer instance or the path+filename of a .prm file.
         Used for setting :math:`\sigma` and :math:`\varepsilon`.
+
+    scale_elstat : :class:`float`
+        Scaling factor to apply to all 1,4-nonbonded electrostatic interactions.
+        Serves the same purpose as the cp2k ``EI_SCALE14`` keyword.
+
+    scale_lj : :class:`float`
+        Scaling factor to apply to all 1,4-nonbonded Lennard-Jones interactions.
+        Serves the same purpose as the cp2k ``VDW_SCALE14`` keyword.
 
     Returns
     -------
@@ -87,6 +96,10 @@ def get_intra_non_bonded(mol: Union[str, MultiMolecule], psf: Union[str, PSFCont
     lig_atoms = psf.atoms.index[psf.residue_id != 1] - 1
     mol.bonds = psf.bonds - 1
 
+    # Ensure that PLAMS more or less recognizes the new (custom) atomic symbols
+    values = psf.atoms[['atom type', 'atom name']].values
+    PT.symtonum.update({k.capitalize(): PT.get_atomic_number(v) for k, v in values})
+
     # Construct the parameter DataFrames
     mol.atoms = psf.to_atom_dict()
     prm_df = _construct_df(mol, lig_atoms, psf, prm, pairs14=False)
@@ -96,13 +109,16 @@ def get_intra_non_bonded(mol: Union[str, MultiMolecule], psf: Union[str, PSFCont
     # atoms three bonds removed
     # If not specified, do not distinguish between atoms removed 3 and >3 bonds
     if prm_df14.isnull().values.all():
-        _fill_df(prm_df, mol, core_atoms, depth_comparison=operator.__ge__)
-    else:
-        _fill_df(prm_df, mol, core_atoms, depth_comparison=operator.__gt__)
-        _fill_df(prm_df14, mol, core_atoms, depth_comparison=operator.__eq__)
-        prm_df += prm_df14
+        prm_df14 = prm_df.copy()
 
-    return prm_df[['elstat', 'lj']]
+    # Calculate the potential energies
+    _fill_df(prm_df, mol.copy(), core_atoms, depth_comparison=operator.__gt__)
+    _fill_df(prm_df14, mol, core_atoms, depth_comparison=operator.__eq__)
+    prm_df14['elstat'] *= scale_elstat
+    prm_df14['lj'] *= scale_lj
+    prm_df += prm_df14
+
+    return prm_df[['elstat', 'lj']] / 2  # Avoid double counting
 
 
 def _fill_df(prm_df: pd.DataFrame, mol: MultiMolecule, core_atoms: np.ndarray,
@@ -152,7 +168,7 @@ def _construct_df(mol: MultiMolecule, lig_atoms: np.ndarray,
 def _get_idx(mol: MultiMolecule, core_atoms: np.ndarray,
              depth_comparison: Callable[[int, int], bool] = operator.__ge__) -> np.ndarray:
     """Construct the array with all atom-pairs valid for intra-moleculair non-covalent interactions."""  # noqa
-    def dfs(at1: Atom, id_list: list, i: int, exclude: Set[Atom], depth: int = 0):
+    def dfs(at1: Atom, id_list: list, i: int, exclude: Set[Atom], depth: int = 1):
         exclude.add(at1)
         for bond in at1.bonds:
             at2 = bond.other_end(at1)
@@ -168,17 +184,19 @@ def _get_idx(mol: MultiMolecule, core_atoms: np.ndarray,
             dfs(at, id_list, i, set())
             yield id_list
 
-    if not core_atoms.any():
-        return np.zeros((0, 2), dtype=int)
+    if core_atoms.any():
+        _mol = mol.delete_atoms(core_atoms)
+        _mol.bonds -= len(core_atoms)
+    else:
+        _mol = mol
 
     # Prepare the molecule for the dfs
-    _mol = mol.delete_atoms(core_atoms)
-    _mol.bonds -= len(core_atoms)
     molecule = _mol.as_Molecule(0)[0]
     molecule.set_atoms_id(start=0)
 
     # Construct the indice-pairs
     idx = np.fromiter(chain.from_iterable(gather_idx(molecule)), dtype=int)
-    idx += len(mol._get_atom_subset(core_atoms, as_array=True))
+    if core_atoms.any():
+        idx += len(mol._get_atom_subset(core_atoms, as_array=True))
     idx.shape = -1, 2
-    return idx
+    return idx  # Note: all index pairs are included twice

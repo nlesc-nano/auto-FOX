@@ -149,13 +149,17 @@ class MultiMolecule(_MultiMolecule):
         if atom_subset is None:
             raise TypeError("'None' is an invalid value for 'atom_subset'")
 
-        # Delete atoms
+        # Define subsets
         at_subset = self._get_atom_subset(atom_subset, as_array=True)
-        idx = np.arange(0, self.shape[1])[~at_subset]
-        ret = self[:, idx].copy()
+        bool_ar = np.ones(self.shape[1], dtype=bool)
+        bool_ar[at_subset] = False
+
+        # Delete atoms
+        ret = self[:, bool_ar]  # Boolean-array slicing always creates a copy
+        ret.__dict__ = copy.deepcopy(self.__dict__)
 
         # Update :attr:`.MultiMolecule.atoms`
-        symbols = self.symbol[idx]
+        symbols = self.symbol[bool_ar]
         ret.atoms = group_by_values(enumerate(symbols))
         return ret
 
@@ -1815,13 +1819,17 @@ class MultiMolecule(_MultiMolecule):
             return ret
         elif isinstance(i, np.bool_):
             return ret if not as_array else np.arange(len(ret), dtype=int)[ret]
-        elif ret.dtype.name == 'object':
-            try:
-                return np.fromiter(chain.from_iterable(ret), dtype=int)
-            except ValueError as ex:
-                raise TypeError("'atom_subset' expected a (nested) sequence of integers, "
-                                "strings or booleans; observed value type: "
-                                f"'{i.__class__.__name__}'").with_traceback(ex.__traceback__)
+
+        # A Collection or Iterator; try harder
+        ret2 = np.array(list(chain.from_iterable(ret))).ravel()
+        j = ret2[0]
+        if isinstance(j, np.str_):
+            atoms = self.atoms
+            return np.fromiter(chain.from_iterable(atoms[j] for j in ret2), dtype=int)
+        elif isinstance(j, np.integer):
+            return ret2
+        elif isinstance(j, np.bool_):
+            return ret2 if not as_array else np.arange(len(ret2), dtype=int)[ret]
 
         raise TypeError(f"'atom_subset' is of invalid type: '{atom_subset.__class__.__name__}'")
 

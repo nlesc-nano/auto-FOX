@@ -5,6 +5,29 @@ Change Log
 All notable changes to this project will be documented in this file.
 This project adheres to `Semantic Versioning <http://semver.org/>`_.
 
+
+0.7.1
+*****
+* Renamed the ``csv`` module to ``csv_utils``.
+* Fixed the previously broken ``MultiMolecule.delete_atoms()`` method.
+* Ensure that ``MultiMolecule._get_atom_subset()`` can handle all Iterables.
+* When assigning new bonds (``MultiMolecule.bonds``) all bond orders will default
+  to ``1`` if not explicitly specified.
+* Cleaned up the ``LJDataFrame()`` class.
+* Implemented multiple bugfixes related to the calculation of intra-moleculair
+  non-bonded interactions.
+* Lennard-Jones and Electrostatic scaling factors can now be applied for the
+  calculation of 1,4 non-bonded interactions, similiar to the CP2K EI_SCALE14_
+  and VDW_SCALE14_ keywords.
+* Ensure that the ``IMPROPER`` / ``IMPROPERS`` .prm block is always written as
+  ``IMPROPER``.
+  While both of them are in principle valid block-names, CP2K will only accept ``IMPROPER``.
+* Introduced code style changes to the ``recipes.psf`` module.
+
+.. _EI_SCALE14: https://manual.cp2k.org/cp2k-2_3-branch/CP2K_INPUT/FORCE_EVAL/MM/FORCEFIELD.html#list_EI_SCALE14
+.. _VDW_SCALE14: https://manual.cp2k.org/cp2k-2_3-branch/CP2K_INPUT/FORCE_EVAL/MM/FORCEFIELD.html#list_VDW_SCALE14
+
+
 0.7.0
 *****
 * Multiple updates to the ``FOX.ff`` modules:

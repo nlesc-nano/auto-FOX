@@ -18,10 +18,12 @@ def test_delete_atoms():
     """Test :meth:`.MultiMolecule.delete_atoms`."""
     mol = MOL.copy()
 
-    atoms = ('H', 'C', 'O')
+    atoms = {'H', 'C', 'O'}
     mol_new = mol.delete_atoms(atom_subset=atoms)
-    assertion.eq(mol_new.shape, (4905, 104, 3))
     ref = np.load(join(PATH, 'delete_atoms.npy'))
+
+    assertion.eq(mol_new.shape, (4905, 123, 3))
+    assertion.assert_(set.isdisjoint, set(mol_new.symbol), atoms)
     np.testing.assert_array_equal(mol_new.symbol, ref)
 
 
