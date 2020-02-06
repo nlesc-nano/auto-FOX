@@ -181,7 +181,7 @@ def get_V(mol: MultiMolecule, slice_mapping: SliceMapping,
 
     for atoms, ij in slice_mapping.items():
         charge, epsilon, sigma = prm_mapping[atoms]
-        contains_core = core_atoms.intersection(atoms)
+        contains_core = bool(core_atoms.intersection(atoms))
 
         dmat_size = len(ij[0]) * len(ij[1])  # The size of a single (2D) distance matrix
         slice_iterator = _get_slice_iterator(len(mol), dmat_size, max_array_size)
