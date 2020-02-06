@@ -28,6 +28,7 @@ from typing import Mapping, Tuple, Sequence, Optional, Iterable, Union, Generato
 
 import numpy as np
 import pandas as pd
+from scipy.spatial import cKDTree
 
 from scm.plams import Units
 
@@ -186,8 +187,9 @@ def get_V(mol: MultiMolecule, slice_mapping: SliceMapping,
         dmat_size = len(ij[0]) * len(ij[1])  # The size of a single (2D) distance matrix
         slice_iterator = _get_slice_iterator(len(mol), dmat_size, max_array_size)
 
+        print(f'{repr(atoms)},')
         for mol_subset in slice_iterator:
-            dist = _get_dist(mol, ij, ligand_count, contains_core, mol_subset=mol_subset)
+            dist = _get_kd_dist(mol, ij, ligand_count, contains_core, mol_subset=mol_subset)
             df.at[atoms, 'elstat'] += get_V_elstat(charge, dist)
             df.at[atoms, 'lj'] += get_V_lj(sigma, epsilon, dist)
             del dist
@@ -209,6 +211,29 @@ def _get_dist(mol: MultiMolecule, ij: np.ndarray, ligand_count: int,
         fill_diagonal_blocks(dist, i, j)  # Set intra-ligand interactions to np.nan
     else:
         dist[dist == 0.0] = np.nan
+
+    return dist
+
+
+def _get_kd_dist(mol: MultiMolecule, ij: np.ndarray, ligand_count: int,
+                 contains_core: bool, mol_subset: Optional[slice]) -> np.ndarray:
+    """Construct an array of truncated distance matrices for :func:`get_V`."""
+    if not contains_core:
+        return _get_dist(mol, ij, ligand_count, contains_core, mol_subset)
+
+    i, j = ij
+    k = 10
+
+    mol1 = mol[mol_subset, i]
+    mol2 = mol[mol_subset, j]
+
+    dist = np.empty((len(mol1), len(i), k), dtype=float)
+    for idx, (xyz1, xyz2) in enumerate(zip(mol1, mol2)):
+        tree = cKDTree(xyz2)
+        dist[idx] = tree.query(xyz1, k=k, distance_upper_bound=10)[0]
+
+    dist[dist == 0.0] = np.nan
+    print(f'{np.count_nonzero(dist != np.inf) / np.product(dist.shape[:-1])},')
 
     return dist
 
