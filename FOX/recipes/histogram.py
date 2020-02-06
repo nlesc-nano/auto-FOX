@@ -82,7 +82,43 @@ plt.show(block=True)
 
 """
 
-from typing import Iterable, Union
+"""
+
+Examples
+--------
+A workflow for creating a histogram of non-bonded interactions.
+
+.. code:: python
+
+    >>> import pandas as pd
+    >>> from scm.plams import Units
+    >>> from FOX import MultiMolecule, PSFContainer, get_non_bonded
+    >>> from FOX.recipes plot_descriptor
+
+    >>> mol = MoltiMolecule.read_xyz(...)
+    >>> psf = PSFContainer.read(...)
+
+    >>> elstat_df, lj_df = get_non_bonded(mol, psf, ...)  # Creates two DataFrames
+
+    >>> total_df = elstat_df + lj_df
+    >>> total_df *= Units.conversion_ratio('au', 'kcal/mol')  # Switch from Hartree to kcal/mol
+    >>> set_average_energy(total_df, mol)
+
+    >>> plot_descriptor(total_df, kind='bin', bins=50)
+
+Index
+-----
+.. currentmodule:: FOX.recipes.param
+.. autosummary::
+    plot_descriptor
+
+API
+---
+.. autofunction:: plot_descriptor
+
+"""
+
+from typing import Iterable, Union, MutableMapping, Tuple
 from pathlib import Path
 
 import numpy as np
@@ -91,7 +127,30 @@ import matplotlib.pyplot as plt
 
 from scm.plams import Settings, Units
 from FOX import MultiMolecule, get_non_bonded
-from FOX.functions.utils import _get_df_iterator
+
+NDFrame = pd.DataFrame.__bases__[0]
+
+
+def set_average_energy(df: Union[NDFrame, MutableMapping[Tuple[str, str], float]],
+                       mol: Union[str, MultiMolecule]) -> None:
+    """Average all energies in **df** with respect to the number of (valid) atom-pairs.
+
+    Parameters
+    ----------
+    df : :class:``
+    """
+    if not isinstance(mol, MultiMolecule):
+        mol = MultiMolecule.read_xyz(mol)
+
+    try:
+        for at1, at2 in df.keys():
+            pair_count = len(mol.atoms[at1]) * len(mol.atoms[at2])
+            if at1 == at2:
+                pair_count /= 2
+            df[at1, at2] /= pair_count
+    except (AttributeError, TypeError) as ex:
+        pass
+
 
 NDFrame = pd.DataFrame.__bases__[0]
 
