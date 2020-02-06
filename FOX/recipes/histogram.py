@@ -1,92 +1,7 @@
 """
-from pathlib import Path
-
-import numpy as np
-import pandas as pd
-
-from scm.plams import Settings, Units
-
-from FOX import MultiMolecule, get_non_bonded
-
-PATH = Path('tests') / 'test_files'
-PATH = Path('/Users/basvanbeek/Documents/GitHub/auto-FOX/tests/test_files')
-
-s = Settings()
-s.input.force_eval.mm.forcefield.charge = [
-    {'atom': 'Cd', 'charge': 0.933347},
-    {'atom': 'Se', 'charge': -0.923076}
-]
-s.input.force_eval.mm.forcefield.nonbonded['lennard-jones'] = [
-    {'atoms': 'Cd Cd', 'epsilon': '[kjmol] 0.310100', 'sigma': '[nm] 0.118464'},
-    {'atoms': 'Se Se', 'epsilon': '[kjmol] 0.426600', 'sigma': '[nm] 0.485200'},
-    {'atoms': 'Se Cd', 'epsilon': '[kjmol] 1.522500', 'sigma': '[nm] 0.294000'}
-]
-
-psf = '/Users/basvanbeek/Documents/CdSe/Week_5/qd/asa/QD_MD.011/QD_MD.psf'
-prm = '/Users/basvanbeek/Documents/CdSe/Week_5/qd/asa/QD_MD.011/QD_MD.prm'
-mol = MultiMolecule.from_xyz(
-    '/Users/basvanbeek/Documents/CdSe/Week_5/qd/asa/QD_MD.011/cp2k-pos-1.xyz'
-)[500:]
-
-core_set = {'Cd', 'Se'}
-elstat_df, lj_df = get_non_bonded(mol, psf, prm=prm, cp2k_settings=s)
-for k in elstat_df.columns.copy():
-    if not (k[0] in core_set and k[1] in core_set):
-        del elstat_df[k]
-        del lj_df[k]
-
-df_tot = elstat_df + lj_df
-df_tot -= df_tot.min()
-for k, v in df_tot.items():
-    df_tot[k] = sorted(v)
-
-df_tot -= df_tot.min()
-
-
-df_tot_hist = pd.DataFrame()
-
-df_tot *= Units.conversion_ratio('au', 'kcal/mol')
-df_tot[:] = df_tot.round().astype(int)
-
-df_tot2 = pd.DataFrame(index=pd.RangeIndex(0, 1+df_tot.values.max()), columns=df_tot.columns.copy())
-for k, v in df_tot.items():
-    values, idx = np.unique(v, return_index=True)
-    df_tot2.loc[values, k] = idx
-df_tot2.index /= Units.conversion_ratio('au', 'kcal/mol')
-df_tot2.index.name = 'dV_elstat+lj - Hartree'
-
-df_tot4 = elstat_df + lj_df
-df_tot4 -= df_tot4.min()
-df_tot4[:] = (df_tot4*100).round().astype(int)
-df_tot3 = pd.DataFrame(0.0, np.arange(0, 1+df_tot4.values.max()), columns=df_tot.columns.copy())
-for k, v in df_tot4.items():
-    y, x = np.histogram(v, bins=50)
-    df_tot3.loc[x[1:].astype(int), k] = y
-df_tot3.index /= 100
-
-import matplotlib.pyplot as plt
-
-ncols = 3
-figsize = (4 * ncols, 6)
-fig, ax_tup = plt.subplots(ncols=ncols, sharex=True, sharey=False)
-if ncols == 1:  # Ensure ax_tup is actually a tuple
-    ax_tup = (ax_tup,)
-
-# Construct the actual plots
-for (key, series), ax in zip(df_tot3.items(), ax_tup):
-    if isinstance(key, tuple):
-        key = ' '.join(repr(i) for i in key)
-    series.plot(ax=ax, title=key, figsize=figsize)
-
-plt.show(block=True)
-
-"""
-
-"""
-
 Examples
 --------
-A workflow for creating a histogram of non-bonded interactions.
+A workflow for creating histograms of non-bonded interactions.
 
 .. code:: python
 
@@ -97,64 +12,183 @@ A workflow for creating a histogram of non-bonded interactions.
 
     >>> mol = MoltiMolecule.read_xyz(...)
     >>> psf = PSFContainer.read(...)
+    >>> prm = PRMContainer.read(...)
 
-    >>> elstat_df, lj_df = get_non_bonded(mol, psf, ...)  # Creates two DataFrames
+    # CP2K Settings can, optionally, be passed to overwrite .psf/.prm parameters
+    >>> elstat_df, lj_df = get_non_bonded(mol, psf, prm=prm, cp2k_settings=None)
 
-    >>> total_df = elstat_df + lj_df
-    >>> total_df *= Units.conversion_ratio('au', 'kcal/mol')  # Switch from Hartree to kcal/mol
-    >>> set_average_energy(total_df, mol)
+    >>> total_df: pd.DataFrame = elstat_df + lj_df  # Total interaction between n and m particles
+    >>> total_df *= Units.conversion_ratio('au', 'kcal/mol')
 
-    >>> plot_descriptor(total_df, kind='bin', bins=50)
+    >>> for at1, at2 in total_df.keys():  # Average interaction between 1 and m particles
+    ...     at1_count = np.count_nonzero(psf.atom_type == at1)
+    ...     total_df[at1, at2] /= at1_count
+
+    >>> plot_descriptor(total_df, sharex=False, sharey=True, kind='hist', bins=50)
+
+
+Only keep atom pairs within the core (``"Cd"`` and ``"Se"``).
+
+.. code:: python
+
+    >>> ...
+    >>> core_set = {'Cd', 'Se'}
+    >>> core_df: pd.DataFrame = filter_atoms(total_df, core_set)
+
+    >>> plot_descriptor(core_df, sharex=False, sharey=True, kind='hist', bins=50)
+
+
+Or all ligand/core pairs.
+
+.. code:: python
+
+    >>> ...
+    >>> core_lig_df: pd.DataFrame = filter_atoms(total_df, atom_set, filter_func='between_sets')
+
+    >>> plot_descriptor(lig_core_df, sharex=False, sharey=True, kind='hist', bins=50)
+
+
+.. code:: python
+
+    >>> ...
+
+    >>> from itertools import chain
+
+    >>> columns = list(set(chain.from_iterable(total_df.keys())))
+    >>> total_df_sum = pd.DataFrame(0.0, index=total_df.index.copy(), columns=columns)
+    >>> for (at1, at2), series in total_df.items():
+    ...     total_df_sum[at1] += series
+    ...     total_df_sum[at2] += series
+
+    >>> plot_descriptor(total_df_sum, sharex=False, sharey=True, kind='hist', bins=50)
 
 Index
 -----
-.. currentmodule:: FOX.recipes.param
+.. currentmodule:: FOX.recipes.histogram
 .. autosummary::
-    plot_descriptor
+    filter_atoms
 
 API
 ---
-.. autofunction:: plot_descriptor
+.. autofunction:: filter_atoms
 
 """
 
-from typing import Iterable, Union, MutableMapping, Tuple
-from pathlib import Path
+import copy
+from types import MappingProxyType
+from typing import Iterable, Union, Set, TypeVar, Callable, Mapping
 
 import numpy as np
 import pandas as pd
-import matplotlib.pyplot as plt
 
 from scm.plams import Settings, Units
-from FOX import MultiMolecule, get_non_bonded
+from FOX import MultiMolecule, get_non_bonded, PSFContainer
+from FOX.recipes import plot_descriptor
 
-NDFrame = pd.DataFrame.__bases__[0]
+__all__ = ['filter_atoms']
+
+T = TypeVar('T')
+FilterFunc = Callable[[Set[T], Iterable[T]], bool]
 
 
-def set_average_energy(df: Union[NDFrame, MutableMapping[Tuple[str, str], float]],
-                       mol: Union[str, MultiMolecule]) -> None:
-    """Average all energies in **df** with respect to the number of (valid) atom-pairs.
+def filter_atoms(df: pd.DataFrame, atoms: Union[str, Iterable[str]],
+                 filter_func: Union[str, FilterFunc] = 'within_set') -> pd.DataFrame:
+    """Return a new DataFrame with all columns from **df** whose keys are not part of **atoms_keep**.
+
+    Examples
+    --------
+    .. code:: python
+
+        >>> from itertools import combinations_with_replacement
+        >>> import pandas as pd
+
+        >>> columns = pd.MultiIndex.from_tuples(
+        ...     combinations_with_replacement(sorted(['Cd', 'Se', 'O', 'C']), r=2)
+        ... )
+
+        >>> df = pd.DataFrame(True, index=[0], columns=columns)
+        >>> print(df)
+              C                      Cd                 O          Se
+              C    Cd     O    Se    Cd     O    Se     O    Se    Se
+        0  True  True  True  True  True  True  True  True  True  True
+
+        >>> atoms = {'Cd', 'Se'}
+        >>> df_new = filter_atoms(df, atoms)
+        >>> print(df_new)
+             Cd          Se
+             Cd    Se    Se
+        0  True  True  True
 
     Parameters
     ----------
-    df : :class:``
-    """
-    if not isinstance(mol, MultiMolecule):
-        mol = MultiMolecule.read_xyz(mol)
+    df : :class:`pd.DataFrame` or :class:`MutableMapping<collections.abc.MutableMapping>`
+        A DataFrame or a Mutable mapping.
+        Iterating over its :meth:`keys<dict.keys>` should yield n-tuples with atom types.
 
-    try:
-        for at1, at2 in df.keys():
-            pair_count = len(mol.atoms[at1]) * len(mol.atoms[at2])
-            if at1 == at2:
-                pair_count /= 2
-            df[at1, at2] /= pair_count
-    except (AttributeError, TypeError) as ex:
-        pass
+    keep_atoms : :class:`str` or :class:`Iterable<collections.abc.Iterable>` [:class:`str`]
+        An atomt ype or iterable of multiple atom types.
+        Values are deleted from **df** if key is encountered whose elements are not all present
+        in **atoms_keep**.
+
+    filter_func : :class:`str`
+        The function for filtering keys.
+        Accepted values are ``"within_set"`` and ``"between_sets"``.
+
+    Returns
+    -------
+    :class:`pd.DataFrame`
+        A copy of **df** with all keys not part of **atoms_keep** removed.
+
+    """  # noqa
+    filter_func = _validate_filter_func(filter_func)
+
+    if isinstance(atoms, (str, np.str)):
+        atom_set = {atoms}
+    else:
+        atom_set = set(atoms)
+
+    ret = copy.copy(df)
+    for at_pair in df.keys():
+        if not filter_func(atom_set, at_pair):
+            del ret[at_pair]
+    return ret
 
 
-NDFrame = pd.DataFrame.__bases__[0]
+def within_set(atom_set: Set[str], atom_pair: Iterable[str]) -> bool:
+    """Check if **atom_set** is a superset of **atom_pair**."""
+    return atom_set.issuperset(atom_pair)
 
-PATH = Path('/Users/basvanbeek/Documents/GitHub/auto-FOX/tests/test_files')
+
+def between_sets(atom_set: Set[str], atom_pair: Iterable[str], n: int = 1) -> bool:
+    """Check if :math:`n` atoms within in atom_set **atom_set** are part of **atom_pair**."""
+    return len(atom_set.intersection(atom_pair)) == n
+
+
+FILTER_MAPPING: Mapping[str, FilterFunc] = MappingProxyType({
+    'within_set': within_set,
+    'between_sets': between_sets
+})
+
+
+def _validate_filter_func(filter_func: Union[str, FilterFunc]) -> FilterFunc:
+    """Validate the **filter_func** parameter for :func:`filter_atoms`."""
+    if callable(filter_func):  # Is it a callable?
+        return filter_func
+
+    try:  # It is probably a string
+        return FILTER_MAPPING[filter_func.lower()]
+
+    except (AttributeError, TypeError) as ex:  # Guess it's not a string after all
+        cls_name = filter_func.__class__.__name__
+        raise TypeError("'filter_func' expected a string or callable; observed type: "
+                        f"'{cls_name}'").with_traceback(ex.__traceback__)
+
+    except KeyError as ex:  # A string with an incorrect value
+        accepted_values = tuple(sorted(FILTER_MAPPING.keys()))
+        name = filter_func.lower()
+        raise ValueError(f"{repr(name)} is not a valid value for 'filter_func'; "
+                         f"accepted values: {accepted_values}").with_traceback(ex.__traceback__)
+
 
 s = Settings()
 s.input.force_eval.mm.forcefield.charge = [
@@ -167,25 +201,28 @@ s.input.force_eval.mm.forcefield.nonbonded['lennard-jones'] = [
     {'atoms': 'Se Cd', 'epsilon': '[kjmol] 1.522500', 'sigma': '[nm] 0.294000'}
 ]
 
-psf = '/Users/basvanbeek/Documents/CdSe/Week_5/qd/asa/QD_MD.011/QD_MD.psf'
+psf = PSFContainer.read('/Users/basvanbeek/Documents/CdSe/Week_5/qd/asa/QD_MD.011/QD_MD.psf')
 prm = '/Users/basvanbeek/Documents/CdSe/Week_5/qd/asa/QD_MD.011/QD_MD.prm'
 mol = MultiMolecule.from_xyz(
     '/Users/basvanbeek/Documents/CdSe/Week_5/qd/asa/QD_MD.011/cp2k-pos-1.xyz'
 )[500:]
 
-core_set = {'Cd', 'Se'}
+
 elstat_df, lj_df = get_non_bonded(mol, psf, prm=prm, cp2k_settings=s)
-for k in elstat_df.columns.copy():
-    i, j = k
-    if not (i in core_set and j in core_set):
-        del elstat_df[k]
-        del lj_df[k]
-    else:
-        count = len(mol.atoms[i]) * len(mol.atoms[i])
-        if i == j:
-            count /= 2
-        elstat_df[k] /= count
-        lj_df[k] /= count
 
 df_tot = elstat_df + lj_df
 df_tot *= Units.conversion_ratio('au', 'kcal/mol')
+for at1, at2 in df_tot.keys():  # Average interaction between 1 and m particles
+    at1_count = np.count_nonzero(psf.atom_type == at1)
+    df_tot[at1, at2] /= at1_count
+
+atom_set = {'Cd', 'Se'}
+core_df = filter_atoms(df_tot, atom_set)
+lig_core_df = filter_atoms(df_tot, atom_set, filter_func='between_sets')
+
+fig1 = plot_descriptor(df_tot, sharex=False, sharey=True, kind='hist', bins=50)
+fig2 = plot_descriptor(core_df, sharex=False, sharey=True, kind='hist', bins=50)
+fig3 = plot_descriptor(lig_core_df, sharex=False, sharey=True, kind='hist', bins=50)
+fig1.show()
+fig2.show()
+fig3.show()

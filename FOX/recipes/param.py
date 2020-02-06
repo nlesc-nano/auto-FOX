@@ -124,7 +124,7 @@ API
 """
 
 from typing import Dict, Union, Iterable, Any, FrozenSet, Tuple, Iterator, Hashable, Optional
-from colelctions import abc
+from collections import abc
 
 import pandas as pd
 
@@ -320,8 +320,8 @@ def _validate_kind(kind: str) -> str:
         raise TypeError("'kind' expected a 'str'; observed type: "
                         f"'{kind.__class__.__name__}'").with_traceback(ex.__traceback__)
     if ret not in VALID_KIND:
-        raise ValueError(f"'{ret}' is not a valid plot kind; "
-                         "accepted values: {tuple(sorted(VALID_KIND))}")
+        raise ValueError(f"{repr(ret)} is not a valid value for 'kind'; "
+                         f"accepted values: {tuple(sorted(VALID_KIND))}")
     return ret
 
 
@@ -333,13 +333,17 @@ def _get_df_iterator(descriptor: Union[NDFrame, Iterable[NDFrame]]
 
     # Figure out the number of plots
     try:
-        ncols = len(descriptor)
-    except TypeError as ex:
-        if not isinstance(descriptor, abc.Iterable):
-            raise TypeError("'descriptor' expected an iterable; observed type: "
-                            f"'{descriptor.__class__.__name__}'").with_traceback(ex.__traceback__)
-        descriptor = list(descriptor)
-        ncols = len(descriptor)
+        ncols = len(descriptor.keys())
+    except AttributeError:
+        try:
+            ncols = len(descriptor)
+        except TypeError as ex:
+            if not isinstance(descriptor, abc.Iterable):
+                tb = ex.__traceback__
+                raise TypeError("'descriptor' expected an iterable; observed type: "
+                                f"'{descriptor.__class__.__name__}'").with_traceback(tb)
+            descriptor = list(descriptor)
+            ncols = len(descriptor)
 
     # Construct an iterator of 2-tuples
     try:
