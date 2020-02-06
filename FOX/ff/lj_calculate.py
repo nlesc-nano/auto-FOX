@@ -184,7 +184,8 @@ def get_V(mol: MultiMolecule, slice_mapping: SliceMapping,
         charge, epsilon, sigma = prm_mapping[atoms]
         contains_core = bool(core_atoms.intersection(atoms))
 
-        dmat_size = len(ij[0]) * len(ij[1])  # The size of a single (2D) distance matrix
+        # dmat_size = len(ij[0]) * len(ij[1])  # The size of a single (2D) distance matrix
+        dmat_size = len(ij[0]) * 15  # The dist mat is limited to the kth nearest neighbour
         slice_iterator = _get_slice_iterator(len(mol), dmat_size, max_array_size)
 
         for mol_subset in slice_iterator:
@@ -217,28 +218,36 @@ def _get_dist(mol: MultiMolecule, ij: np.ndarray, ligand_count: int,
 def _get_kd_dist(mol: MultiMolecule, ij: np.ndarray, ligand_count: int,
                  contains_core: bool, mol_subset: Optional[slice]) -> np.ndarray:
     """Construct an array of truncated distance matrices for :func:`get_V`."""
-    if not contains_core:
-        return _get_dist(mol, ij, ligand_count, contains_core, mol_subset)
+    i_ar, j_ar = ij
+    k = 15
 
-    i, j = ij
-    k = 10
-
-    mol1 = mol[mol_subset, i]
-    mol2 = mol[mol_subset, j]
-
-    dist = np.empty((len(mol1), len(i), k), dtype=float)
-    idx_ar = np.empty_like(dist, dtype=int)
-    for idx, (xyz1, xyz2) in enumerate(zip(mol1, mol2)):
-        tree = cKDTree(xyz2)
-        dist[idx], idx_ar[idx] = tree.query(xyz1, k=k, distance_upper_bound=10)
+    mol1 = mol[mol_subset, i_ar]
+    mol2 = mol[mol_subset, j_ar]
 
     if contains_core:
-        dist[dist == 0.0] = np.nan
-    else:
-        i_len = len(i) // ligand_count
-        j_len = len(j) // ligand_count
-        idx_ar
+        dist = np.empty((len(mol1), len(i_ar), k), dtype=float)
+        for n, (xyz1, xyz2) in enumerate(zip(mol1, mol2)):
+            tree = cKDTree(xyz2)
+            dist[n] = tree.query(xyz1, k=k, distance_upper_bound=10)[0]
 
+    else:
+        dist = np.empty((len(mol1), len(i_ar), k), dtype=float)
+        idx = np.empty_like(dist, dtype=int)
+        for n, (xyz1, xyz2) in enumerate(zip(mol1, mol2)):
+            tree = cKDTree(xyz2)
+            dist[n], idx[n] = tree.query(xyz1, k=k, distance_upper_bound=10)
+
+        lig_len = len(i_ar) // ligand_count
+
+        a, b, c = idx.shape
+        idx.shape = a, b // lig_len, lig_len, c
+        idx -= np.arange(0, len(i_ar), lig_len)[None, ..., None, None]
+        idx.shape = a, b, c
+
+        dist[np.isin(idx, np.arange(lig_len))] = np.nan
+
+    dist[dist == 0.0] = np.nan
+    dist[dist == np.inf] = np.nan
     return dist
 
 
