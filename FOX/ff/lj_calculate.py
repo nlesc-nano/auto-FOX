@@ -179,15 +179,15 @@ def get_V(mol: MultiMolecule, slice_mapping: SliceMapping,
 
     for atoms, ij in slice_mapping.items():
         charge, epsilon, sigma = prm_mapping[atoms]
-        contains_core = core_atoms.intersection(atoms)
+        contains_core = bool(core_atoms.intersection(atoms))
 
         dmat_size = len(ij[0]) * len(ij[1])  # The size of a single (2D) distance matrix
         slice_iterator = _get_slice_iterator(len(mol), dmat_size, max_array_size)
 
         for mol_subset in slice_iterator:
             dist = _get_dist(mol, ij, ligand_count, contains_core, mol_subset=mol_subset)
-            df.at[atoms, 'elstat'] += get_V_elstat(charge, dist)
-            df.at[atoms, 'lj'] += get_V_lj(sigma, epsilon, dist)
+            elstat_df[atoms] += get_V_elstat(charge, dist)
+            lj_df[atoms] += get_V_lj(sigma, epsilon, dist)
             del dist
 
         if atoms[0] == atoms[1]:  # Avoid double-counting
