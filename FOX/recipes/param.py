@@ -145,7 +145,6 @@ except ImportError:
                   "\n\tconda install -n FOX -c conda-forge h5py")
 
 from FOX import from_hdf5, assert_error
-from FOX.functions.utils import _get_df_iterator
 
 __all__ = ['get_best', 'overlay_descriptor', 'plot_descriptor']
 
