@@ -187,7 +187,6 @@ def get_V(mol: MultiMolecule, slice_mapping: SliceMapping,
         dmat_size = len(ij[0]) * len(ij[1])  # The size of a single (2D) distance matrix
         slice_iterator = _get_slice_iterator(len(mol), dmat_size, max_array_size)
 
-        print(f'{repr(atoms)},')
         for mol_subset in slice_iterator:
             dist = _get_kd_dist(mol, ij, ligand_count, contains_core, mol_subset=mol_subset)
             df.at[atoms, 'elstat'] += get_V_elstat(charge, dist)
@@ -228,12 +227,17 @@ def _get_kd_dist(mol: MultiMolecule, ij: np.ndarray, ligand_count: int,
     mol2 = mol[mol_subset, j]
 
     dist = np.empty((len(mol1), len(i), k), dtype=float)
+    idx_ar = np.empty_like(dist, dtype=int)
     for idx, (xyz1, xyz2) in enumerate(zip(mol1, mol2)):
         tree = cKDTree(xyz2)
-        dist[idx] = tree.query(xyz1, k=k, distance_upper_bound=10)[0]
+        dist[idx], idx_ar[idx] = tree.query(xyz1, k=k, distance_upper_bound=10)
 
-    dist[dist == 0.0] = np.nan
-    print(f'{np.count_nonzero(dist != np.inf) / np.product(dist.shape[:-1])},')
+    if contains_core:
+        dist[dist == 0.0] = np.nan
+    else:
+        i_len = len(i) // ligand_count
+        j_len = len(j) // ligand_count
+        idx_ar
 
     return dist
 
