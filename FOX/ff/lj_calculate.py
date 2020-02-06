@@ -133,7 +133,7 @@ def get_non_bonded(mol: Union[str, MultiMolecule],
 def get_V(mol: MultiMolecule, slice_mapping: SliceMapping,
           prm_mapping: PrmMapping, ligand_count: int,
           core_atoms: Optional[Iterable[str]] = None,
-          max_array_size: int = 10**7) -> pd.DataFrame:
+          max_array_size: int = 10**8) -> pd.DataFrame:
     r"""Calculate all non-covalent interactions averaged over all molecules in **mol**.
 
     Parameters
@@ -190,6 +190,7 @@ def get_V(mol: MultiMolecule, slice_mapping: SliceMapping,
             dist = _get_dist(mol, ij, ligand_count, contains_core, mol_subset=mol_subset)
             df.at[atoms, 'elstat'] += get_V_elstat(charge, dist)
             df.at[atoms, 'lj'] += get_V_lj(sigma, epsilon, dist)
+            del dist
 
         if atoms[0] == atoms[1]:  # Avoid double-counting
             df.loc[atoms] /= 2
@@ -213,7 +214,7 @@ def _get_dist(mol: MultiMolecule, ij: np.ndarray, ligand_count: int,
 
 
 def _get_slice_iterator(stop: int, dmat_size: int,
-                        max_array_size: int = 10**7) -> Generator[slice, None, None]:
+                        max_array_size: int = 10**8) -> Generator[slice, None, None]:
     """Return a generator yielding :class:`slice` instances for :func:`get_V`."""
     if stop * dmat_size < max_array_size:
         step = stop
