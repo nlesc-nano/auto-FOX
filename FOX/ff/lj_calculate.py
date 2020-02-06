@@ -23,7 +23,8 @@ intra-moleculair interactions.
 
 """
 
-from typing import Mapping, Tuple, Sequence, Optional, Iterable, Union
+import math
+from typing import Mapping, Tuple, Sequence, Optional, Iterable, Union, Generator
 
 import numpy as np
 import pandas as pd
@@ -46,7 +47,8 @@ def get_non_bonded(mol: Union[str, MultiMolecule],
                    psf: Union[str, PSFContainer],
                    prm: Union[None, str, PRMContainer] = None,
                    rtf: Optional[str] = None,
-                   cp2k_settings: Optional[Mapping] = None) -> pd.DataFrame:
+                   cp2k_settings: Optional[Mapping] = None,
+                   max_array_size: int = 10**8) -> pd.DataFrame:
     r"""Collect forcefield parameters and calculate all non-covalent interactions in **mol**.
 
     Forcefield parameters (*i.e.* charges and Lennard-Jones :math:`\sigma` and
@@ -80,6 +82,11 @@ def get_non_bonded(mol: Union[str, MultiMolecule],
     cp2k_settings : :class:`Settings`, optional
         CP2K input settings.
         Used for setting :math:`q`, :math:`\sigma` and :math:`\varepsilon`.
+
+    max_array_size : :class:`int`
+        The maximum number of elements within the to-be created NumPy array.
+        NumPy's vectorized operations will be (partially) substituted for for-loops if the
+        array size is exceeded.
 
     Returns
     -------
@@ -125,7 +132,8 @@ def get_non_bonded(mol: Union[str, MultiMolecule],
 
 def get_V(mol: MultiMolecule, slice_mapping: SliceMapping,
           prm_mapping: PrmMapping, ligand_count: int,
-          core_atoms: Optional[Iterable[str]] = None) -> pd.DataFrame:
+          core_atoms: Optional[Iterable[str]] = None,
+          max_array_size: int = 10**8) -> pd.DataFrame:
     r"""Calculate all non-covalent interactions averaged over all molecules in **mol**.
 
     Parameters
@@ -147,6 +155,11 @@ def get_V(mol: MultiMolecule, slice_mapping: SliceMapping,
     core_atoms : :class:`set` [:class:`str`], optional
         A set of all atoms within the core.
 
+    max_array_size : :class:`int`
+        The maximum number of elements within the to-be created NumPy array.
+        NumPy's vectorized operations will be (partially) substituted for for-loops if the
+        array size is exceeded.
+
     Returns
     -------
     :class:`pandas.DataFrame`
@@ -167,23 +180,52 @@ def get_V(mol: MultiMolecule, slice_mapping: SliceMapping,
     )
 
     for atoms, ij in slice_mapping.items():
-        dist = mol.get_dist_mat(atom_subset=ij)
-        if not core_atoms.intersection(atoms):
-            i = len(ij[0]) // ligand_count
-            j = len(ij[1]) // ligand_count
-            fill_diagonal_blocks(dist, i, j)  # Set intra-ligand interactions to np.nan
-        else:
-            dist[dist == 0.0] = np.nan
-
         charge, epsilon, sigma = prm_mapping[atoms]
-        df.at[atoms, 'elstat'] = get_V_elstat(charge, dist)
-        df.at[atoms, 'lj'] = get_V_lj(sigma, epsilon, dist)
+        contains_core = core_atoms.intersection(atoms)
+
+        dmat_size = len(ij[0]) * len(ij[1])  # The size of a single (2D) distance matrix
+        slice_iterator = _get_slice_iterator(len(mol), dmat_size, max_array_size)
+
+        for mol_subset in slice_iterator:
+            dist = _get_dist(mol, ij, ligand_count, contains_core, mol_subset=mol_subset)
+            df.at[atoms, 'elstat'] += get_V_elstat(charge, dist)
+            df.at[atoms, 'lj'] += get_V_lj(sigma, epsilon, dist)
+            del dist
 
         if atoms[0] == atoms[1]:  # Avoid double-counting
             df.loc[atoms] /= 2
 
     df /= len(mol)
     return df
+
+
+def _get_dist(mol: MultiMolecule, ij: np.ndarray, ligand_count: int,
+              contains_core: bool, mol_subset: Optional[slice]) -> np.ndarray:
+    """Construct an array of distance matrices for :func:`get_V`."""
+    dist = mol.get_dist_mat(mol_subset=mol_subset, atom_subset=ij)
+    if not contains_core:
+        i = len(ij[0]) // ligand_count
+        j = len(ij[1]) // ligand_count
+        fill_diagonal_blocks(dist, i, j)  # Set intra-ligand interactions to np.nan
+    else:
+        dist[dist == 0.0] = np.nan
+
+    return dist
+
+
+def _get_slice_iterator(stop: int, dmat_size: int,
+                        max_array_size: int = 10**8) -> Generator[slice, None, None]:
+    """Return a generator yielding :class:`slice` instances for :func:`get_V`."""
+    if stop * dmat_size < max_array_size:
+        step = stop
+    else:
+        step = max(1, math.floor(max_array_size / dmat_size))
+
+    # Yield the slices
+    start = 0
+    while start < stop:
+        yield slice(start, start+step)
+        start += step
 
 
 def get_V_elstat(q: float, dist: np.ndarray) -> float:
