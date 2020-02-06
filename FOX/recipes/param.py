@@ -123,8 +123,7 @@ API
 
 """
 
-from typing import Dict, Union, Iterable
-from collections import abc
+from typing import Dict, Union, Iterable, Any, FrozenSet
 
 import pandas as pd
 
@@ -146,10 +145,12 @@ except ImportError:
                   "\n\tconda install -n FOX -c conda-forge h5py")
 
 from FOX import from_hdf5, assert_error
+from FOX.functions.utils import _get_df_iterator
 
 __all__ = ['get_best', 'overlay_descriptor', 'plot_descriptor']
 
 NDFrame: type = pd.DataFrame.__bases__[0]  # Superclass of pd.DataFrame & pd.Series
+PlotAccessor: type = pd.DataFrame.plot  # A class used by Pandas for plotting stuff
 
 
 @assert_error(H5PY_ERROR)
@@ -238,10 +239,17 @@ def overlay_descriptor(hdf5_file: str, name: str = 'rdf', i: int = 0) -> Dict[st
     return ret
 
 
+#: A :class:`frozenset` with valid values for the **kind** parameter in :func:`plot_descriptor`.
+VALID_KIND: FrozenSet[str] = frozenset(
+    PlotAccessor._all_kinds + tuple(PlotAccessor._kind_aliases.values())
+)
+
+
 @assert_error(PLT_ERROR)
 def plot_descriptor(descriptor: Union[NDFrame, Iterable[NDFrame]],
-                    show_fig: bool = True) -> PltFigure:
-    """Plot a DataFrame or iterable consisting of one or more DataFrames.
+                    show_fig: bool = True, kind: str = 'line',
+                    **kwargs: Any) -> PltFigure:
+    r"""Plot a DataFrame or iterable consisting of one or more DataFrames.
 
     Requires the ``matploblib`` package.
 
@@ -252,6 +260,12 @@ def plot_descriptor(descriptor: Union[NDFrame, Iterable[NDFrame]],
 
     show_fig : :class:`bool`
         Whether to show the figure or not.
+
+    kind : :class:`str`
+        The plot kind to-be passed to :meth:`pandas.DataFrame.plot`.
+
+    \**kwargs : :data:`Any<typing.Any>`
+        Further keyword arguments for the :meth:`plot<pandas.DataFrame.plot>` method.
 
     Returns
     -------
@@ -268,21 +282,16 @@ def plot_descriptor(descriptor: Union[NDFrame, Iterable[NDFrame]],
         overlay it with the reference PES descriptor.
 
     """  # noqa
-    # Convert pd.Series into pd.DataFrame
-    if isinstance(descriptor, pd.Series):
-        descriptor = descriptor.to_frame()
+    try:
+        kind = kind.lower()
+    except AttributeError as ex:
+        raise TypeError("'kind' expected a 'str'; observed type: "
+                        f"'{kind.__class__.__name__}'").with_traceback(ex.__traceback__)
+    if kind not in VALID_KIND:
+        raise ValueError(f"'{kind}' is not a valid plot kind; "
+                         "accepted values: {tuple(sorted(VALID_KIND))}")
 
-    # Figure out the number of plots and construct an iterator of 2-tuples
-    if isinstance(descriptor, (abc.Mapping, pd.DataFrame)):
-        ncols = len(descriptor.keys())
-        iterator = descriptor.items()
-    else:
-        try:
-            ncols = len(descriptor)
-        except TypeError:  # It's an iterator
-            descriptor = list(descriptor)
-            ncols = len(descriptor)
-        iterator = enumerate(descriptor)
+    ncols, iterator = _get_df_iterator(descriptor)
 
     figsize = (4 * ncols, 6)
     fig, ax_tup = plt.subplots(ncols=ncols, sharex=True, sharey=False)
@@ -293,7 +302,7 @@ def plot_descriptor(descriptor: Union[NDFrame, Iterable[NDFrame]],
     for (key, df), ax in zip(iterator, ax_tup):
         if isinstance(key, tuple):
             key = ' '.join(repr(i) for i in key)
-        df.plot(ax=ax, title=key, figsize=figsize)
+        df.plot(ax=ax, title=key, figsize=figsize, **kwargs)
 
     if show_fig:
         plt.show(block=True)

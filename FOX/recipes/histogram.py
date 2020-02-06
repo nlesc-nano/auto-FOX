@@ -82,7 +82,7 @@ plt.show(block=True)
 
 """
 
-
+from typing import Iterable, Union
 from pathlib import Path
 
 import numpy as np
@@ -91,6 +91,9 @@ import matplotlib.pyplot as plt
 
 from scm.plams import Settings, Units
 from FOX import MultiMolecule, get_non_bonded
+from FOX.functions.utils import _get_df_iterator
+
+NDFrame = pd.DataFrame.__bases__[0]
 
 PATH = Path('/Users/basvanbeek/Documents/GitHub/auto-FOX/tests/test_files')
 
@@ -127,33 +130,3 @@ for k in elstat_df.columns.copy():
 
 df_tot = elstat_df + lj_df
 df_tot *= Units.conversion_ratio('au', 'kcal/mol')
-
-
-def histogram(sequence: pd.DataFrame, bins: int = 50, **kwargs) -> plt.Figure:
-    if isinstance(sequence, pd.Series):
-        sequence = sequence.to_frame()
-
-    # Figure out the number of plots and construct an iterator of 2-tuples
-    if callable(getattr(sequence, 'items', None)):
-        ncols = len(sequence.keys())
-        iterator = sequence.items()
-    else:
-        try:
-            ncols = len(sequence)
-        except TypeError:  # It's an iterator
-            sequence = list(sequence)
-            ncols = len(sequence)
-        iterator = enumerate(sequence)
-
-    figsize = (4 * ncols, 6)
-    fig, ax_tup = plt.subplots(ncols=ncols, sharex=False, sharey=True)
-    if ncols == 1:  # Ensure ax_tup is actually a tuple
-        ax_tup = (ax_tup,)
-
-    # Construct the actual plots
-    for (key, series), ax in zip(iterator, ax_tup):
-        if isinstance(key, tuple):
-            key = ' '.join(repr(i) for i in key)
-        series.name = key
-        series.hist(ax=ax, bins=bins, figsize=figsize)
-    return fig
