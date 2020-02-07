@@ -32,7 +32,7 @@ import pandas as pd
 
 from scm.plams import Atom, Molecule, Units, PT
 
-from .lj_calculate import get_V_elstat, get_V_lj
+from .lj_calculate import get_V_elstat, get_V_lj, _get_slice_iterator
 from .lj_dataframe import LJDataFrame
 from .bonded_calculate import _dist
 from ..classes.multi_mol import MultiMolecule
@@ -43,8 +43,9 @@ __all__ = ['get_intra_non_bonded']
 
 
 def get_intra_non_bonded(mol: Union[str, MultiMolecule], psf: Union[str, PSFContainer],
-                         prm: Union[str, PRMContainer], scale_elstat: float = 0.0,
-                         scale_lj: float = 1.0) -> Tuple[pd.DataFrame, pd.DataFrame]:
+                         prm: Union[str, PRMContainer],
+                         scale_elstat: float = 0.0, scale_lj: float = 1.0,
+                         max_array_size: int = 10**8) -> Tuple[pd.DataFrame, pd.DataFrame]:
     r"""Collect forcefield parameters and calculate all non-covalent intra-ligand interactions in **mol**.
 
     Forcefield parameters (*i.e.* charges and Lennard-Jones :math:`\sigma` and
@@ -72,6 +73,11 @@ def get_intra_non_bonded(mol: Union[str, MultiMolecule], psf: Union[str, PSFCont
     scale_lj : :class:`float`
         Scaling factor to apply to all 1,4-nonbonded Lennard-Jones interactions.
         Serves the same purpose as the cp2k ``VDW_SCALE14`` keyword.
+
+    max_array_size : :class:`int`
+        The maximum number of elements within the to-be created NumPy array.
+        NumPy's vectorized operations will be (partially) substituted for for-loops if the
+        array size is exceeded.
 
     Returns
     -------
@@ -127,8 +133,8 @@ def get_intra_non_bonded(mol: Union[str, MultiMolecule], psf: Union[str, PSFCont
 
 
 def _fill_df(prm_df: pd.DataFrame, mol: MultiMolecule, core_atoms: np.ndarray,
-             depth_comparison: Callable[[int, int], bool] = operator.__ge__
-             ) -> Tuple[pd.DataFrame, pd.DataFrame]:
+             depth_comparison: Callable[[int, int], bool] = operator.__ge__,
+             max_array_size: int = 10**8) -> Tuple[pd.DataFrame, pd.DataFrame]:
     """Construct the distance matrix; calculate the potential and update the **prm_df** with the energies."""  # noqa
     ij = _get_idx(mol, core_atoms, depth_comparison=depth_comparison).T
     if not ij.any():
@@ -139,9 +145,12 @@ def _fill_df(prm_df: pd.DataFrame, mol: MultiMolecule, core_atoms: np.ndarray,
     symbol = mol.symbol[ij].T
     symbol.sort(axis=1)
 
-    # Construct the distance matrix
-    dist = _dist(mol, ij.T)
-    dist *= Units.conversion_ratio('angstrom', 'au')
+    len_mol = len(mol)
+    angstrom2au = Units.conversion_ratio('angstrom', 'au')
+
+    ij = ij.T
+    dmat_size = len(ij[0]) * len(ij[1])  # The size of a single (2D) distance matrix
+    slice_iterator = _get_slice_iterator(len_mol, dmat_size, max_array_size)
 
     # Construct
     index = pd.RangeIndex(0, len(mol), name='MD Iteration')
@@ -149,19 +158,16 @@ def _fill_df(prm_df: pd.DataFrame, mol: MultiMolecule, core_atoms: np.ndarray,
     lj_df = pd.DataFrame(0.0, index=index, columns=prm_df.index.copy())
 
     # Calculate the potential energies
-    for idx, items in prm_df[['charge', 'epsilon', 'sigma']].iterrows():
-        idx_hash = sorted(hash(i) for i in idx)
-        dist_slice = dist[:, np.all(symbol == idx_hash, axis=1)]
+    for mol_subset in slice_iterator:
+        dist = _dist(mol[mol_subset] * angstrom2au, ij)  # Construct the distance matrix
 
-        charge, epsilon, sigma = items
-        elstat_df[idx] = get_V_elstat(charge, dist_slice)
-        lj_df[idx] = get_V_lj(sigma, epsilon, dist_slice)
+        for idx, items in prm_df[['charge', 'epsilon', 'sigma']].iterrows():
+            idx_hash = sorted(hash(i) for i in idx)
+            dist_slice = dist[:, np.all(symbol == idx_hash, axis=1)]
 
-        # Prevent double counting when an atom-pair consists of identical atoms
-        if idx[0] == idx[1]:
-            elstat_df /= 2
-            lj_df /= 2
-    return elstat_df, lj_df
+            charge, epsilon, sigma = items
+            elstat_df[idx] += get_V_elstat(charge, dist_slice)
+            lj_df[idx] += get_V_lj(sigma, epsilon, dist_slice)
 
 
 def _construct_df(mol: MultiMolecule, lig_atoms: np.ndarray,
