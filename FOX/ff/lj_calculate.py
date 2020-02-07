@@ -273,7 +273,7 @@ def _get_kd_dist(mol: MultiMolecule, ij: np.ndarray, ligand_count: int,
         tree = cKDTree(xyz2)
         dist[n], idx[n] = tree.query(xyz1, k=k, distance_upper_bound=distance_upper_bound)
 
-    # Set all inter-ligand interaction to np.nan
+    # Set all intra-ligand interaction to np.nan
     if not contains_core:
         lig_len = len(i_ar) // ligand_count
 
