@@ -24,10 +24,12 @@ intra-moleculair interactions.
 """
 
 import math
+import functools
 from typing import Mapping, Tuple, Sequence, Optional, Iterable, Union, Generator
 
 import numpy as np
 import pandas as pd
+from scipy.spatial import cKDTree
 
 from scm.plams import Units
 
@@ -115,7 +117,11 @@ def get_non_bonded(mol: Union[str, MultiMolecule],
     :func:`get_V`
         Calculate all non-covalent interactions averaged over all molecules in **mol**.
 
+    :class:`cKDTree<scipy.spatial.cKDTree>
+        kd-tree for quick nearest-neighbor lookup.
+
     """
+    # Parse input parameters
     if not isinstance(psf, PSFContainer):
         psf = PSFContainer.read(psf)
 
@@ -125,6 +131,7 @@ def get_non_bonded(mol: Union[str, MultiMolecule],
         mol = mol.copy(deep=False)
     mol.atoms = mol_atoms = psf.to_atom_dict()
 
+    # Create the parameter DataFrame
     prm_df = LJDataFrame(index=mol_atoms.keys())
     prm_df.overlay_psf(psf)
     if prm is not None:
@@ -145,6 +152,8 @@ def get_non_bonded(mol: Union[str, MultiMolecule],
             slice_dict[i, j] = mol_atoms[i], mol_atoms[j]
         except KeyError:
             pass
+
+    # Calculate and return the potential energies
     core_atoms = set(psf.atom_type[psf.residue_id == 1])
     ligand_count = psf.residue_id.max() - 1
     return get_V(mol, slice_dict, prm_df.loc, ligand_count, core_atoms=core_atoms)
@@ -153,7 +162,8 @@ def get_non_bonded(mol: Union[str, MultiMolecule],
 def get_V(mol: MultiMolecule, slice_mapping: SliceMapping,
           prm_mapping: PrmMapping, ligand_count: int,
           core_atoms: Optional[Iterable[str]] = None,
-          max_array_size: int = 10**8) -> pd.DataFrame:
+          max_array_size: int = 10**8,
+          distance_upper_bound: float = np.inf, k: int = 20) -> pd.DataFrame:
     r"""Calculate all non-covalent interactions averaged over all molecules in **mol**.
 
     Parameters
@@ -180,6 +190,13 @@ def get_V(mol: MultiMolecule, slice_mapping: SliceMapping,
         NumPy's vectorized operations will be (partially) substituted for for-loops if the
         array size is exceeded.
 
+    distance_upper_bound : :class:`float`
+        Consider only atom-pairs within this distance.
+
+    k : :class:`int`
+        The (maximum) number of to-be considered atom-pairs.
+        Only relevant when **distance_upper_bound** is not set ``inf``.
+
     Returns
     -------
     :class:`pandas.DataFrame`
@@ -199,15 +216,25 @@ def get_V(mol: MultiMolecule, slice_mapping: SliceMapping,
         columns=pd.Index(['elstat', 'lj'], name='au')
     )
 
+    # Specify the function for calculating the distance matrices
+    if np.isinf(distance_upper_bound):
+        dist_func = _get_dist
+        k = None
+    else:
+        dist_func = functools.partial(_get_kd_dist, k=k, distance_upper_bound=distance_upper_bound)
+
     for atoms, ij in slice_mapping.items():
         charge, epsilon, sigma = prm_mapping[atoms]
-        contains_core = core_atoms.intersection(atoms)
+        contains_core = bool(core_atoms.intersection(atoms))
 
-        dmat_size = len(ij[0]) * len(ij[1])  # The size of a single (2D) distance matrix
+        # Construct a :class:`slice` iterator based on the expected array size.
+        # Precaution against creating arrays too large to hold in memory
+        dmat_size = len(ij[0]) * (k or len(ij[1]))
         slice_iterator = _get_slice_iterator(len(mol), dmat_size, max_array_size)
 
+        # Construct the distance matrices and calculate the potential energies
         for mol_subset in slice_iterator:
-            dist = _get_dist(mol, ij, ligand_count, contains_core, mol_subset=mol_subset)
+            dist = dist_func(mol, ij, ligand_count, contains_core, mol_subset=mol_subset)
             df.at[atoms, 'elstat'] += get_V_elstat(charge, dist)
             df.at[atoms, 'lj'] += get_V_lj(sigma, epsilon, dist)
             del dist
@@ -230,6 +257,38 @@ def _get_dist(mol: MultiMolecule, ij: np.ndarray, ligand_count: int,
     else:
         dist[dist == 0.0] = np.nan
 
+    return dist
+
+
+def _get_kd_dist(mol: MultiMolecule, ij: np.ndarray, ligand_count: int,
+                 contains_core: bool, mol_subset: Optional[slice],
+                 k: int = 20, distance_upper_bound: float = 10.0) -> np.ndarray:
+    """Construct an array of truncated distance matrices for :func:`get_V`."""
+    i_ar, j_ar = ij
+    mol1 = mol[mol_subset, i_ar]
+    mol2 = mol[mol_subset, j_ar]
+
+    # Fill the (truncated) distance tensor
+    dist = np.empty((len(mol1), len(i_ar), k), dtype=float)
+    idx = np.empty_like(dist, dtype=int)
+    for n, (xyz1, xyz2) in enumerate(zip(mol1, mol2)):
+        tree = cKDTree(xyz2)
+        dist[n], idx[n] = tree.query(xyz1, k=k, distance_upper_bound=distance_upper_bound)
+
+    # Set all inter-ligand interaction to np.nan
+    if not contains_core:
+        lig_len = len(i_ar) // ligand_count
+
+        ax1, ax2, ax3 = idx.shape
+        idx.shape = ax1, ax2 // lig_len, lig_len, ax3
+        idx -= np.arange(0, len(i_ar), lig_len)[None, ..., None, None]
+        idx.shape = ax1, ax2, ax3
+
+        dist[np.isin(idx, np.arange(lig_len))] = np.nan
+
+    # Set zero and infinity to np.nan
+    dist[dist == 0.0] = np.nan
+    dist[np.isinf(dist)] = np.nan
     return dist
 
 
