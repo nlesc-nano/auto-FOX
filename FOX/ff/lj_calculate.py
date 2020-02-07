@@ -51,7 +51,8 @@ def get_non_bonded(mol: Union[str, MultiMolecule],
                    rtf: Optional[str] = None,
                    cp2k_settings: Optional[Mapping] = None,
                    max_array_size: int = 10**8,
-                   distance_upper_bound: float = np.inf, k: int = 20) -> pd.DataFrame:
+                   distance_upper_bound: float = np.inf, k: int = 20,
+                   atom_pairs: Optional[Iterable[Tuple[str, str]]] = None) -> pd.DataFrame:
     r"""Collect forcefield parameters and calculate all non-covalent interactions in **mol**.
 
     Forcefield parameters (*i.e.* charges and Lennard-Jones :math:`\sigma` and
@@ -99,6 +100,9 @@ def get_non_bonded(mol: Union[str, MultiMolecule],
         The (maximum) number of to-be considered atom-pairs.
         Only relevant when **distance_upper_bound** is not set ``inf``.
 
+    atom_pairs : :class:`Iterable<collections.abc.Iterable>` [:class:`tuple`], optional
+        Explicitly specify all to-be considered atom-pairs.
+
     Returns
     -------
     :class:`pandas.DataFrame`
@@ -134,6 +138,12 @@ def get_non_bonded(mol: Union[str, MultiMolecule],
         prm_df.overlay_prm(prm)
     if cp2k_settings is not None:
         prm_df.overlay_cp2k_settings(cp2k_settings)
+
+    # Delete all rows from prm_df whose indices are not in **atom_pairs**
+    if atom_pairs is not None:
+        idx_set = set(prm_df.index)
+        difference = idx_set.difference(tuple(sorted(i)) for i in atom_pairs)
+        prm_df.drop(difference, inplace=True)
 
     # Define atom subsets
     slice_dict = {}
