@@ -126,7 +126,6 @@ def sparse_bond_matrix(mol: Molecule, dtype: Union[None, type, str, np.dtype] = 
     bond_idx.shape = shape
 
     # Construct the to-be assigned data
-    bond_count *= 2
     if dtype_ == bool:
         data = np.ones(bond_count, dtype=dtype_)
     else:

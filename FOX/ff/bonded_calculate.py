@@ -174,7 +174,7 @@ def get_V_bonds(df: pd.DataFrame, mol: MultiMolecule, bond_idx: np.ndarray) -> p
     """
     symbol = mol.symbol
     distance = _dist(mol, bond_idx)
-    ret = pd.DataFrame(index=pd.RangeIndex(0, len(mol), name='au'))
+    ret = pd.DataFrame(index=pd.RangeIndex(0, len(mol), name='au'), columns=df.index)
 
     iterator = df.iloc[:, 0:2].iterrows()
     for i, item in iterator:
@@ -201,7 +201,7 @@ def get_V_angles(df: pd.DataFrame, mol: MultiMolecule, angle_idx: np.ndarray) ->
     """
     symbol = mol.symbol
     angle = _angle(mol, angle_idx)
-    ret = pd.DataFrame(index=pd.RangeIndex(0, len(mol), name='au'))
+    ret = pd.DataFrame(index=pd.RangeIndex(0, len(mol), name='au'), columns=df.index)
 
     iterator = df.iloc[:, 0:2].iterrows()
     for i, item in iterator:
@@ -229,7 +229,7 @@ def get_V_UB(df: pd.DataFrame, mol: MultiMolecule, angle_idx: np.ndarray) -> pd.
     symbol = mol.symbol
     bond_idx = angle_idx[:, 0::2]
     distance = _dist(mol, bond_idx)
-    ret = pd.DataFrame(index=pd.RangeIndex(0, len(mol), name='au'))
+    ret = pd.DataFrame(index=pd.RangeIndex(0, len(mol), name='au'), columns=df.index)
 
     iterator = df.iloc[:, 0:2].iterrows()
     for i, item in iterator:
@@ -256,7 +256,7 @@ def get_V_dihedrals(df: pd.DataFrame, mol: MultiMolecule, dihed_idx: np.ndarray)
     """
     symbol = mol.symbol
     dihedral = _dihed(mol, dihed_idx)
-    ret = pd.DataFrame(index=pd.RangeIndex(0, len(mol), name='au'))
+    ret = pd.DataFrame(index=pd.RangeIndex(0, len(mol), name='au'), columns=df.index)
 
     iterator = df.iloc[:, 0:3].iterrows()
     for i, item in iterator:
@@ -283,7 +283,7 @@ def get_V_impropers(df: pd.DataFrame, mol: MultiMolecule, improp_idx: np.ndarray
     """
     symbol = mol.symbol
     improper = _dihed(mol, improp_idx)
-    ret = pd.DataFrame(index=pd.RangeIndex(0, len(mol), name='au'))
+    ret = pd.DataFrame(index=pd.RangeIndex(0, len(mol), name='au'), columns=df.index)
 
     iterator = df.iloc[:, 0:2].iterrows()
     for i, item in iterator:
