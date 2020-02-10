@@ -52,7 +52,8 @@ def get_non_bonded(mol: Union[str, MultiMolecule],
                    cp2k_settings: Optional[Mapping] = None,
                    max_array_size: int = 10**8,
                    distance_upper_bound: float = np.inf, k: int = 20,
-                   atom_pairs: Optional[Iterable[Tuple[str, str]]] = None) -> pd.DataFrame:
+                   atom_pairs: Optional[Iterable[Tuple[str, str]]] = None
+                   ) -> Tuple[pd.DataFrame, pd.DataFrame]:
     r"""Collect forcefield parameters and calculate all non-covalent interactions in **mol**.
 
     Forcefield parameters (*i.e.* charges and Lennard-Jones :math:`\sigma` and
@@ -105,7 +106,7 @@ def get_non_bonded(mol: Union[str, MultiMolecule],
 
     Returns
     -------
-    :class:`pandas.DataFrame`
+    :class:`pandas.DataFrame` & :class:`pandas.DataFrame`
         Two DataFrames with, respectivelly, the electrostatic and Lennard-Jones components of the
         (inter-ligand) potential energy per atom-pair.
         The potential energy is summed over atoms with matching atom types.
@@ -155,14 +156,17 @@ def get_non_bonded(mol: Union[str, MultiMolecule],
     # Calculate and return the potential energies
     core_atoms = set(psf.atom_type[psf.residue_id == 1])
     ligand_count = psf.residue_id.max() - 1
-    return get_V(mol, slice_dict, prm_df.loc, ligand_count, core_atoms=core_atoms)
+    return get_V(mol, slice_dict, prm_df.loc, ligand_count,
+                 k=k, core_atoms=core_atoms,
+                 max_array_size=max_array_size,
+                 distance_upper_bound=distance_upper_bound)
 
 
 def get_V(mol: MultiMolecule, slice_mapping: SliceMapping,
           prm_mapping: PrmMapping, ligand_count: int,
           core_atoms: Optional[Iterable[str]] = None,
           max_array_size: int = 10**8,
-          distance_upper_bound: float = np.inf, k: int = 20) -> pd.DataFrame:
+          distance_upper_bound: float = np.inf, k: int = 20) -> Tuple[pd.DataFrame, pd.DataFrame]:
     r"""Calculate all non-covalent interactions averaged over all molecules in **mol**.
 
     Parameters
@@ -233,8 +237,8 @@ def get_V(mol: MultiMolecule, slice_mapping: SliceMapping,
         # Construct the distance matrices and calculate the potential energies
         for mol_subset in slice_iterator:
             dist = dist_func(mol, ij, ligand_count, contains_core, mol_subset=mol_subset)
-            elstat_df.loc[mol_subset, atoms] = get_V_elstat(charge, dist)
-            lj_df.loc[mol_subset, atoms] = get_V_lj(sigma, epsilon, dist)
+            elstat_df.loc[elstat_df.index[mol_subset], atoms] = get_V_elstat(charge, dist)
+            lj_df.loc[lj_df.index[mol_subset], atoms] = get_V_lj(sigma, epsilon, dist)
             del dist
 
         if atoms[0] == atoms[1]:  # Avoid double-counting
