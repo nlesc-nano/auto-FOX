@@ -6,6 +6,20 @@ All notable changes to this project will be documented in this file.
 This project adheres to `Semantic Versioning <http://semver.org/>`_.
 
 
+0.7.2
+*****
+* All forcefield related energies are now returned in their entirety,
+  rather than averaging them with respect to the number of MD iterations.
+* Add recipes for the analyses of forcefield energies.
+* Increased the flexibility of the ``recipes.plot_descriptor()`` function.
+* https://github.com/nlesc-nano/auto-FOX/pull/77 & https://github.com/nlesc-nano/auto-FOX/pull/78:
+  Combine NumPy vectorization with ``for``-loops during the calculation of inter-/intra-ligand
+  non-bonded interactions if array sizes start to exceed 100 million elements.
+* https://github.com/nlesc-nano/auto-FOX/pull/78:
+  Truncated distance matrices can now be used for the calculation of inter-ligand
+  non-bonded interactions.
+
+
 0.7.1
 *****
 * Renamed the ``csv`` module to ``csv_utils``.

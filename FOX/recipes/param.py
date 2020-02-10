@@ -123,33 +123,39 @@ API
 
 """
 
-from typing import Dict, Union, Iterable
+from typing import Dict, Union, Iterable, Any, FrozenSet, Tuple, Iterator, Hashable, Optional
 from collections import abc
 
 import pandas as pd
 
 try:
     import matplotlib.pyplot as plt
-    PltFigure = plt.Figure
-    PLT_ERROR = None
+    PltFigure: Union[type, str] = plt.Figure
+    PLT_ERROR: Optional[str] = None
 except ImportError:
-    PltFigure = 'matplotlib.pyplot.Figure'
-    PLT_ERROR = ("Use of the FOX.{} function requires the 'matplotlib' package."
-                 "\n'matplotlib' can be installed via PyPi with the following command:"
-                 "\n\tpip install matplotlib")
+    PltFigure: Union[type, str] = 'matplotlib.pyplot.Figure'
+    PLT_ERROR: Optional[str] = (
+        "Use of the FOX.{} function requires the 'matplotlib' package."
+        "\n'matplotlib' can be installed via PyPi with the following command:"
+        "\n\tpip install matplotlib"
+    )
+
 try:
     import h5py
-    H5PY_ERROR = None
+    H5PY_ERROR: Optional[str] = None
 except ImportError:
-    H5PY_ERROR = ("Use of the FOX.{} function requires the 'h5py' package."
-                  "\n'h5py' can be installed via conda with the following command:"
-                  "\n\tconda install -n FOX -c conda-forge h5py")
+    H5PY_ERROR: Optional[str] = (
+        "Use of the FOX.{} function requires the 'h5py' package."
+        "\n'h5py' can be installed via conda with the following command:"
+        "\n\tconda install -n FOX -c conda-forge h5py"
+    )
 
 from FOX import from_hdf5, assert_error
 
 __all__ = ['get_best', 'overlay_descriptor', 'plot_descriptor']
 
 NDFrame: type = pd.DataFrame.__bases__[0]  # Superclass of pd.DataFrame & pd.Series
+PlotAccessor: type = pd.DataFrame.plot  # A class used by Pandas for plotting stuff
 
 
 @assert_error(H5PY_ERROR)
@@ -240,10 +246,14 @@ def overlay_descriptor(hdf5_file: str, name: str = 'rdf', i: int = 0) -> Dict[st
 
 @assert_error(PLT_ERROR)
 def plot_descriptor(descriptor: Union[NDFrame, Iterable[NDFrame]],
-                    show_fig: bool = True) -> PltFigure:
-    """Plot a DataFrame or iterable consisting of one or more DataFrames.
+                    show_fig: bool = True, kind: str = 'line',
+                    sharex: bool = True, sharey: bool = False,
+                    **kwargs: Any) -> PltFigure:
+    r"""Plot a DataFrame or iterable consisting of one or more DataFrames.
 
-    Requires the ``matploblib`` package.
+    Requires the matplotlib_ package.
+
+    .. _matplotlib: https://matplotlib.org/
 
     Parameters
     ----------
@@ -252,6 +262,15 @@ def plot_descriptor(descriptor: Union[NDFrame, Iterable[NDFrame]],
 
     show_fig : :class:`bool`
         Whether to show the figure or not.
+
+    kind : :class:`str`
+        The plot kind to-be passed to :meth:`pandas.DataFrame.plot`.
+
+    sharex/sharey : :class:`bool`
+        Whether or not the to-be created plots should share their x/y-axes.
+
+    \**kwargs : :data:`Any<typing.Any>`
+        Further keyword arguments for the :meth:`pandas.DataFrame.plot` method.
 
     Returns
     -------
@@ -268,24 +287,11 @@ def plot_descriptor(descriptor: Union[NDFrame, Iterable[NDFrame]],
         overlay it with the reference PES descriptor.
 
     """  # noqa
-    # Convert pd.Series into pd.DataFrame
-    if isinstance(descriptor, pd.Series):
-        descriptor = descriptor.to_frame()
-
-    # Figure out the number of plots and construct an iterator of 2-tuples
-    if isinstance(descriptor, (abc.Mapping, pd.DataFrame)):
-        ncols = len(descriptor.keys())
-        iterator = descriptor.items()
-    else:
-        try:
-            ncols = len(descriptor)
-        except TypeError:  # It's an iterator
-            descriptor = list(descriptor)
-            ncols = len(descriptor)
-        iterator = enumerate(descriptor)
+    kind_ = _validate_kind(kind)
+    ncols, iterator = _get_df_iterator(descriptor)
 
     figsize = (4 * ncols, 6)
-    fig, ax_tup = plt.subplots(ncols=ncols, sharex=True, sharey=False)
+    fig, ax_tup = plt.subplots(ncols=ncols, sharex=sharex, sharey=sharey)
     if ncols == 1:  # Ensure ax_tup is actually a tuple
         ax_tup = (ax_tup,)
 
@@ -293,8 +299,56 @@ def plot_descriptor(descriptor: Union[NDFrame, Iterable[NDFrame]],
     for (key, df), ax in zip(iterator, ax_tup):
         if isinstance(key, tuple):
             key = ' '.join(repr(i) for i in key)
-        df.plot(ax=ax, title=key, figsize=figsize)
+        df.plot(ax=ax, title=key, figsize=figsize, kind=kind_, **kwargs)
 
     if show_fig:
         plt.show(block=True)
     return fig
+
+
+#: A :class:`frozenset` with valid values for the **kind** parameter in :func:`plot_descriptor`.
+VALID_KIND: FrozenSet[str] = frozenset(
+    PlotAccessor._all_kinds + tuple(PlotAccessor._kind_aliases.values())
+)
+
+
+def _validate_kind(kind: str) -> str:
+    """Validate the **kind** parameter for :func:`plot_descriptor`."""
+    try:
+        ret = kind.lower()
+    except AttributeError as ex:
+        raise TypeError("'kind' expected a 'str'; observed type: "
+                        f"'{kind.__class__.__name__}'").with_traceback(ex.__traceback__)
+    if ret not in VALID_KIND:
+        raise ValueError(f"{repr(ret)} is not a valid value for 'kind'; "
+                         f"accepted values: {tuple(sorted(VALID_KIND))}")
+    return ret
+
+
+def _get_df_iterator(descriptor: Union[NDFrame, Iterable[NDFrame]]
+                     ) -> Tuple[int, Iterator[Tuple[Hashable, NDFrame]]]:
+    """Return the number of plots and a DataFrame enumerator for :func:`plot_descriptor`."""
+    if isinstance(descriptor, pd.Series):
+        descriptor = descriptor.to_frame()
+
+    # Figure out the number of plots
+    try:
+        ncols = len(descriptor.keys())
+    except AttributeError:
+        try:
+            ncols = len(descriptor)
+        except TypeError as ex:
+            if not isinstance(descriptor, abc.Iterable):
+                tb = ex.__traceback__
+                raise TypeError("'descriptor' expected an iterable; observed type: "
+                                f"'{descriptor.__class__.__name__}'").with_traceback(tb)
+            descriptor = list(descriptor)
+            ncols = len(descriptor)
+
+    # Construct an iterator of 2-tuples
+    try:
+        iterator = descriptor.items()
+    except (AttributeError, TypeError):
+        iterator = enumerate(descriptor)
+
+    return ncols, iterator

@@ -55,10 +55,10 @@ def get_bonded(mol: Union[str, MultiMolecule], psf: Union[str, PSFContainer],
 
     Returns
     -------
-    5x :class:`pandas.Series` and/or ``None``
+    5x :class:`pandas.DataFrame` and/or ``None``
         Four series with the potential energies of all bonds, angles, Urey-Bradley terms,
         proper and improper dihedral angles.
-        A Series is replaced with ``None`` if no parameters are available for that particular
+        A DataFrame is replaced with ``None`` if no parameters are available for that particular
         section.
         Units are in atomic units.
 
@@ -84,31 +84,33 @@ def get_bonded(mol: Union[str, MultiMolecule], psf: Union[str, PSFContainer],
     # Extract parameters from the .prm file
     bonds, angles, urey_bradley, dihedrals, impropers = process_prm(prm)
 
+    kcal2au = Units.conversion_ratio('kcal/mol', 'au')
+
     # Calculate the various potential energies
     if bonds is not None:
         parse_wildcards(bonds, symbols, prm_type='bonds')
-        set_V_bonds(bonds, mol, psf.bonds)
-        bonds = bonds['V'] * Units.conversion_ratio('kcal/mol', 'au')
+        bonds = get_V_bonds(bonds, mol, psf.bonds)
+        bonds *= kcal2au
 
     if angles is not None:
-        parse_wildcards(bonds, symbols, prm_type='angles')
-        set_V_angles(angles, mol, psf.angles)
-        angles = angles['V'] * Units.conversion_ratio('kcal/mol', 'au')
+        parse_wildcards(angles, symbols, prm_type='angles')
+        angles = get_V_angles(angles, mol, psf.angles)
+        angles *= kcal2au
 
     if urey_bradley is not None:
-        parse_wildcards(bonds, symbols, prm_type='urey_bradley')
-        set_V_UB(urey_bradley, mol, psf.angles)
-        urey_bradley = urey_bradley['V'] * Units.conversion_ratio('kcal/mol', 'au')
+        parse_wildcards(urey_bradley, symbols, prm_type='urey_bradley')
+        urey_bradley = get_V_UB(urey_bradley, mol, psf.angles)
+        urey_bradley *= kcal2au
 
     if dihedrals is not None:
-        parse_wildcards(bonds, symbols, prm_type='dihedrals')
-        set_V_dihedrals(dihedrals, mol, psf.dihedrals)
-        dihedrals = dihedrals['V'] * Units.conversion_ratio('kcal/mol', 'au')
+        parse_wildcards(dihedrals, symbols, prm_type='dihedrals')
+        dihedrals = get_V_dihedrals(dihedrals, mol, psf.dihedrals)
+        dihedrals *= kcal2au
 
     if impropers is not None:
-        parse_wildcards(bonds, symbols, prm_type='impropers')
-        set_V_impropers(impropers, mol, psf.impropers)
-        impropers = impropers['V'] * Units.conversion_ratio('kcal/mol', 'au')
+        parse_wildcards(impropers, symbols, prm_type='impropers')
+        impropers = get_V_impropers(impropers, mol, psf.impropers)
+        impropers *= kcal2au
 
     return bonds, angles, urey_bradley, dihedrals, impropers
 
@@ -155,7 +157,7 @@ def process_prm(prm: Union[PRMContainer, str]) -> tuple:
     return bonds, angles, urey_bradley, dihedrals, impropers
 
 
-def set_V_bonds(df: pd.DataFrame, mol: MultiMolecule, bond_idx: np.ndarray) -> None:
+def get_V_bonds(df: pd.DataFrame, mol: MultiMolecule, bond_idx: np.ndarray) -> pd.DataFrame:
     """Calculate and set :math:`V_{bonds}` in **df**.
 
     Parameters
@@ -172,15 +174,17 @@ def set_V_bonds(df: pd.DataFrame, mol: MultiMolecule, bond_idx: np.ndarray) -> N
     """
     symbol = mol.symbol
     distance = _dist(mol, bond_idx)
+    ret = pd.DataFrame(index=pd.RangeIndex(0, len(mol), name='au'), columns=df.index)
 
     iterator = df.iloc[:, 0:2].iterrows()
     for i, item in iterator:
         j = np.all(symbol[bond_idx] == i, axis=1)
         j |= np.all(symbol[bond_idx[:, ::-1]] == i, axis=1)  # Consider all valid permutations
-        df.at[i, 'V'] = get_V_harmonic(distance[:, j], *item).sum()
+        ret[i] = get_V_harmonic(distance[:, j], *item).sum(axis=1)
+    return ret
 
 
-def set_V_angles(df: pd.DataFrame, mol: MultiMolecule, angle_idx: np.ndarray) -> None:
+def get_V_angles(df: pd.DataFrame, mol: MultiMolecule, angle_idx: np.ndarray) -> pd.DataFrame:
     """Calculate and set :math:`V_{angles}` in **df**.
 
     Parameters
@@ -197,15 +201,17 @@ def set_V_angles(df: pd.DataFrame, mol: MultiMolecule, angle_idx: np.ndarray) ->
     """
     symbol = mol.symbol
     angle = _angle(mol, angle_idx)
+    ret = pd.DataFrame(index=pd.RangeIndex(0, len(mol), name='au'), columns=df.index)
 
     iterator = df.iloc[:, 0:2].iterrows()
     for i, item in iterator:
         j = np.all(symbol[angle_idx] == i, axis=1)
         j |= np.all(symbol[angle_idx[:, ::-1]] == i, axis=1)  # Consider all valid permutations
-        df.at[i, 'V'] = get_V_harmonic(angle[:, j], *item).sum()
+        ret[i] = get_V_harmonic(angle[:, j], *item).sum(axis=1)
+    return ret
 
 
-def set_V_UB(df: pd.DataFrame, mol: MultiMolecule, angle_idx: np.ndarray) -> None:
+def get_V_UB(df: pd.DataFrame, mol: MultiMolecule, angle_idx: np.ndarray) -> pd.DataFrame:
     """Calculate and set :math:`V_{Urey-Bradley}` in **df**.
 
     Parameters
@@ -223,15 +229,17 @@ def set_V_UB(df: pd.DataFrame, mol: MultiMolecule, angle_idx: np.ndarray) -> Non
     symbol = mol.symbol
     bond_idx = angle_idx[:, 0::2]
     distance = _dist(mol, bond_idx)
+    ret = pd.DataFrame(index=pd.RangeIndex(0, len(mol), name='au'), columns=df.index)
 
     iterator = df.iloc[:, 0:2].iterrows()
     for i, item in iterator:
         j = np.all(symbol[bond_idx] == i, axis=1)
         j |= np.all(symbol[bond_idx[:, ::-1]] == i, axis=1)  # Consider all valid permutations
-        df.at[i, 'V'] = get_V_harmonic(distance[:, j], *item).sum()
+        ret[i] = get_V_harmonic(distance[:, j], *item).sum(axis=1)
+    return ret
 
 
-def set_V_dihedrals(df: pd.DataFrame, mol: MultiMolecule, dihed_idx: np.ndarray) -> None:
+def get_V_dihedrals(df: pd.DataFrame, mol: MultiMolecule, dihed_idx: np.ndarray) -> pd.DataFrame:
     """Calculate and set :math:`V_{dihedrals}` in **df**.
 
     Parameters
@@ -248,15 +256,17 @@ def set_V_dihedrals(df: pd.DataFrame, mol: MultiMolecule, dihed_idx: np.ndarray)
     """
     symbol = mol.symbol
     dihedral = _dihed(mol, dihed_idx)
+    ret = pd.DataFrame(index=pd.RangeIndex(0, len(mol), name='au'), columns=df.index)
 
     iterator = df.iloc[:, 0:3].iterrows()
     for i, item in iterator:
         j = np.all(symbol[dihed_idx] == i, axis=1)
         j |= np.all(symbol[dihed_idx[:, ::-1]] == i, axis=1)  # Consider all valid permutations
-        df.at[i, 'V'] = get_V_cos(dihedral[:, j], *item).sum()
+        ret[i] = get_V_cos(dihedral[:, j], *item).sum(axis=1)
+    return ret
 
 
-def set_V_impropers(df: pd.DataFrame, mol: MultiMolecule, improp_idx: np.ndarray) -> None:
+def get_V_impropers(df: pd.DataFrame, mol: MultiMolecule, improp_idx: np.ndarray) -> pd.DataFrame:
     """Calculate and set :math:`V_{impropers}` in **df**.
 
     Parameters
@@ -273,6 +283,7 @@ def set_V_impropers(df: pd.DataFrame, mol: MultiMolecule, improp_idx: np.ndarray
     """
     symbol = mol.symbol
     improper = _dihed(mol, improp_idx)
+    ret = pd.DataFrame(index=pd.RangeIndex(0, len(mol), name='au'), columns=df.index)
 
     iterator = df.iloc[:, 0:2].iterrows()
     for i, item in iterator:
@@ -280,7 +291,8 @@ def set_V_impropers(df: pd.DataFrame, mol: MultiMolecule, improp_idx: np.ndarray
         for k in permutations([1, 2, 3], r=3):
             k = (0,) + k
             j |= np.all(symbol[improp_idx[:, k]] == i, axis=1)  # Consider all valid permutations
-        df.at[i, 'V'] = get_V_harmonic(improper[:, j], *item).sum()
+        ret[i] = get_V_harmonic(improper[:, j], *item).sum(axis=1)
+    return ret
 
 
 def _dist(mol: np.ndarray, ij: np.ndarray) -> np.ndarray:
@@ -318,7 +330,7 @@ def _dihed(mol: np.ndarray, ijkm: np.ndarray) -> np.ndarray:
     return np.abs(ret)
 
 
-def get_V_harmonic(x: np.ndarray, k: float, x0: float) -> float:
+def get_V_harmonic(x: np.ndarray, k: float, x0: float) -> np.ndarray:
     r"""Calculate the harmonic potential energy: :math:`\sum_{i} k (x_{i} - x_{0})^2`.
 
     Parameters
@@ -334,11 +346,10 @@ def get_V_harmonic(x: np.ndarray, k: float, x0: float) -> float:
         The force constant :math:`k`; units should be in kcal/mol/Angstroem**2 or kcal/mol/rad**2.
 
     """
-    V = k * (x - x0)**2
-    return V.mean(axis=0)
+    return k * (np.asarray(x) - x0)**2
 
 
-def get_V_cos(phi: np.ndarray, k: float, n: int, delta: float = 0.0) -> float:
+def get_V_cos(phi: np.ndarray, k: float, n: int, delta: float = 0.0) -> np.ndarray:
     r"""Calculate the cosine potential energy: :math:`\sum_{i} k_{\phi} [1 + \cos(n \phi_{i} - \delta)]`.
 
     Parameters
@@ -356,5 +367,4 @@ def get_V_cos(phi: np.ndarray, k: float, n: int, delta: float = 0.0) -> float:
         The phase-correction :math:`\delta`; units should be in radian.
 
     """  # noqa
-    V = k * (1 + np.cos(n * phi - delta))
-    return V.mean(axis=0)
+    return k * (1 + np.cos(n * np.asarray(phi) - delta))
