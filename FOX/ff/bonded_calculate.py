@@ -93,22 +93,22 @@ def get_bonded(mol: Union[str, MultiMolecule], psf: Union[str, PSFContainer],
         bonds *= kcal2au
 
     if angles is not None:
-        parse_wildcards(bonds, symbols, prm_type='angles')
+        parse_wildcards(angles, symbols, prm_type='angles')
         angles = get_V_angles(angles, mol, psf.angles)
         angles *= kcal2au
 
     if urey_bradley is not None:
-        parse_wildcards(bonds, symbols, prm_type='urey_bradley')
+        parse_wildcards(urey_bradley, symbols, prm_type='urey_bradley')
         urey_bradley = get_V_UB(urey_bradley, mol, psf.angles)
         urey_bradley *= kcal2au
 
     if dihedrals is not None:
-        parse_wildcards(bonds, symbols, prm_type='dihedrals')
+        parse_wildcards(dihedrals, symbols, prm_type='dihedrals')
         dihedrals = get_V_dihedrals(dihedrals, mol, psf.dihedrals)
         dihedrals *= kcal2au
 
     if impropers is not None:
-        parse_wildcards(bonds, symbols, prm_type='impropers')
+        parse_wildcards(impropers, symbols, prm_type='impropers')
         impropers = get_V_impropers(impropers, mol, psf.impropers)
         impropers *= kcal2au
 
