@@ -125,9 +125,7 @@ def get_intra_non_bonded(mol: Union[str, MultiMolecule], psf: Union[str, PSFCont
     # Calculate the total potential energies
     elstat_df, lj_df = _get_V(prm_df, mol.copy(), core_atoms, depth_comparison=operator.__gt__)
     elstat_df += elstat14_df
-    elstat_df /= 2
     lj_df += lj14_df
-    lj_df /= 2
 
     return elstat_df, lj_df
 
@@ -187,12 +185,10 @@ def _construct_df(mol: MultiMolecule, lig_atoms: np.ndarray,
 def _get_idx(mol: MultiMolecule, core_atoms: np.ndarray, inf2value: Optional[float] = 0.0,
              depth_comparison: DepthComparison = operator.__ge__) -> np.ndarray:
     """Construct the array with all atom-pairs valid for intra-moleculair non-covalent interactions."""  # noqa
-    bonds = mol.atom12
-    data = np.ones(2 * len(bonds), dtype=bool)
-    rows, columns = np.vstack([bonds, bonds[:, ::-1]]).T
+    data = np.ones(len(mol.bonds), dtype=bool)
+    rows, columns = mol.atom12.T
 
     depth_mat = degree_of_separation(mol[0], bond_mat=(data, (rows, columns)))
     if inf2value is not None:
         depth_mat[np.isposinf(depth_mat)] = inf2value
-    ret = np.array(np.where(depth_comparison(depth_mat, 3)))
-    return ret
+    return np.array(np.where(depth_comparison(depth_mat, 3)))
