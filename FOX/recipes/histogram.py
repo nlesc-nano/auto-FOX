@@ -48,6 +48,8 @@ Or all ligand/core pairs.
     >>> plot_descriptor(lig_core_df, sharex=False, sharey=True, kind='hist', bins=50)
 
 
+Sum the interactions.
+
 .. code:: python
 
     >>> ...
@@ -81,14 +83,26 @@ from typing import Iterable, Union, Set, TypeVar, Callable, Mapping
 import numpy as np
 import pandas as pd
 
-from scm.plams import Settings, Units
-from FOX import MultiMolecule, get_non_bonded, PSFContainer
-from FOX.recipes import plot_descriptor
-
 __all__ = ['filter_atoms']
 
 T = TypeVar('T')
 FilterFunc = Callable[[Set[T], Iterable[T]], bool]
+
+
+def within_set(atom_set: Set[str], atom_pair: Iterable[str]) -> bool:
+    """Check if **atom_set** is a superset of **atom_pair**."""
+    return atom_set.issuperset(atom_pair)
+
+
+def between_sets(atom_set: Set[str], atom_pair: Iterable[str], n: int = 1) -> bool:
+    """Check if :math:`n` atoms within in atom_set **atom_set** are part of **atom_pair**."""
+    return len(atom_set.intersection(atom_pair)) == n
+
+
+FILTER_MAPPING: Mapping[str, FilterFunc] = MappingProxyType({
+    'within_set': within_set,
+    'between_sets': between_sets
+})
 
 
 def filter_atoms(df: pd.DataFrame, atoms: Union[str, Iterable[str]],
@@ -154,22 +168,6 @@ def filter_atoms(df: pd.DataFrame, atoms: Union[str, Iterable[str]],
     return ret
 
 
-def within_set(atom_set: Set[str], atom_pair: Iterable[str]) -> bool:
-    """Check if **atom_set** is a superset of **atom_pair**."""
-    return atom_set.issuperset(atom_pair)
-
-
-def between_sets(atom_set: Set[str], atom_pair: Iterable[str], n: int = 1) -> bool:
-    """Check if :math:`n` atoms within in atom_set **atom_set** are part of **atom_pair**."""
-    return len(atom_set.intersection(atom_pair)) == n
-
-
-FILTER_MAPPING: Mapping[str, FilterFunc] = MappingProxyType({
-    'within_set': within_set,
-    'between_sets': between_sets
-})
-
-
 def _validate_filter_func(filter_func: Union[str, FilterFunc]) -> FilterFunc:
     """Validate the **filter_func** parameter for :func:`filter_atoms`."""
     if callable(filter_func):  # Is it a callable?
@@ -188,41 +186,3 @@ def _validate_filter_func(filter_func: Union[str, FilterFunc]) -> FilterFunc:
         name = filter_func.lower()
         raise ValueError(f"{repr(name)} is not a valid value for 'filter_func'; "
                          f"accepted values: {accepted_values}").with_traceback(ex.__traceback__)
-
-
-s = Settings()
-s.input.force_eval.mm.forcefield.charge = [
-    {'atom': 'Cd', 'charge': 0.933347},
-    {'atom': 'Se', 'charge': -0.923076}
-]
-s.input.force_eval.mm.forcefield.nonbonded['lennard-jones'] = [
-    {'atoms': 'Cd Cd', 'epsilon': '[kjmol] 0.310100', 'sigma': '[nm] 0.118464'},
-    {'atoms': 'Se Se', 'epsilon': '[kjmol] 0.426600', 'sigma': '[nm] 0.485200'},
-    {'atoms': 'Se Cd', 'epsilon': '[kjmol] 1.522500', 'sigma': '[nm] 0.294000'}
-]
-
-psf = PSFContainer.read('/Users/basvanbeek/Documents/CdSe/Week_5/qd/asa/QD_MD.011/QD_MD.psf')
-prm = '/Users/basvanbeek/Documents/CdSe/Week_5/qd/asa/QD_MD.011/QD_MD.prm'
-mol = MultiMolecule.from_xyz(
-    '/Users/basvanbeek/Documents/CdSe/Week_5/qd/asa/QD_MD.011/cp2k-pos-1.xyz'
-)[500:]
-
-
-elstat_df, lj_df = get_non_bonded(mol, psf, prm=prm, cp2k_settings=s)
-
-df_tot = elstat_df + lj_df
-df_tot *= Units.conversion_ratio('au', 'kcal/mol')
-for at1, at2 in df_tot.keys():  # Average interaction between 1 and m particles
-    at1_count = np.count_nonzero(psf.atom_type == at1)
-    df_tot[at1, at2] /= at1_count
-
-atom_set = {'Cd', 'Se'}
-core_df = filter_atoms(df_tot, atom_set)
-lig_core_df = filter_atoms(df_tot, atom_set, filter_func='between_sets')
-
-fig1 = plot_descriptor(df_tot, sharex=False, sharey=True, kind='hist', bins=50)
-fig2 = plot_descriptor(core_df, sharex=False, sharey=True, kind='hist', bins=50)
-fig3 = plot_descriptor(lig_core_df, sharex=False, sharey=True, kind='hist', bins=50)
-fig1.show()
-fig2.show()
-fig3.show()
