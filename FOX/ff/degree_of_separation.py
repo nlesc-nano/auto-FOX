@@ -70,17 +70,19 @@ def degree_of_separation(mol: Molecule, limit: float = np.inf,
         Raised if the passed Molecule has no bonds and **bond_mat** is ``None``.
 
     """
+    len_mol = len(mol)
+
     if bond_mat is None:
         if not mol.bonds:
             raise MoleculeError("The passed Molecule has no bonds")
         sparse_bond_mat = sparse_bond_matrix(mol, dtype=bool)
     else:
-        sparse_bond_mat = csr_matrix(bond_mat, dtype=bool, copy=False)
+        sparse_bond_mat = csr_matrix(bond_mat, dtype=bool, copy=False, shape=(len_mol, len_mol))
 
     return dijkstra(sparse_bond_mat,
                     directed=False,
                     limit=limit,
-                    indices=np.arange(len(mol)),
+                    indices=np.arange(len_mol),
                     return_predecessors=False)
 
 
