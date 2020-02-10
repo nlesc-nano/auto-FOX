@@ -53,7 +53,6 @@ def degree_of_separation(mol: Molecule, limit: float = np.inf,
         pairs that are separated by a degree of separation > limit.
         For such pairs, the degree of separation will be equal to ``inf`` (*i.e.* not connected).
 
-
     bond_mat : array_like, optional
         An optional bond matrix or other object compatible with SciPy's
         :class:`csr_matrix<scipy.sparse.csr_matrix>`.
