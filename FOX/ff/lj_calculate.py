@@ -233,8 +233,8 @@ def get_V(mol: MultiMolecule, slice_mapping: SliceMapping,
         # Construct the distance matrices and calculate the potential energies
         for mol_subset in slice_iterator:
             dist = dist_func(mol, ij, ligand_count, contains_core, mol_subset=mol_subset)
-            elstat_df[atoms] += get_V_elstat(charge, dist)
-            dlj_df[atoms] += get_V_lj(sigma, epsilon, dist)
+            elstat_df.loc[mol_subset, atoms] = get_V_elstat(charge, dist)
+            lj_df.loc[mol_subset, atoms] = get_V_lj(sigma, epsilon, dist)
             del dist
 
         if atoms[0] == atoms[1]:  # Avoid double-counting
