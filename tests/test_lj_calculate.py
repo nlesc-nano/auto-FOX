@@ -30,7 +30,7 @@ def test_get_non_bonded() -> None:
 
     elstat_df, lj_df = get_non_bonded(mol, psf, prm=prm, cp2k_settings=s)
     elstat_ref = np.load(PATH / 'get_non_bonded_elstat.npy')
-    lj_ref = np.load(PATH / 'get_non_bonded_LJ.npy')
+    lj_ref = np.load(PATH / 'get_non_bonded_lj.npy')
 
     np.testing.assert_allclose(elstat_df, elstat_ref)
     np.testing.assert_allclose(lj_df, lj_ref)
