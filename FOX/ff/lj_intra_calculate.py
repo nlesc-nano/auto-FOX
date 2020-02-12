@@ -118,7 +118,7 @@ def get_intra_non_bonded(mol: Union[str, MultiMolecule], psf: Union[str, PSFCont
     lj14_df *= scale_lj
 
     # Calculate the total potential energies
-    elstat_df, lj_df = _get_V(prm_df, mol.copy(), core_atoms, depth_comparison=operator.__gt__)
+    elstat_df, lj_df = _get_V(prm_df, mol, core_atoms, depth_comparison=operator.__gt__)
     elstat_df += elstat14_df
     lj_df += lj14_df
 
@@ -144,7 +144,6 @@ def _get_V(prm_df: pd.DataFrame, mol: MultiMolecule, core_atoms: np.ndarray,
         return elstat_df, lj_df
 
     # Map each atom-index pair (ij) to a pair of atomic symbols (more specifically: their hashes)
-    mol.atoms = {hash(k): v for k, v in mol.atoms.items()}
     symbol = mol.symbol[ij]
     symbol.sort(axis=1)
 
@@ -157,8 +156,7 @@ def _get_V(prm_df: pd.DataFrame, mol: MultiMolecule, core_atoms: np.ndarray,
         dist = _dist(mol[mol_subset] * ANGSTROM2AU, ij)  # Construct the distance matrix
 
         for idx, items in prm_df[['charge', 'epsilon', 'sigma']].iterrows():
-            idx_hash = sorted(hash(i) for i in idx)
-            dist_slice = dist[:, np.all(symbol == idx_hash, axis=1)]
+            dist_slice = dist[:, np.all(symbol == sorted(idx), axis=1)]
 
             charge, epsilon, sigma = items
             elstat_df.loc[elstat_df.index[mol_subset], idx] = get_V_elstat(charge, dist_slice)
