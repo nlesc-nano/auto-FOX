@@ -115,7 +115,8 @@ def get_bonds(mol: Molecule) -> np.ndarray:
         return ret
 
     # Sort horizontally
-    idx1 = np.argsort(ret, axis=1)
+    mass = np.array([[mol[j].mass for j in i] for i in ret])
+    idx1 = np.argsort(mass, axis=1)[:, ::-1]
     ret[:] = np.take_along_axis(ret, idx1, axis=1)
 
     # Sort and return vertically
@@ -156,7 +157,8 @@ def get_angles(mol: Molecule) -> np.ndarray:
         return ret
 
     # Sort horizontally
-    idx1 = np.argsort(ret[:, ::2], axis=1)
+    mass = np.array([[mol[j].mass for j in i] for i in ret[0::2]])
+    idx1 = np.argsort(mass, axis=1)[:, ::-1]
     ret[:, ::2] = np.take_along_axis(ret[:, ::2], idx1, axis=1)
 
     # Sort and return vertically
@@ -240,7 +242,7 @@ def get_impropers(mol: Molecule) -> np.ndarray:
         return ret
 
     # Sort along the rows of columns 2, 3 & 4 based on atomic mass in descending order
-    mass = np.array([[mol[int(j)].mass for j in i] for i in ret[:, 1:]])
-    idx = np.argsort(mass, axis=1)[:, ::-1]
+    mass = np.array([[mol[j].mass for j in i] for i in ret[:, 1:]])
+    idx = np.argsort(mass, axis=1)
     ret[:, 1:] = np.take_along_axis(ret[:, 1:], idx, axis=1)
     return ret
