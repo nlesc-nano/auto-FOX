@@ -157,7 +157,7 @@ def get_angles(mol: Molecule) -> np.ndarray:
         return ret
 
     # Sort horizontally
-    mass = np.array([[mol[j].mass for j in i] for i in ret[0::2]])
+    mass = np.array([[mol[j].mass for j in i] for i in ret[:, 0::2]])
     idx1 = np.argsort(mass, axis=1)[:, ::-1]
     ret[:, ::2] = np.take_along_axis(ret[:, ::2], idx1, axis=1)
 
