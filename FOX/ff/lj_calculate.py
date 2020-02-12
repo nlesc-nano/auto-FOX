@@ -39,10 +39,13 @@ from ..classes.multi_mol import MultiMolecule
 from ..io.read_psf import PSFContainer
 from ..io.read_prm import PRMContainer
 
-__all__ = ['get_non_bonded', 'get_V']
+__all__ = ['get_non_bonded', 'get_V', 'MAX_ARRAY_SIZE']
 
 SliceMapping = Mapping[Tuple[str, str], Tuple[Sequence[int], Sequence[int]]]
 PrmMapping = Mapping[Tuple[str, str], Tuple[float, float, float]]
+
+#: The maximum number of elements to-be simultaneously stored in a single ndarray
+MAX_ARRAY_SIZE: int = 10**8
 
 
 def get_non_bonded(mol: Union[str, MultiMolecule],
@@ -50,7 +53,6 @@ def get_non_bonded(mol: Union[str, MultiMolecule],
                    prm: Union[None, str, PRMContainer] = None,
                    rtf: Optional[str] = None,
                    cp2k_settings: Optional[Mapping] = None,
-                   max_array_size: int = 10**8,
                    distance_upper_bound: float = np.inf, k: int = 20,
                    atom_pairs: Optional[Iterable[Tuple[str, str]]] = None
                    ) -> Tuple[pd.DataFrame, pd.DataFrame]:
@@ -158,14 +160,12 @@ def get_non_bonded(mol: Union[str, MultiMolecule],
     ligand_count = psf.residue_id.max() - 1
     return get_V(mol, slice_dict, prm_df.loc, ligand_count,
                  k=k, core_atoms=core_atoms,
-                 max_array_size=max_array_size,
                  distance_upper_bound=distance_upper_bound)
 
 
 def get_V(mol: MultiMolecule, slice_mapping: SliceMapping,
           prm_mapping: PrmMapping, ligand_count: int,
           core_atoms: Optional[Iterable[str]] = None,
-          max_array_size: int = 10**8,
           distance_upper_bound: float = np.inf, k: int = 20) -> Tuple[pd.DataFrame, pd.DataFrame]:
     r"""Calculate all non-covalent interactions averaged over all molecules in **mol**.
 
@@ -187,11 +187,6 @@ def get_V(mol: MultiMolecule, slice_mapping: SliceMapping,
 
     core_atoms : :class:`set` [:class:`str`], optional
         A set of all atoms within the core.
-
-    max_array_size : :class:`int`
-        The maximum number of elements within the to-be created NumPy array.
-        NumPy's vectorized operations will be (partially) substituted for for-loops if the
-        array size is exceeded.
 
     distance_upper_bound : :class:`float`
         Consider only atom-pairs within this distance.
@@ -232,7 +227,7 @@ def get_V(mol: MultiMolecule, slice_mapping: SliceMapping,
         # Construct a :class:`slice` iterator based on the expected array size.
         # Precaution against creating arrays too large to hold in memory
         dmat_size = len(ij[0]) * (k or len(ij[1]))
-        slice_iterator = _get_slice_iterator(len(mol), dmat_size, max_array_size)
+        slice_iterator = _get_slice_iterator(len(mol), dmat_size)
 
         # Construct the distance matrices and calculate the potential energies
         for mol_subset in slice_iterator:
@@ -295,13 +290,12 @@ def _get_kd_dist(mol: MultiMolecule, ij: np.ndarray, ligand_count: int,
     return dist
 
 
-def _get_slice_iterator(stop: int, dmat_size: int,
-                        max_array_size: int = 10**8) -> Generator[slice, None, None]:
+def _get_slice_iterator(stop: int, dmat_size: int) -> Generator[slice, None, None]:
     """Return a generator yielding :class:`slice` instances for :func:`get_V`."""
-    if stop * dmat_size < max_array_size:
+    if stop * dmat_size < MAX_ARRAY_SIZE:
         step = stop
     else:
-        step = max(1, math.floor(max_array_size / dmat_size))
+        step = max(1, math.floor(MAX_ARRAY_SIZE / dmat_size))
 
     # Yield the slices
     start = 0

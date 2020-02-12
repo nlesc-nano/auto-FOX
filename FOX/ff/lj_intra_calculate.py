@@ -44,8 +44,8 @@ __all__ = ['get_intra_non_bonded']
 
 def get_intra_non_bonded(mol: Union[str, MultiMolecule], psf: Union[str, PSFContainer],
                          prm: Union[str, PRMContainer],
-                         scale_elstat: float = 0.0, scale_lj: float = 1.0,
-                         max_array_size: int = 10**8) -> Tuple[pd.DataFrame, pd.DataFrame]:
+                         scale_elstat: float = 0.0,
+                         scale_lj: float = 1.0) -> Tuple[pd.DataFrame, pd.DataFrame]:
     r"""Collect forcefield parameters and calculate all non-covalent intra-ligand interactions in **mol**.
 
     Forcefield parameters (*i.e.* charges and Lennard-Jones :math:`\sigma` and
@@ -73,11 +73,6 @@ def get_intra_non_bonded(mol: Union[str, MultiMolecule], psf: Union[str, PSFCont
     scale_lj : :class:`float`
         Scaling factor to apply to all 1,4-nonbonded Lennard-Jones interactions.
         Serves the same purpose as the cp2k ``VDW_SCALE14`` keyword.
-
-    max_array_size : :class:`int`
-        The maximum number of elements within the to-be created NumPy array.
-        NumPy's vectorized operations will be (partially) substituted for for-loops if the
-        array size is exceeded.
 
     Returns
     -------
@@ -136,7 +131,7 @@ ANGSTROM2AU: float = Units.conversion_ratio('angstrom', 'au')
 
 def _get_V(prm_df: pd.DataFrame, mol: MultiMolecule, core_atoms: np.ndarray,
            depth_comparison: DepthComparison = operator.__ge__,
-           max_array_size: int = 10**8) -> Tuple[pd.DataFrame, pd.DataFrame]:
+           ) -> Tuple[pd.DataFrame, pd.DataFrame]:
     """Construct the distance matrix; calculate the potential and update the **prm_df** with the energies."""  # noqa
     ij = _get_idx(mol, core_atoms, depth_comparison=depth_comparison).T
 
@@ -155,7 +150,7 @@ def _get_V(prm_df: pd.DataFrame, mol: MultiMolecule, core_atoms: np.ndarray,
 
     dmat_size = len(ij)  # The size of a single (2D) distance matrix
     len_mol = len(mol)
-    slice_iterator = _get_slice_iterator(len_mol, dmat_size, max_array_size)
+    slice_iterator = _get_slice_iterator(len_mol, dmat_size)
 
     # Calculate the potential energies
     for mol_subset in slice_iterator:
