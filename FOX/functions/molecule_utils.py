@@ -204,6 +204,12 @@ def get_dihedrals(mol: Molecule) -> np.ndarray:
     if not dihed:  # If no dihedrals are found
         return ret
 
+    # Sort horizontally
+    mass = np.array([[mol[j].mass for j in i] for i in ret[:, 1:3]])
+    idx1 = np.argsort(mass, axis=1)
+    ret[:, ::3] = np.take_along_axis(ret[:, ::3], idx1, axis=1)
+    ret[:, 1:3] = np.take_along_axis(ret[:, 1:3], idx1, axis=1)
+
     # Sort and return vertically
     idx2 = np.argsort(ret, axis=0)[:, 0]
     return ret[idx2]
@@ -243,6 +249,10 @@ def get_impropers(mol: Molecule) -> np.ndarray:
 
     # Sort along the rows of columns 2, 3 & 4 based on atomic mass in descending order
     mass = np.array([[mol[j].mass for j in i] for i in ret[:, 1:]])
-    idx = np.argsort(mass, axis=1)
-    ret[:, 1:] = np.take_along_axis(ret[:, 1:], idx, axis=1)
-    return ret
+    idx1 = np.argsort(mass, axis=1)
+    idx1[:, 1:] = idx1[:, 1:][::-1]
+    ret[:, 1:] = np.take_along_axis(ret[:, 1:], idx1, axis=1)
+
+    # Sort vertically
+    idx2 = np.argsort(ret, axis=0)[:, 0]
+    return ret[idx2]
