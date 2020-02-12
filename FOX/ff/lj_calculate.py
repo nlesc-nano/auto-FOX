@@ -279,14 +279,15 @@ def _get_kd_dist(mol: MultiMolecule, ij: np.ndarray, ligand_count: int,
 
     # Set all intra-ligand interaction to np.nan
     if not contains_core:
-        lig_len = len(i_ar) // ligand_count
+        i = len(i_ar) // ligand_count
+        j = len(j_ar) // ligand_count
 
         ax1, ax2, ax3 = idx.shape
-        idx.shape = ax1, ax2 // lig_len, lig_len, ax3
-        idx -= np.arange(0, len(i_ar), lig_len)[None, ..., None, None]
+        idx.shape = ax1, ax2 // i, i, ax3
+        idx -= np.arange(0, j * ax2 // i, j)[None, ..., None, None]
         idx.shape = ax1, ax2, ax3
 
-        dist[np.isin(idx, np.arange(lig_len))] = np.nan
+        dist[np.isin(idx, np.arange(j))] = np.nan
 
     # Set zero and infinity to np.nan
     dist[dist == 0.0] = np.nan
