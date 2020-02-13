@@ -256,13 +256,18 @@ def get_V_dihedrals(df: pd.DataFrame, mol: MultiMolecule, dihed_idx: np.ndarray)
     """
     symbol = mol.symbol
     dihedral = _dihed(mol, dihed_idx)
-    ret = pd.DataFrame(index=pd.RangeIndex(0, len(mol), name='au'), columns=df.index)
+    ret = pd.DataFrame(0.0, index=pd.RangeIndex(0, len(mol), name='au'), columns=df.index)
+
+    # Remove duplicate indices
+    # The .prm file format allows for multiple declaration of dihedral parameters,
+    # resulting in duplicate multi-indices
+    ret = ret.loc[~ret.index.duplicated(keep='first')]
 
     iterator = df.iloc[:, 0:3].iterrows()
     for i, item in iterator:
         j = np.all(symbol[dihed_idx] == i, axis=1)
         j |= np.all(symbol[dihed_idx[:, ::-1]] == i, axis=1)  # Consider all valid permutations
-        ret[i] = get_V_cos(dihedral[:, j], *item).sum(axis=1)
+        ret[i] += get_V_cos(dihedral[:, j], *item).sum(axis=1)
     return ret
 
 
