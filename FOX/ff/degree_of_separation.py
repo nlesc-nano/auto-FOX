@@ -123,15 +123,16 @@ def sparse_bond_matrix(mol: Molecule, dtype: Union[None, type, str, np.dtype] = 
     shape = bond_count, 2
 
     # Construct an array of row and column indices
-    iterator = chain.from_iterable(_bond_id_generator(mol))
-    bond_idx = np.fromiter(iterator, dtype=int, count=count)
+    iterator1 = chain.from_iterable(_bond_id_generator(mol))
+    bond_idx = np.fromiter(iterator1, dtype=int, count=count)
     bond_idx.shape = shape
 
     # Construct the to-be assigned data
     if dtype_ == bool:
         data = np.ones(bond_count, dtype=dtype_)
     else:
-        data = np.fromiter(2*[b.order for b in mol.bonds], count=bond_count, dtype=dtype_)
+        iterator2 = chain.from_iterable((b.order, b.order) for b in mol.bonds)
+        data = np.fromiter(iterator2, count=bond_count, dtype=dtype_)
 
     # Create and return the sparse matrix
     ret_shape = len(mol), len(mol)
