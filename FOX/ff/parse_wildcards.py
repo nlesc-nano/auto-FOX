@@ -55,6 +55,7 @@ def parse_wildcards(df: pd.DataFrame, symbols: Collection[str], prm_type: str) -
         for i in seq_product:
             if not is_in_index(i, index):  # Do not add any duplicates
                 df.loc[i] = df.loc[tup]
+                index.add(i)
 
 
 def _invert(tup: tuple, tup_set: Set[tuple]) -> bool:
@@ -64,8 +65,8 @@ def _invert(tup: tuple, tup_set: Set[tuple]) -> bool:
 
 def _all_comb(tup: tuple, tup_set: Set[tuple]) -> bool:
     """Check if **tup_set** any combination of ``tup[0]`` and a permutation of ``tup[1:]``."""
-    i0 = tup[0]
-    iterable = ((i0,) + i for i in permutations(tup[1:]))
+    i_0, *i_n = tup
+    iterable = ((i_0,) + i for i in permutations(i_n))
     return bool(tup_set.intersection(iterable))
 
 
