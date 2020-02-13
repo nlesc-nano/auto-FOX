@@ -163,7 +163,8 @@ class LJDataFrame(pd.DataFrame):
             return None
 
         epsilon = nonbonded[i]
-        sigma = nonbonded[j]
+        sigma = nonbonded[j] * 2  # The .prm format stores sigma / 2, not sigma
+        sigma /= 2**(1/6)  # Convert r_min to sigma
         self.set_epsilon(epsilon, unit='kcal/mol')
         self.set_sigma(sigma, unit='angstrom')
 
@@ -174,7 +175,8 @@ class LJDataFrame(pd.DataFrame):
 
         is_null = nbfix[[i, j]].isnull().any(axis=1)
         epsilon_pair = nbfix.loc[~is_null, i]
-        sigma_pair = nbfix.loc[~is_null, j]
+        sigma_pair = nbfix.loc[~is_null, j] * 2  # The .prm format stores sigma / 2, not sigma
+        sigma_pair /= 2**(1/6)  # Convert r_min to sigma
 
         self.set_epsilon_pairs(epsilon_pair, unit='kcal/mol')
         self.set_sigma_pairs(sigma_pair, unit='angstrom')
