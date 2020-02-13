@@ -44,7 +44,7 @@ __all__ = ['get_intra_non_bonded']
 
 def get_intra_non_bonded(mol: Union[str, MultiMolecule], psf: Union[str, PSFContainer],
                          prm: Union[str, PRMContainer],
-                         scale_elstat: float = 0.0,
+                         scale_elstat: float = 1.0,
                          scale_lj: float = 1.0) -> Tuple[pd.DataFrame, pd.DataFrame]:
     r"""Collect forcefield parameters and calculate all non-covalent intra-ligand interactions in **mol**.
 
