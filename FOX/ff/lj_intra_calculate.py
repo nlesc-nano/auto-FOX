@@ -105,6 +105,7 @@ def get_intra_non_bonded(mol: Union[str, MultiMolecule], psf: Union[str, PSFCont
     mol.atoms = psf.to_atom_dict()
     prm_df = _construct_df(mol, lig_atoms, psf, prm, pairs14=False)
     prm_df14 = _construct_df(mol, lig_atoms, psf, prm, pairs14=True)
+    mol.atoms = psf.to_atom_dict()
 
     # The .prm format allows one to specify special non-bonded interactions between
     # atoms three bonds removed
