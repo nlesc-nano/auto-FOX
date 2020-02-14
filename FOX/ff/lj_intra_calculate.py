@@ -169,8 +169,8 @@ def _construct_df(mol: MultiMolecule, lig_atoms: np.ndarray,
                   pairs14: bool = False) -> LJDataFrame:
     """Construct the DataFrame for :func:`get_intra_non_bonded`."""
     prm_df = LJDataFrame(index=set(mol.symbol[lig_atoms]))
-    prm_df.overlay_psf(psf)
     prm_df.overlay_prm(prm, pairs14=pairs14)
+    prm_df.overlay_psf(psf)
     prm_df.dropna(inplace=True)
     return prm_df
 
@@ -184,4 +184,6 @@ def _get_idx(mol: MultiMolecule, core_atoms: np.ndarray, inf2value: Optional[flo
     depth_mat = degree_of_separation(mol[0], bond_mat=(data, (rows, columns)))
     if inf2value is not None:
         depth_mat[np.isposinf(depth_mat)] = inf2value
-    return np.array(np.where(depth_comparison(depth_mat, 3)))
+
+    depth_mat_triu = np.triu(depth_mat)  # Ignore all pairs below the diagonal
+    return np.array(np.where(depth_comparison(depth_mat_triu, 3)))

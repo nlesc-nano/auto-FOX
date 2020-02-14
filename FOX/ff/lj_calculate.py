@@ -135,11 +135,11 @@ def get_non_bonded(mol: Union[str, MultiMolecule],
 
     # Create the parameter DataFrame
     prm_df = LJDataFrame(index=mol_atoms.keys())
-    prm_df.overlay_psf(psf)
     if prm is not None:
         prm_df.overlay_prm(prm)
     if cp2k_settings is not None:
         prm_df.overlay_cp2k_settings(cp2k_settings)
+    prm_df.overlay_psf(psf)
 
     # Delete all rows from prm_df whose indices are not in **atom_pairs**
     if atom_pairs is not None:

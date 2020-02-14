@@ -19,7 +19,7 @@ API
 
 import textwrap
 from types import MappingProxyType
-from typing import Union, Iterable, Mapping, Dict, Tuple, Callable, Optional, Union
+from typing import Union, Iterable, Mapping, Dict, Tuple, Callable, Optional
 from itertools import combinations_with_replacement
 from collections import abc
 
@@ -194,6 +194,9 @@ class LJDataFrame(pd.DataFrame):
         charge = psf.atoms.set_index('atom type')['charge']
         charge_dict = charge.to_dict()
         self.set_charge(charge_dict)
+
+    def _update_pairs(self, charge_series: pd.Series) -> None:
+        pass
 
     def _set_prm(self, atom_mapping: Mapping[str, float], key: str,
                  func: Callable[[Tuple[float, float]], float],
