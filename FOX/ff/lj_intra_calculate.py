@@ -44,8 +44,10 @@ __all__ = ['get_intra_non_bonded']
 
 def get_intra_non_bonded(mol: Union[str, MultiMolecule], psf: Union[str, PSFContainer],
                          prm: Union[str, PRMContainer],
-                         scale_elstat: float = 1.0,
-                         scale_lj: float = 1.0) -> Tuple[pd.DataFrame, pd.DataFrame]:
+                         distance_upper_bound: float = np.inf,
+                         shift_cutoff: bool = True,
+                         el_scale14: float = 1.0,
+                         lj_scale14: float = 1.0) -> Tuple[pd.DataFrame, pd.DataFrame]:
     r"""Collect forcefield parameters and calculate all non-covalent intra-ligand interactions in **mol**.
 
     Forcefield parameters (*i.e.* charges and Lennard-Jones :math:`\sigma` and
@@ -66,11 +68,20 @@ def get_intra_non_bonded(mol: Union[str, MultiMolecule], psf: Union[str, PSFCont
         A PRMContainer instance or the path+filename of a .prm file.
         Used for setting :math:`\sigma` and :math:`\varepsilon`.
 
-    scale_elstat : :class:`float`
+    distance_upper_bound : :class:`float`
+        Consider only atom-pairs within this distance.
+        Using ``inf`` will default to the full, untruncated, distance matrix.
+
+    shift_cutoff : :bool:
+        Shift all potentials by a constant such that
+        it is equal to zero at **distance_upper_bound**.
+        Only relavent when ``distance_upper_bound < inf``.
+
+    el_scale14 : :class:`float`
         Scaling factor to apply to all 1,4-nonbonded electrostatic interactions.
         Serves the same purpose as the cp2k ``EI_SCALE14`` keyword.
 
-    scale_lj : :class:`float`
+    lj_scale14 : :class:`float`
         Scaling factor to apply to all 1,4-nonbonded Lennard-Jones interactions.
         Serves the same purpose as the cp2k ``VDW_SCALE14`` keyword.
 
@@ -81,7 +92,6 @@ def get_intra_non_bonded(mol: Union[str, MultiMolecule], psf: Union[str, PSFCont
         (intra--ligand) potential energy per atom-pair.
         The potential energy is summed over atoms with matching atom types.
         Units are in atomic units.
-
 
     """  # noqa
     if not isinstance(psf, PSFContainer):
@@ -114,12 +124,18 @@ def get_intra_non_bonded(mol: Union[str, MultiMolecule], psf: Union[str, PSFCont
         prm_df14 = prm_df.copy()
 
     # Calculate the 1,4 - potential energies
-    elstat14_df, lj14_df = _get_V(prm_df14, mol, core_atoms, depth_comparison=operator.__eq__)
-    elstat14_df *= scale_elstat
-    lj14_df *= scale_lj
+    elstat14_df, lj14_df = _get_V(prm_df14, mol, core_atoms,
+                                  shift_cutoff=shift_cutoff,
+                                  distance_upper_bound=distance_upper_bound,
+                                  depth_comparison=operator.__eq__)
+    elstat14_df *= el_scale14
+    lj14_df *= lj_scale14
 
     # Calculate the total potential energies
-    elstat_df, lj_df = _get_V(prm_df, mol, core_atoms, depth_comparison=operator.__gt__)
+    elstat_df, lj_df = _get_V(prm_df, mol, core_atoms,
+                              shift_cutoff=shift_cutoff,
+                              distance_upper_bound=distance_upper_bound,
+                              depth_comparison=operator.__gt__)
     elstat_df += elstat14_df
     lj_df += lj14_df
 
@@ -131,6 +147,8 @@ ANGSTROM2AU: float = Units.conversion_ratio('angstrom', 'au')
 
 
 def _get_V(prm_df: pd.DataFrame, mol: MultiMolecule, core_atoms: np.ndarray,
+           distance_upper_bound: float = np.inf,
+           shift_cutoff: bool = True,
            depth_comparison: DepthComparison = operator.__ge__,
            ) -> Tuple[pd.DataFrame, pd.DataFrame]:
     """Construct the distance matrix; calculate the potential and update the **prm_df** with the energies."""  # noqa
@@ -155,13 +173,21 @@ def _get_V(prm_df: pd.DataFrame, mol: MultiMolecule, core_atoms: np.ndarray,
     # Calculate the potential energies
     for mol_subset in slice_iterator:
         dist = _dist(mol[mol_subset] * ANGSTROM2AU, ij)  # Construct the distance matrix
+        if distance_upper_bound != np.inf:
+            dist[dist > distance_upper_bound] = np.nan
+            shift = distance_upper_bound if shift_cutoff else None
+        else:
+            shift = None
 
         for idx, items in prm_df[['charge', 'epsilon', 'sigma']].iterrows():
             dist_slice = dist[:, np.all(symbol == sorted(idx), axis=1)]
 
             charge, epsilon, sigma = items
-            elstat_df.loc[elstat_df.index[mol_subset], idx] = get_V_elstat(charge, dist_slice)
-            lj_df.loc[lj_df.index[mol_subset], idx] = get_V_lj(sigma, epsilon, dist_slice)
+            elstat_df.loc[elstat_df.index[mol_subset], idx] = get_V_elstat(charge, dist_slice,
+                                                                           shift_cutoff=shift)
+            lj_df.loc[lj_df.index[mol_subset], idx] = get_V_lj(sigma, epsilon,
+                                                               dist_slice,
+                                                               shift_cutoff=shift)
     return elstat_df, lj_df
 
 

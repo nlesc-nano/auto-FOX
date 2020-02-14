@@ -97,7 +97,7 @@ def get_non_bonded(mol: Union[str, MultiMolecule],
 
     distance_upper_bound : :class:`float`
         Consider only atom-pairs within this distance.
-        Using ``inf`` will default to the full, untracted, distance matrix.
+        Using ``inf`` will default to the full, untruncated, distance matrix.
 
     k : :class:`int`
         The (maximum) number of to-be considered atom-pairs.
@@ -304,7 +304,8 @@ def _get_slice_iterator(stop: int, dmat_size: int) -> Generator[slice, None, Non
         start += step
 
 
-def get_V_elstat(q: float, dist: np.ndarray) -> np.ndarray:
+def get_V_elstat(q: float, dist: np.ndarray,
+                 shift_cutoff: Optional[float] = None) -> np.ndarray:
     r"""Calculate and sum the electrostatic potential energy given a distance matrix **dist**..
 
     .. math::
@@ -319,9 +320,14 @@ def get_V_elstat(q: float, dist: np.ndarray) -> np.ndarray:
     ----------
     q : :class:`float`
         The product of two charges :math:`q_{ij}`.
+
     dist : :class:`numpy.ndarray`
         The distance matrix :math:`r_{ij}`.
         Units should be in Bohr.
+
+    shift_cutoff : :class:`float`, optional
+        When not ``None``, add a constant to the returned potantials such
+        that its value is zero at the specified distance.
 
     Returns
     -------
@@ -332,10 +338,13 @@ def get_V_elstat(q: float, dist: np.ndarray) -> np.ndarray:
     """
     ret = q / dist
     axis = tuple(range(1, ret.ndim))
+    if shift_cutoff is not None:
+        ret -= get_V_elstat(q, shift_cutoff, shift_cutoff=None)
     return np.nansum(ret, axis=axis)
 
 
-def get_V_lj(sigma: float, epsilon: float, dist: np.ndarray) -> np.ndarray:
+def get_V_lj(sigma: float, epsilon: float, dist: np.ndarray,
+             shift_cutoff: Optional[float] = None) -> np.ndarray:
     r"""Calculate and sum the Lennard-Jones potential given a distance matrix **dist**.
 
     .. math::
@@ -359,12 +368,18 @@ def get_V_lj(sigma: float, epsilon: float, dist: np.ndarray) -> np.ndarray:
     sigma : :class:`float`
         The arithmetic mean of two :math:`\sigma` parameters: :math:`\sigma_{ij}`.
         Units should be in Bohr.
+
     epsilon : :class:`float`
         The geometric mean of two :math:`\varepsilon` parameters: :math:`\varepsilon_{ij}`.
         Units should be in Hartree.
+
     dist : :class:`numpy.ndarray`
         The distance matrix :math:`r_{ij}`.
         Units should be in Bohr.
+
+    shift_cutoff : :class:`float`, optional
+        When not ``None``, add a constant to the returned potantials such
+        that its value is zero at the specified distance.
 
     Returns
     -------
@@ -376,5 +391,8 @@ def get_V_lj(sigma: float, epsilon: float, dist: np.ndarray) -> np.ndarray:
     sigma_dist = (sigma / dist)**6
     lj = sigma_dist**2 - sigma_dist
     lj *= epsilon * 4
+
     axis = tuple(range(1, lj.ndim))
+    if shift_cutoff is not None:
+        lj -= get_V_lj(sigma, epsilon, shift_cutoff, shift_cutoff=None)
     return np.nansum(lj, axis=axis)
