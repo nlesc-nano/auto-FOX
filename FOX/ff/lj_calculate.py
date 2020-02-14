@@ -336,7 +336,7 @@ def get_V_elstat(q: float, dist: np.ndarray,
         axises ``>= 1``.
 
     """
-    ret = q / dist
+    ret = q / np.asarray(dist)
     axis = tuple(range(1, ret.ndim))
     if shift_cutoff is not None:
         ret -= get_V_elstat(q, shift_cutoff, shift_cutoff=None)
@@ -388,7 +388,7 @@ def get_V_lj(sigma: float, epsilon: float, dist: np.ndarray,
         axises ``>= 1``.
 
     """
-    sigma_dist = (sigma / dist)**6
+    sigma_dist = (sigma / np.asarray(dist))**6
     lj = sigma_dist**2 - sigma_dist
     lj *= epsilon * 4
 
