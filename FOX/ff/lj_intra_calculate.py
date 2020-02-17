@@ -72,7 +72,7 @@ def get_intra_non_bonded(mol: Union[str, MultiMolecule], psf: Union[str, PSFCont
         Consider only atom-pairs within this distance.
         Using ``inf`` will default to the full, untruncated, distance matrix.
 
-    shift_cutoff : :bool:
+    shift_cutoff : :class:`bool`
         Shift all potentials by a constant such that
         it is equal to zero at **distance_upper_bound**.
         Only relavent when ``distance_upper_bound < inf``.
@@ -170,14 +170,13 @@ def _get_V(prm_df: pd.DataFrame, mol: MultiMolecule, core_atoms: np.ndarray,
     len_mol = len(mol)
     slice_iterator = _get_slice_iterator(len_mol, dmat_size)
 
+    shift = distance_upper_bound if (distance_upper_bound < np.inf and shift_cutoff) else None
+
     # Calculate the potential energies
     for mol_subset in slice_iterator:
         dist = _dist(mol[mol_subset] * ANGSTROM2AU, ij)  # Construct the distance matrix
         if distance_upper_bound != np.inf:
             dist[dist > distance_upper_bound] = np.nan
-            shift = distance_upper_bound if shift_cutoff else None
-        else:
-            shift = None
 
         for idx, items in prm_df[['charge', 'epsilon', 'sigma']].iterrows():
             dist_slice = dist[:, np.all(symbol == sorted(idx), axis=1)]

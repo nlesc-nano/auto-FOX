@@ -54,6 +54,7 @@ def get_non_bonded(mol: Union[str, MultiMolecule],
                    rtf: Optional[str] = None,
                    cp2k_settings: Optional[Mapping] = None,
                    distance_upper_bound: float = np.inf, k: int = 20,
+                   shift_cutoff: bool = True,
                    atom_pairs: Optional[Iterable[Tuple[str, str]]] = None
                    ) -> Tuple[pd.DataFrame, pd.DataFrame]:
     r"""Collect forcefield parameters and calculate all non-covalent interactions in **mol**.
@@ -102,6 +103,11 @@ def get_non_bonded(mol: Union[str, MultiMolecule],
     k : :class:`int`
         The (maximum) number of to-be considered atom-pairs.
         Only relevant when **distance_upper_bound** is not set ``inf``.
+
+    shift_cutoff : :class:`bool`
+        Shift all potentials by a constant such that
+        it is equal to zero at **distance_upper_bound**.
+        Only relavent when ``distance_upper_bound < inf``.
 
     atom_pairs : :class:`Iterable<collections.abc.Iterable>` [:class:`tuple`], optional
         Explicitly specify all to-be considered atom-pairs.
@@ -166,7 +172,8 @@ def get_non_bonded(mol: Union[str, MultiMolecule],
 def get_V(mol: MultiMolecule, slice_mapping: SliceMapping,
           prm_mapping: PrmMapping, ligand_count: int,
           core_atoms: Optional[Iterable[str]] = None,
-          distance_upper_bound: float = np.inf, k: int = 20) -> Tuple[pd.DataFrame, pd.DataFrame]:
+          distance_upper_bound: float = np.inf, k: int = 20,
+          shift_cutoff: bool = True) -> Tuple[pd.DataFrame, pd.DataFrame]:
     r"""Calculate all non-covalent interactions averaged over all molecules in **mol**.
 
     Parameters
@@ -195,6 +202,11 @@ def get_V(mol: MultiMolecule, slice_mapping: SliceMapping,
         The (maximum) number of to-be considered atom-pairs.
         Only relevant when **distance_upper_bound** is not set ``inf``.
 
+    shift_cutoff : :class:`bool`
+        Shift all potentials by a constant such that
+        it is equal to zero at **distance_upper_bound**.
+        Only relavent when ``distance_upper_bound < inf``.
+
     Returns
     -------
     :class:`pandas.DataFrame` & :class:`pandas.DataFrame`
@@ -220,6 +232,8 @@ def get_V(mol: MultiMolecule, slice_mapping: SliceMapping,
     else:
         dist_func = functools.partial(_get_kd_dist, k=k, distance_upper_bound=distance_upper_bound)
 
+    shift = distance_upper_bound if (distance_upper_bound < np.inf and shift_cutoff) else None
+
     for atoms, ij in slice_mapping.items():
         charge, epsilon, sigma = prm_mapping[atoms]
         contains_core = bool(core_atoms.intersection(atoms))
@@ -232,8 +246,10 @@ def get_V(mol: MultiMolecule, slice_mapping: SliceMapping,
         # Construct the distance matrices and calculate the potential energies
         for mol_subset in slice_iterator:
             dist = dist_func(mol, ij, ligand_count, contains_core, mol_subset=mol_subset)
-            elstat_df.loc[elstat_df.index[mol_subset], atoms] = get_V_elstat(charge, dist)
-            lj_df.loc[lj_df.index[mol_subset], atoms] = get_V_lj(sigma, epsilon, dist)
+            elstat_df.loc[elstat_df.index[mol_subset], atoms] = get_V_elstat(charge, dist,
+                                                                             shift_cutoff=shift)
+            lj_df.loc[lj_df.index[mol_subset], atoms] = get_V_lj(sigma, epsilon, dist,
+                                                                 shift_cutoff=shift)
             del dist
 
         if atoms[0] == atoms[1]:  # Avoid double-counting

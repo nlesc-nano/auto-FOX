@@ -6,6 +6,8 @@ input:
         method: FIST
         mm:
             forcefield:
+                ei_scale14: 1.0
+                vdw_scale14: 1.0
                 ignore_missing_critical_params: ''
                 parmtype: CHM
                 do_nonbonded: ''
@@ -13,10 +15,9 @@ input:
                 spline:
                     emax_spline: 10e10
             poisson:
+                periodic: NONE
                 ewald:
-                    ewald_type: spme
-                    alpha: .44
-                    gmax: 24
+                    ewald_type: NONE
         subsys:
             cell:
                 abc: '[angstrom] 50.0 50.0 50.0'

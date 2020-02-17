@@ -1,5 +1,6 @@
 """Tests for :mod:`FOX.recipes.psf`."""
 
+import warnings
 from os.path import join
 
 import numpy as np
@@ -51,6 +52,9 @@ def test_generate_psf2() -> None:
     np.testing.assert_array_equal(psf.bonds, ref)
 
     qd = QD.copy()
-    mol_list = generate_psf2(qd, 'CC(=O)[O-]', ret_failed_lig=True)
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        mol_list = generate_psf2(qd, 'CC(=O)[O-]', ret_failed_lig=True)
+
     assertion.len_eq(mol_list, 1)
     assertion.eq(mol_list[0].get_formula(), 'C2H2O3')
