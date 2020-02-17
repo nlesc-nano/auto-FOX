@@ -232,7 +232,10 @@ def get_V(mol: MultiMolecule, slice_mapping: SliceMapping,
     else:
         dist_func = functools.partial(_get_kd_dist, k=k, distance_upper_bound=distance_upper_bound)
 
-    shift = distance_upper_bound if (distance_upper_bound < np.inf and shift_cutoff) else None
+    if distance_upper_bound < np.inf and shift_cutoff:
+        shift = distance_upper_bound * Units.conversion_ratio('angstrom', 'au')
+    else:
+        shift = None
 
     for atoms, ij in slice_mapping.items():
         charge, epsilon, sigma = prm_mapping[atoms]
@@ -344,6 +347,7 @@ def get_V_elstat(q: float, dist: np.ndarray,
     shift_cutoff : :class:`float`, optional
         When not ``None``, add a constant to the returned potantials such
         that its value is zero at the specified distance.
+        Units should be in Bohr.
 
     Returns
     -------
@@ -396,6 +400,7 @@ def get_V_lj(sigma: float, epsilon: float, dist: np.ndarray,
     shift_cutoff : :class:`float`, optional
         When not ``None``, add a constant to the returned potantials such
         that its value is zero at the specified distance.
+        Units should be in Bohr.
 
     Returns
     -------

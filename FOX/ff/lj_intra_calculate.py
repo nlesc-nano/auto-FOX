@@ -170,7 +170,10 @@ def _get_V(prm_df: pd.DataFrame, mol: MultiMolecule, core_atoms: np.ndarray,
     len_mol = len(mol)
     slice_iterator = _get_slice_iterator(len_mol, dmat_size)
 
-    shift = distance_upper_bound if (distance_upper_bound < np.inf and shift_cutoff) else None
+    if distance_upper_bound < np.inf and shift_cutoff:
+        shift = distance_upper_bound * Units.conversion_ratio('angstrom', 'au')
+    else:
+        shift = None
 
     # Calculate the potential energies
     for mol_subset in slice_iterator:
