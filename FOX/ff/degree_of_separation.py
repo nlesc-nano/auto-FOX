@@ -70,17 +70,19 @@ def degree_of_separation(mol: Molecule, limit: float = np.inf,
         Raised if the passed Molecule has no bonds and **bond_mat** is ``None``.
 
     """
+    len_mol = len(mol)
+
     if bond_mat is None:
         if not mol.bonds:
             raise MoleculeError("The passed Molecule has no bonds")
         sparse_bond_mat = sparse_bond_matrix(mol, dtype=bool)
     else:
-        sparse_bond_mat = csr_matrix(bond_mat, dtype=bool, copy=False)
+        sparse_bond_mat = csr_matrix(bond_mat, dtype=bool, copy=False, shape=(len_mol, len_mol))
 
     return dijkstra(sparse_bond_mat,
                     directed=False,
                     limit=limit,
-                    indices=np.arange(len(mol)),
+                    indices=np.arange(len_mol),
                     return_predecessors=False)
 
 
@@ -121,15 +123,16 @@ def sparse_bond_matrix(mol: Molecule, dtype: Union[None, type, str, np.dtype] = 
     shape = bond_count, 2
 
     # Construct an array of row and column indices
-    iterator = chain.from_iterable(_bond_id_generator(mol))
-    bond_idx = np.fromiter(iterator, dtype=int, count=count)
+    iterator1 = chain.from_iterable(_bond_id_generator(mol))
+    bond_idx = np.fromiter(iterator1, dtype=int, count=count)
     bond_idx.shape = shape
 
     # Construct the to-be assigned data
     if dtype_ == bool:
         data = np.ones(bond_count, dtype=dtype_)
     else:
-        data = np.fromiter(2*[b.order for b in mol.bonds], count=bond_count, dtype=dtype_)
+        iterator2 = chain.from_iterable((b.order, b.order) for b in mol.bonds)
+        data = np.fromiter(iterator2, count=bond_count, dtype=dtype_)
 
     # Create and return the sparse matrix
     ret_shape = len(mol), len(mol)

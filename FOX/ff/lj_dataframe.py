@@ -19,8 +19,8 @@ API
 
 import textwrap
 from types import MappingProxyType
-from typing import Union, Iterable, Mapping, Dict, Tuple, Callable, Optional, Union
-from itertools import combinations_with_replacement
+from typing import Union, Iterable, Mapping, Dict, Tuple, Callable, Optional
+from itertools import combinations_with_replacement, chain, product
 from collections import abc
 
 import numpy as np
@@ -163,7 +163,8 @@ class LJDataFrame(pd.DataFrame):
             return None
 
         epsilon = nonbonded[i]
-        sigma = nonbonded[j]
+        sigma = nonbonded[j] * 2  # The .prm format stores sigma / 2, not sigma
+        sigma /= 2**(1/6)  # Convert r_min to sigma
         self.set_epsilon(epsilon, unit='kcal/mol')
         self.set_sigma(sigma, unit='angstrom')
 
@@ -174,7 +175,8 @@ class LJDataFrame(pd.DataFrame):
 
         is_null = nbfix[[i, j]].isnull().any(axis=1)
         epsilon_pair = nbfix.loc[~is_null, i]
-        sigma_pair = nbfix.loc[~is_null, j]
+        sigma_pair = nbfix.loc[~is_null, j] * 2  # The .prm format stores sigma / 2, not sigma
+        sigma_pair /= 2**(1/6)  # Convert r_min to sigma
 
         self.set_epsilon_pairs(epsilon_pair, unit='kcal/mol')
         self.set_sigma_pairs(sigma_pair, unit='angstrom')
@@ -184,14 +186,53 @@ class LJDataFrame(pd.DataFrame):
         charge_dict: Dict[str, float] = dict(zip(*read_rtf_file(rtf)))
         self.set_charge(charge_dict)
 
-    def overlay_psf(self, psf: Union[str, PRMContainer]) -> None:
+    def overlay_psf(self, psf: Union[str, PSFContainer]) -> None:
         r"""Overlay **df** with all :math:`q` values from **psf**."""
         if not isinstance(psf, PSFContainer):
             psf = PSFContainer.read(psf)
 
         charge = psf.atoms.set_index('atom type')['charge']
-        charge_dict = charge.to_dict()
+        charge_dict = self._update_atom_type(charge, psf)
         self.set_charge(charge_dict)
+
+    def _update_atom_type(self, series: pd.Series, psf: PSFContainer) -> Dict[str, float]:
+        """Update the atom types of all atom types with multiple non-unique charges."""
+        # Evaluate the Series for duplicate key/value pairs
+        idx, data = zip(*{kv for kv in series.items()})
+        series_unique = pd.Series(data, index=idx, name=series.name)
+        is_unique = ~series_unique.index.duplicated()
+        if is_unique.all():
+            return series_unique.to_dict()
+
+        # Rename duplicate elements within index
+        idx_update = '_' + series_unique.groupby(level=0).cumcount().astype(str)
+        series_unique.index += idx_update.replace('_0', '')
+
+        # Add new indices to the existing DataFrame
+        idx_set = set(chain.from_iterable(self.index))
+        idx_diff = set(series_unique.index).difference(chain.from_iterable(self.index))
+
+        for i, j in product(idx_set, idx_diff):
+            ij = tuple(sorted([i, j]))
+            ij_0 = tuple(sorted((i, j.split('_')[0])))
+            self.loc[ij, :] = self.loc[ij_0, :]
+
+        for i, j in product(idx_diff, idx_diff):
+            ij = tuple(sorted([i, j]))
+            ij_0 = tuple(sorted((i.split('_')[0], j.split('_')[0])))
+            self.loc[ij, :] = self.loc[ij_0, :]
+
+        self.sort_index(inplace=True)
+
+        # Update atom types in the PSFContainer
+        with pd.option_context('mode.chained_assignment', None):
+            for k2, v in series_unique.items():
+                if k2 in series:
+                    continue
+                k1 = k2.split('_')[0]
+                psf.atom_type[(psf.atom_type == k1) & (psf.charge == v)] = k2
+
+        return series_unique.to_dict()
 
     def _set_prm(self, atom_mapping: Mapping[str, float], key: str,
                  func: Callable[[Tuple[float, float]], float],

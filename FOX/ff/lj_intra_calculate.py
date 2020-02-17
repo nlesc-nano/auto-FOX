@@ -44,8 +44,10 @@ __all__ = ['get_intra_non_bonded']
 
 def get_intra_non_bonded(mol: Union[str, MultiMolecule], psf: Union[str, PSFContainer],
                          prm: Union[str, PRMContainer],
-                         scale_elstat: float = 0.0, scale_lj: float = 1.0,
-                         max_array_size: int = 10**8) -> Tuple[pd.DataFrame, pd.DataFrame]:
+                         distance_upper_bound: float = np.inf,
+                         shift_cutoff: bool = True,
+                         el_scale14: float = 1.0,
+                         lj_scale14: float = 1.0) -> Tuple[pd.DataFrame, pd.DataFrame]:
     r"""Collect forcefield parameters and calculate all non-covalent intra-ligand interactions in **mol**.
 
     Forcefield parameters (*i.e.* charges and Lennard-Jones :math:`\sigma` and
@@ -66,18 +68,22 @@ def get_intra_non_bonded(mol: Union[str, MultiMolecule], psf: Union[str, PSFCont
         A PRMContainer instance or the path+filename of a .prm file.
         Used for setting :math:`\sigma` and :math:`\varepsilon`.
 
-    scale_elstat : :class:`float`
+    distance_upper_bound : :class:`float`
+        Consider only atom-pairs within this distance.
+        Using ``inf`` will default to the full, untruncated, distance matrix.
+
+    shift_cutoff : :class:`bool`
+        Shift all potentials by a constant such that
+        it is equal to zero at **distance_upper_bound**.
+        Only relavent when ``distance_upper_bound < inf``.
+
+    el_scale14 : :class:`float`
         Scaling factor to apply to all 1,4-nonbonded electrostatic interactions.
         Serves the same purpose as the cp2k ``EI_SCALE14`` keyword.
 
-    scale_lj : :class:`float`
+    lj_scale14 : :class:`float`
         Scaling factor to apply to all 1,4-nonbonded Lennard-Jones interactions.
         Serves the same purpose as the cp2k ``VDW_SCALE14`` keyword.
-
-    max_array_size : :class:`int`
-        The maximum number of elements within the to-be created NumPy array.
-        NumPy's vectorized operations will be (partially) substituted for for-loops if the
-        array size is exceeded.
 
     Returns
     -------
@@ -86,7 +92,6 @@ def get_intra_non_bonded(mol: Union[str, MultiMolecule], psf: Union[str, PSFCont
         (intra--ligand) potential energy per atom-pair.
         The potential energy is summed over atoms with matching atom types.
         Units are in atomic units.
-
 
     """  # noqa
     if not isinstance(psf, PSFContainer):
@@ -110,6 +115,7 @@ def get_intra_non_bonded(mol: Union[str, MultiMolecule], psf: Union[str, PSFCont
     mol.atoms = psf.to_atom_dict()
     prm_df = _construct_df(mol, lig_atoms, psf, prm, pairs14=False)
     prm_df14 = _construct_df(mol, lig_atoms, psf, prm, pairs14=True)
+    mol.atoms = psf.to_atom_dict()
 
     # The .prm format allows one to specify special non-bonded interactions between
     # atoms three bonds removed
@@ -118,16 +124,20 @@ def get_intra_non_bonded(mol: Union[str, MultiMolecule], psf: Union[str, PSFCont
         prm_df14 = prm_df.copy()
 
     # Calculate the 1,4 - potential energies
-    elstat14_df, lj14_df = _get_V(prm_df14, mol, core_atoms, depth_comparison=operator.__eq__)
-    elstat14_df *= scale_elstat
-    lj14_df *= scale_lj
+    elstat14_df, lj14_df = _get_V(prm_df14, mol, core_atoms,
+                                  shift_cutoff=shift_cutoff,
+                                  distance_upper_bound=distance_upper_bound,
+                                  depth_comparison=operator.__eq__)
+    elstat14_df *= el_scale14
+    lj14_df *= lj_scale14
 
     # Calculate the total potential energies
-    elstat_df, lj_df = _get_V(prm_df, mol.copy(), core_atoms, depth_comparison=operator.__gt__)
+    elstat_df, lj_df = _get_V(prm_df, mol, core_atoms,
+                              shift_cutoff=shift_cutoff,
+                              distance_upper_bound=distance_upper_bound,
+                              depth_comparison=operator.__gt__)
     elstat_df += elstat14_df
-    elstat_df /= 2
     lj_df += lj14_df
-    lj_df /= 2
 
     return elstat_df, lj_df
 
@@ -137,8 +147,10 @@ ANGSTROM2AU: float = Units.conversion_ratio('angstrom', 'au')
 
 
 def _get_V(prm_df: pd.DataFrame, mol: MultiMolecule, core_atoms: np.ndarray,
+           distance_upper_bound: float = np.inf,
+           shift_cutoff: bool = True,
            depth_comparison: DepthComparison = operator.__ge__,
-           max_array_size: int = 10**8) -> Tuple[pd.DataFrame, pd.DataFrame]:
+           ) -> Tuple[pd.DataFrame, pd.DataFrame]:
     """Construct the distance matrix; calculate the potential and update the **prm_df** with the energies."""  # noqa
     ij = _get_idx(mol, core_atoms, depth_comparison=depth_comparison).T
 
@@ -151,25 +163,33 @@ def _get_V(prm_df: pd.DataFrame, mol: MultiMolecule, core_atoms: np.ndarray,
         return elstat_df, lj_df
 
     # Map each atom-index pair (ij) to a pair of atomic symbols (more specifically: their hashes)
-    mol.atoms = {hash(k): v for k, v in mol.atoms.items()}
     symbol = mol.symbol[ij]
     symbol.sort(axis=1)
 
     dmat_size = len(ij)  # The size of a single (2D) distance matrix
     len_mol = len(mol)
-    slice_iterator = _get_slice_iterator(len_mol, dmat_size, max_array_size)
+    slice_iterator = _get_slice_iterator(len_mol, dmat_size)
+
+    if distance_upper_bound < np.inf and shift_cutoff:
+        shift = distance_upper_bound * Units.conversion_ratio('angstrom', 'au')
+    else:
+        shift = None
 
     # Calculate the potential energies
     for mol_subset in slice_iterator:
         dist = _dist(mol[mol_subset] * ANGSTROM2AU, ij)  # Construct the distance matrix
+        if distance_upper_bound != np.inf:
+            dist[dist > distance_upper_bound] = np.nan
 
         for idx, items in prm_df[['charge', 'epsilon', 'sigma']].iterrows():
-            idx_hash = sorted(hash(i) for i in idx)
-            dist_slice = dist[:, np.all(symbol == idx_hash, axis=1)]
+            dist_slice = dist[:, np.all(symbol == sorted(idx), axis=1)]
 
             charge, epsilon, sigma = items
-            elstat_df.loc[elstat_df.index[mol_subset], idx] = get_V_elstat(charge, dist_slice)
-            lj_df.loc[lj_df.index[mol_subset], idx] = get_V_lj(sigma, epsilon, dist_slice)
+            elstat_df.loc[elstat_df.index[mol_subset], idx] = get_V_elstat(charge, dist_slice,
+                                                                           shift_cutoff=shift)
+            lj_df.loc[lj_df.index[mol_subset], idx] = get_V_lj(sigma, epsilon,
+                                                               dist_slice,
+                                                               shift_cutoff=shift)
     return elstat_df, lj_df
 
 
@@ -178,8 +198,8 @@ def _construct_df(mol: MultiMolecule, lig_atoms: np.ndarray,
                   pairs14: bool = False) -> LJDataFrame:
     """Construct the DataFrame for :func:`get_intra_non_bonded`."""
     prm_df = LJDataFrame(index=set(mol.symbol[lig_atoms]))
-    prm_df.overlay_psf(psf)
     prm_df.overlay_prm(prm, pairs14=pairs14)
+    prm_df.overlay_psf(psf)
     prm_df.dropna(inplace=True)
     return prm_df
 
@@ -187,12 +207,12 @@ def _construct_df(mol: MultiMolecule, lig_atoms: np.ndarray,
 def _get_idx(mol: MultiMolecule, core_atoms: np.ndarray, inf2value: Optional[float] = 0.0,
              depth_comparison: DepthComparison = operator.__ge__) -> np.ndarray:
     """Construct the array with all atom-pairs valid for intra-moleculair non-covalent interactions."""  # noqa
-    bonds = mol.atom12
-    data = np.ones(2 * len(bonds), dtype=bool)
-    rows, columns = np.vstack([bonds, bonds[:, ::-1]]).T
+    data = np.ones(len(mol.bonds), dtype=bool)
+    rows, columns = mol.atom12.T
 
     depth_mat = degree_of_separation(mol[0], bond_mat=(data, (rows, columns)))
     if inf2value is not None:
         depth_mat[np.isposinf(depth_mat)] = inf2value
-    ret = np.array(np.where(depth_comparison(depth_mat, 3)))
-    return ret
+
+    depth_mat_triu = np.triu(depth_mat)  # Ignore all pairs below the diagonal
+    return np.array(np.where(depth_comparison(depth_mat_triu, 3)))

@@ -3,6 +3,8 @@ input:
     method: FIST
     mm:
       forcefield:
+        ei_scale14: 1.0
+        vdw_scale14: 1.0
         charge:
         - atom: CG2O3
           charge: '0.452400'
@@ -36,10 +38,9 @@ input:
         spline:
           emax_spline: 10e10
       poisson:
+        periodic: NONE
         ewald:
-          alpha: 0.44
-          ewald_type: spme
-          gmax: 24
+          ewald_type: NONE
     subsys:
       cell:
         abc: '[angstrom] 50.0 50.0 50.0'

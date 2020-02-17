@@ -39,10 +39,13 @@ from ..classes.multi_mol import MultiMolecule
 from ..io.read_psf import PSFContainer
 from ..io.read_prm import PRMContainer
 
-__all__ = ['get_non_bonded', 'get_V']
+__all__ = ['get_non_bonded', 'get_V', 'MAX_ARRAY_SIZE']
 
 SliceMapping = Mapping[Tuple[str, str], Tuple[Sequence[int], Sequence[int]]]
 PrmMapping = Mapping[Tuple[str, str], Tuple[float, float, float]]
+
+#: The maximum number of elements to-be simultaneously stored in a single ndarray
+MAX_ARRAY_SIZE: int = 10**8
 
 
 def get_non_bonded(mol: Union[str, MultiMolecule],
@@ -50,8 +53,8 @@ def get_non_bonded(mol: Union[str, MultiMolecule],
                    prm: Union[None, str, PRMContainer] = None,
                    rtf: Optional[str] = None,
                    cp2k_settings: Optional[Mapping] = None,
-                   max_array_size: int = 10**8,
                    distance_upper_bound: float = np.inf, k: int = 20,
+                   shift_cutoff: bool = True,
                    atom_pairs: Optional[Iterable[Tuple[str, str]]] = None
                    ) -> Tuple[pd.DataFrame, pd.DataFrame]:
     r"""Collect forcefield parameters and calculate all non-covalent interactions in **mol**.
@@ -95,11 +98,16 @@ def get_non_bonded(mol: Union[str, MultiMolecule],
 
     distance_upper_bound : :class:`float`
         Consider only atom-pairs within this distance.
-        Using ``inf`` will default to the full, untracted, distance matrix.
+        Using ``inf`` will default to the full, untruncated, distance matrix.
 
     k : :class:`int`
         The (maximum) number of to-be considered atom-pairs.
         Only relevant when **distance_upper_bound** is not set ``inf``.
+
+    shift_cutoff : :class:`bool`
+        Shift all potentials by a constant such that
+        it is equal to zero at **distance_upper_bound**.
+        Only relavent when ``distance_upper_bound < inf``.
 
     atom_pairs : :class:`Iterable<collections.abc.Iterable>` [:class:`tuple`], optional
         Explicitly specify all to-be considered atom-pairs.
@@ -129,15 +137,15 @@ def get_non_bonded(mol: Union[str, MultiMolecule],
         mol = MultiMolecule.from_xyz(mol)
     else:
         mol = mol.copy(deep=False)
-    mol.atoms = mol_atoms = psf.to_atom_dict()
 
     # Create the parameter DataFrame
-    prm_df = LJDataFrame(index=mol_atoms.keys())
-    prm_df.overlay_psf(psf)
+    prm_df = LJDataFrame(index=psf.to_atom_dict())
     if prm is not None:
         prm_df.overlay_prm(prm)
     if cp2k_settings is not None:
         prm_df.overlay_cp2k_settings(cp2k_settings)
+    prm_df.overlay_psf(psf)
+    mol.atoms = psf.to_atom_dict()
 
     # Delete all rows from prm_df whose indices are not in **atom_pairs**
     if atom_pairs is not None:
@@ -149,7 +157,7 @@ def get_non_bonded(mol: Union[str, MultiMolecule],
     slice_dict = {}
     for i, j in prm_df.index:
         try:
-            slice_dict[i, j] = mol_atoms[i], mol_atoms[j]
+            slice_dict[i, j] = mol.atoms[i], mol.atoms[j]
         except KeyError:
             pass
 
@@ -158,15 +166,14 @@ def get_non_bonded(mol: Union[str, MultiMolecule],
     ligand_count = psf.residue_id.max() - 1
     return get_V(mol, slice_dict, prm_df.loc, ligand_count,
                  k=k, core_atoms=core_atoms,
-                 max_array_size=max_array_size,
                  distance_upper_bound=distance_upper_bound)
 
 
 def get_V(mol: MultiMolecule, slice_mapping: SliceMapping,
           prm_mapping: PrmMapping, ligand_count: int,
           core_atoms: Optional[Iterable[str]] = None,
-          max_array_size: int = 10**8,
-          distance_upper_bound: float = np.inf, k: int = 20) -> Tuple[pd.DataFrame, pd.DataFrame]:
+          distance_upper_bound: float = np.inf, k: int = 20,
+          shift_cutoff: bool = True) -> Tuple[pd.DataFrame, pd.DataFrame]:
     r"""Calculate all non-covalent interactions averaged over all molecules in **mol**.
 
     Parameters
@@ -188,17 +195,17 @@ def get_V(mol: MultiMolecule, slice_mapping: SliceMapping,
     core_atoms : :class:`set` [:class:`str`], optional
         A set of all atoms within the core.
 
-    max_array_size : :class:`int`
-        The maximum number of elements within the to-be created NumPy array.
-        NumPy's vectorized operations will be (partially) substituted for for-loops if the
-        array size is exceeded.
-
     distance_upper_bound : :class:`float`
         Consider only atom-pairs within this distance.
 
     k : :class:`int`
         The (maximum) number of to-be considered atom-pairs.
         Only relevant when **distance_upper_bound** is not set ``inf``.
+
+    shift_cutoff : :class:`bool`
+        Shift all potentials by a constant such that
+        it is equal to zero at **distance_upper_bound**.
+        Only relavent when ``distance_upper_bound < inf``.
 
     Returns
     -------
@@ -225,6 +232,11 @@ def get_V(mol: MultiMolecule, slice_mapping: SliceMapping,
     else:
         dist_func = functools.partial(_get_kd_dist, k=k, distance_upper_bound=distance_upper_bound)
 
+    if distance_upper_bound < np.inf and shift_cutoff:
+        shift = distance_upper_bound * Units.conversion_ratio('angstrom', 'au')
+    else:
+        shift = None
+
     for atoms, ij in slice_mapping.items():
         charge, epsilon, sigma = prm_mapping[atoms]
         contains_core = bool(core_atoms.intersection(atoms))
@@ -232,13 +244,15 @@ def get_V(mol: MultiMolecule, slice_mapping: SliceMapping,
         # Construct a :class:`slice` iterator based on the expected array size.
         # Precaution against creating arrays too large to hold in memory
         dmat_size = len(ij[0]) * (k or len(ij[1]))
-        slice_iterator = _get_slice_iterator(len(mol), dmat_size, max_array_size)
+        slice_iterator = _get_slice_iterator(len(mol), dmat_size)
 
         # Construct the distance matrices and calculate the potential energies
         for mol_subset in slice_iterator:
             dist = dist_func(mol, ij, ligand_count, contains_core, mol_subset=mol_subset)
-            elstat_df.loc[elstat_df.index[mol_subset], atoms] = get_V_elstat(charge, dist)
-            lj_df.loc[lj_df.index[mol_subset], atoms] = get_V_lj(sigma, epsilon, dist)
+            elstat_df.loc[elstat_df.index[mol_subset], atoms] = get_V_elstat(charge, dist,
+                                                                             shift_cutoff=shift)
+            lj_df.loc[lj_df.index[mol_subset], atoms] = get_V_lj(sigma, epsilon, dist,
+                                                                 shift_cutoff=shift)
             del dist
 
         if atoms[0] == atoms[1]:  # Avoid double-counting
@@ -295,13 +309,12 @@ def _get_kd_dist(mol: MultiMolecule, ij: np.ndarray, ligand_count: int,
     return dist
 
 
-def _get_slice_iterator(stop: int, dmat_size: int,
-                        max_array_size: int = 10**8) -> Generator[slice, None, None]:
+def _get_slice_iterator(stop: int, dmat_size: int) -> Generator[slice, None, None]:
     """Return a generator yielding :class:`slice` instances for :func:`get_V`."""
-    if stop * dmat_size < max_array_size:
+    if stop * dmat_size < MAX_ARRAY_SIZE:
         step = stop
     else:
-        step = max(1, math.floor(max_array_size / dmat_size))
+        step = max(1, math.floor(MAX_ARRAY_SIZE / dmat_size))
 
     # Yield the slices
     start = 0
@@ -310,7 +323,8 @@ def _get_slice_iterator(stop: int, dmat_size: int,
         start += step
 
 
-def get_V_elstat(q: float, dist: np.ndarray) -> np.ndarray:
+def get_V_elstat(q: float, dist: np.ndarray,
+                 shift_cutoff: Optional[float] = None) -> np.ndarray:
     r"""Calculate and sum the electrostatic potential energy given a distance matrix **dist**..
 
     .. math::
@@ -325,8 +339,14 @@ def get_V_elstat(q: float, dist: np.ndarray) -> np.ndarray:
     ----------
     q : :class:`float`
         The product of two charges :math:`q_{ij}`.
+
     dist : :class:`numpy.ndarray`
         The distance matrix :math:`r_{ij}`.
+        Units should be in Bohr.
+
+    shift_cutoff : :class:`float`, optional
+        When not ``None``, add a constant to the returned potantials such
+        that its value is zero at the specified distance.
         Units should be in Bohr.
 
     Returns
@@ -336,12 +356,15 @@ def get_V_elstat(q: float, dist: np.ndarray) -> np.ndarray:
         axises ``>= 1``.
 
     """
-    ret = q / dist
+    ret = q / np.asarray(dist)
     axis = tuple(range(1, ret.ndim))
+    if shift_cutoff is not None:
+        ret -= get_V_elstat(q, shift_cutoff, shift_cutoff=None)
     return np.nansum(ret, axis=axis)
 
 
-def get_V_lj(sigma: float, epsilon: float, dist: np.ndarray) -> np.ndarray:
+def get_V_lj(sigma: float, epsilon: float, dist: np.ndarray,
+             shift_cutoff: Optional[float] = None) -> np.ndarray:
     r"""Calculate and sum the Lennard-Jones potential given a distance matrix **dist**.
 
     .. math::
@@ -365,11 +388,18 @@ def get_V_lj(sigma: float, epsilon: float, dist: np.ndarray) -> np.ndarray:
     sigma : :class:`float`
         The arithmetic mean of two :math:`\sigma` parameters: :math:`\sigma_{ij}`.
         Units should be in Bohr.
+
     epsilon : :class:`float`
         The geometric mean of two :math:`\varepsilon` parameters: :math:`\varepsilon_{ij}`.
         Units should be in Hartree.
+
     dist : :class:`numpy.ndarray`
         The distance matrix :math:`r_{ij}`.
+        Units should be in Bohr.
+
+    shift_cutoff : :class:`float`, optional
+        When not ``None``, add a constant to the returned potantials such
+        that its value is zero at the specified distance.
         Units should be in Bohr.
 
     Returns
@@ -379,8 +409,11 @@ def get_V_lj(sigma: float, epsilon: float, dist: np.ndarray) -> np.ndarray:
         axises ``>= 1``.
 
     """
-    sigma_dist = (sigma / dist)**6
+    sigma_dist = (sigma / np.asarray(dist))**6
     lj = sigma_dist**2 - sigma_dist
     lj *= epsilon * 4
+
     axis = tuple(range(1, lj.ndim))
+    if shift_cutoff is not None:
+        lj -= get_V_lj(sigma, epsilon, shift_cutoff, shift_cutoff=None)
     return np.nansum(lj, axis=axis)

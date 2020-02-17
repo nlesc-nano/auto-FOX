@@ -6,6 +6,20 @@ All notable changes to this project will be documented in this file.
 This project adheres to `Semantic Versioning <http://semver.org/>`_.
 
 
+0.7.3
+*****
+* Updated the default CP2K Settings template.
+* Employ more rigorous index-sorting when creating the .psf bonds,
+  angles, dihedrals and impropers sections.
+* Fixed a bug where values reported by ``degree_of_separation()`` were
+  incorrectly ordered when ``dtype != bool``.
+* Added the ``shift_cutoff`` keyword for the calculation of all forcefield non-bonded potential energies.
+  Sets the value of the potentials to zero at the specified ``distance_upper_bound``.
+* Fixed an issue where sigma-values produced by .prm files were not properly parsed.
+* Fixed an issue where multiple potentials for a single set of dihedrals were not properly parsed.
+* Further miscellaneous improvements and fixes to the ``FOX.ff`` modules.
+
+
 0.7.2
 *****
 * All forcefield related energies are now returned in their entirety,
