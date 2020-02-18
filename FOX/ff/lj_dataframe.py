@@ -200,8 +200,6 @@ class LJDataFrame(pd.DataFrame):
         # Evaluate the Series for duplicate key/value pairs
         idx, data = zip(*{kv for kv in series.items()})
         series_unique = pd.Series(data, index=idx, name=series.name)
-        series_unique = series_unique.loc[np.isin(series_unique.index,
-                                                  list(set(chain.from_iterable(self.index))))]
         is_unique = ~series_unique.index.duplicated()
         if is_unique.all():
             return series_unique.to_dict()
