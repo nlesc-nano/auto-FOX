@@ -150,7 +150,7 @@ def _sort_index(index: pd.MultiIndex) -> pd.MultiIndex:
     return pd.MultiIndex.from_tuples(ret, names=index.names)
 
 
-def _populate_keys(settings: Settings, param: pd.DataFrame) -> None:
+def _populate_keys(settings: Settings, param: pd.DataFrame, update_keys: bool = True) -> None:
     """Populate the settings blocks specified in :func:`.set_keys`.
 
     Examples
@@ -210,7 +210,11 @@ def _populate_keys(settings: Settings, param: pd.DataFrame) -> None:
             idx = len(nested_value)
             dict_ = Settings({atom: at, k: fstring.format(prm)})
             nested_value.append(dict_)
-            keys += [idx, k]
+            if update_keys:
+                keys += [idx, k]
         else:  # Intersecting set of input blocks
-            keys += [idx, k]
-            settings.set_nested(keys, fstring.format(prm))
+            if update_keys:
+                keys += [idx, k]
+                settings.set_nested(keys, fstring.format(prm))
+            else:
+                settings.set_nested(keys + [idx, k], fstring.format(prm))
