@@ -102,13 +102,25 @@ def guess_param(armc: ARMC, mode: str = 'rdf',
 
 def populate_keys(armc: ARMC, df: pd.DataFrame) -> None:
     """Update all cp2k Settings in **armc** with the new parameters from **df**."""
+    keys = df['keys'].copy()
+    keys[:] = [l.copy() for l in keys.values]
+
     # Update the job Settings
-    for s in armc.md_settings:
-        _populate_keys(s, df)
+    s_iterator = iter(armc.md_settings)
+    s = next(s_iterator)
+    _populate_keys(s, df)
+
+    keys_backup = df['keys'].copy()
+    df['keys'] = keys
+
+    for s in s_iterator:
+        _populate_keys(s, df, update_keys=False)
 
     if armc.preopt_settings is not None:
         for s in armc.preopt_settings:
-            _populate_keys(s, df)
+            _populate_keys(s, df, update_keys=False)
+
+    df['keys'] = keys_backup
 
 
 def _transform_df(df: pd.DataFrame) -> pd.DataFrame:
@@ -153,7 +165,8 @@ def _process_df(armc: ARMC) -> Tuple[LJDataFrame, List['MultiMolecule']]:
         mol.atoms = psf.to_atom_dict()
 
     # COnstruct a dataframe with all to-be guessed parameters
-    df = LJDataFrame(np.nan, index=chain.from_iterable(mol.atoms.keys() for mol in mol_list))
+    idx = set(chain.from_iterable(mol.atoms.keys() for mol in mol_list))
+    df = LJDataFrame(np.nan, index=sorted(idx))
     for s in armc.md_settings:
         df.overlay_prm(s.input.force_eval.mm.forcefield.parm_file_name)
         df.overlay_cp2k_settings(s)
