@@ -76,6 +76,7 @@ def get_intra_non_bonded(mol: Union[str, MultiMolecule], psf: Union[str, PSFCont
         Shift all potentials by a constant such that
         it is equal to zero at **distance_upper_bound**.
         Only relavent when ``distance_upper_bound < inf``.
+        Serves the same purpose as the cp2k ``SHIFT_CUTOFF`` keyword.
 
     el_scale14 : :class:`float`
         Scaling factor to apply to all 1,4-nonbonded electrostatic interactions.
@@ -117,11 +118,22 @@ def get_intra_non_bonded(mol: Union[str, MultiMolecule], psf: Union[str, PSFCont
     prm_df14 = _construct_df(mol, lig_atoms, psf, prm, pairs14=True)
     mol.atoms = psf.to_atom_dict()
 
+    # Convert Angstroem to bohr
+    mol *= Units.conversion_ratio('angstrom', 'au')
+    distance_upper_bound *= Units.conversion_ratio('angstrom', 'au')
+
     # The .prm format allows one to specify special non-bonded interactions between
     # atoms three bonds removed
     # If not specified, do not distinguish between atoms removed 3 and >3 bonds
     if prm_df14.isnull().values.all():
         prm_df14 = prm_df.copy()
+
+    elif el_scale14 == lj_scale14 == 1:
+        # Don't bother with a separate calculation for 1,4-nonbonded interactions
+        return _get_V(prm_df, mol, core_atoms,
+                      shift_cutoff=shift_cutoff,
+                      distance_upper_bound=distance_upper_bound,
+                      depth_comparison=operator.__ge__)
 
     # Calculate the 1,4 - potential energies
     elstat14_df, lj14_df = _get_V(prm_df14, mol, core_atoms,
@@ -143,7 +155,6 @@ def get_intra_non_bonded(mol: Union[str, MultiMolecule], psf: Union[str, PSFCont
 
 
 DepthComparison = Callable[[np.ndarray, int], np.ndarray]
-ANGSTROM2AU: float = Units.conversion_ratio('angstrom', 'au')
 
 
 def _get_V(prm_df: pd.DataFrame, mol: MultiMolecule, core_atoms: np.ndarray,
@@ -171,25 +182,29 @@ def _get_V(prm_df: pd.DataFrame, mol: MultiMolecule, core_atoms: np.ndarray,
     slice_iterator = _get_slice_iterator(len_mol, dmat_size)
 
     if distance_upper_bound < np.inf and shift_cutoff:
-        shift = distance_upper_bound * Units.conversion_ratio('angstrom', 'au')
+        shift = distance_upper_bound
     else:
         shift = None
 
     # Calculate the potential energies
     for mol_subset in slice_iterator:
-        dist = _dist(mol[mol_subset] * ANGSTROM2AU, ij)  # Construct the distance matrix
+        dist = _dist(mol[mol_subset], ij)  # Construct the distance matrix
         if distance_upper_bound != np.inf:
             dist[dist > distance_upper_bound] = np.nan
 
         for idx, items in prm_df[['charge', 'epsilon', 'sigma']].iterrows():
-            dist_slice = dist[:, np.all(symbol == sorted(idx), axis=1)]
-
+            dist_slice = dist[:, (symbol == sorted(idx)).all(axis=1)]
             charge, epsilon, sigma = items
-            elstat_df.loc[elstat_df.index[mol_subset], idx] = get_V_elstat(charge, dist_slice,
-                                                                           shift_cutoff=shift)
-            lj_df.loc[lj_df.index[mol_subset], idx] = get_V_lj(sigma, epsilon,
-                                                               dist_slice,
-                                                               shift_cutoff=shift)
+
+            elstat_df.loc[elstat_df.index[mol_subset], idx] = get_V_elstat(
+                charge, dist_slice, shift_cutoff=shift
+
+            )
+
+            lj_df.loc[lj_df.index[mol_subset], idx] = get_V_lj(
+                sigma, epsilon, dist_slice, shift_cutoff=shift
+            )
+
     return elstat_df, lj_df
 
 
