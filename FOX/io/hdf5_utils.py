@@ -262,7 +262,7 @@ def _get_kwarg_dict(armc: 'FOX.ARMC') -> Settings:
     ret.acceptance.shape = shape
     ret.acceptance.dtype = bool
 
-    ret.aux_error.shape = shape + (len(armc.molecule), len(armc.pes))
+    ret.aux_error.shape = shape + (len(armc.molecule), len(armc.pes) // len(armc.molecule))
     ret.aux_error.dtype = float
     ret.aux_error.fillvalue = np.nan
     ret.aux_error_mod.shape = shape + (1 + len(armc.param), )
@@ -476,7 +476,7 @@ def from_hdf5(filename: Union[AnyStr, PathLike],
         except KeyError as ex:
             err = "No dataset '{}' in '{}'. The following datasets are available: {}"
             arg = str(ex).split("'")[1], str(filename), list(f.keys())
-            raise KeyError(err.format(*arg))
+            raise KeyError(err.format(*arg)) from ex
 
     # Return a DataFrame/Series or dictionary of DataFrames/Series
     if len(ret) == 1:
@@ -720,6 +720,7 @@ def _aux_err_to_df(f: H5pyFile, key: Hashable) -> Union[pd.DataFrame, List[pd.Da
     columns = array_to_index(f[key].attrs['index'][:])
     data = f[key][:]
     data.shape = np.product(data.shape[:-2], dtype=int), -1
+
     ret = pd.DataFrame(data, columns=columns)
     ret.index.name = f[key].attrs['name'][0].decode()
     return ret
