@@ -1,13 +1,106 @@
 """A module with miscellaneous functions related to CP2K."""
 
+import reprlib
+from types import MappingProxyType
+from typing import Mapping, Union, Optional
+
 import numpy as np
 import pandas as pd
+from scipy import constants
 
-from scm.plams import Settings
+from scm.plams import Settings, Units
 
 from .charge_utils import assign_constraints
 
-__all__ = ['set_keys']
+__all__ = ['set_keys', 'parse_cp2k_value']
+
+# Multiplicative factor for converting Hartree into Kelvin
+Units.energy['k'] = Units.energy['kelvin'] = (
+    constants.physical_constants['Hartree energy'][0] / constants.Boltzmann
+)
+
+#: Map CP2K units to PLAMS units.
+UNIT_MAP: Mapping[str, str] = MappingProxyType({
+    '[hartree]': 'Hartree',
+    '[ev]': 'eV',
+    '[kcalmol]': 'kcal/mol',
+    '[kjmol]': 'kj/mol',
+    '[k_e]': 'kelvin',
+
+    '[bohr]': 'Bohr',
+    '[pm]': 'pm',
+    '[nm]': 'nm',
+    '[angstrom]': 'Angstrom'
+})
+
+
+def parse_cp2k_value(param: Union[str, float], unit: str,
+                     default_unit: Optional[str] = None) -> float:
+    """Parse and return the provided CP2K input parameter **param**.
+
+    Examples
+    --------
+    Examples of valid input values for **param**.
+
+    .. code:: python
+
+        >>> param1: str = '[angstrom] 2.0'
+        >>> param2: str = '2.5'
+        >>> param3: float = 9.3
+        >>> param4: int = 2
+        ...
+
+
+    Parameters
+    ----------
+    param : :class:`str` or :class:`float`
+        the parameter.
+
+    unit : :class:`str`
+        The desired output unit of **param**.
+
+    default_unit :class:`str`, optional
+        The default input unit of **param** for when its unit is not explicitly specified.
+        Will be ignored if ``None``.
+
+    Returns
+    -------
+    :class:`float`
+        The value **param** expressed in **unit**.
+
+    Raises
+    ------
+    :exc:`ValueError`
+        Raised if
+
+    """
+    default_unit = unit if default_unit is None else default_unit
+
+    # Identify the unit and the quantity of interest
+    if not isinstance(param, str):
+        value_unit = None
+    else:
+        value_unit, param = param.split()
+
+    # Convert the passed quantity into a float
+    try:
+        value = float(param)
+    except (TypeError, ValueError) as ex:
+        msg = f"Failed to create a 'float' from object {reprlib.repr(param)}"
+        if isinstance(ex, TypeError):
+            msg += f" of type {param.__class__.__name__!r}"
+        raise type(ex)(msg) from ex
+
+    if not value_unit:
+        return value * Units.conversion_ratio(default_unit, unit)
+
+    # Correct the units
+    try:  # Convert from CP2K to PLAMS Units
+        value_unit_parsed = UNIT_MAP[value_unit.lower()]
+    except KeyError as ex:
+        raise ValueError(f"Invalid unit {value_unit.lower()!r};\naccepted units: "
+                         f"{tuple(UNIT_MAP.keys())!r}") from ex
+    return value * Units.conversion_ratio(value_unit_parsed, unit)
 
 
 def set_subsys_kind(settings: Settings, df: pd.DataFrame) -> None:

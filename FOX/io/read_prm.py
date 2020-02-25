@@ -9,16 +9,18 @@ Index
 .. currentmodule:: FOX.io.read_prm
 .. autosummary::
     PRMContainer
+    PRMContainer.read
+    PRMContainer.write
+    PRMContainer.overlay_cp2k_settings
 
 API
 ---
 .. autoclass:: PRMContainer
-    :members:
-    :private-members:
-    :special-members:
+.. automethod:: PRMContainer.read
+.. automethod:: PRMContainer.write
+.. automethod:: PRMContainer.overlay_cp2k_settings
 
 """
-
 import inspect
 from types import MappingProxyType
 from typing import Any, Iterator, Dict, Tuple, Set, Mapping, List, Union, Hashable, Optional
@@ -27,9 +29,12 @@ from collections import abc
 
 import numpy as np
 import pandas as pd
+
+from scm.plams import Settings
 from assertionlib.dataclass import AbstractDataClass
 
 from .file_container import AbstractFileContainer
+from ..functions.cp2k_utils import parse_cp2k_value
 
 __all__ = ['PRMContainer']
 
@@ -162,6 +167,11 @@ class PRMContainer(AbstractDataClass, AbstractFileContainer):
 
     @classmethod
     @AbstractFileContainer.inherit_annotations()
+    def read(cls, filename, encoding=None, **kwargs):
+        return super().read(filename, encoding, **kwargs)
+
+    @classmethod
+    @AbstractFileContainer.inherit_annotations()
     def _read_iterate(cls, iterator):
         ret = {}
         value = None
@@ -278,3 +288,82 @@ class PRMContainer(AbstractDataClass, AbstractFileContainer):
                 write(write_str)
 
         write('\nEND\n')
+
+    """######################### Methods for updating the PRMContainer ##########################"""
+
+    def overlay_cp2k_settings(self, cp2k_settings: Mapping, nonbonded14: bool = False) -> None:
+        """Extract non-bonded information from PLAMS-style CP2K settings.
+
+        Performs an inplace update of this instance.
+
+        Examples
+        --------
+        Example input value for **cp2k_settings**.
+        In the provided example the **cp2k_settings** are directly extracted from a CP2K .inp file.
+
+        .. code:: python
+
+            >>> import cp2kparser  # https://github.com/nlesc-nano/CP2K-Parser
+
+            >>> filename = str(...)
+
+            >>> cp2k_settings: dict = cp2kparser.read_input(filename)
+            >>> print(cp2k_settings)
+            {'force_eval': {'mm': {'forcefield': {'nonbonded': {'lennard-jones': [...]}}}}}
+
+
+        Note
+        ----
+        If **cp2k_settings** is provided as a :class:`Settings<scm.plams.core.settings.Settings>`
+        instance then it is recommended to do so with the
+        :meth:`Settings.supress_missing()<scm.plams.core.settings.Settings.supress_missing>`
+        context manager opened.
+
+        Parameters
+        ----------
+        cp2k_settings : :class:`Mapping<collections.abc.Mapping>`
+            A Mapping with PLAMS-style CP2K settings.
+
+        nonbonded14 : :class:`bool`
+            If ``True``, read the CP2K ``"nonbonded14"`` rather than the ``"nonbonded"`` section.
+
+        """
+        # Read either the nonbonded or 1,4-nonbonded interactions
+        if nonbonded14:
+            nonbonded = 'nonbonded14'
+            columns = [4, 5]
+        else:
+            nonbonded = 'nonbonded'
+            columns = [2, 3]
+
+        # Define the path of nested keys
+        key_tup = ('input', 'force_eval', 'mm', 'forcefield', nonbonded, 'lennard-jones')
+        if 'input' not in cp2k_settings:
+            key_tup = key_tup[1:]
+
+        # Extract the appropiate sequence of dictionaries
+        lj_iter = Settings.get_nested(cp2k_settings, key_tup)
+        if isinstance(lj_iter, Mapping):
+            lj_iter = (lj_iter,)
+
+        # Ensure that nbfix is DataFrame and not None
+        if self.nbfix is None:
+            self.nbfix = pd.DataFrame()
+            self._process_df(self.nbfix, 'nbfix')
+
+        # Extract, parse and write the values
+        for i, lj_dict in enumerate(lj_iter):
+            try:
+                index = tuple(sorted(lj_dict['atoms'].split()))
+                _epsilon = lj_dict['epsilon']
+                _sigma = lj_dict['sigma']
+            except KeyError as ex:
+                raise KeyError(f"Failed to extract the {ex} key from "
+                               f"{key_tup[-1]!r} block {i}") from ex
+            epsilon = parse_cp2k_value(_epsilon, unit='kcal/mol', default_unit='kelvin')
+            sigma = parse_cp2k_value(_sigma, unit='angstrom')
+
+            # Convert sigma into R / 2, i.e. the equilibrium distance divided by 2
+            r_2 = sigma * 2**(1/6)
+            r_2 /= 2
+            self.nbfix.loc[index, columns] = epsilon, r_2
