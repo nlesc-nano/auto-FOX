@@ -18,7 +18,6 @@ API
     :special-members:
 
 """
-
 import inspect
 from types import MappingProxyType
 from typing import Any, Iterator, Dict, Tuple, Set, Mapping, List, Union, Hashable, Optional
@@ -27,9 +26,12 @@ from collections import abc
 
 import numpy as np
 import pandas as pd
+
+from scm.plams import Settings
 from assertionlib.dataclass import AbstractDataClass
 
 from .file_container import AbstractFileContainer
+from ..functions.cp2k_utils import parse_cp2k_value
 
 __all__ = ['PRMContainer']
 
@@ -278,3 +280,56 @@ class PRMContainer(AbstractDataClass, AbstractFileContainer):
                 write(write_str)
 
         write('\nEND\n')
+
+    """######################### Methods for updating the PRMContainer ##########################"""
+
+    def overlay_cp2k_settings(self, cp2k_settings: Mapping) -> None:
+        """Extract non-bonded information from PLAMS-style CP2K settings.
+
+        Performs an inplace update of this instance.
+
+        Examples
+        --------
+        Example input value for **cp2k_settings**.
+
+        .. code:: python
+
+            >>> from scm.plams import Settings
+
+            >>> cp2k_settings = Settings(...)
+            >>> print(cp2k_settings)
+            input:
+                  force_eval:
+                             mm:
+                                forcefield:
+                                           nonbonded:
+                                                     lennard-jones:         [...]
+
+        Parameters
+        ----------
+        cp2k_settings : :class:`Mapping<collections.abc.Mapping>`
+            A Mapping with PLAMS-style CP2K settings.
+
+        """
+        key_tup = ('input', 'force_eval', 'mm', 'forcefield', 'nonbonded', 'lennard-jones')
+        lj_iter = Settings.get_nested(cp2k_settings, key_tup, supress_missing=True)
+        if isinstance(lj_iter, Mapping):
+            lj_iter = (lj_iter,)
+
+        columns = self.INDEX['nbfix']
+        for i, lj_dict in enumerate(lj_iter):
+            try:
+                index = lj_dict['atoms'].split()
+                _epsilon = lj_dict['epsilon']
+                _sigma = lj_dict['sigma']
+            except KeyError as ex:
+                raise KeyError(f"Failed to extract the {ex} key from "
+                               f"{key_tup[-1]!r} block {i}") from ex
+
+            epsilon = parse_cp2k_value(_epsilon, unit='kcal/mol', default_unit='kcal/mol')
+            sigma = parse_cp2k_value(_sigma, unit='angstrom')
+
+            # Convert sigma into R / 2, i.e. the equilibrium distance divided by 2
+            r_2 = sigma * 2**(1/6)
+            r_2 /= 2
+            self.loc[index, columns] = epsilon, r_2

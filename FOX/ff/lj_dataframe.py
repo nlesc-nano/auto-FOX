@@ -82,7 +82,7 @@ class LJDataFrame(pd.DataFrame):
             columns = set(self.columns)
             for k, v in data.items():
                 if k not in columns:
-                    raise KeyError(f"Invalid key {repr(k)}; allowed keys: {tuple(columns)}")
+                    raise KeyError(f"Invalid key {k!r}; allowed keys: {tuple(columns)}")
                 self[k] = v
 
         elif isinstance(data, abc.Iterable):
