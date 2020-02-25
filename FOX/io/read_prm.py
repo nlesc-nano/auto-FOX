@@ -167,7 +167,7 @@ class PRMContainer(AbstractDataClass, AbstractFileContainer):
 
     @classmethod
     @AbstractFileContainer.inherit_annotations()
-    def read(cls, filename, encoding, **kwargs):
+    def read(cls, filename, encoding=None, **kwargs):
         return super().read(filename, encoding, **kwargs)
 
     @classmethod
@@ -311,6 +311,13 @@ class PRMContainer(AbstractDataClass, AbstractFileContainer):
             >>> print(cp2k_settings)
             {'force_eval': {'mm': {'forcefield': {'nonbonded': {'lennard-jones': [...]}}}}}
 
+
+        Note
+        ----
+        If **cp2k_settings** is provided as a :class:`Settings<scm.plams.core.settings.Settings>`
+        instance then it is recommended to do so with the
+        :meth:`Settings.supress_missing()<scm.plams.core.settings.Settings.supress_missing>`
+        context manager opened.
 
         Parameters
         ----------
