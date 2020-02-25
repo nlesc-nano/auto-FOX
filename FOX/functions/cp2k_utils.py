@@ -6,6 +6,7 @@ from typing import Mapping, Union, Optional
 
 import numpy as np
 import pandas as pd
+from scipy import constants
 
 from scm.plams import Settings, Units
 
@@ -13,6 +14,10 @@ from .charge_utils import assign_constraints
 
 __all__ = ['set_keys', 'parse_cp2k_value']
 
+# Multiplicative factor for converting Hartree into Kelvin
+Units.energy['k'] = Units.energy['kelvin'] = (
+    constants.physical_constants['Hartree energy'][0] / constants.Boltzmann
+)
 
 #: Map CP2K units to PLAMS units.
 UNIT_MAP: Mapping[str, str] = MappingProxyType({
@@ -20,6 +25,7 @@ UNIT_MAP: Mapping[str, str] = MappingProxyType({
     '[ev]': 'eV',
     '[kcalmol]': 'kcal/mol',
     '[kjmol]': 'kj/mol',
+    '[k_e]': 'kelvin',
 
     '[bohr]': 'Bohr',
     '[pm]': 'pm',

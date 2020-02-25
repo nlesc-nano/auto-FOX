@@ -9,4 +9,10 @@ Auto-FOX Documentation
     5_xyz_reader
     6_estimate_lj
     8_psf
+    9_prm
     7_recipes
+
+.. toctree::
+    :hidden:
+
+    _0_file_container

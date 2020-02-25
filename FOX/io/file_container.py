@@ -24,7 +24,7 @@ import io
 import abc
 import functools
 from codecs import iterdecode, encode
-from typing import (Dict, Optional, Any, Iterable, Iterator, Union, AnyStr, Callable)
+from typing import (Dict, Optional, Any, Iterable, Iterator, Union, AnyStr, Callable, Any)
 from contextlib import AbstractContextManager
 from collections.abc import Container
 
@@ -35,14 +35,15 @@ class AbstractFileContainer(abc.ABC, Container):
     """An abstract container for reading and writing files.
 
     Two public methods are defined within this class:
-        * :meth:`AbstractFileContainer.read`: Construct a new instance from this object's class by
-          reading the content to a file or file object.
-          How the content of the to-be read file is parsed has to be defined in the
-          :meth:`AbstractFileContainer._read_iterate` abstract method.
-        * :write:`AbstractFileContainer.write`: Write the content of this instance to an opened
-          file or file object.
-          How the content of the to-be exported class instance is parsed has to be defined in
-          the :meth:`AbstractFileContainer._write_iterate`
+
+    * :meth:`AbstractFileContainer.read`: Construct a new instance from this object's class by
+        reading the content to a file or file object.
+        How the content of the to-be read file is parsed has to be defined in the
+        :meth:`AbstractFileContainer._read_iterate` abstract method.
+    * :meth:`AbstractFileContainer.write`: Write the content of this instance to an opened
+        file or file object.
+        How the content of the to-be exported class instance is parsed has to be defined in
+        the :meth:`AbstractFileContainer._write_iterate`
 
     The opening, closing and en-/decoding of files is handled by two above-mentioned methods;
     the parsing
@@ -57,7 +58,7 @@ class AbstractFileContainer(abc.ABC, Container):
 
     @classmethod
     def read(cls, filename: Union[AnyStr, os.PathLike, Iterable[AnyStr]],
-             encoding: Optional[str] = None, **kwargs) -> 'AbstractFileContainer':
+             encoding: Optional[str] = None, **kwargs: Any) -> 'AbstractFileContainer':
         r"""Construct a new instance from this object's class by reading the content of **filename**.
 
         .. _`file object`: https://docs.python.org/3/glossary.html#term-file-object
@@ -74,7 +75,7 @@ class AbstractFileContainer(abc.ABC, Container):
             Only relevant when a file object is supplied to **filename** and
             the datastream is *not* in text mode.
 
-        /**kwargs : optional
+        \**kwargs : :data:`Any<typing.Any>`
             Optional keyword arguments that will be passed to both
             :meth:`AbstractFileContainer._read_iterate` and
             :meth:`AbstractFileContainer._read_postprocess`.
@@ -110,15 +111,15 @@ class AbstractFileContainer(abc.ABC, Container):
 
         Parameters
         ----------
-        iterator : :class:`.Iterator` [:class:`str`]
+        iterator : :class:`Iterator<collections.abc.Iterator>` [:class:`str`]
             An iterator that returns :class:`str` instances upon iteration.
 
         Returns
         -------
-        class`dict` [:class:`str`, :class:`.Any`]
+        :class:`dict` [:class:`str`, :data:`Any<typing.Any>`]
             A dictionary with keyword arguments for a new instance of this objects' class.
 
-        \**kwargs : optional
+        \**kwargs : :data:`Any<typing.Any>`
             Optional keyword arguments.
 
         See Also
@@ -145,7 +146,7 @@ class AbstractFileContainer(abc.ABC, Container):
             Only relevant when a file object is supplied to **filename** and
             the datastream is *not* in text mode.
 
-        \**kwargs : optional
+        \**kwargs : :data:`Any<typing.Any>`
             Optional keyword arguments that will be passed to both
             :meth:`AbstractFileContainer._read_iterate` and
             :meth:`AbstractFileContainer._read_postprocess`.
@@ -178,7 +179,7 @@ class AbstractFileContainer(abc.ABC, Container):
             Only relevant when a file object is supplied to **filename** and
             the datastream is *not* in text mode.
 
-        \**kwargs : optional
+        \**kwargs : :data:`Any<typing.Any>`
             Optional keyword arguments that will be passed to :meth:`._write_iterate`.
 
         See Also
@@ -208,7 +209,7 @@ class AbstractFileContainer(abc.ABC, Container):
 
         Parameters
         ----------
-        writer : :class:`.Callable`
+        writer : :data:`Callable<typing.Callable>`
             A write method such as :meth:`io.TextIOWrapper.write`.
 
         encoding : :class:`str`, optional
@@ -219,7 +220,7 @@ class AbstractFileContainer(abc.ABC, Container):
 
         Returns
         -------
-        :class:`.Callable`
+        :data:`Callable<typing.Callable>`
             A decorated **writer** parameter.
             The first positional argument provided to the decorated callable will be encoded
             using encoding.
@@ -263,7 +264,7 @@ class AbstractFileContainer(abc.ABC, Container):
 
         Parameters
         ----------
-        writer : :class:`Callable` [[:class:`.AnyStr`], ``None``]
+        writer : :data:`Callable<typing.Callable>`
             A callable for writing the content of this instance to a `file object`_.
             An example would be the :meth:`io.TextIOWrapper.write` method.
 
