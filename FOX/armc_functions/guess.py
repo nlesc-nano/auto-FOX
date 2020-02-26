@@ -161,14 +161,18 @@ def _process_df(armc: ARMC) -> Tuple[LJDataFrame, List['MultiMolecule']]:
     # Update all atom based on the .psf file
     mol_list = [mol.copy() for mol in armc.molecule]
     for mol, s in zip(mol_list, armc.md_settings):
-        psf = PSFContainer.read(s.input.force_eval.subsys.topology.conn_file_name)
-        mol.atoms = psf.to_atom_dict()
+        psf_name = s.input.force_eval.subsys.topology.conn_file_name
+        if psf_name:
+            psf = PSFContainer.read(psf_name)
+            mol.atoms = psf.to_atom_dict()
 
     # COnstruct a dataframe with all to-be guessed parameters
     idx = set(chain.from_iterable(mol.atoms.keys() for mol in mol_list))
     df = LJDataFrame(np.nan, index=sorted(idx))
     for s in armc.md_settings:
-        df.overlay_prm(s.input.force_eval.mm.forcefield.parm_file_name)
+        prm_name = s.input.force_eval.mm.forcefield.parm_file_name
+        if prm_name:
+            df.overlay_prm(prm_name)
         df.overlay_cp2k_settings(s)
     del df['charge']
     return df[df.isna().any(axis=1)], mol_list
