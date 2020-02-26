@@ -1,63 +1,70 @@
 """A module for randimizing parameters."""
 
-from typing import Union
-from collections import abc
+from typing import Callable, Optional
 
 import numpy as np
-import pandas as pd
 
-df = pd.DataFrame(np.random.rand(10))
+__all__ = ['randomize']
 
 
 def randomize(val: np.ndarray,
-              val_max: Union[None, float, np.ndarray] = None,
-              val_min: Union[None, float, np.ndarray] = None,
-              n: int = 2) -> None:
-    """pass
+              val_max: Optional[np.ndarray] = None,
+              val_min: Optional[np.ndarray] = None,
+              n: float = 2.0) -> None:
+    """Randomize the values in **val**.
 
     Parameters
     ----------
-    val : array-like [:class:`float`], shape :math:`(n,)`
+    val : array-like [:class:`float`], shape :math:`(m,)`
         An array-like object containing the to-be randomized values.
 
-    val_min : array-like [:class:`float`], shape :math:`(n,)`, optional
+    val_min : array-like [:class:`float`], shape :math:`(m,)`, optional
         An optional array-like with the new lower bounds of the to-be randomized values.
         Supplying a scalar will set the same lower bound for all values.
 
-    val_min : array-like [:class:`float`], shape :math:`(n,)`, optional
+    val_min : array-like [:class:`float`], shape :math:`(m,)`, optional
         An optional array-like with the new upper bounds of the to-be randomized values.
         Supplying a scalar will set the same lower bound for all values.
 
+    n : :class:`float`
+        Ensure that the new parameters cannot be higher or lower than, respectivelly,
+        :math:`/text{val} * n` and :math:`/text{val} / n`.
+        If both :math:`n` and the extremes are specified,
+        take whichever value is high/lower
 
+    Returns
+    -------
+    :class:`np.ndarray` [:class:`float`], shape :math:`(m,)`
+        A new array of randomized values.
 
     """
     val = np.asarray(val)
 
-    if val_max is not None:  # Create an array with a upper bound for the new values
-        if isinstance(val_max, abc.Iterable):
-            val_max_ = np.array(val_max)
-        else:
-            val_max_ = np.full_like(val, val_max)
-        posinf = np.isposinf(val_min)
-        val_max_[posinf] = val[posinf] * n
-        val_max_[~posinf] = np.minimum(val_max_[~posinf], val[~posinf] * n)
-    else:
-        val_max_ = val * n
-
-    if val_min is not None:  # Create an array with a lower bound for the new values
-        if isinstance(val_min, abc.Iterable):
-            val_min_ = np.array(val_min)
-        else:
-            val_min_ = np.full_like(val, val_min)
-
-        neginf = np.isneginf(val_min)
-        val_min_[neginf] = val[neginf] / n
-        val_min_[~neginf] = np.maximum(val_min_[~neginf], val[~neginf] / n)
-    else:
-        val_min_ = val / n
+    # Parse the extremites
+    val_max_ = _parse_extremite(val, val_max, n, or_func=np.minimum)
+    val_min_ = _parse_extremite(val, val_max, 1/n, or_func=np.maximum)
 
     # Construct new random values
     val_new = np.random.rand(len(val))
     val_new *= val_max_ - val_min_
     val_new += val_min_
     return val_new
+
+
+#: Functions for creating new arrays from the elements of the two input arrays.
+OrFunc = Callable[[np.ndarray, np.ndarray], np.ndarray]
+
+
+def _parse_extremite(val: np.ndarray, val_extreme: Optional[np.ndarray],
+                     n: int = 2.0, or_func: OrFunc = np.minimum) -> np.ndarray:
+    """Parse the **val_min** and **val_max** parameters of :func:`randomize`."""
+    if val_extreme is None:
+        return val * n
+
+    ret = np.array(val_extreme)
+    isinf = np.isinf(ret)
+    if ret.size == 1:
+        return or_func(val * n, ret)
+
+    ret[isinf] = val[isinf] * n
+    ret[~isinf] = or_func(ret[~isinf], val[~isinf] * n)
