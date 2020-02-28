@@ -71,7 +71,7 @@ def run_armc(armc: 'ARMC',
              restart: bool = False,
              guess: Optional[Mapping[str, Mapping]] = None) -> None:
     """A wrapper arround :class:`ARMC` for handling the JobManager."""
-    if not amrc.keep_files:  # Disable rerun prevention if all jobs are deleted anyway
+    if not armc.keep_files:  # Disable rerun prevention if all jobs are deleted anyway
         config.default_jobmanager.settings.hashing = None
 
     # Create a .psf file if specified
