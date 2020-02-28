@@ -817,19 +817,20 @@ class PSFContainer(AbstractDataClass, AbstractFileContainer):
 
         """  # noqa
         def get_res_id(at: Atom) -> int:
-            return at.properties.pdb_info.ResidueNumber or 1
+            return at.properties.get('pdb_info', {}).get('ResidueNumber', 1)
 
         def get_res_name(at: Atom) -> str:
-            return at.properties.pdb_info.ResidueName or 'COR'
+            return at.properties.get('pdb_info', {}).get('ResidueName', 'COR')
 
         def get_at_type(at: Atom) -> str:
-            return at.properties.symbol or at.symbol
+            return at.properties.get('symbol', at.symbol)
 
         def get_charge(at: Atom) -> float:
-            if at.properties.charge_float:
-                return float(at.properties.charge_float)
-            elif at.properties.charge:
-                return float(at.properties.charge)
+            properties = at.properties
+            if 'charge_float' in properties:
+                return float(properties.charge_float)
+            elif 'charge' in properties:
+                return float(properties.charge)
             return 0.0
 
         index = pd.RangeIndex(1, 1 + len(mol))
