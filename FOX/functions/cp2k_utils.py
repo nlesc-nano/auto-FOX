@@ -21,16 +21,19 @@ Units.energy['k'] = Units.energy['kelvin'] = (
 
 #: Map CP2K units to PLAMS units.
 UNIT_MAP: Mapping[str, str] = MappingProxyType({
-    '[hartree]': 'Hartree',
+    '[hartree]': 'hartree',
     '[ev]': 'eV',
     '[kcalmol]': 'kcal/mol',
     '[kjmol]': 'kj/mol',
     '[k_e]': 'kelvin',
 
-    '[bohr]': 'Bohr',
+    '[bohr]': 'bohr',
     '[pm]': 'pm',
     '[nm]': 'nm',
-    '[angstrom]': 'Angstrom'
+    '[angstrom]': 'angstrom',
+
+    '[rad]': 'radian',
+    '[deg]': 'degree'
 })
 
 
