@@ -55,6 +55,11 @@ class TypedMapping(AbstractDataClass, abc.Mapping):
         for k in cls._ATTR:
             super().__setattr__(k, None)
 
+    @property
+    def view(self):
+        """Return a read-only view of all non-private instance attributes."""
+        return MappingProxyType(self._view)
+
     def __setattr__(self, name: str, value: Any) -> None:
         """Implement :code:`setattr(self, name, value)`."""
         # These values should be mutable
@@ -87,51 +92,46 @@ class TypedMapping(AbstractDataClass, abc.Mapping):
         self.__setattr__(name, value)
 
     @property
-    def view(self):
-        """Return a read-only view of all non-private instance attributes."""
-        return MappingProxyType(self._view)
-
-    @property
     def __bool__(self) -> Callable[[], bool]:
-        """Get the :meth:`__bool__<types.MappingProxyType.__bool__>` method of :attr:`FrozenMapping.view`."""  # noqa
+        """Get the :meth:`__bool__()<types.MappingProxyType.__bool__>` method of :attr:`FrozenMapping.view`."""  # noqa
         return self.view.__bool__
 
     @property
     def __getitem__(self) -> Callable[[KT], KV]:
-        """Get the :meth:`__getitem__<types.MappingProxyType.__getitem__>` method of :attr:`FrozenMapping.view`."""  # noqa
+        """Get the :meth:`__getitem__()<types.MappingProxyType.__getitem__>` method of :attr:`FrozenMapping.view`."""  # noqa
         return self.view.__getitem__
 
     @property
     def __iter__(self) -> Callable[[], Iterator[KT]]:
-        """Get the :meth:`__iter__<types.MappingProxyType.__iter__>` method of :attr:`FrozenMapping.view`."""  # noqa
+        """Get the :meth:`__iter__()<types.MappingProxyType.__iter__>` method of :attr:`FrozenMapping.view`."""  # noqa
         return self.view.__iter__
 
     @property
     def __len__(self) -> Callable[[], int]:
-        """Get the :meth:`__len__<types.MappingProxyType.__len__>` method of :attr:`FrozenMapping.view`."""  # noqa
+        """Get the :meth:`__len__()<types.MappingProxyType.__len__>` method of :attr:`FrozenMapping.view`."""  # noqa
         return self.view.__len__
 
     @property
     def __contains__(self) -> Callable[[KT], bool]:
-        """Get the :meth:`__contains__<types.MappingProxyType.__contains__>` method of :attr:`FrozenMapping.view`."""  # noqa
+        """Get the :meth:`__contains__()<types.MappingProxyType.__contains__>` method of :attr:`FrozenMapping.view`."""  # noqa
         return self.view.__contains__
 
     @property
     def get(self) -> Callable[[KT, Optional[Any]], KV]:
-        """Get the :meth:`get<types.MappingProxyType.get>` method of :attr:`FrozenMapping.view`."""  # noqa
+        """Get the :meth:`get()<types.MappingProxyType.get>` method of :attr:`FrozenMapping.view`."""  # noqa
         return self.view.get
 
     @property
     def keys(self) -> Callable[[], KeysView[KT]]:
-        """Get the :meth:`keys<types.MappingProxyType.keys>` method of :attr:`FrozenMapping.view`."""  # noqa
+        """Get the :meth:`keys()<types.MappingProxyType.keys>` method of :attr:`FrozenMapping.view`."""  # noqa
         return self.view.keys
 
     @property
     def items(self) -> Callable[[], ItemsView[KT, KV]]:
-        """Get the :meth:`items<types.MappingProxyType.items>` method of :attr:`FrozenMapping.view`."""  # noqa
+        """Get the :meth:`items()<types.MappingProxyType.items>` method of :attr:`FrozenMapping.view`."""  # noqa
         return self.view.items
 
     @property
     def values(self) -> Callable[[], ValuesView[KV]]:
-        """Get the :meth:`values<types.MappingProxyType.values>` method of :attr:`FrozenMapping.view`."""  # noqa
+        """Get the :meth:`values()<types.MappingProxyType.values>` method of :attr:`FrozenMapping.view`."""  # noqa
         return self.view.values
