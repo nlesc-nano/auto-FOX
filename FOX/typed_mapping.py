@@ -81,8 +81,7 @@ class TypedMapping(AbstractDataClass, abc.Mapping):
 
     def __setitem__(self, name: str, value: Any) -> None:
         """Implement :code:`self[name] = value`."""
-        cls = type(self)
-        if name in cls._PRIVATE_ATTR:
+        if name in self._PRIVATE_ATTR:
             cls_name = self.__class__.__name__
             raise AttributeError(f"{cls_name!r} object attribute {name!r} is read-only")
         self.__setattr__(name, value)
