@@ -6,6 +6,18 @@ All notable changes to this project will be documented in this file.
 This project adheres to `Semantic Versioning <http://semver.org/>`_.
 
 
+0.7.4
+*****
+* Increased the assertionlib version requirement to >= v2.1.
+* Generalized ``PRMContainer.overlay_cp2k_settings()`` to work for all
+  forcefield parameters (potentially) specified in CP2K settings.
+* Added the ``PRMContainer.overlay_mapping()`` function for overlaying
+  an arbitrary (nested) Mapping with the ``PSFContainer``.
+* Added the ``TypedMapping`` class, a baseclass for creating typed ``Mappings``,
+  *i.e.* Mappings with a set number of specific keys.
+* Exchange a number of ``Settings.__contains__()`` operations for ``Settings.get()``.
+
+
 0.7.3
 *****
 * Updated the default CP2K Settings template.

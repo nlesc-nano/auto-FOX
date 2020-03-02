@@ -11,6 +11,7 @@ Index
     PRMContainer
     PRMContainer.read
     PRMContainer.write
+    PRMContainer.overlay_mapping
     PRMContainer.overlay_cp2k_settings
 
 API
@@ -18,13 +19,15 @@ API
 .. autoclass:: PRMContainer
 .. automethod:: PRMContainer.read
 .. automethod:: PRMContainer.write
+.. automethod:: PRMContainer.overlay_mapping
 .. automethod:: PRMContainer.overlay_cp2k_settings
 
 """
 import inspect
 from types import MappingProxyType
-from typing import Any, Iterator, Dict, Tuple, Set, Mapping, List, Union, Hashable, Optional
-from itertools import chain
+from typing import (Any, Iterator, Dict, Tuple, FrozenSet, Mapping, List, Union, Iterable, Sequence,
+                    Hashable, Optional, ClassVar, MutableSequence)
+from itertools import chain, repeat
 from collections import abc
 
 import numpy as np
@@ -33,10 +36,21 @@ import pandas as pd
 from scm.plams import Settings
 from assertionlib.dataclass import AbstractDataClass
 
+from .cp2k_to_prm import PRMMappingType, PostProcess
+from .cp2k_to_prm import CP2K_TO_PRM as _CP2K_TO_PRM
 from .file_container import AbstractFileContainer
 from ..functions.cp2k_utils import parse_cp2k_value
 
+# nullcontext() was added in Python 3.7; suppress() sorta serves as an alternative
+try:
+    from contextlib import nullcontext
+except ImportError:
+    from contextlib import suppress as nullcontext
+
 __all__ = ['PRMContainer']
+
+SeriesIdx = Mapping[str, float]  # e.g. a Pandas.Series with an Index
+SeriesMultiIdx = Mapping[Tuple[str, ...], float]  # e.g. a Pandas.Series with a MultiIndex
 
 
 class PRMContainer(AbstractDataClass, AbstractFileContainer):
@@ -48,11 +62,17 @@ class PRMContainer(AbstractDataClass, AbstractFileContainer):
         A dictionary with Pandas print options.
         See `Options and settings <https://pandas.pydata.org/pandas-docs/stable/user_guide/options.html>`_.
 
+    CP2K_TO_PRM : :class:`Mapping<collections.abc.Mapping>` [:class:`str`, :class:`PRMMapping<FOX.io.cp2k_to_prm.PRMMapping>`]
+        A mapping providing tools for converting CP2K settings to .prm-compatible values.
+        See :data:`CP2K_TO_PRM<FOX.io.cp2k_to_prm.CP2K_TO_PRM>`.
+
     """  # noqa
 
     #: A :class:`frozenset` with the names of private instance attributes.
     #: These attributes will be excluded whenever calling :meth:`PRMContainer.as_dict`.
-    _PRIVATE_ATTR: Set[str] = frozenset({'_pd_printoptions'})
+    _PRIVATE_ATTR: ClassVar[FrozenSet[str]] = frozenset({'_pd_printoptions'})
+
+    CP2K_TO_PRM: ClassVar[Mapping[str, PRMMappingType]] = _CP2K_TO_PRM
 
     #: A tuple of supported .psf headers.
     HEADERS: Tuple[str, ...] = (
@@ -80,8 +100,8 @@ class PRMContainer(AbstractDataClass, AbstractFileContainer):
         'dihedrals': (None, None, None, None, np.nan, -1, np.nan),
         'nbfix': (None, None, np.nan, np.nan, np.nan, np.nan),
         'nonbonded': (None, np.nan, np.nan, np.nan, np.nan, np.nan, np.nan),
-        'improper': (None, None, None, None, np.nan, -1, np.nan),
-        'impropers': (None, None, None, None, np.nan, -1, np.nan)
+        'improper': (None, None, None, None, np.nan, 0, np.nan),
+        'impropers': (None, None, None, None, np.nan, 0, np.nan)
     })
 
     @property
@@ -291,8 +311,98 @@ class PRMContainer(AbstractDataClass, AbstractFileContainer):
 
     """######################### Methods for updating the PRMContainer ##########################"""
 
-    def overlay_cp2k_settings(self, cp2k_settings: Mapping, nonbonded14: bool = False) -> None:
-        """Extract non-bonded information from PLAMS-style CP2K settings.
+    def overlay_mapping(self, prm_name: str,
+                        param_df: Mapping[str, Union[SeriesIdx, SeriesMultiIdx]],
+                        units: Optional[Iterable[Optional[str]]] = None) -> None:
+        """Update a set of parameters, **prm_name**, with those provided in **param_df**.
+
+        Examples
+        --------
+        .. code:: python
+
+            >>> from FOX import PRMContainer
+
+            >>> prm = PRMContainer(...)
+
+            >>> param_dict = {}
+            >>> param_dict['epsilon'] = {'Cd Cd': ..., 'Cd Se': ..., 'Se Se': ...}  # epsilon
+            >>> param_dict['sigma'] = {'Cd Cd': ..., 'Cd Se': ..., 'Se Se': ...}  # sigma
+
+            >>> units = ('kcal/mol', 'angstrom')  # input units for epsilon and sigma
+
+            >>> prm.overlay_mapping('nonbonded', param_dict, units=units)
+
+
+        Parameters
+        ----------
+        prm_name : :class:`str`
+            The name of the parameter of interest.
+            See the keys of :attr:`PRMContainer.CP2K_TO_PRM` for accepted values.
+
+        param_df : :class:`pandas.DataFrame` or nested :class:`Mapping<collections.abc.Mapping>`
+            A DataFrame or nested mapping with the to-be added parameters.
+            The keys should be a subset of
+            :attr:`PRMContainer.CP2K_TO_PRM[prm_name]["columns"]<PRMContainer.CP2K_TO_PRM>`.
+            If the index/nested sub-keys consist of strings then they'll be split and turned into
+            a :class:`pandas.MultiIndex`.
+            Note that the resulting values are *not* sorted.
+
+        units : :class:`Iterable<collections.abc.Iterable>` [:class:`str`], optional
+            An iterable with the input units of each column in **param_df**.
+            If ``None``, default to the defaults specified in
+            :attr:`PRMContainer.CP2K_TO_PRM[prm_name]["unit"]<PRMContainer.CP2K_TO_PRM>`.
+
+        """
+        # Parse arguments
+        if units is None:
+            units = repeat(None)
+        try:
+            prm_map = self.CP2K_TO_PRM[prm_name]
+        except KeyError as ex:
+            raise ValueError(f"'prm_name is of invalid value ({prm_name!r}); "
+                             f"accepted values: {tuple(self.CP2K_TO_PRM.keys())!r}") from ex
+
+        # Extract parameter specific arguments
+        name = prm_map['name']
+        output_units = prm_map['unit']
+        post_process = prm_map['post_process']
+        key_set = set(prm_map['key'])
+        str2int = {item: i for item, i in zip(prm_map['key'], prm_map['columns'])}
+
+        # Ensure that the attribute in question is a DataFrame and not None
+        df = getattr(self, name)
+        if df is None:
+            df = pd.DataFrame()
+            setattr(self, name, df)
+            self._process_df(df, name)
+
+        # Parse and validate the columns
+        param_df = pd.DataFrame(param_df, copy=True)
+        if not key_set.issuperset(param_df.columns):
+            raise ValueError("The keys in `param_df` should be a subset of "
+                             f"`PRMContainer.CP2K_TO_PRM[{prm_name!r}]['key']`")
+        param_df.columns = [str2int[i] for i in param_df.columns]
+
+        # Parse and validate the index
+        if not isinstance(param_df.index, pd.MultiIndex):
+            iterator = (i.split() for i in param_df.index)
+            param_df.index = pd.MultiIndex.from_tuples(iterator)
+
+        # Apply unit conversion and post-processing
+        iterator = zip(param_df.items(), units, output_units, post_process)
+        for (k, series), unit, output_unit, func in iterator:
+            series_new = parse_cp2k_value(series, unit=output_unit, default_unit=unit)
+            if func is not None:
+                series_new = func(series_new)
+            param_df[k] = series_new
+
+        # Updated the DataFrame
+        columns = param_df.columns
+        for index, values in param_df.iterrows():
+            df.loc[index, columns] = values
+
+    def overlay_cp2k_settings(self, cp2k_settings: Mapping) -> None:
+        """Extract forcefield information from PLAMS-style CP2K settings.
 
         Performs an inplace update of this instance.
 
@@ -312,58 +422,79 @@ class PRMContainer(AbstractDataClass, AbstractFileContainer):
             {'force_eval': {'mm': {'forcefield': {'nonbonded': {'lennard-jones': [...]}}}}}
 
 
-        Note
-        ----
-        If **cp2k_settings** is provided as a :class:`Settings<scm.plams.core.settings.Settings>`
-        instance then it is recommended to do so with the
-        :meth:`Settings.supress_missing()<scm.plams.core.settings.Settings.supress_missing>`
-        context manager opened.
-
         Parameters
         ----------
         cp2k_settings : :class:`Mapping<collections.abc.Mapping>`
             A Mapping with PLAMS-style CP2K settings.
 
-        nonbonded14 : :class:`bool`
-            If ``True``, read the CP2K ``"nonbonded14"`` rather than the ``"nonbonded"`` section.
+        See Also
+        --------
+        PRMMapping : :class:`PRMMapping<FOX.io.cp2k_to_prm.PRMMapping>`
+            A mapping providing tools for converting CP2K settings to .prm-compatible values.
 
         """
-        # Read either the nonbonded or 1,4-nonbonded interactions
-        if nonbonded14:
-            nonbonded = 'nonbonded14'
-            columns = [4, 5]
-        else:
-            nonbonded = 'nonbonded'
-            columns = [2, 3]
-
-        # Define the path of nested keys
-        key_tup = ('input', 'force_eval', 'mm', 'forcefield', nonbonded, 'lennard-jones')
         if 'input' not in cp2k_settings:
-            key_tup = key_tup[1:]
+            cp2k_settings = {'input': cp2k_settings}
 
-        # Extract the appropiate sequence of dictionaries
-        lj_iter = Settings.get_nested(cp2k_settings, key_tup)
-        if isinstance(lj_iter, Mapping):
-            lj_iter = (lj_iter,)
+        # If cp2k_settings is a Settings instance enable the supress_missing() context manager
+        # In this manner normal KeyErrors will be raised, just like with dict
+        if isinstance(cp2k_settings, Settings):
+            context_manager = cp2k_settings.supress_missing
+        else:
+            context_manager = nullcontext
 
-        # Ensure that nbfix is DataFrame and not None
-        if self.nbfix is None:
-            self.nbfix = pd.DataFrame()
-            self._process_df(self.nbfix, 'nbfix')
+        with context_manager():
+            for prm_map in self.CP2K_TO_PRM.values():
+                name = prm_map['name']
+                columns = list(prm_map['columns'])
+                key_path = prm_map['key_path']
+                key = prm_map['key']
+                unit = prm_map['unit']
+                default_unit = prm_map['default_unit']
+                post_process = prm_map['post_process']
+
+                self._overlay_cp2k_settings(cp2k_settings,
+                                            name, columns, key_path, key, unit,
+                                            default_unit, post_process)
+
+    def _overlay_cp2k_settings(self, cp2k_settings: Mapping,
+                               name: str, columns: MutableSequence[int],
+                               key_path: Sequence[str], key: Iterable[str],
+                               unit: Iterable[str], default_unit: Iterable[Optional[str]],
+                               post_process: Iterable[Optional[PostProcess]]) -> None:
+        """Helper function for :meth:`PRMContainer.overlay_cp2k_settings`."""
+        # Extract the appropiate dict or sequence of dicts
+        try:
+            prm_iter = Settings.get_nested(cp2k_settings, key_path)
+        except KeyError:
+            return
+        else:
+            prm_iter = (prm_iter,) if isinstance(prm_iter, Mapping) else prm_iter
+
+        # Ensure that PRMContainter section is a DataFrame and not None
+        df = getattr(self, name)
+        if df is None:
+            df = pd.DataFrame()
+            setattr(self, name, df)
+            self._process_df(df, name)
 
         # Extract, parse and write the values
-        for i, lj_dict in enumerate(lj_iter):
-            try:
-                index = tuple(sorted(lj_dict['atoms'].split()))
-                _epsilon = lj_dict['epsilon']
-                _sigma = lj_dict['sigma']
+        for i, prm_dict in enumerate(prm_iter):
+            try:  # Extract the appropiate values
+                index = prm_dict['atoms']
+                value_gen = (prm_dict[k] for k in key)
             except KeyError as ex:
-                raise KeyError(f"Failed to extract the {ex} key from "
-                               f"{key_tup[-1]!r} block {i}") from ex
-            epsilon = parse_cp2k_value(_epsilon, unit='kcal/mol', default_unit='kelvin')
-            sigma = parse_cp2k_value(_sigma, unit='angstrom')
+                raise KeyError(f"Failed to extract the {ex!r} key from "
+                               f"{key_path[-1]!r} block {i}") from ex
 
-            # Convert sigma into R / 2, i.e. the equilibrium distance divided by 2
-            r_2 = sigma * 2**(1/6)
-            r_2 /= 2
-            self.nbfix.loc[index, columns] = epsilon, r_2
+            # Sanitize the values and convert them into appropiate units
+            iterator = zip(value_gen, unit, default_unit)
+            value_list = [parse_cp2k_value(*args) for args in iterator]
+
+            # Post-process the values
+            for i, (prm, func) in enumerate(zip(value_list, post_process)):
+                if func is not None:
+                    value_list[i] = func(prm)
+
+            # Assign the values
+            df.loc[index, columns] = value_list
