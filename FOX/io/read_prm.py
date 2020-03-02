@@ -24,7 +24,7 @@ API
 import inspect
 from types import MappingProxyType
 from typing import (Any, Iterator, Dict, Tuple, FrozenSet, Mapping, List, Union, Iterable, Sequence,
-                    Hashable, Optional, ClassVar)
+                    Hashable, Optional, ClassVar, MutableSequence)
 from itertools import chain
 from collections import abc
 
@@ -63,7 +63,7 @@ class PRMContainer(AbstractDataClass, AbstractFileContainer):
     #: These attributes will be excluded whenever calling :meth:`PRMContainer.as_dict`.
     _PRIVATE_ATTR: ClassVar[FrozenSet[str]] = frozenset({'_pd_printoptions'})
 
-    CP2K_TO_PRM: ClassVar[FrozenSet[PRMMapping]] = _CP2K_TO_PRM
+    CP2K_TO_PRM: ClassVar[Mapping[str, PRMMapping]] = _CP2K_TO_PRM
 
     #: A tuple of supported .psf headers.
     HEADERS: Tuple[str, ...] = (
@@ -345,7 +345,7 @@ class PRMContainer(AbstractDataClass, AbstractFileContainer):
             context_manager = nullcontext
 
         with context_manager():
-            for prm_map in self.CP2K_TO_PRM:
+            for prm_map in self.CP2K_TO_PRM.values():
                 name = prm_map['name']
                 columns = list(prm_map['columns'])
                 key_path = prm_map['key_path']
@@ -359,7 +359,7 @@ class PRMContainer(AbstractDataClass, AbstractFileContainer):
                                             default_unit, post_procoess)
 
     def _overlay_cp2k_settings(self, cp2k_settings: Mapping,
-                               name: str, columns: List[int],
+                               name: str, columns: MutableSequence[int],
                                key_path: Sequence[str], key: Iterable[str],
                                unit: Iterable[str], default_unit: Iterable[Optional[str]],
                                post_process: Iterable[Optional[PostProcess]]) -> None:
@@ -373,9 +373,11 @@ class PRMContainer(AbstractDataClass, AbstractFileContainer):
             prm_iter = (prm_iter,) if isinstance(prm_iter, Mapping) else prm_iter
 
         # Ensure that PRMContainter section is a DataFrame and not None
-        if getattr(self, name) is None:
-            setattr(self, name, pd.DataFrame())
-            self._process_df(getattr(self, name), name)
+        df = getattr(self, name, None)
+        if df is None:
+            df = pd.DataFrame()
+            setattr(self, name, df)
+            self._process_df(df, name)
 
         # Extract, parse and write the values
         for i, prm_dict in enumerate(prm_iter):
@@ -396,4 +398,4 @@ class PRMContainer(AbstractDataClass, AbstractFileContainer):
                     value_list[i] = func(prm)
 
             # Assign the values
-            getattr(self, name).loc[index, columns] = value_list
+            df.loc[index, columns] = value_list
