@@ -1,3 +1,86 @@
+"""
+FOX.io.cp2k_to_prm
+==================
+
+A :class:`TypedMapping<FOX.typed_mapping.TypedMapping>` subclass converting CP2K settings to .prm-compatible values.
+
+Index
+-----
+.. currentmodule:: FOX.io.cp2k_to_prm
+.. autosummary::
+    PRMMapping
+    CP2K_TO_PRM
+
+API
+---
+.. autoclass:: PRMMapping
+.. autodata:: CP2K_TO_PRM
+    :annotation: : MappingProxyType[str, PRMMapping]
+
+    A :class:`Mapping<collections.abc.Mapping>` containing :class:`PRMMapping` instances.
+
+    .. code:: python
+
+        MappingProxyType({
+            'nonbonded':
+                PRMMapping(name='nbfix', columns=[2, 3],
+                           key_path=('input', 'force_eval', 'mm', 'forcefield', 'nonbonded', 'lennard-jones'),
+                           key=('epsilon', 'sigma'),
+                           unit=('kcal/mol', 'angstrom'),
+                           default_unit=('kcal/mol', 'kelvin'),
+                           post_process=(None, sigma_to_r2)),
+
+            'nonbonded14':
+                PRMMapping(name='nbfix', columns=[4, 5],
+                           key_path=('input', 'force_eval', 'mm', 'forcefield', 'nonbonded14', 'lennard-jones'),
+                           key=('epsilon', 'sigma'),
+                           unit=('kcal/mol', 'angstrom'),
+                           default_unit=('kcal/mol', 'kelvin'),
+                           post_process=(None, sigma_to_r2)),
+
+            'bonds':
+                PRMMapping(name='bonds', columns=[2, 3],
+                           key_path=('input', 'force_eval', 'mm', 'forcefield', 'bond'),
+                           key=('k', 'r0'),
+                           unit=('kcal/mol/A**2', 'angstrom'),
+                           default_unit=('internal_cp2k', 'bohr'),  # TODO: internal_cp2k ?????????
+                           post_process=(None, None)),
+
+            'angles':
+                PRMMapping(name='angles', columns=[3, 4],
+                           key_path=('input', 'force_eval', 'mm', 'forcefield', 'bend'),
+                           key=('k', 'theta0'),
+                           unit=('kcal/mol', 'degree'),
+                           default_unit=('hartree', 'radian'),
+                           post_process=(None, None)),
+
+            'urrey-bradley':
+                PRMMapping(name='angles', columns=[5, 6],
+                           key_path=('input', 'force_eval', 'mm', 'forcefield', 'bend', 'ub'),
+                           key=('k', 'r0'),
+                           unit=('kcal/mol/A**2', 'angstrom'),
+                           default_unit=('internal_cp2k', 'bohr'),  # TODO: internal_cp2k ?????????
+                           post_process=(None, None)),
+
+            'dihedrals':
+                PRMMapping(name='dihedrals', columns=[4, 5, 6],
+                           key_path=('input', 'force_eval', 'mm', 'forcefield', 'torsion'),
+                           key=('k', 'm', 'phi0'),
+                           unit=('kcal/mol', 'hartree', 'degree'),
+                           default_unit=('hartree', 'hartree', 'radian'),
+                           post_process=(None, None, None)),
+
+            'improper':
+                PRMMapping(name='improper', columns=[4, 5, 6],
+                           key_path=('input', 'force_eval', 'mm', 'forcefield', 'improper'),
+                           key=('k', 'k', 'phi0'),
+                           unit=('kcal/mol', 'hartree', 'degree'),
+                           default_unit=('hartree', 'hartree', 'radian'),
+                           post_process=(None, return_zero, None)),
+        })
+
+"""  # noqa
+
 from types import MappingProxyType
 from typing import (Optional, Iterable, Callable, FrozenSet, TypeVar, Tuple,
                     Union, Type, Any, ClassVar, Mapping)
@@ -18,7 +101,7 @@ PostProcess = Callable[[float], float]
 
 
 class PRMMapping(TypedMapping):
-    """A mapping providing tools for converting CP2K settings to .prm-compatible values.
+    """A :class:`TypedMapping<FOX.typed_mapping.TypedMapping>` providing tools for converting CP2K settings to .prm-compatible values.
 
     Parameters
     ----------
@@ -139,7 +222,6 @@ def return_zero(value: Any) -> int:
     return 0
 
 
-#: A :class:`frozenset`
 CP2K_TO_PRM: Mapping[str, PRMMappingType] = MappingProxyType({
     'nonbonded':
         PRMMapping(name='nbfix', columns=[2, 3],

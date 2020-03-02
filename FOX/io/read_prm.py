@@ -11,6 +11,7 @@ Index
     PRMContainer
     PRMContainer.read
     PRMContainer.write
+    PRMContainer.overlay_mapping
     PRMContainer.overlay_cp2k_settings
 
 API
@@ -18,6 +19,7 @@ API
 .. autoclass:: PRMContainer
 .. automethod:: PRMContainer.read
 .. automethod:: PRMContainer.write
+.. automethod:: PRMContainer.overlay_mapping
 .. automethod:: PRMContainer.overlay_cp2k_settings
 
 """
@@ -34,7 +36,7 @@ import pandas as pd
 from scm.plams import Settings
 from assertionlib.dataclass import AbstractDataClass
 
-from .cp2k_to_prm import PRMMapping, PostProcess
+from .cp2k_to_prm import PRMMappingType, PostProcess
 from .cp2k_to_prm import CP2K_TO_PRM as _CP2K_TO_PRM
 from .file_container import AbstractFileContainer
 from ..functions.cp2k_utils import parse_cp2k_value
@@ -60,13 +62,17 @@ class PRMContainer(AbstractDataClass, AbstractFileContainer):
         A dictionary with Pandas print options.
         See `Options and settings <https://pandas.pydata.org/pandas-docs/stable/user_guide/options.html>`_.
 
+    CP2K_TO_PRM : :class:`Mapping<collections.abc.Mapping>` [:class:`str`, :class:`PRMMapping<FOX.io.cp2k_to_prm.PRMMapping>`]
+        A mapping providing tools for converting CP2K settings to .prm-compatible values.
+        See :data:`CP2K_TO_PRM<FOX.io.cp2k_to_prm.CP2K_TO_PRM>`.
+
     """  # noqa
 
     #: A :class:`frozenset` with the names of private instance attributes.
     #: These attributes will be excluded whenever calling :meth:`PRMContainer.as_dict`.
     _PRIVATE_ATTR: ClassVar[FrozenSet[str]] = frozenset({'_pd_printoptions'})
 
-    CP2K_TO_PRM: ClassVar[Mapping[str, PRMMapping]] = _CP2K_TO_PRM
+    CP2K_TO_PRM: ClassVar[Mapping[str, PRMMappingType]] = _CP2K_TO_PRM
 
     #: A tuple of supported .psf headers.
     HEADERS: Tuple[str, ...] = (
