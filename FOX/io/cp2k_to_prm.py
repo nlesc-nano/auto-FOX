@@ -140,7 +140,7 @@ def return_zero(value: Any) -> int:
 
 
 #: A :class:`frozenset`
-CP2K_TO_PRM: Mapping[str, PRMMapping] = MappingProxyType({
+CP2K_TO_PRM: Mapping[str, PRMMappingType] = MappingProxyType({
     'nonbonded':
         PRMMapping(name='nbfix', columns=[2, 3],
                    key_path=('input', 'force_eval', 'mm', 'forcefield', 'nonbonded', 'lennard-jones'),  # noqa

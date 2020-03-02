@@ -1,8 +1,7 @@
 """A module with miscellaneous functions related to CP2K."""
 
-import reprlib
 from types import MappingProxyType
-from typing import Mapping, Union, Optional
+from typing import Mapping, Union, Optional, TypeVar
 
 import numpy as np
 import pandas as pd
@@ -36,9 +35,10 @@ UNIT_MAP: Mapping[str, str] = MappingProxyType({
     '[deg]': 'degree'
 })
 
+T = TypeVar('T', float, np.ndarray)
 
-def parse_cp2k_value(param: Union[str, float], unit: str,
-                     default_unit: Optional[str] = None) -> float:
+
+def parse_cp2k_value(param: Union[str, T], unit: str, default_unit: Optional[str] = None) -> T:
     """Parse and return the provided CP2K input parameter **param**.
 
     Examples
@@ -56,8 +56,8 @@ def parse_cp2k_value(param: Union[str, float], unit: str,
 
     Parameters
     ----------
-    param : :class:`str` or :class:`float`
-        the parameter.
+    param : :class:`str`, :class:`float` or :class:`numpy.ndarray`
+        The parameter.
 
     unit : :class:`str`
         The desired output unit of **param**.
@@ -68,7 +68,7 @@ def parse_cp2k_value(param: Union[str, float], unit: str,
 
     Returns
     -------
-    :class:`float`
+    :class:`float` or :class:`numpy.ndarray`
         The value **param** expressed in **unit**.
 
     Raises
@@ -84,18 +84,10 @@ def parse_cp2k_value(param: Union[str, float], unit: str,
         value_unit = None
     else:
         value_unit, param = param.split()
-
-    # Convert the passed quantity into a float
-    try:
-        value = float(param)
-    except (TypeError, ValueError) as ex:
-        msg = f"Failed to create a 'float' from object {reprlib.repr(param)}"
-        if isinstance(ex, TypeError):
-            msg += f" of type {param.__class__.__name__!r}"
-        raise type(ex)(msg) from ex
+        param = float(param)
 
     if not value_unit:
-        return value * Units.conversion_ratio(default_unit, unit)
+        return param * Units.conversion_ratio(default_unit, unit)
 
     # Correct the units
     try:  # Convert from CP2K to PLAMS Units
@@ -103,7 +95,7 @@ def parse_cp2k_value(param: Union[str, float], unit: str,
     except KeyError as ex:
         raise ValueError(f"Invalid unit {value_unit.lower()!r};\naccepted units: "
                          f"{tuple(UNIT_MAP.keys())!r}") from ex
-    return value * Units.conversion_ratio(value_unit_parsed, unit)
+    return param * Units.conversion_ratio(value_unit_parsed, unit)
 
 
 def set_subsys_kind(settings: Settings, df: pd.DataFrame) -> None:

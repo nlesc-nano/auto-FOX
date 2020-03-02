@@ -25,7 +25,7 @@ import inspect
 from types import MappingProxyType
 from typing import (Any, Iterator, Dict, Tuple, FrozenSet, Mapping, List, Union, Iterable, Sequence,
                     Hashable, Optional, ClassVar, MutableSequence)
-from itertools import chain
+from itertools import chain, repeat
 from collections import abc
 
 import numpy as np
@@ -46,6 +46,9 @@ except ImportError:
     from contextlib import suppress as nullcontext
 
 __all__ = ['PRMContainer']
+
+SeriesIdx = Mapping[str, float]  # e.g. a Pandas.Series with an Index
+SeriesMultiIdx = Mapping[Tuple[str, ...], float]  # e.g. a Pandas.Series with a MultiIndex
 
 
 class PRMContainer(AbstractDataClass, AbstractFileContainer):
@@ -91,8 +94,8 @@ class PRMContainer(AbstractDataClass, AbstractFileContainer):
         'dihedrals': (None, None, None, None, np.nan, -1, np.nan),
         'nbfix': (None, None, np.nan, np.nan, np.nan, np.nan),
         'nonbonded': (None, np.nan, np.nan, np.nan, np.nan, np.nan, np.nan),
-        'improper': (None, None, None, None, np.nan, -1, np.nan),
-        'impropers': (None, None, None, None, np.nan, -1, np.nan)
+        'improper': (None, None, None, None, np.nan, 0, np.nan),
+        'impropers': (None, None, None, None, np.nan, 0, np.nan)
     })
 
     @property
@@ -302,6 +305,96 @@ class PRMContainer(AbstractDataClass, AbstractFileContainer):
 
     """######################### Methods for updating the PRMContainer ##########################"""
 
+    def overlay_mapping(self, prm_name: str,
+                        param_df: Mapping[str, Union[SeriesIdx, SeriesMultiIdx]],
+                        units: Optional[Iterable[Optional[str]]] = None) -> None:
+        """Update a set of parameters, **prm_name**, with those provided in **param_df**.
+
+        Examples
+        --------
+        .. code:: python
+
+            >>> from FOX import PRMContainer
+
+            >>> prm = PRMContainer(...)
+
+            >>> param_dict = {}
+            >>> param_dict['epsilon'] = {'Cd Cd': ..., 'Cd Se': ..., 'Se Se': ...}  # epsilon
+            >>> param_dict['sigma'] = {'Cd Cd': ..., 'Cd Se': ..., 'Se Se': ...}  # sigma
+
+            >>> units = ('kcal/mol', 'angstrom')  # input units for epsilon and sigma
+
+            >>> prm.overlay_mapping('nonbonded', param_dict, units=units)
+
+
+        Parameters
+        ----------
+        prm_name : :class:`str`
+            The name of the parameter of interest.
+            See the keys of :attr:`PRMContainer.CP2K_TO_PRM` for accepted values.
+
+        param_df : :class:`pandas.DataFrame` or nested :class:`Mapping<collections.abc.Mapping>`
+            A DataFrame or nested mapping with the to-be added parameters.
+            The keys should be a subset of
+            :attr:`PRMContainer.CP2K_TO_PRM[prm_name]["columns"]<PRMContainer.CP2K_TO_PRM>`.
+            If the index/nested sub-keys consist of strings then they'll be split and turned into
+            a :class:`pandas.MultiIndex`.
+            Note that the resulting values are *not* sorted.
+
+        units : :class:`Iterable<collections.abc.Iterable>` [:class:`str`], optional
+            An iterable with the input units of each column in **param_df**.
+            If ``None``, default to the defaults specified in
+            :attr:`PRMContainer.CP2K_TO_PRM[prm_name]["unit"]<PRMContainer.CP2K_TO_PRM>`.
+
+        """
+        # Parse arguments
+        if units is None:
+            units = repeat(None)
+        try:
+            prm_map = self.CP2K_TO_PRM[prm_name]
+        except KeyError as ex:
+            raise ValueError(f"'prm_name is of invalid value ({prm_name!r}); "
+                             f"accepted values: {tuple(self.CP2K_TO_PRM.keys())!r}") from ex
+
+        # Extract parameter specific arguments
+        name = prm_map['name']
+        output_units = prm_map['unit']
+        post_process = prm_map['post_process']
+        key_set = set(prm_map['key'])
+        str2int = {item: i for item, i in zip(prm_map['key'], prm_map['columns'])}
+
+        # Ensure that the attribute in question is a DataFrame and not None
+        df = getattr(self, name)
+        if df is None:
+            df = pd.DataFrame()
+            setattr(self, name, df)
+            self._process_df(df, name)
+
+        # Parse and validate the columns
+        param_df = pd.DataFrame(param_df, copy=True)
+        if not key_set.issuperset(param_df.columns):
+            raise ValueError("The keys in `param_df` should be a subset of "
+                             f"`PRMContainer.CP2K_TO_PRM[{prm_name!r}]['key']`")
+        param_df.columns = [str2int[i] for i in param_df.columns]
+
+        # Parse and validate the index
+        if not isinstance(param_df.index, pd.MultiIndex):
+            iterator = (i.split() for i in param_df.index)
+            param_df.index = pd.MultiIndex.from_tuples(iterator)
+
+        # Apply unit conversion and post-processing
+        iterator = zip(param_df.items(), units, output_units, post_process)
+        for (k, series), unit, output_unit, func in iterator:
+            series_new = parse_cp2k_value(series, unit=output_unit, default_unit=unit)
+            if func is not None:
+                series_new = func(series_new)
+            param_df[k] = series_new
+
+        # Updated the DataFrame
+        columns = param_df.columns
+        for index, values in param_df.iterrows():
+            df.loc[index, columns] = values
+
     def overlay_cp2k_settings(self, cp2k_settings: Mapping) -> None:
         """Extract forcefield information from PLAMS-style CP2K settings.
 
@@ -352,11 +445,11 @@ class PRMContainer(AbstractDataClass, AbstractFileContainer):
                 key = prm_map['key']
                 unit = prm_map['unit']
                 default_unit = prm_map['default_unit']
-                post_procoess = prm_map['post_process']
+                post_process = prm_map['post_process']
 
                 self._overlay_cp2k_settings(cp2k_settings,
                                             name, columns, key_path, key, unit,
-                                            default_unit, post_procoess)
+                                            default_unit, post_process)
 
     def _overlay_cp2k_settings(self, cp2k_settings: Mapping,
                                name: str, columns: MutableSequence[int],
@@ -373,7 +466,7 @@ class PRMContainer(AbstractDataClass, AbstractFileContainer):
             prm_iter = (prm_iter,) if isinstance(prm_iter, Mapping) else prm_iter
 
         # Ensure that PRMContainter section is a DataFrame and not None
-        df = getattr(self, name, None)
+        df = getattr(self, name)
         if df is None:
             df = pd.DataFrame()
             setattr(self, name, df)
