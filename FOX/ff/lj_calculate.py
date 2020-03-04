@@ -25,7 +25,7 @@ intra-moleculair interactions.
 
 import math
 import functools
-from typing import Mapping, Tuple, Sequence, Optional, Iterable, Union, Generator
+from typing import Mapping, Tuple, Sequence, Optional, Iterable, Union, Generator, Any
 
 import numpy as np
 import pandas as pd
@@ -55,7 +55,8 @@ def get_non_bonded(mol: Union[str, MultiMolecule],
                    cp2k_settings: Optional[Mapping] = None,
                    distance_upper_bound: float = np.inf, k: int = 20,
                    shift_cutoff: bool = True,
-                   atom_pairs: Optional[Iterable[Tuple[str, str]]] = None
+                   atom_pairs: Optional[Iterable[Tuple[str, str]]] = None,
+                   el_scale14: Any = None, lj_scale14: Any = None
                    ) -> Tuple[pd.DataFrame, pd.DataFrame]:
     r"""Collect forcefield parameters and calculate all non-covalent interactions in **mol**.
 
@@ -112,6 +113,9 @@ def get_non_bonded(mol: Union[str, MultiMolecule],
     atom_pairs : :class:`Iterable<collections.abc.Iterable>` [:class:`tuple`], optional
         Explicitly specify all to-be considered atom-pairs.
 
+    el_scale14 & el_scale14 : :data:`Any<typing.Any>`
+        Dummy keywords for ensuring signature compatibility.
+
     Returns
     -------
     :class:`pandas.DataFrame` & :class:`pandas.DataFrame`
@@ -166,7 +170,8 @@ def get_non_bonded(mol: Union[str, MultiMolecule],
     ligand_count = psf.residue_id.max() - 1
     return get_V(mol, slice_dict, prm_df.loc, ligand_count,
                  k=k, core_atoms=core_atoms,
-                 distance_upper_bound=distance_upper_bound)
+                 distance_upper_bound=distance_upper_bound,
+                 shift_cutoff=shift_cutoff)
 
 
 def get_V(mol: MultiMolecule, slice_mapping: SliceMapping,
