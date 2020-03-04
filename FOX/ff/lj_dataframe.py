@@ -108,10 +108,17 @@ class LJDataFrame(pd.DataFrame):
     #: Map CP2K units to PLAMS units (see :class:`scm.plams.Units`).
     UNIT_MAPPING: Mapping[str, str] = MappingProxyType({'kcalmol': 'kcal/mol', 'kjmol': 'kj/mol'})
 
-    def overlay_cp2k_settings(self: pd.DataFrame, cp2k_settings: Mapping) -> None:
+    def overlay_cp2k_settings(self: pd.DataFrame, cp2k_settings: Mapping,
+                              psf: Optional[PSFContainer] = None) -> None:
         r"""Overlay **df** with all :math:`q`, :math:`\sigma` and :math:`\varepsilon` values from **cp2k_settings**."""  # noqa
         charge = cp2k_settings['input']['force_eval']['mm']['forcefield']['charge']
         charge_dict = {block['atom']: float(block['charge']) for block in charge}
+
+        if psf is not None:
+            psf_charge_dict = dict(zip(psf.atom_type, psf.charge))
+            for k, v in psf_charge_dict.items():
+                if k not in charge_dict:
+                    charge_dict[k] = v
 
         lj = cp2k_settings['input']['force_eval']['mm']['forcefield']['nonbonded']['lennard-jones']  # noqa
         epsilon_s = Settings()
