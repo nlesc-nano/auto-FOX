@@ -42,17 +42,17 @@ API
         >>> print(SIGMA_DF)
         Å    crystal_sigma  ionic_sigma
         ion
-        Ac        1.122532     0.997807
-        Ag        0.981608     0.856883
-        Al        0.541963     0.417238
-        Am        1.097714     0.972989
-        As        0.533054     0.408329
+        Ac        2.245065     1.995613
+        Ag        1.963217     1.713765
+        Al        1.083927     0.834475
+        Am        2.195429     1.945977
+        As        1.066109     0.816657
         ..             ...          ...
-        Xe        0.516721     0.391995
-        Y         1.005379     0.880653
-        Yb        1.023261     0.898535
-        Zn        0.775082     0.650356
-        Zr        0.789930     0.665204
+        Xe        1.033443     0.783991
+        Y         2.010758     1.761307
+        Yb        2.046522     1.797070
+        Zn        1.550164     1.300712
+        Zr        1.579860     1.330409
 
 """
 
@@ -87,4 +87,4 @@ del _CSV
 SIGMA_DF: pd.DataFrame = RADII_DF[['crystal_radius', 'ionic_radius']].groupby(RADII_DF.index).mean()
 SIGMA_DF.columns = [i.replace('radius', 'sigma') for i in SIGMA_DF.columns]
 SIGMA_DF.columns.name = 'Å'
-SIGMA_DF /= 2**(1/6)  # Conversion factor between a radius and the Lennard-Jones sigma parameter
+SIGMA_DF *= 2 / 2**(1/6)  # Conversion factor between R / 2 and the Lennard-Jones sigma parameter

@@ -158,6 +158,7 @@ def _process_prm(armc: ARMC) -> pd.DataFrame:
     prm = PRMContainer.read(armc.md_settings[0].input.force_eval.mm.forcefield.parm_file_name)
     nonbonded = prm.nonbonded[[2, 3]].copy()
     nonbonded.columns = ['epsilon', 'sigma']  # kcal/mol and Angstrom
+    nonbonded['sigma'] *= 2 / 2**(1/6)  # Conversion factor between (R / 2) and sigma
     return nonbonded
 
 

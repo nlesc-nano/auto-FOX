@@ -4,7 +4,7 @@
 # https://doi.org/10.1021/ja00051a040
 #
 # Units:
-# sigma = distance (Ångström)
+# sigma times 2**(1/6) = distance (Ångström)
 # epsilon = energy (kcal/mol)
 # psi = scale
 

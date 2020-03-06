@@ -18,11 +18,11 @@ lennard-jones:
   epsilon: '[kcalmol] 0.1263'
   sigma: '[angstrom] 0.1024'
 - atoms: CG2O3 Se
-  epsilon: '[kcalmol] 2.4240'
-  sigma: '[angstrom] 1.8740'
+  epsilon: '[kcalmol] 3.0504'
+  sigma: '[angstrom] 2.0704'
 - atoms: Cd HGR52
   epsilon: '[kcalmol] 0.1427'
   sigma: '[angstrom] 0.1156'
 - atoms: HGR52 Se
-  epsilon: '[kcalmol] 3.1025'
-  sigma: '[angstrom] 2.5525'
+  epsilon: '[kcalmol] 3.6549'
+  sigma: '[angstrom] 2.6749'
