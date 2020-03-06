@@ -347,6 +347,16 @@ estimating :math:`\sigma` and :math:`\varepsilon`.
 while the first minimum of the Boltzmann-inverted RDF is taken as
 :math:`\varepsilon`.
 
+``"crystal_radius"`` and ``"ion_radius"`` use a similar approach to ``"uff"``,
+the key difference being the origin of the parameters:
+`10.1107/S0567739476001551 <https://doi.org/10.1107/S0567739476001551>`_:
+R. D. Shannon, Revised effective ionic radii and systematic studies of
+interatomic distances in halides and chalcogenides, *Acta Cryst.* (1976). A32, 751-767.
+Note that:
+
+* Values are averaged with respect to all charges and coordination numbers per atom type.
+* These two guess-types can only be used for estimating :math:`\sigma` parameters.
+
 If ``"guess"`` is placed within the ``"frozen"`` block, than the guessed
 parameters will be treated as constants rather than to-be optimized variables.
 
