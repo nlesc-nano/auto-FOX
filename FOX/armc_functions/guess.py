@@ -7,17 +7,18 @@ A module with functions for guessing ARMC parameters.
 """
 
 import reprlib
-from typing import Sequence, Union, Iterable, Mapping, Tuple, List
+from typing import Sequence, Union, Iterable, Mapping, Tuple, List, Container
 from itertools import chain
 
 import numpy as np
 import pandas as pd
 
-from ..functions.cp2k_utils import _populate_keys
+from ..functions.cp2k_utils import _populate_keys, UNIT_MAP
 from ..io.read_psf import PSFContainer
 from ..io.read_prm import PRMContainer
 from ..ff.lj_param import estimate_lj
 from ..ff.lj_uff import UFF_DF
+from ..ff.shannon_radii import SIGMA_DF
 from ..ff.lj_dataframe import LJDataFrame
 
 __all__ = ['guess_param']
@@ -69,16 +70,20 @@ def guess_param(armc: ARMC, mode: str = 'rdf',
 
     # Populate df with the guess parameters
     try:
+        prm_df = _process_prm(armc)
         if mode.lower() == 'rdf':
             rdf(df, mol_list, columns=columns)
         elif mode.lower() == 'uff':
-            prm_df = _process_prm(armc)
             uff(df, prm_df.loc, columns=columns)
+        elif mode.lower() in {'ionic_radius', 'ion_radius', 'ionic_radii', 'ion_radii'}:
+            ion_radius(df, prm_df.loc, columns=columns)
+        elif mode.lower() in {'crystal_radius', 'crystal_radii'}:
+            crystal_radius(df, prm_df.loc, columns=columns)
         else:
             raise AttributeError
     except AttributeError as ex:
-        raise ValueError(f"'mode' is of invalid value: {reprlib.repr(mode)}; accepted values are"
-                         "'rdf' or 'uff'").with_traceback(ex.__traceback__)
+        raise ValueError(f"'mode' is of invalid value: {reprlib.repr(mode)};\naccepted values: "
+                         "'rdf', 'uff', 'crystal_radius' and 'ion_radius'") from ex
 
     # Update all ARMC Settings instacnes with the new parameters
     df_transform = _transform_df(df[columns])
@@ -152,7 +157,7 @@ def _process_prm(armc: ARMC) -> pd.DataFrame:
     r"""Extract a DataFrame from a .prm file with all :math:`\varepsilon` and :math:`\sigma` values."""  # noqa
     prm = PRMContainer.read(armc.md_settings[0].input.force_eval.mm.forcefield.parm_file_name)
     nonbonded = prm.nonbonded[[2, 3]].copy()
-    nonbonded.columns = ['epsilon', 'sigma']
+    nonbonded.columns = ['epsilon', 'sigma']  # kcal/mol and Angstrom
     return nonbonded
 
 
@@ -178,25 +183,54 @@ def _process_df(armc: ARMC) -> Tuple[LJDataFrame, List['MultiMolecule']]:
     return df[df.isna().any(axis=1)], mol_list
 
 
-def uff(df: pd.DataFrame, prm_mapping: Mapping[str, Tuple[float, float]],
-        columns: Sequence[str] = ['epsilon', 'sigma']) -> None:
-    """Guess parameters in **df** using UFF parameters."""
-    columns = set(columns)
+def _radii(df: pd.DataFrame,
+           ref_map: Mapping[str, Tuple[float, float]],
+           prm_mapping: Mapping[str, Tuple[float, float]],
+           columns: Container[str] = frozenset({'epsilon', 'sigma'})) -> None:
     for i, j in df.index:  # pd.MultiIndex
         try:
             eps_i, sig_i = prm_mapping[i]
         except KeyError:
-            eps_i, sig_i = UFF_DF.loc[i]
+            eps_i, sig_i = ref_map[i]
 
         try:
             eps_j, sig_j = prm_mapping[j]
         except KeyError:
-            eps_j, sig_j = UFF_DF.loc[j]
+            eps_j, sig_j = ref_map[j]
 
         if 'epsilon' in columns:
             df.at[(i, j), 'epsilon'] = np.abs(eps_i * eps_j)**0.5
         if 'sigma' in columns:
-            df.at[(i, j), 'sigma'] = (sig_i + sig_j) / 2
+            df.at[(i, j), 'sigma'] = ((sig_i + sig_j) / 2)
+
+
+def uff(df: pd.DataFrame, prm_mapping: Mapping[str, Tuple[float, float]],
+        columns: Container[str] = frozenset({'epsilon', 'sigma'})) -> None:
+    """Guess parameters in **df** using UFF parameters."""
+    column_set = set(columns)
+    _radii(df, UFF_DF.loc, prm_mapping, column_set)
+
+
+def ion_radius(df: pd.DataFrame, prm_mapping: Mapping[str, Tuple[float, float]],
+               columns: Container[str] = frozenset({'sigma'})) -> None:
+    """Guess parameters in **df** using ionic radii."""
+    column_set = set(columns)
+    if 'epsilon' in column_set:
+        raise ValueError(f"'epsilon' guessing is not supported with `guess='ion_radius'`")
+
+    ion_loc = SIGMA_DF[['ionic_sigma', 'ionic_sigma']].loc
+    _radii(df, ion_loc, prm_mapping, column_set)
+
+
+def crystal_radius(df: pd.DataFrame, prm_mapping: Mapping[str, Tuple[float, float]],
+                   columns: Container[str] = frozenset({'sigma'})) -> None:
+    """Guess parameters in **df** using crystal radii."""
+    column_set = set(columns)
+    if 'epsilon' in column_set:
+        raise ValueError(f"'epsilon' guessing is not supported with `guess='crystal_radius'`")
+
+    ion_loc = SIGMA_DF[['crystal_sigma', 'crystal_sigma']].loc
+    _radii(df, ion_loc, prm_mapping, column_set)
 
 
 def rdf(df: pd.DataFrame, mol_list: Iterable['MultiMolecule'],
