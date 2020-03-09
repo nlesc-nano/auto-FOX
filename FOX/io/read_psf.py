@@ -19,22 +19,32 @@ API
 
 """
 
+import sys
 import reprlib
 import inspect
+from os import PathLike
+from io import TextIOBase
 from typing import (Dict, Optional, Any, Set, Iterator, Iterable, Callable,
-                    AnyStr, List, Mapping, Hashable)
+                    AnyStr, List, Mapping, Hashable, Union)
 from itertools import chain
 from types import MappingProxyType
 
 import numpy as np
 import pandas as pd
 
-from scm.plams import Molecule, Atom
+from scm.plams import Molecule, Atom, Bond
 from assertionlib.dataclass import AbstractDataClass
 
 from .file_container import AbstractFileContainer
 from ..functions.utils import read_str_file, read_rtf_file, group_by_values
 from ..functions.molecule_utils import get_bonds, get_angles, get_dihedrals, get_impropers
+
+try:
+    from scm.plams import writepdb
+except ImportError as ex:
+    RDKIT_EX: Optional[ImportError] = ex
+else:
+    RDKIT_EX: Optional[ImportError] = None
 
 __all__ = ['PSFContainer']
 
@@ -880,6 +890,48 @@ class PSFContainer(AbstractDataClass, AbstractFileContainer):
 
         """
         return group_by_values(enumerate(self.atom_type))
+
+    def write_pdb(self, mol: Molecule,
+                  pdb_file: Union[str, PathLike, TextIOBase] = sys.stdout,
+                  copy_mol: bool = True) -> None:
+        """Construct a .pdb file from this instance and **mol**.
+
+        Parameters
+        ----------
+        mol : |plams.Molecule|
+            A PLAMS Molecule.
+
+        copy_mol : :class:`bool`
+            If ``True``, create a copy of **mol** instead of modifying it inplace.
+
+        pdb_file : :class:`str` ot :class:`TextIOBase<io.TextIOBase>`
+            A filename or a file-like object.
+
+        """
+        if RDKIT_EX is not None:
+            raise RDKIT_EX
+
+        if isinstance(pdb_file, PathLike):
+            pdb_file = str(pdb_file)
+        if copy_mol:
+            mol = mol.copy()
+
+        # Update residue information and the like
+        for at, (_, series) in zip(mol, self.atoms.iterrows()):
+            at.properties.pdb_info += {
+                'ResidueNumber': series['residue ID'],
+                'ResidueName': series['residue name'],
+                'Name': series['atom type'],
+                'IsHeteroAtom': at.symbol not in {'C', 'H'},
+                'ChainId': 'A'
+            }
+
+        # Update bonds
+        mol.delete_all_bonds()
+        for i, j in self.bonds:
+            mol.add_bond(Bond(mol[i], mol[j], mol=mol))
+
+        writepdb(mol, pdb_file)
 
 
 def overlay_str_file(psf: PSFContainer, filename: str,
