@@ -434,9 +434,14 @@ class MonteCarlo(AbstractDataClass, abc.Mapping):
         for job in job_list:
             job.name += '.opt'
             self.job_cache.append(job)
-            results = job.run()
+
+            try:
+                results = job.run()
+            except FileNotFoundError:
+                return None  # Precaution against PLAMS unpickling old Jobs that don't exist
             if job.status in {'crashed', 'failed'}:
                 return None
+
             try:  # Construct and return a MultiMolecule object
                 path = results.get_xyz_path()
                 mol = MultiMolecule.from_xyz(path)
@@ -477,9 +482,14 @@ class MonteCarlo(AbstractDataClass, abc.Mapping):
         for job in jobs:
             job.name += '.MD'
             self.job_cache.append(job)
-            results = job.run()
+
+            try:
+                results = job.run()
+            except FileNotFoundError:
+                return None  # Precaution against PLAMS unpickling old Jobs that don't exist
             if job.status in {'crashed', 'failed'}:
                 return None
+
             try:  # Construct and return a MultiMolecule object
                 path = results.get_xyz_path()
                 mol = MultiMolecule.from_xyz(path)
