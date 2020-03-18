@@ -435,6 +435,8 @@ class MonteCarlo(AbstractDataClass, abc.Mapping):
             job.name += '.opt'
             self.job_cache.append(job)
             results = job.run()
+            if job.status in {'crashed', 'failed'}:
+                return None
             try:  # Construct and return a MultiMolecule object
                 path = results.get_xyz_path()
                 mol = MultiMolecule.from_xyz(path)
@@ -476,6 +478,8 @@ class MonteCarlo(AbstractDataClass, abc.Mapping):
             job.name += '.MD'
             self.job_cache.append(job)
             results = job.run()
+            if job.status in {'crashed', 'failed'}:
+                return None
             try:  # Construct and return a MultiMolecule object
                 path = results.get_xyz_path()
                 mol = MultiMolecule.from_xyz(path)
