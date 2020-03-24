@@ -158,16 +158,20 @@ class ARMC(MonteCarlo):
         """Get :attr:`ARMC.iter_len` ``//`` :attr:`ARMC.sub_iter_len`."""
         return self.iter_len // self.sub_iter_len
 
-    def __init__(self, iter_len: int = 50000, sub_iter_len: int = 100, gamma: int = 200,
-                 a_target: float = 0.25, phi: float = 1.0,
-                 apply_phi: Callable[[float, float], float] = np.add, **kwargs) -> None:
+    def __init__(self, iter_len: int = 50000,
+                 sub_iter_len: int = 100,
+                 gamma: float = 2.0,
+                 a_target: float = 0.25,
+                 phi: float = 1.0,
+                 apply_phi: Callable[[float, float], float] = np.add,
+                 **kwargs) -> None:
         """Initialize a :class:`ARMC` instance."""
         super().__init__(**kwargs)
 
         # Settings specific to addaptive rate Monte Carlo (ARMC)
         self.iter_len: int = iter_len
         self.sub_iter_len: int = sub_iter_len
-        self.gamma: int = gamma
+        self.gamma: float = gamma
         self.a_target: float = a_target
 
         # Settings specific to handling the phi parameter in ARMC
