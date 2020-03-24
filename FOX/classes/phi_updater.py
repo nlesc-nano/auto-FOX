@@ -17,6 +17,38 @@ PhiFunc = Callable[[Union[ALT, AT], float], AT]
 
 
 class AbstractPhiUpdater(AbstractDataClass, ABC):
+    r"""A class for applying and updating :math:`\phi`.
+
+    Has two main methods:
+
+    * :meth:`__call__` for applying :attr:`phi` to the passed value.
+    * :meth:`update` for updating the value of :attr:`phi`.
+
+    Examples
+    --------
+    .. code:: python
+        >>> import numpy as np
+
+        >>> value = np.ndarray(...)
+        >>> phi = PhiUpdater(...)
+
+        >>> phi(value)
+        >>> phi.update(...)
+
+    Attributes
+    ----------
+    phi
+        The variable :math:`\phi`.
+    gamma
+        The constant :math:`\gamma`.
+    a_target
+        The target acceptance rate :math:`\alpha_{t}`.
+    func : :data:`~typing.Callable`
+        The callable used for applying :math:`\phi` to the auxiliary error.
+        The callable should take an array-like object and float as argument
+        and return a numpy array.
+
+    """
 
     phi: float
     gamma: float
@@ -31,14 +63,18 @@ class AbstractPhiUpdater(AbstractDataClass, ABC):
         ----------
         phi
             The variable :math:`\phi`.
+            See :attr:`AbstractPhiUpdater.phi`.
         gamma
             The constant :math:`\gamma`.
+            See :attr:`AbstractPhiUpdater.gamma`.
         a_target
             The target acceptance rate :math:`\alpha_{t}`.
+            See :attr:`AbstractPhiUpdater.a_target`.
         func : :data:`~typing.Callable`
             The callable used for applying :math:`\phi` to the auxiliary error.
             The callable should take an array-like object and float as argument
             and return a numpy array.
+            See :attr:`AbstractPhiUpdater.func`.
         \**kwargs : :data:`~typing.Any`
             Further keyword arguments **func**
 
@@ -82,12 +118,6 @@ class AbstractPhiUpdater(AbstractDataClass, ABC):
 
 
 class PhiUpdater(AbstractPhiUpdater):
-
-    phi: float
-    gamma: float
-    a_target: float
-    # func: PhiFunc
-
     @AbstractPhiUpdater.inherit_annotations()
     def __init__(self, phi=1.0, gamma=2.0, a_target=0.25,
                  func=np.add, **kwargs) -> None:
@@ -122,3 +152,6 @@ class PhiUpdater(AbstractPhiUpdater):
         if logger is not None:
             logger.info(f"Updating phi: {self.phi} -> {phi}")
         self.phi = phi
+
+
+PhiUpdater.__doc__ = AbstractPhiUpdater.__doc__
