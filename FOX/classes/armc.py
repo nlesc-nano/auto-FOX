@@ -19,10 +19,12 @@ API
 
 """
 
+from __future__ import annotations
+
 import os
 import io
 import logging
-from typing import Tuple, Dict, Any, Optional, Iterable, Callable, Mapping, Union, AnyStr
+from typing import Tuple, TYPE_CHECKING, Any, Optional, Iterable, Callable, Mapping, Union, AnyStr
 from contextlib import AbstractContextManager, redirect_stdout
 
 import yaml
@@ -30,7 +32,7 @@ import numpy as np
 
 from scm.plams import init, finish, config, Settings
 
-from .monte_carlo import MonteCarlo
+from .monte_carlo import MonteCarloABC, KT
 from ..logger import Plams2Logger, get_logger
 from ..io.hdf5_utils import (
     create_hdf5, to_hdf5, create_xyz_hdf5, _get_filename_xyz, hdf5_clear_status
@@ -40,13 +42,23 @@ from ..io.file_container import NullContext
 from ..armc_functions.guess import guess_param
 from ..armc_functions.df_to_dict import df_to_dict
 from ..armc_functions.sanitization import init_armc_sanitization
-
-__all__ = ['ARMC', 'run_armc']
+from ..type_hints import ArrayLikeOrScalar
 
 try:
     Dumper = yaml.CDumper
 except AttributeError:
-    Dumper = yaml.Dumper
+    Dumper = yaml.Dumper  # type: ignore
+
+if TYPE_CHECKING:
+    from .multi_mol import MultiMolecule
+    from .phi_updater import PhiUpdater
+    from ..io import PSFContainer
+else:
+    MultiMolecule = 'FOX.classes.multi_mol.MultiMolecule'
+    PhiUpdater = 'FOX.classes.phi_updater.PhiUpdater'
+    PSFContainer = 'FOX.io.read_psf.PSFContainer'
+
+__all__ = ['ARMC', 'run_armc']
 
 
 class Init(AbstractContextManager):
@@ -63,11 +75,11 @@ class Init(AbstractContextManager):
         finish()
 
 
-def run_armc(armc: 'ARMC',
+def run_armc(armc: ARMC,
              path: Optional[str] = None,
              folder: Optional[str] = None,
              logfile: Optional[str] = None,
-             psf: Optional[Iterable['PSFContainer']] = None,
+             psf: Optional[Iterable[PSFContainer]] = None,
              restart: bool = False,
              guess: Optional[Mapping[str, Mapping]] = None) -> None:
     """A wrapper arround :class:`ARMC` for handling the JobManager."""
@@ -122,64 +134,69 @@ def _get_armc_logger(logfile: Optional[str], name: str, **kwargs) -> logging.Log
     return logger
 
 
-class ARMC(MonteCarlo):
+class ARMC(MonteCarloABC):
     r"""The Addaptive Rate Monte Carlo class (:class:`.ARMC`).
 
-    A subclass of :class:`.MonteCarlo`.
+    A subclass of :class:`MonteCarloABC`.
 
-    Parameters
+    Attributes
     ----------
-    iter_len : int
+    iter_len : :class:`int`
         The total number of ARMC iterations :math:`\kappa \omega`.
 
-    sub_iter_len : int
+    super_iter_len : :class:`int`
+        The length of each ARMC subiteration :math:`\kappa`.
+
+    sub_iter_len : :class:`int`
         The length of each ARMC subiteration :math:`\omega`.
 
-    gamma : float
-        The constant :math:`\gamma`.
+    phi : :class:`PhiUpdaterABC`
+        A PhiUpdater instance.
 
-    a_target : float
-        The target acceptance rate :math:`\alpha_{t}`.
-
-    phi : float
-        The variable :math:`\phi`.
-
-    apply_phi : |Callable|_
-        The callable used for applying :math:`\phi` to the auxiliary error.
-        The callable should be able to take 2 floats as argument and return a new float.
-
-    \**kwargs : |Any|_
+    \**kwargs : :data:`~typing.Any`
         Keyword arguments for the :class:`MonteCarlo` superclass.
 
     """
+
+    iter_len: int
+    sub_iter_len: int
+    phi: PhiUpdater
 
     @property
     def super_iter_len(self) -> int:
         """Get :attr:`ARMC.iter_len` ``//`` :attr:`ARMC.sub_iter_len`."""
         return self.iter_len // self.sub_iter_len
 
-    def __init__(self, iter_len: int = 50000,
+    def __init__(self, phi: PhiUpdater,
+                 iter_len: int = 50000,
                  sub_iter_len: int = 100,
-                 gamma: float = 2.0,
-                 a_target: float = 0.25,
-                 phi: float = 1.0,
-                 apply_phi: Callable[[float, float], float] = np.add,
-                 **kwargs) -> None:
-        """Initialize a :class:`ARMC` instance."""
+                 **kwargs: Any) -> None:
+        r"""Initialize an :class:`ARMC` instance.
+
+        Parameters
+        ----------
+        iter_len : :class:`int`
+            The total number of ARMC iterations :math:`\kappa \omega`.
+
+        sub_iter_len : :class:`int`
+            The length of each ARMC subiteration :math:`\omega`.
+
+        phi : :class:`PhiUpdaterABC`
+            A PhiUpdater instance.
+
+        \**kwargs : :data:`~typing.Any`
+            Keyword arguments for the :class:`MonteCarlo` superclass.
+
+        """
         super().__init__(**kwargs)
 
         # Settings specific to addaptive rate Monte Carlo (ARMC)
+        self.phi = phi
         self.iter_len: int = iter_len
         self.sub_iter_len: int = sub_iter_len
-        self.gamma: float = gamma
-        self.a_target: float = a_target
-
-        # Settings specific to handling the phi parameter in ARMC
-        self.phi: float = phi
-        self.apply_phi: Callable[[float, float], float] = apply_phi
 
     @classmethod
-    def from_yaml(cls, filename: str) -> Tuple['ARMC', dict]:
+    def from_yaml(cls, filename: str) -> Tuple[ARMC, dict]:
         """Create a :class:`.ARMC` instance from a .yaml file.
 
         Parameters
@@ -230,12 +247,12 @@ class ARMC(MonteCarlo):
         s = Settings()
         s.armc.iter_len = self.iter_len
         s.armc.sub_iter_len = self.sub_iter_len
-        s.armc.gamma = self.gamma
-        s.armc.a_target = self.a_target
-        s.armc.phi = self.phi
+        s.armc.gamma = self.phi.gamma
+        s.armc.a_target = self.phi.a_target
+        s.armc.phi = self.phi.phi
 
         # The hdf5 block
-        s.hdf5_file = self.hdf5_file
+        s.hdf5_file = self.hdf5
 
         # The pram block
         s.param = df_to_dict(self.param)
@@ -247,11 +264,15 @@ class ARMC(MonteCarlo):
         if folder is not None:
             s.job.folder = folder
         s.job.keep_files = self.keep_files
-        s.job.rmsd_threshold = self.rmsd_threshold
-        s.job.job_type = f'{self.job_type.func.__module__}.{self.job_type.func.__qualname__}'
-        s.job.name = self.job_type.keywords['name']
-        s.job.preopt_settings = self.preopt_settings[0] if self.preopt_settings else None
-        s.job.md_settings = self.md_settings[0]
+
+        wm = self.workflow_manager
+        s.job.job_type = f"{wm['md'][0].__module__}.{wm['md'][0].__class__.__qualname__}"
+        s.job.name = wm['md'][0].name
+        s.job.md_settings = wm['md'][0].settings
+        if 'geometry' in wm:
+            s.job.preopt_settings = wm['geometry'][0].settings
+            if 'geometry' in wm.post_process:
+                s.job.rmsd_threshold = wm.post_process['geometry'].keywords.get('threshold')
 
         s.psf = {}
         with Settings.supress_missing():
@@ -273,50 +294,50 @@ class ARMC(MonteCarlo):
         # The pes block
         for name, partial in self.pes.items():
             pes_dict = s.pes[name.rsplit('.', maxsplit=1)[0]]
-            pes_dict.func = f'{partial.func.__module__}.{partial.func.__qualname__}'
+            pes_dict.func = f'{partial.__module__}.{partial.__qualname__}'
             pes_dict.args = list(partial.args)
             if 'kwargs' not in pes_dict:
                 pes_dict.kwargs = []
             pes_dict.kwargs.append(partial.keywords)
 
         # The move block
-        s.move.range.stop = round(float(self.move_range.max() - 1), 8)
-        s.move.range.step = round(float(abs(self.move_range[-1] - self.move_range[-2])), 8)
-        s.move.range.start = round(float(self.move_range[len(self.move_range) // 2] - 1), 8)
+        move_range = self.param.move_range
+        s.move.range.stop = round(float(move_range.max() - 1), 8)
+        s.move.range.step = round(float(abs(move_range[-1] - move_range[-2])), 8)
+        s.move.range.start = round(float(move_range[len(move_range) // 2] - 1), 8)
 
         # Write the file
         with manager(filename, 'w') as f:
             f.write(yaml.dump(s.as_dict(), Dumper=Dumper))
 
-    def __call__(self, start: int = 0, key_new: Optional[Tuple[np.ndarray, ...]] = None) -> None:
+    def __call__(self, start: int = 0, key_new: Optional[KT] = None) -> None:
         """Initialize the Addaptive Rate Monte Carlo procedure."""
         if start == 0:
-            create_hdf5(self.hdf5_file, self)  # Construct the HDF5 file
+            create_hdf5(self.hdf5, self)  # Construct the HDF5 file
 
             key_new = self._get_first_key()  # Initialize the first MD calculation
             if np.inf in self[key_new]:
-                ex = RuntimeError('One or more jobs crashed in the first ARMC iteration; '
-                                  'manual inspection of the cp2k output is recomended')
-                self.logger.critical(f'{ex.__class__.__name__}: {ex}', exc_info=True)
-                raise ex
-            self.clear_job_cache()
+                ex1 = RuntimeError('One or more jobs crashed in the first ARMC iteration; '
+                                   'manual inspection of the cp2k output is recomended')
+                self.logger.critical(repr(ex1), exc_info=True)
+                raise ex1
+            self.clear_jobs()
 
         elif key_new is None:
-            ex = TypeError("'key_new' cannot be 'None' if 'start' is larger than 0")
-            self.logger.critical(f'{ex.__class__.__name__}: {ex}', exc_info=True)
-            raise ex
+            ex2 = TypeError("'key_new' cannot be 'None' if 'start' is larger than 0")
+            self.logger.critical(repr(ex2), exc_info=True)
+            raise ex2
 
         # Start the main loop
         for kappa in range(start, self.super_iter_len):
             acceptance = np.zeros(self.sub_iter_len, dtype=bool)
-            create_xyz_hdf5(self.hdf5_file, self.molecule, iter_len=self.sub_iter_len)
+            create_xyz_hdf5(self.hdf5, self.molecule, iter_len=self.sub_iter_len)
 
             for omega in range(self.sub_iter_len):
                 key_new = self.do_inner(kappa, omega, acceptance, key_new)
-            self.update_phi(acceptance)
+            self.apply_phi(acceptance)
 
-    def do_inner(self, kappa: int, omega: int, acceptance: np.ndarray,
-                 key_old: Tuple[np.ndarray, ...]) -> Tuple[np.ndarray, ...]:
+    def do_inner(self, kappa: int, omega: int, acceptance: np.ndarray, key_old: KT) -> KT:
         r"""Run the inner loop of the :meth:`ARMC.__call__` method.
 
         Parameters
@@ -356,23 +377,27 @@ class ARMC(MonteCarlo):
         if accept:
             self.logger.info(f"Accepting move {(kappa, omega)}; total error change / error: "
                              f"{round(error_change, 4)} / {round(aux_new.sum(), 4)}\n")
-            self[key_new] = self.apply_phi(aux_new, self.phi)
+            self[key_new] = self.phi(aux_new)
             self.param['param_old'] = self.param['param']
+
         else:
             self.logger.info(f"Rejecting move {(kappa, omega)}; total error change / error: "
                              f"{round(error_change, 4)} / {round(aux_new.sum(), 4)}\n")
             self[key_new] = aux_new
-            self[key_old] = self.apply_phi(aux_old, self.phi)
+            self[key_old] = self.apply_phi(aux_old)
             key_new = key_old
 
         # Step 5: Export the results to HDF5
-        hdf5_kwarg = self._hdf5_kwarg(mol_list, accept, aux_new, pes_new)
-        to_hdf5(self.hdf5_file, hdf5_kwarg, kappa, omega)
+        self.to_hdf5(mol_list, accept, aux_new, pes_new, kappa, omega)
         if not accept:
-            self.param['param'] = self.param['param_old']
+            self.param['param'][:] = self.param['param_old']
         return key_new
 
-    def _get_first_key(self) -> Tuple[np.ndarray, ...]:
+    def apply_phi(self, value: ArrayLikeOrScalar) -> np.ndarray:
+        """Apply :attr:`phi` to **value**."""
+        return self.phi(value)
+
+    def _get_first_key(self) -> KT:
         """Create a the ``history_dict`` variable and its first key.
 
         The to-be returned key servers as the starting argument for :meth:`.do_inner`,
@@ -388,13 +413,14 @@ class ARMC(MonteCarlo):
         pes, _ = self.get_pes_descriptors(key, get_first_key=True)
 
         self[key] = self.get_aux_error(pes)
-        self.param['param_old'] = self.param['param']
+        self.param['param_old'][:] = self.param['param']
         return key
 
-    def _hdf5_kwarg(self, mol_list: Optional[Iterable['FOX.MultiMolecule']],
-                    accept: bool, aux_new: np.ndarray,
-                    pes_new: Mapping[str, np.ndarray]) -> Dict[str, Any]:
-        """Construct a dictionary with the **hdf5_kwarg** argument for :func:`.to_hdf5`.
+    def to_hdf5(self, mol_list: Optional[Iterable[MultiMolecule]],
+                accept: bool, aux_new: np.ndarray,
+                pes_new: Mapping[str, np.ndarray],
+                kappa: int, omega: int) -> None:
+        r"""Construct a dictionary with the **hdf5_kwarg** and pass it to :func:`.to_hdf5`.
 
         Parameters
         ----------
@@ -410,26 +436,34 @@ class ARMC(MonteCarlo):
         pes_new : |dict|_ [|str|_, |np.ndarray|_]
             A dictionary of PES descriptors.
 
+        kappa : int
+            The super-iteration, :math:`\kappa`, in :meth:`ARMC.__call__`.
+
+        omega : int
+            The sub-iteration, :math:`\omega`, in :meth:`ARMC.__call__`.
+
         Returns
         -------
         |dict|_
             A dictionary with the **hdf5_kwarg** argument for :func:`.to_hdf5`.
 
         """
+        phi = self.phi.phi
         param_key = 'param' if accept else 'param_old'
+
         hdf5_kwarg = {
             'param': self.param['param'],
             'xyz': mol_list if not None else np.nan,
-            'phi': self.phi,
+            'phi': phi,
             'acceptance': accept,
             'aux_error': aux_new,
-            'aux_error_mod': np.append(self.param[param_key].values, self.phi)
+            'aux_error_mod': np.append(self.param[param_key].values, phi)
         }
         hdf5_kwarg.update(pes_new)
 
-        return hdf5_kwarg
+        to_hdf5(self.hdf5, hdf5_kwarg, kappa, omega)
 
-    def get_aux_error(self, pes_dict: Dict[str, np.ndarray]) -> np.ndarray:
+    def get_aux_error(self, pes_dict: Mapping[str, ArrayLikeOrScalar]) -> np.ndarray:
         r"""Return the auxiliary error :math:`\Delta \varepsilon_{QM-MM}`.
 
         The auxiliary error is constructed using the PES descriptors in **values**
@@ -454,9 +488,11 @@ class ARMC(MonteCarlo):
             An array with :math:`m*n` auxilary errors
 
         """
-        def norm_mean(key: str, mm_pes: np.ndarray) -> float:
+        def norm_mean(key: str, mm_pes: ArrayLikeOrScalar) -> float:
             qm_pes = self.pes[key].ref
-            QM, MM = np.asarray(qm_pes, dtype=float), np.asarray(mm_pes, dtype=float)
+            QM = np.asarray(qm_pes, dtype=float)
+            MM = np.asarray(mm_pes, dtype=float)
+
             ret = (QM - MM)**2
             return ret.sum() / QM.sum()
 
@@ -467,75 +503,47 @@ class ARMC(MonteCarlo):
         ret.shape = length, -1
         return ret.T
 
-    def update_phi(self, acceptance: np.ndarray) -> None:
-        r"""Update the variable :math:`\phi`.
-
-        :math:`\phi` is updated based on the target accepatance rate, :math:`\alpha_{t}`, and the
-        acceptance rate, **acceptance**, of the current super-iteration.
-
-        * The values are updated according to the provided settings in **self.armc**.
-
-        The default function is equivalent to:
-
-        .. math::
-
-            \phi_{\kappa \omega} =
-            \phi_{ ( \kappa - 1 ) \omega} * \gamma^{
-                \text{sgn} ( \alpha_{t} - \overline{\alpha}_{ ( \kappa - 1 ) })
-            }
-
-        Parameters
-        ----------
-        acceptance : |np.ndarray|_ [|bool|_]
-            A 1D boolean array denoting the accepted moves within a sub-iteration.
-
-        """
-        sign = np.sign(self.a_target - np.mean(acceptance))
-        phi_old = self.phi
-        self.phi *= self.gamma**sign
-        self.logger.info(f"Updating phi: {phi_old} -> {self.phi}")
-
     def restart(self) -> None:
         r"""Restart a previously started Addaptive Rate Monte Carlo procedure."""
         i, j, key, acceptance = self._restart_from_hdf5()
 
         # Validate the xyz .hdf5 file; create a new one if required
-        xyz = _get_filename_xyz(self.hdf5_file)
+        xyz = _get_filename_xyz(self.hdf5)
         if not os.path.isfile(xyz):
-            create_xyz_hdf5(self.hdf5_file, self.molecule, iter_len=self.sub_iter_len)
+            create_xyz_hdf5(self.hdf5, self.molecule, iter_len=self.sub_iter_len)
 
         # Check that both .hdf5 files can be opened; clear their status if not
         closed = hdf5_clear_status(xyz)
         if not closed:
             self.logger.warning(f"Unable to open ...{os.sep}{os.path.basename(xyz)}, "
                                 "file status was forcibly reset")
-        closed = hdf5_clear_status(self.hdf5_file)
+        closed = hdf5_clear_status(self.hdf5)
         if not closed:
-            self.logger.warning(f"Unable to open ...{os.sep}{os.path.basename(self.hdf5_file)}, "
+            self.logger.warning(f"Unable to open ...{os.sep}{os.path.basename(self.hdf5)}, "
                                 "file status was forcibly reset")
 
         # Finish the current set of sub-iterations
         j += 1
         for omega in range(j, self.sub_iter_len):
             key = self.do_inner(i, omega, acceptance, key)
-        self.update_phi(acceptance)
+        self.phi.update(acceptance)
         i += 1
 
         # And continue
         self(start=i, key_new=key)
 
-    def _restart_from_hdf5(self) -> Tuple[int, int, Tuple[np.ndarray, ...], np.ndarray]:
+    def _restart_from_hdf5(self) -> Tuple[int, int, KT, np.ndarray]:
         r"""Read and process the .hdf5 file for :meth:`ARMC.restart`."""
         import h5py
 
-        with h5py.File(self.hdf5_file, 'r', libver='latest') as f:
+        with h5py.File(self.hdf5, 'r', libver='latest') as f:
             i, j = f.attrs['super-iteration'], f.attrs['sub-iteration']
             if i < 0:
                 raise ValueError(f'i: {i.__class__.__name__} = {i}')
             self.logger.info('Restarting ARMC procedure from super-iteration '
                              f'{i} & sub-iteration {j}')
 
-            self.phi = f['phi'][i]
+            self.phi.phi = f['phi'][i]
             self.param['param'] = self.param['param_old'] = f['param'][i, j]
             for key, err in zip(f['param'][i], f['aux_error'][i]):
                 key = tuple(key)
