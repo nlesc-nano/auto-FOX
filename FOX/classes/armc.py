@@ -23,8 +23,9 @@ from __future__ import annotations
 
 import os
 import io
-from typing import Tuple, TYPE_CHECKING, Any, Optional, Iterable, Mapping, Union, AnyStr, TypeVar
-from contextlib import AbstractContextManager, redirect_stdout
+from contextlib import redirect_stdout
+from typing import (Tuple, TYPE_CHECKING, Any, Optional, Iterable, Mapping,
+                    Union, AnyStr, TypeVar, ContextManager)
 
 import yaml
 import numpy as np
@@ -35,7 +36,7 @@ from .monte_carlo import MonteCarloABC
 from .armc_to_yaml import to_yaml, from_yaml
 from ..logger import Plams2Logger, wrap_plams_logger
 from ..armc_functions.guess import guess_param
-from ..type_hints import ArrayLikeOrScalar
+from ..type_hints import ArrayLikeOrScalar, Literal
 from ..io.hdf5_utils import (
     create_hdf5, to_hdf5, create_xyz_hdf5, _get_filename_xyz, hdf5_clear_status
 )
@@ -59,10 +60,11 @@ __all__ = ['ARMC', 'run_armc']
 KT = TypeVar('KT', bound=Tuple[float, ...])
 
 
-class Init(AbstractContextManager):
+class Init(ContextManager[None]):
     """A context manager for calling :func:`init` and :func:`finish`."""
 
-    def __init__(self, path=None, folder=None) -> None:
+    def __init__(self, path: Union[None, str, os.PathLike] = None,
+                 folder: Union[None, str, os.PathLike] = None) -> None:
         self.path = path
         self.folder = folder
 
@@ -74,9 +76,9 @@ class Init(AbstractContextManager):
 
 
 def run_armc(armc: ARMC,
-             path: Optional[str] = None,
-             folder: Optional[str] = None,
-             logfile: Optional[str] = None,
+             path: Union[None, str, os.PathLike] = None,
+             folder: Union[None, str, os.PathLike] = None,
+             logfile: Union[None, str, os.PathLike] = None,
              psf: Optional[Iterable[PSFContainer]] = None,
              restart: bool = False,
              guess: Optional[Mapping[str, Mapping]] = None) -> None:
@@ -206,16 +208,12 @@ class ARMC(MonteCarloABC):
 
             key_new = self._get_first_key()  # Initialize the first MD calculation
             if np.inf in self[key_new]:
-                ex1 = RuntimeError('One or more jobs crashed in the first ARMC iteration; '
+                raise RuntimeError('One or more jobs crashed in the first ARMC iteration; '
                                    'manual inspection of the cp2k output is recomended')
-                self.logger.critical(repr(ex1), exc_info=True)
-                raise ex1
             self.clear_jobs()
 
         elif key_new is None:
-            ex2 = TypeError("'key_new' cannot be 'None' if 'start' is larger than 0")
-            self.logger.critical(repr(ex2), exc_info=True)
-            raise ex2
+            raise TypeError("'key_new' cannot be 'None' if 'start' is larger than 0")
 
         # Start the main loop
         for kappa in range(start, self.super_iter_len):
@@ -338,7 +336,7 @@ class ARMC(MonteCarloABC):
 
         """
         phi = self.phi.phi
-        param_key = 'param' if accept else 'param_old'
+        param_key: Literal['param', 'param_old'] = 'param' if accept else 'param_old'
 
         hdf5_kwarg = {
             'param': self.param['param'],
@@ -439,11 +437,11 @@ class ARMC(MonteCarloABC):
             acceptance = f['acceptance'][i]
 
             # Find the last error which is not np.nan
-            final_key: KT = self._find_key(f, i)
+            final_key: KT = self._find_restart_key(f, i)
         return i, j, final_key, acceptance
 
     @staticmethod
-    def _find_key(f: Mapping[str, np.ndarray], i: int) -> KT:
+    def _find_restart_key(f: Mapping[str, np.ndarray], i: int) -> KT:
         """Construct a key for the parameter which is not ``nan``."""
         while i >= 0:
             aux_error = f['aux_error'][i]

@@ -102,7 +102,7 @@ def get_xyz_path(results: Cp2kResults) -> str:
     """Return the path + filename to an .xyz file."""
     for file in results.files:
         if '-pos' in file and '.xyz' in file:
-            return results[file]
+            return results.files[file]
     raise FileNotFoundError(f'No .xyz files found in {results.job.path!r}')
 
 

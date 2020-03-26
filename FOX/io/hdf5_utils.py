@@ -65,7 +65,6 @@ if TYPE_CHECKING:
         from h5py import File
     else:
         File = 'h5py._hl.files.File'   # type: ignore
-
 else:
     NDFrame = 'pandas.core.generic.NDFrame'
     MultiMolecule = 'FOX.classes.multi_mol.MultiMolecule'
