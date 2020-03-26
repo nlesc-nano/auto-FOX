@@ -3,8 +3,7 @@
 import functools
 from types import MappingProxyType
 from typing import (
-    Callable, Hashable, Optional, Collection, Mapping, Container, List, Dict, Union, Iterable,
-    Tuple
+    Hashable, Optional, Collection, Mapping, Container, List, Dict, Union, Iterable, Tuple
 )
 
 import numpy as np
@@ -12,9 +11,11 @@ import pandas as pd
 
 __all__ = ['update_charge']
 
+ConstrainDict = Mapping[Hashable, functools.partial]
 
-def get_net_charge(df: pd.DataFrame, index: Optional[Collection] = None,
-                   columns: Hashable = ('param', 'count')) -> float:
+
+def get_net_charge(param: pd.Series, count: pd.Series,
+                   index: Optional[Collection] = None) -> float:
     """Calculate the total charge in **df**.
 
     Returns the (summed) product of the ``"param"`` and ``"count"`` columns in **df**.
@@ -38,13 +39,14 @@ def get_net_charge(df: pd.DataFrame, index: Optional[Collection] = None,
         The total charge in **df**.
 
     """
-    if index is None:
-        return df.loc[:, columns].product(axis=1).sum()
-    return df.loc[index, columns].product(axis=1).sum()
+    index_ = slice(None) if index is None else index
+    ret = param.loc[index_] * count.loc[index_]
+    return ret.sum()
 
 
-def update_charge(atom: str, value: float, df: pd.DataFrame,
-                  constrain_dict: Optional[Mapping] = None, charge: bool = True) -> None:
+def update_charge(atom: str, value: float, param: pd.Series, count: pd.Series,
+                  constrain_dict: Optional[ConstrainDict] = None,
+                  charge: bool = True) -> None:
     """Set the atomic charge of **at** equal to **charge**.
 
     The atomic charges in **df** are furthermore exposed to the following constraints:
@@ -81,20 +83,20 @@ def update_charge(atom: str, value: float, df: pd.DataFrame,
         A dictionary with charge constrains.
 
     """
-    net_charge = get_net_charge(df)
-    df.at[atom, 'param'] = value
+    net_charge = get_net_charge(param, count)
+    param[atom] = value
 
     if not constrain_dict or atom in constrain_dict:
-        exclude = constrained_update(atom, df, constrain_dict)
+        exclude = constrained_update(atom, param, constrain_dict)
     else:
         exclude = [atom]
 
     if charge:
-        unconstrained_update(net_charge, df, exclude)
+        unconstrained_update(net_charge, param, exclude)
 
 
-def constrained_update(at1: str, df: pd.DataFrame,
-                       constrain_dict: Optional[Mapping[Hashable, Callable]] = None) -> List[str]:
+def constrained_update(at1: str, param: pd.Series,
+                       constrain_dict: Optional[ConstrainDict] = None) -> List[str]:
     """Perform a constrained update of atomic charges.
 
     Performs an inplace update of the ``"param"`` column in **df**.
@@ -116,7 +118,7 @@ def constrained_update(at1: str, df: pd.DataFrame,
         A list of atom types with updated atomic charges.
 
     """
-    charge = df.at[at1, 'param']
+    charge = param[at1]
     exclude = [at1]
     if not constrain_dict:
         return exclude
@@ -130,13 +132,13 @@ def constrained_update(at1: str, df: pd.DataFrame,
         exclude_append(at2)
 
         # Update the charges
-        df.at[at2, 'param'] = func2(func1(charge))
+        param[at2] = func2(func1(charge))
 
     return exclude
 
 
-def unconstrained_update(net_charge: float, df: pd.DataFrame,
-                         exclude: Optional[Container] = None) -> None:
+def unconstrained_update(net_charge: float, param: pd.Series,
+                         exclude: Optional[Container[str]] = None) -> None:
     """Perform an unconstrained update of atomic charges.
 
     The total charge in **df** is kept equal to **net_charge**.
@@ -156,16 +158,16 @@ def unconstrained_update(net_charge: float, df: pd.DataFrame,
 
     """
     exclude = exclude or ()
-    include = np.array([i not in exclude for i in df.index])
+    include = np.array([i not in exclude for i in param.keys()])
     if not include.any():
         return
 
-    i = net_charge - get_net_charge(df, np.invert(include))
-    i /= get_net_charge(df, include)
-    df.loc[include, 'param'] *= i
+    i = net_charge - get_net_charge(param, np.invert(include))
+    i /= get_net_charge(param, include)
+    param.loc[include] *= i
 
 
-def invert_partial_ufunc(ufunc: functools.partial) -> Callable:
+def invert_partial_ufunc(ufunc: functools.partial) -> functools.partial:
     """Invert a NumPy universal function embedded within a :class:`functools.partial` instance."""
     func = ufunc.func
     x2 = ufunc.args[0]
