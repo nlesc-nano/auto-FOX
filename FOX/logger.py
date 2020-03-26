@@ -17,9 +17,32 @@ API
 """
 
 import logging
+from logging import Logger
+from functools import wraps
 from typing import Optional, Type, Any, Callable
 
-__all__ = ['get_logger', 'Plams2Logger']
+__all__ = ['DummyLogger', 'get_logger', 'Plams2Logger']
+
+
+def _pass(*args: Any, **kwargs: Any) -> None:
+    pass
+
+
+class DummyLogger(Logger):
+    """A :class:`~logging.Logger` subclass whose methods do absolutely nothing."""
+
+    __slots__ = ()
+
+    __init__ = wraps(Logger.__init__)(_pass)
+    __repr__ = object.__repr__
+
+    warning = warn = wraps(Logger.warning)(_pass)
+    info = wraps(Logger.info)(_pass)
+    debug = wraps(Logger.debug)(_pass)
+    error = wraps(Logger.error)(_pass)
+    critical = fatal = wraps(Logger.critical)(_pass)
+    log = wraps(Logger.log)(_pass)
+    exception = wraps(Logger.exception)(_pass)
 
 
 def get_logger(name: str,
