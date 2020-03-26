@@ -1,18 +1,18 @@
 """
-FOX.classes.armc
-================
+FOX.armc.armc
+=============
 
 A module for performing Addaptive Rate Monte Carlo (ARMC) forcefield parameter optimizations.
 
 Index
 -----
-.. currentmodule:: FOX.classes.monte_carlo
+.. currentmodule:: FOX.armc.armc
 .. autosummary::
     ARMC
 
 API
 ---
-.. autoclass:: FOX.classes.monte_carlo.ARMC
+.. autoclass:: ARMC
     :members:
     :private-members:
     :special-members:
@@ -32,10 +32,10 @@ import numpy as np
 
 from scm.plams import init, finish
 
+from .guess import guess_param
 from .monte_carlo import MonteCarloABC
 from .armc_to_yaml import to_yaml, from_yaml
 from ..logger import Plams2Logger, wrap_plams_logger
-from ..armc_functions.guess import guess_param
 from ..type_hints import ArrayLikeOrScalar, Literal
 from ..io.hdf5_utils import (
     create_hdf5, to_hdf5, create_xyz_hdf5, _get_filename_xyz, hdf5_clear_status

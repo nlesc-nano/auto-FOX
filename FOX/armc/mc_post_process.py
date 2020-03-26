@@ -1,12 +1,12 @@
 """
-FOX.armc_functions.mc_post_process
-==================================
+FOX.armc.mc_post_process
+========================
 
-Callables for post-processing :class:`MultiMolecule` instances produced by :class:`MonteCarlo`.
+Callables for post-processing :class:`MultiMolecule` instances produced by :class:`ARMC`.
 
 Index
 -----
-.. currentmodule:: FOX.armc_functions.mc_post_process
+.. currentmodule:: FOX.armc.mc_post_process
 .. autosummary::
     AtomsFromPSF
 
@@ -16,14 +16,22 @@ API
 
 """
 
-from typing import Iterable, MutableSequence, Optional, MutableMapping
+from __future__ import annotations
 
-from ..io.read_psf import PSFContainer
-from ..classes.multi_mol import MultiMolecule
+from typing import Iterable, List, Optional, MutableMapping, TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from .armc import ARMC
+    from ..io.read_psf import PSFContainer
+    from ..classes.multi_mol import MultiMolecule
+else:
+    ARMC = 'FOX.armc.armc.ARMC'
+    PSFContainer = 'FOX.io.read_psf.PSFContainer'
+    MultiMolecule = 'FOX.classes.multi_mol.MultiMolecule'
 
 __all__ = ['AtomsFromPSF']
 
-AtomMapping = MutableMapping[str, MutableSequence[int]]
+AtomMapping = MutableMapping[str, List[int]]
 
 
 class AtomsFromPSF:
@@ -51,7 +59,7 @@ class AtomsFromPSF:
     """
 
     @classmethod
-    def from_psf(cls, *psf: PSFContainer) -> 'AtomsFromPSF':
+    def from_psf(cls, *psf: PSFContainer) -> AtomsFromPSF:
         """Construct a :class:`AtomsFromPsf` instance from one or more :class:`PSFContainer`."""
         try:
             return cls(*[i.to_atom_dict() for i in psf])
@@ -64,7 +72,7 @@ class AtomsFromPSF:
         self.atom_dict = atom_dict
 
     def __call__(self, mol_list: Optional[Iterable[MultiMolecule]],
-                 mc: Optional['MonteCarlo'] = None) -> None:
+                 mc: Optional[ARMC] = None) -> None:
         """Update the :attr:`MultiMolecule.atoms` of **mol_list**."""
         if mol_list is None:
             return

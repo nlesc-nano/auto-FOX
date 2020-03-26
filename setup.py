@@ -42,7 +42,7 @@ setup(
         'FOX.data',
         'FOX.examples',
         'FOX.functions',
-        'FOX.armc_functions',
+        'FOX.armc',
         'FOX.classes',
         'FOX.io',
         'FOX.ff',

@@ -27,8 +27,7 @@ from .io import (
 
 from .classes import (
     FrozenSettings,
-    MultiMolecule,
-    ARMC, run_armc,
+    MultiMolecule
 )
 
 from .ff import (
@@ -36,6 +35,10 @@ from .ff import (
     get_non_bonded,
     get_intra_non_bonded,
     estimate_lj, get_free_energy
+)
+
+from .armc import (
+    ARMC, run_armc
 )
 
 __author__ = "Bas van Beek"

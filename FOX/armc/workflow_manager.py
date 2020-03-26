@@ -210,8 +210,8 @@ class WorkflowManagerABC(AbstractDataClass, ABC, Mapping[KT, Tuple[JT, ...]]):
         """
         raise NotImplementedError('Trying to call an abstract method')
 
-    @abstractmethod
     @staticmethod
+    @abstractmethod
     def run_job(job: JT, logger: Logger, **kwargs: Any) -> Optional[T]:
         r"""Run a single **job** and return a user-specified result.
 

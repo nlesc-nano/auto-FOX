@@ -1,12 +1,12 @@
 """
-FOX.armc_functions.plotting
-===========================
+FOX.armc.plotting
+=================
 
 A module with functions for analyzing ARMC results.
 
 Index
 -----
-.. currentmodule:: FOX.armc_functions.plotting
+.. currentmodule:: FOX.armc.plotting
 .. autosummary::
     plot_pes_descriptors
     plot_param
@@ -14,9 +14,9 @@ Index
 
 API
 ---
-.. autofunction:: FOX.armc_functions.plotting.plot_pes_descriptors
-.. autofunction:: FOX.armc_functions.plotting.plot_param
-.. autofunction:: FOX.armc_functions.plotting.plot_dset
+.. autofunction:: plot_pes_descriptors
+.. autofunction:: plot_param
+.. autofunction:: plot_dset
 
 """
 

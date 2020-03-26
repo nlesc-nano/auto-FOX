@@ -1,6 +1,6 @@
 """
-FOX.armc_functions.guess
-========================
+FOX.armc.guess
+==============
 
 A module with functions for guessing ARMC parameters.
 

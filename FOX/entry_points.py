@@ -17,11 +17,11 @@ Index
 
 API
 ---
-.. autofunction:: FOX.entry_points.main_armc
-.. autofunction:: FOX.entry_points.main_plot_pes
-.. autofunction:: FOX.entry_points.main_plot_param
-.. autofunction:: FOX.entry_points.main_plot_dset
-.. autofunction:: FOX.entry_points.main_dset_to_csv
+.. autofunction:: main_armc
+.. autofunction:: main_plot_pes
+.. autofunction:: main_plot_param
+.. autofunction:: main_plot_dset
+.. autofunction:: main_dset_to_csv
 
 """
 
@@ -30,10 +30,10 @@ import argparse
 from os.path import isfile, join
 from typing import Optional
 
-from .classes.armc import ARMC, run_armc
-from .armc_functions.csv_utils import dset_to_csv
-from .armc_functions.guess import guess_param
-from .armc_functions.plotting import plot_pes_descriptors, plot_param, plot_dset
+from .armc import ARMC, run_armc
+from .armc.csv_utils import dset_to_csv
+from .armc.guess import guess_param
+from .armc.plotting import plot_pes_descriptors, plot_param, plot_dset
 
 try:
     import matplotlib.pyplot as plt
@@ -42,13 +42,13 @@ except ImportError:
 
 try:
     import h5py
-    H5PY_ERROR = ''
+    H5PY_ERROR = None
 except ImportError:
     H5PY_ERROR = ("Use of the FOX.{} function requires the 'h5py' package."
                   "\n'h5py' can be installed via anaconda with the following command:"
                   "\n\tconda install --name FOX -y -c conda-forge h5py")
 
-__all__: list = []
+__all__ = []
 
 
 def main_armc(args: Optional[list] = None) -> None:

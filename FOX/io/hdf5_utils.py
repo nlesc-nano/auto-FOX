@@ -60,7 +60,7 @@ except ImportError:
 if TYPE_CHECKING:
     from pandas.core.generic import NDFrame
     from ..classes.multi_mol import MultiMolecule
-    from ..classes.armc import ARMC
+    from ..armc.armc import ARMC
     if H5PY_ERROR is not None:
         from h5py import File
     else:
@@ -68,7 +68,7 @@ if TYPE_CHECKING:
 else:
     NDFrame = 'pandas.core.generic.NDFrame'
     MultiMolecule = 'FOX.classes.multi_mol.MultiMolecule'
-    ARMC = 'FOX.classes.armc.ARMC'
+    ARMC = 'FOX.armc.armc.ARMC'
     File = 'h5py._hl.files.File'
 
 

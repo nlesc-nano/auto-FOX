@@ -1,6 +1,6 @@
 """
-FOX.armc_functions.sanitization
-===============================
+FOX.armc.sanitization
+=====================
 
 A module for parsing and sanitizing ARMC settings.
 
@@ -18,14 +18,17 @@ import pandas as pd
 from scm.plams import Settings, Molecule
 
 from .mc_post_process import AtomsFromPSF
-from .schemas import (
-    get_pes_schema, schema_armc, schema_move, schema_job, schema_param, schema_hdf5, schema_psf
-)
+from .mc_mover import ParamMapping
+from .workflow_manager import WorkflowManager
+from .phi_updater import PhiUpdater
+
 from ..io.read_psf import PSFContainer, overlay_str_file, overlay_rtf_file
-from ..classes.multi_mol import MultiMolecule
+from ..classes import MultiMolecule
 from ..functions.utils import get_template, dict_to_pandas, get_atom_count, _get_move_range
 from ..functions.cp2k_utils import set_keys, set_subsys_kind
 from ..functions.molecule_utils import fix_bond_orders
+from .schemas import (get_pes_schema, schema_armc, schema_move, schema_job,
+                      schema_param, schema_hdf5, schema_psf)
 
 __all__ = ['init_armc_sanitization']
 

@@ -1,18 +1,18 @@
 """
-FOX.classes.monte_carlo
-=======================
+FOX.armc.monte_carlo
+====================
 
 A module for performing Monte Carlo-based forcefield parameter optimizations.
 
 Index
 -----
-.. currentmodule:: FOX.classes.monte_carlo
+.. currentmodule:: FOX.armc.monte_carlo
 .. autosummary::
-    MonteCarlo
+    MonteCarloABC
 
 API
 ---
-.. autoclass:: FOX.classes.monte_carlo.MonteCarlo
+.. autoclass:: MonteCarloABC
     :members:
     :private-members:
     :special-members:

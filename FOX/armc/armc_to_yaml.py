@@ -9,9 +9,9 @@ from contextlib import nullcontext
 import yaml
 from scm.plams import Settings
 
+from .df_to_dict import df_to_dict
+from .sanitization import init_armc_sanitization
 from ..functions.utils import get_template
-from ..armc_functions.df_to_dict import df_to_dict
-from ..armc_functions.sanitization import init_armc_sanitization
 
 try:
     Dumper = yaml.CDumper

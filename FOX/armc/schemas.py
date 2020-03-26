@@ -1,12 +1,12 @@
 """
-FOX.armc_functions.sanitization
-===============================
+FOX.armc.sanitization
+=====================
 
 Various templates for validating ARMC inputs.
 
 Index
 -----
-.. currentmodule:: FOX.armc_functions.schemas
+.. currentmodule:: FOX.armc.schemas
 .. autosummary::
     get_pes_schema
     schema_armc
@@ -19,28 +19,28 @@ Index
 
 API
 ---
-.. autofunction:: FOX.armc_functions.schemas.get_pes_schema
+.. autofunction:: get_pes_schema
 
-.. autodata:: FOX.armc_functions.schemas.schema_armc
-    :annotation: = schema.Schemas
+.. autodata:: schema_armc
+    :annotation: : schema.Schemas
 
-.. autodata:: FOX.armc_functions.schemas.schema_move
-    :annotation: = schema.Schemas
+.. autodata:: schema_move
+    :annotation: : schema.Schemas
 
-.. autodata:: FOX.armc_functions.schemas.schema_job
-    :annotation: = schema.Schemas
+.. autodata:: schema_job
+    :annotation: : schema.Schemas
 
-.. autodata:: FOX.armc_functions.schemas.schema_param
-    :annotation: = schema.Schemas
+.. autodata:: schema_param
+    :annotation: : schema.Schemas
 
-.. autodata:: FOX.armc_functions.schemas.schema_hdf5
-    :annotation: = schema.Schemas
+.. autodata:: schema_hdf5
+    :annotation: : schema.Schemas
 
-.. autodata:: FOX.armc_functions.schemas.schema_molecule
-    :annotation: = schema.Schemas
+.. autodata:: schema_molecule
+    :annotation: : schema.Schemas
 
-.. autodata:: FOX.armc_functions.schemas.schema_psf
-    :annotation: = schema.Schemas
+.. autodata:: schema_psf
+    :annotation: : schema.Schemas
 
 """
 

@@ -1,6 +1,6 @@
 """
-FOX.armc_functions.df_to_dict
-=============================
+FOX.armc.df_to_dict
+===================
 
 A module for converting ARMC parameter dataframes to ARMC-compatible dictionaries.
 
