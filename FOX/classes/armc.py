@@ -29,7 +29,7 @@ from contextlib import AbstractContextManager, redirect_stdout
 import yaml
 import numpy as np
 
-from scm.plams import init, finish, config, Settings
+from scm.plams import init, finish
 
 from .monte_carlo import MonteCarloABC
 from .armc_to_yaml import to_yaml, from_yaml
@@ -381,7 +381,6 @@ class ARMC(MonteCarloABC):
             qm_pes = self.pes[key].ref
             QM = np.asarray(qm_pes, dtype=float)
             MM = np.asarray(mm_pes, dtype=float)
-
             ret = (QM - MM)**2
             return ret.sum() / QM.sum()
 
@@ -422,7 +421,7 @@ class ARMC(MonteCarloABC):
         self(start=i, key_new=key)
 
     def _restart_from_hdf5(self) -> Tuple[int, int, KT, np.ndarray]:
-        r"""Read and process the .hdf5 file for :meth:`ARMC.restart`."""
+        """Read and process the .hdf5 file for :meth:`ARMC.restart`."""
         import h5py
 
         with h5py.File(self.hdf5, 'r', libver='latest') as f:

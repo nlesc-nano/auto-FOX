@@ -7,21 +7,26 @@ from functools import wraps
 from pkg_resources import resource_filename
 from typing import (
     Iterable, Tuple, Callable, Hashable, Sequence, Optional, List, Any, TypeVar, Dict,
-    Type, Mapping, Union
+    Type, Mapping, Union, MutableMapping, TYPE_CHECKING
 )
 
 import yaml
 import numpy as np
 import pandas as pd
 
-from scm.plams import (Settings, add_to_class)
+from scm.plams import Settings, add_to_class
+
+if TYPE_CHECKING:
+    from ..classes import MultiMolecule
+else:
+    MultiMolecule = 'FOX.classes.multi_Mol.MultiMolecule'
 
 __all__ = ['get_template', 'template_to_df', 'get_example_xyz']
 
 T = TypeVar('T')
 
 
-def append_docstring(item: Callable) -> Callable:
+def append_docstring(item: Callable[..., T]) -> Callable[..., T]:
     r"""A decorator for appending the docstring of a Callable one provided by another Callable.
 
     Examples
@@ -489,7 +494,7 @@ def get_func_name(item: Callable) -> str:
         item_name = item.__name__
         item_class = item.__class__.__name__
         item_module = item.__class__.__module__.split('.')[0]
-    return '{}.{}.{}'.format(item_module, item_class, item_name)
+    return f'{item_module}.{item_class}.{item_name}'
 
 
 def get_class_name(item: Callable) -> str:
@@ -524,10 +529,11 @@ def get_class_name(item: Callable) -> str:
     item_module = item.__module__.split('.')[0]
     if item_module == 'scm':
         item_module == item.__module__.split('.')[1]
-    return '{}.{}'.format(item_module, item_class)
+    return f'{item_module}.{item_class}'
 
 
-def slice_str(str_: str, intervals: List[Optional[int]], strip_spaces: bool = True) -> list:
+def slice_str(str_: str, intervals: List[Optional[int]],
+              strip_spaces: bool = True) -> List[str]:
     """Slice a string, **str_**, at intervals specified in **intervals**.
 
     Examples
@@ -565,7 +571,7 @@ def slice_str(str_: str, intervals: List[Optional[int]], strip_spaces: bool = Tr
 
 
 def get_atom_count(iterable: pd.MultiIndex,
-                   mol: Union[pd.Series, 'FOX.MultiMolecule']) -> pd.Series:
+                   mol: Union[pd.Series, MultiMolecule]) -> pd.Series:
     """Count the occurences of each atom/atom-pair (from **iterable**) in **mol**.
 
     Duplicate values are removed if when evaluating atom pairs when atom-pairs consist of
@@ -730,8 +736,12 @@ def str_to_callable(string: str) -> Callable:
             return eval('.'.join([class_, method]))
 
 
-def group_by_values(iterable: Iterable[Tuple[Any, Hashable]], mapping_type: Type[Mapping] = dict
-                    ) -> Mapping[Hashable, List[Any]]:
+KT = TypeVar('KT', bound=Hashable)
+VT = TypeVar('VT')
+
+
+def group_by_values(iterable: Iterable[Tuple[VT, KT]],
+                    mapping_type: Type[Mapping] = dict) -> Mapping[KT, List[VT]]:
     """Take an iterable, yielding 2-tuples, and group all first elements by the second.
 
     Exameple
@@ -766,13 +776,13 @@ def group_by_values(iterable: Iterable[Tuple[Any, Hashable]], mapping_type: Type
 
     """
     if issubclass(mapping_type, abc.MutableMapping):
-        ret = mapping_type()
+        ret: MutableMapping[KT, List[VT]] = mapping_type()
         mutable = True
     else:
         ret = {}
         mutable = False
 
-    list_append: Dict[Hashable, list.append] = {}
+    list_append: Dict[Hashable, Callable[[VT], None]] = {}
     for value, key in iterable:
         try:
             list_append[key](value)
