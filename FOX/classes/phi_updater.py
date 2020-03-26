@@ -7,16 +7,16 @@ import numpy as np
 
 from assertionlib.dataclass import AbstractDataClass
 
-from ..type_hints import ArrayLikeOrScalar, ArrayOrScalar, ArrayLike
+from ..type_hints import ArrayLikeOrScalar, ArrayLike
 
 __all__ = ['PhiUpdater']
 
 ALT = TypeVar('ALT', bound=ArrayLikeOrScalar)
-AT = TypeVar('AT', bound=ArrayOrScalar)
+AT = TypeVar('AT', bound=np.ndarray)
 PhiFunc = Callable[[Union[ALT, AT], float], AT]
 
 
-class AbstractPhiUpdater(AbstractDataClass, ABC):
+class PhiUpdaterABC(AbstractDataClass, ABC):
     r"""A class for applying and updating :math:`\phi`.
 
     Has two main methods:
@@ -96,11 +96,12 @@ class AbstractPhiUpdater(AbstractDataClass, ABC):
         Returns
         -------
         :class:`numpy.ndarray` or scalar
-            A NumPy array or a scalar.
+            An array or a scalar.
 
         """
         phi = self.phi
-        return self.func(value, phi)
+        ar = np.asarray(value)
+        return self.func(ar, phi)
 
     @abstractmethod
     def update(self, acceptance: ArrayLike, **kwargs: Any) -> None:
@@ -117,8 +118,8 @@ class AbstractPhiUpdater(AbstractDataClass, ABC):
         raise NotImplementedError("Trying to call an abstract method")
 
 
-class PhiUpdater(AbstractPhiUpdater):
-    @AbstractPhiUpdater.inherit_annotations()
+class PhiUpdater(PhiUpdaterABC):
+    @PhiUpdaterABC.inherit_annotations()
     def __init__(self, phi=1.0, gamma=2.0, a_target=0.25,
                  func=np.add, **kwargs) -> None:
         super().__init__(phi, gamma, a_target, func, **kwargs)
@@ -154,4 +155,4 @@ class PhiUpdater(AbstractPhiUpdater):
         self.phi = phi
 
 
-PhiUpdater.__doc__ = AbstractPhiUpdater.__doc__
+PhiUpdater.__doc__ = PhiUpdaterABC.__doc__
