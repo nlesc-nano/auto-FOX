@@ -8,16 +8,20 @@ from itertools import repeat
 from collections import abc
 from typing import (Mapping, TypeVar, Hashable, Any, KeysView, ItemsView, ValuesView, Iterator,
                     Union, Dict, List, Optional, FrozenSet, Callable, Type, Set, Tuple,
-                    Iterable, overload, Sequence, Collection)
+                    Iterable, overload, Sequence, Collection, TYPE_CHECKING)
 
 from scm.plams import SingleJob
 from assertionlib.dataclass import AbstractDataClass
 
-from FOX import MultiMolecule
-from FOX.functions.cp2k_utils import get_xyz_path
-from FOX.logger import DummyLogger
-from FOX.type_hints import Literal
-from FOX.io.read_xyz import XYZError
+from ..functions.cp2k_utils import get_xyz_path
+from ..logger import DummyLogger
+from ..type_hints import Literal
+from ..io.read_xyz import XYZError
+
+if TYPE_CHECKING:
+    from .multi_mol import MultiMolecule
+else:
+    MultiMolecule = f'{__package__}.multi_mol.MultiMolecule'
 
 __all__ = ['WorkflowManager']
 

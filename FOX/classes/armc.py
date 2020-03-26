@@ -23,8 +23,7 @@ from __future__ import annotations
 
 import os
 import io
-import logging
-from typing import Tuple, TYPE_CHECKING, Any, Optional, Iterable, Callable, Mapping, Union, AnyStr
+from typing import Tuple, TYPE_CHECKING, Any, Optional, Iterable, Mapping, Union, AnyStr, TypeVar
 from contextlib import AbstractContextManager, redirect_stdout
 
 import yaml
@@ -32,17 +31,14 @@ import numpy as np
 
 from scm.plams import init, finish, config, Settings
 
-from .monte_carlo import MonteCarloABC, KT
-from ..logger import Plams2Logger, get_logger
+from .monte_carlo import MonteCarloABC
+from .armc_to_yaml import to_yaml, from_yaml
+from ..logger import Plams2Logger, wrap_plams_logger
+from ..armc_functions.guess import guess_param
+from ..type_hints import ArrayLikeOrScalar
 from ..io.hdf5_utils import (
     create_hdf5, to_hdf5, create_xyz_hdf5, _get_filename_xyz, hdf5_clear_status
 )
-from ..functions.utils import get_template
-from ..io.file_container import NullContext
-from ..armc_functions.guess import guess_param
-from ..armc_functions.df_to_dict import df_to_dict
-from ..armc_functions.sanitization import init_armc_sanitization
-from ..type_hints import ArrayLikeOrScalar
 
 try:
     Dumper = yaml.CDumper
@@ -54,11 +50,13 @@ if TYPE_CHECKING:
     from .phi_updater import PhiUpdater
     from ..io import PSFContainer
 else:
-    MultiMolecule = 'FOX.classes.multi_mol.MultiMolecule'
-    PhiUpdater = 'FOX.classes.phi_updater.PhiUpdater'
+    MultiMolecule = f'{__package__}.multi_mol.MultiMolecule'
+    PhiUpdater = f'{__package__}.phi_updater.PhiUpdater'
     PSFContainer = 'FOX.io.read_psf.PSFContainer'
 
 __all__ = ['ARMC', 'run_armc']
+
+KT = TypeVar('KT', bound=Tuple[float, ...])
 
 
 class Init(AbstractContextManager):
@@ -83,9 +81,6 @@ def run_armc(armc: ARMC,
              restart: bool = False,
              guess: Optional[Mapping[str, Mapping]] = None) -> None:
     """A wrapper arround :class:`ARMC` for handling the JobManager."""
-    if not armc.keep_files:  # Disable rerun prevention if all jobs are deleted anyway
-        config.default_jobmanager.settings.hashing = None
-
     # Create a .psf file if specified
     if psf is not None:
         for item in psf:
@@ -94,12 +89,12 @@ def run_armc(armc: ARMC,
     # Guess the remaining unspecified parameters based on either UFF or the RDF
     if guess is not None:
         for k, v in guess.items():
-            frozen = (k if v['frozen'] else None)
+            frozen = k if v['frozen'] else None
             guess_param(armc, mode=v['mode'], columns=k, frozen=frozen)
 
     # Initialize the ARMC procedure
     with Init(path=path, folder=folder):
-        armc.logger = _get_armc_logger(logfile, armc.__class__.__name__)
+        armc.logger = wrap_plams_logger(logfile, armc.__class__.__name__)
         writer = Plams2Logger(armc.logger,
                               lambda n: 'STARTED' in n,
                               lambda n: 'Renaming' in n,
@@ -110,28 +105,6 @@ def run_armc(armc: ARMC,
                 armc()
             else:
                 armc.restart()
-
-
-def _get_armc_logger(logfile: Optional[str], name: str, **kwargs) -> logging.Logger:
-    """Substitute the PLAMS .log file for one created by a :class:`Logger<logging.Logger>`."""
-    # Define filenames
-    plams_logfile = config.default_jobmanager.logfile
-    logfile = os.path.abspath(logfile) if logfile is not None else plams_logfile
-
-    # Modify the plams logger
-    config.log.time = False
-    config.log.file = 0
-
-    # Replace the plams logger with a proper logging.Logger instance
-    os.remove(plams_logfile)
-    logger = get_logger(name, filename=logfile, **kwargs)
-    if plams_logfile != logfile:
-        try:
-            os.symlink(logfile, plams_logfile)
-        except OSError:
-            pass
-
-    return logger
 
 
 class ARMC(MonteCarloABC):
@@ -211,19 +184,7 @@ class ARMC(MonteCarloABC):
             a dictionary with keyword arguments for :func:`.run_armc`.
 
         """
-        # Load the .yaml file
-        if os.path.isfile(filename):
-            path, filename = os.path.split(filename)
-        else:
-            path = None
-        yaml_dict = get_template(filename, path=path)
-
-        # Parse and sanitize the .yaml file
-        s, pes_kwarg, job_kwarg = init_armc_sanitization(yaml_dict)
-        self = cls.from_dict(s)
-        for name, options in pes_kwarg.items():
-            self.add_pes_evaluator(name, options.func, options.args, options.kwargs)
-        return self, job_kwarg
+        return from_yaml(cls, filename)
 
     def to_yaml(self, filename: Union[AnyStr, os.PathLike, io.IOBase],
                 logfile: Optional[str] = None, path: Optional[str] = None,
@@ -236,79 +197,7 @@ class ARMC(MonteCarloABC):
             A filename or a file-like object.
 
         """
-        try:  # is filename an actual filename or a file-like object?
-            assert callable(filename.write)
-        except (AttributeError, AssertionError):
-            manager = open
-        else:
-            manager = NullContext
-
-        # The armc block
-        s = Settings()
-        s.armc.iter_len = self.iter_len
-        s.armc.sub_iter_len = self.sub_iter_len
-        s.armc.gamma = self.phi.gamma
-        s.armc.a_target = self.phi.a_target
-        s.armc.phi = self.phi.phi
-
-        # The hdf5 block
-        s.hdf5_file = self.hdf5
-
-        # The pram block
-        s.param = df_to_dict(self.param)
-
-        # The job block
-        s.job.path = os.getcwd() if path is None else str(path)
-        if logfile is not None:
-            s.job.logfile = logfile
-        if folder is not None:
-            s.job.folder = folder
-        s.job.keep_files = self.keep_files
-
-        wm = self.workflow_manager
-        s.job.job_type = f"{wm['md'][0].__module__}.{wm['md'][0].__class__.__qualname__}"
-        s.job.name = wm['md'][0].name
-        s.job.md_settings = wm['md'][0].settings
-        if 'geometry' in wm:
-            s.job.preopt_settings = wm['geometry'][0].settings
-            if 'geometry' in wm.post_process:
-                s.job.rmsd_threshold = wm.post_process['geometry'].keywords.get('threshold')
-
-        s.psf = {}
-        with Settings.supress_missing():
-            try:
-                s.psf.psf_file = [s.input.force_eval.subsys.topology.conn_file_name for
-                                  s in self.md_settings]
-                del s.job.md_settings.input.force_eval.subsys.topology.conn_file_name
-            except KeyError:
-                pass
-
-            try:
-                del s.job.preopt_settings.input.force_eval.subsys.topology.conn_file_name
-            except (AttributeError, KeyError):
-                pass
-
-        # The molecule block
-        s.molecule = [mol.properties.filename for mol in self.molecule]
-
-        # The pes block
-        for name, partial in self.pes.items():
-            pes_dict = s.pes[name.rsplit('.', maxsplit=1)[0]]
-            pes_dict.func = f'{partial.__module__}.{partial.__qualname__}'
-            pes_dict.args = list(partial.args)
-            if 'kwargs' not in pes_dict:
-                pes_dict.kwargs = []
-            pes_dict.kwargs.append(partial.keywords)
-
-        # The move block
-        move_range = self.param.move_range
-        s.move.range.stop = round(float(move_range.max() - 1), 8)
-        s.move.range.step = round(float(abs(move_range[-1] - move_range[-2])), 8)
-        s.move.range.start = round(float(move_range[len(move_range) // 2] - 1), 8)
-
-        # Write the file
-        with manager(filename, 'w') as f:
-            f.write(yaml.dump(s.as_dict(), Dumper=Dumper))
+        to_yaml(self, filename, logfile, path, folder)
 
     def __call__(self, start: int = 0, key_new: Optional[KT] = None) -> None:
         """Initialize the Addaptive Rate Monte Carlo procedure."""
@@ -409,7 +298,7 @@ class ARMC(MonteCarloABC):
             A tuple of Numpy arrays.
 
         """
-        key = tuple(self.param['param'].values)
+        key: KT = tuple(self.param['param'].values)  # type: ignore
         pes, _ = self.get_pes_descriptors(key, get_first_key=True)
 
         self[key] = self.get_aux_error(pes)
@@ -551,19 +440,21 @@ class ARMC(MonteCarloABC):
             acceptance = f['acceptance'][i]
 
             # Find the last error which is not np.nan
-            i_ = i
-            while np.isnan(err).any():
-                if i_ < 0:
-                    raise RuntimeError('Not a single successful MD-calculation was found; '
-                                       'restarting is not possible')
-                aux_error = f['aux_error'][i_]
-                param_old = f['param'][i_]
-                aux_nan = np.isnan(aux_error).any(axis=(1, 2))
-                try:
-                    key = tuple(param_old[~aux_nan][-1])
-                except IndexError:
-                    i_ -= 1
-                else:
-                    err = aux_error[~aux_nan][-1]  # Its no longer np.nan
+            final_key: KT = self._find_key(f, i)
+        return i, j, final_key, acceptance
 
-        return i, j, key, acceptance
+    @staticmethod
+    def _find_key(f: Mapping[str, np.ndarray], i: int) -> KT:
+        """Construct a key for the parameter which is not ``nan``."""
+        while i >= 0:
+            aux_error = f['aux_error'][i]
+            param_old = f['param'][i]
+            aux_nan = np.isnan(aux_error).any(axis=(1, 2))
+
+            try:  # Its no longer np.nan
+                return tuple(param_old[~aux_nan][-1])  # type: ignore
+            except IndexError:
+                i -= 1
+        else:
+            raise RuntimeError('Not a single successful MD-calculation was found; '
+                               'restarting is not possible')

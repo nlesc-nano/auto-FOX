@@ -33,19 +33,19 @@ from typing import (
 )
 
 import numpy as np
-
-from scm.plams import Molecule, Settings
 from assertionlib.dataclass import AbstractDataClass
 
-from .workflow_manager import WorkflowManager
-from .mc_mover import ParamMapping
 from ..logger import get_logger
 from ..type_hints import ArrayOrScalar
 
 if TYPE_CHECKING:
-    from ..classes import MultiMolecule
+    from .workflow_manager import WorkflowManager
+    from .mc_mover import ParamMapping
+    from .multi_mol import MultiMolecule
 else:
-    MultiMolecule = 'FOX.classes.multi_mol.MultiMolecule'
+    WorkflowManager = f'{__package__}.workflow_manager.WorkflowManager'
+    ParamMapping = f'{__package__}.mc_mover.ParamMapping'
+    MultiMolecule = f'{__package__}.multi_mol.MultiMolecule'
 
 __all__ = ['MonteCarloABC']
 
@@ -63,7 +63,7 @@ class MonteCarloABC(AbstractDataClass, ABC, Mapping[KT, VT]):
     param: ParamMapping
     workflow_manager: WorkflowManager
     keep_files: bool
-    hdf5: Union[str, bytes, PathLike]
+    hdf5: Union[str, PathLike]
     pes: Dict[str, GetPesDescriptor]
 
     _data: Dict[KT, VT]
