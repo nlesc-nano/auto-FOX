@@ -7,7 +7,7 @@ import numpy as np
 import pandas as pd
 from scipy import constants
 
-from scm.plams import Settings, Units
+from scm.plams import Settings, Units, Cp2kResults
 
 from .charge_utils import assign_constraints
 
@@ -96,6 +96,14 @@ def parse_cp2k_value(param: Union[str, T], unit: str, default_unit: Optional[str
         raise ValueError(f"Invalid unit {value_unit.lower()!r};\naccepted units: "
                          f"{tuple(UNIT_MAP.keys())!r}") from ex
     return param * Units.conversion_ratio(value_unit_parsed, unit)
+
+
+def get_xyz_path(results: Cp2kResults) -> str:
+    """Return the path + filename to an .xyz file."""
+    for file in results.files:
+        if '-pos' in file and '.xyz' in file:
+            return results[file]
+    raise FileNotFoundError(f'No .xyz files found in {results.job.path!r}')
 
 
 def set_subsys_kind(settings: Settings, df: pd.DataFrame) -> None:
