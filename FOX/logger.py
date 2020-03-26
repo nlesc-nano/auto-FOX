@@ -16,12 +16,15 @@ API
 
 """
 
+import os
 import logging
 from logging import Logger
 from functools import wraps
-from typing import Optional, Type, Any, Callable
+from typing import Optional, Type, Any, Callable, Union
 
-__all__ = ['DummyLogger', 'get_logger', 'Plams2Logger']
+from scm.plams import config
+
+__all__ = ['DummyLogger', 'get_logger', 'Plams2Logger', 'wrap_plams_logger']
 
 
 def _pass(*args: Any, **kwargs: Any) -> None:
@@ -45,13 +48,35 @@ class DummyLogger(Logger):
     exception = wraps(Logger.exception)(_pass)
 
 
+def wrap_plams_logger(logfile: Union[None, str, os.PathLike] = None,
+                      name: str = 'logger', **kwargs: Any) -> Logger:
+    """Substitute the PLAMS .log file for one created by a :class:`Logger<logging.Logger>`."""
+    # Define filenames
+    plams_logfile = config.default_jobmanager.logfile
+    logfile = os.path.abspath(logfile) if logfile is not None else plams_logfile
+
+    # Modify the plams logger
+    config.log.time = False
+    config.log.file = 0
+
+    # Replace the plams logger with a proper logging.Logger instance
+    os.remove(plams_logfile)
+    logger = get_logger(name, filename=logfile, **kwargs)
+    if plams_logfile != logfile:
+        try:
+            os.symlink(logfile, plams_logfile)
+        except OSError:
+            pass
+
+    return logger
+
 def get_logger(name: str,
                handler_type: Type[logging.Handler] = logging.FileHandler,
                level: int = logging.DEBUG,
                style: str = '{',
                fmt: Optional[str] = '[{asctime}] {levelname}: {message}',
                datefmt: Optional[str] = '%H:%M:%S',
-               **kwargs: Any) -> logging.Logger:
+               **kwargs: Any) -> Logger:
     r"""Create and return a new :class:`Logger<logging.Logger>` instance.
 
     More details about the various options is provided in the :mod:`logging` module.
