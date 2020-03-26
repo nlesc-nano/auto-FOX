@@ -18,55 +18,68 @@ API
 
 import sys
 from abc import abstractmethod
-from typing import Sequence, TypeVar, Union, Type
+from typing import Sequence, TypeVar, Union, Type, Generic, Hashable, Tuple
 
 import numpy as np
 from pandas.core.generic import NDFrame
 
 if sys.version_info < (3, 8):
-    from typing_extensions import Protocol, runtime_checkable
+    from typing_extensions import Protocol, runtime_checkable, Literal, TypedDict
 else:
-    from typing import Protocol, runtime_checkable
+    from typing import Protocol, runtime_checkable, Literal, TypedDict
 
 __all__ = [
-    'Scalar', 'ScalarType', 'DtypeLike', 'ArrayLike',
-    'ArrayLikeOrScalar', 'ArrayOrScalar', 'DtypeLike'
+    'Scalar', 'ScalarType', 'ArrayLike',
+    'ArrayLikeOrScalar', 'ArrayOrScalar',
+    'Literal', 'NDArray', 'TypedDict'
 ]
 
 #: Annotation for numerical scalars.
-Scalar = Union[np.generic, int, float, bool, complex]
+Scalar = Union[np.generic, int, float, bool]
 
 #: Annotation for numerical scalar types.
-ScalarType = Union[Type[np.generic], Type[int], Type[float], Type[bool], Type[complex]]
+ScalarType = Union[Type[np.generic], Type[int], Type[float], Type[bool]]
 
 _DtypeLike = Union[None, str, ScalarType, np.dtype]
-_DT_co = TypeVar('_DT_co', bound=_DtypeLike, covariant=True)
+_DT_co1 = TypeVar('_DT_co1', bound=_DtypeLike, covariant=True)
+
+_KT_co = TypeVar('_KT_co', bound=Hashable, covariant=True)
+_VT_co = TypeVar('_VT_co', covariant=True)
+_ST_co = TypeVar('_ST_co', bound=Scalar, covariant=True)
 
 
 @runtime_checkable
-class SupportsDtype(Protocol[_DT_co]):
+class SupportsDtype(Protocol[_DT_co1]):
     """An ABC with one abstract attribute :attr:`dtype`."""
 
-    __slots__: tuple = ()
+    __slots__: Tuple[str, ...] = ()
 
     @property
     @abstractmethod
-    def dtype(self) -> _DT_co:
+    def dtype(self) -> _DT_co1:
         pass
 
 
 #: Annotation for numpy datatype-like objects.
 DtypeLike = Union[_DtypeLike, SupportsDtype]
+_DT_co2 = TypeVar('_DT_co2', bound=DtypeLike, covariant=True)
+
+
+class NDArray(np.ndarray, Sequence[_ST_co], Generic[_ST_co]):
+    """A (barebones) generic version of :class:`numpy.ndarray`."""
+
+    def __array__(self, dtype: DtypeLike = None) -> 'NDArray[_ST_co]':
+        pass
 
 
 @runtime_checkable
-class SupportsArray(Protocol):
-    """An ABC with one abstract method :meth:`__array__`."""
+class SupportsArray(Protocol[_ST_co]):
+    """An ABC with one abstract method :attr:`__array__`."""
 
-    __slots__: tuple = ()
+    __slots__: Tuple[str, ...] = ()
 
     @abstractmethod
-    def __array__(self, dtype: DtypeLike = None) -> np.ndarray:
+    def __array__(self, dtype: DtypeLike = None) -> NDArray[_ST_co]:
         pass
 
 
