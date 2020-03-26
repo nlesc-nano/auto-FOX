@@ -42,7 +42,7 @@ extensions = [
     'sphinx.ext.autosummary',
     'sphinx_autodoc_typehints',
     'matplotlib.sphinxext.plot_directive'
-    ]
+]
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ['_templates']
@@ -66,7 +66,7 @@ copyright = f'{year}, {author}'
 # The version info for the project you're documenting, acts as replacement for
 # |version| and |release|, also used in various other places throughout the
 # built documents.
-release = '0.7.4'  # The full version, including alpha/beta/rc tags.
+release = '0.8.0'  # The full version, including alpha/beta/rc tags.
 version = release.rsplit('.', maxsplit=1)[0]  # The short X.Y version.
 
 
