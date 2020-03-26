@@ -53,7 +53,8 @@ setup(
         'data/Cd68Se55_26COO_MD_trajec.xyz',
         'data/*.yaml',
         'armc_functions/*.png',
-        'data/*.csv'
+        'data/*.csv',
+        'py.typed'
     ]},
     include_package_data=True,
     entry_points={'console_scripts': [
@@ -72,7 +73,6 @@ setup(
         'science',
         'chemistry',
         'python-3',
-        'python-3.6',
         'python-3.7',
         'python-3.8'
     ],
@@ -83,12 +83,11 @@ setup(
         'License :: OSI Approved :: GNU Lesser General Public License',
         'Natural Language :: English',
         'Programming Language :: Python :: 3',
-        'Programming Language :: Python :: 3.6',
         'Programming Language :: Python :: 3.7',
         'Programming Language :: Python :: 3.8'
     ],
     test_suite='tests',
-    python_requires='>=3.6',
+    python_requires='>=3.7',
     install_requires=install_requires,
     setup_requires=[
         'pytest-runner'
