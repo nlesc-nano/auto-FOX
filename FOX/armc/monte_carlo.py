@@ -40,12 +40,10 @@ from ..type_hints import ArrayOrScalar
 
 if TYPE_CHECKING:
     from .workflow_manager import WorkflowManager
-    from .mc_mover import ParamMapping
-    from .multi_mol import MultiMolecule
+    from .param_mapping import ParamMapping
+    from ..classes.multi_mol import MultiMolecule
 else:
-    WorkflowManager = f'{__package__}.workflow_manager.WorkflowManager'
-    ParamMapping = f'{__package__}.mc_mover.ParamMapping'
-    MultiMolecule = f'{__package__}.multi_mol.MultiMolecule'
+    from ..type_alias import WorkflowManager, ParamMapping, MultiMolecule
 
 __all__ = ['MonteCarloABC']
 

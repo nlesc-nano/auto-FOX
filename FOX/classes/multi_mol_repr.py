@@ -21,7 +21,7 @@ API
 
 import reprlib
 import textwrap
-from typing import (Any, Iterable)
+from typing import Any, Iterable
 
 import numpy as np
 

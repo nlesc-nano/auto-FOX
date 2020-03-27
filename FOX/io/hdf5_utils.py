@@ -64,12 +64,9 @@ if TYPE_CHECKING:
     if H5PY_ERROR is not None:
         from h5py import File
     else:
-        File = 'h5py._hl.files.File'   # type: ignore
+        from ..type_alias import File
 else:
-    NDFrame = 'pandas.core.generic.NDFrame'
-    MultiMolecule = 'FOX.classes.multi_mol.MultiMolecule'
-    ARMC = 'FOX.armc.armc.ARMC'
-    File = 'h5py._hl.files.File'
+    from ..type_alias import File, NDFrame, MultiMolecule, ARMC
 
 
 """################################### Creating .hdf5 files ####################################"""

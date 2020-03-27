@@ -47,13 +47,11 @@ except AttributeError:
     Dumper = yaml.Dumper  # type: ignore
 
 if TYPE_CHECKING:
-    from .multi_mol import MultiMolecule
     from .phi_updater import PhiUpdater
+    from ..classes import MultiMolecule
     from ..io import PSFContainer
 else:
-    MultiMolecule = f'{__package__}.multi_mol.MultiMolecule'
-    PhiUpdater = f'{__package__}.phi_updater.PhiUpdater'
-    PSFContainer = 'FOX.io.read_psf.PSFContainer'
+    from ..type_alias import MultiMolecule, PhiUpdater, PSFContainer
 
 __all__ = ['ARMC', 'run_armc']
 

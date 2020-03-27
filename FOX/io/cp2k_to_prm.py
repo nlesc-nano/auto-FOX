@@ -81,7 +81,6 @@ API
 
 """  # noqa
 
-import sys
 from types import MappingProxyType
 from typing import (Optional, Iterable, Callable, FrozenSet, TypeVar, Tuple,
                     Union, Type, Any, ClassVar, Mapping)

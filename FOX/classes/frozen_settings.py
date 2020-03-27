@@ -12,16 +12,18 @@ Index
 
 API
 ---
-.. autoclass:: FOX.classes.frozen_settings.FrozenSettings
+.. autoclass:: FrozenSettings
     :members:
     :private-members:
     :special-members:
 
 """
 
+from __future__ import annotations
+
 import copy
 import textwrap
-from typing import (NoReturn, Hashable)
+from typing import NoReturn, Hashable
 
 from scm.plams import Settings
 
@@ -63,7 +65,7 @@ class FrozenSettings(Settings):
 
     __repr__ = __str__
 
-    def __missing__(self, key: Hashable) -> 'FrozenSettings': return _frozen_settings
+    def __missing__(self, key: Hashable) -> FrozenSettings: return _frozen_settings
     def __bool__(self) -> bool: return bool(len(self))
 
     @classmethod
@@ -73,12 +75,12 @@ class FrozenSettings(Settings):
 
     __delitem__ = __setitem__ = set_nested = _raise_exc
 
-    def flatten(self, flatten_list: bool = True) -> 'FrozenSettings':
+    def flatten(self, flatten_list: bool = True) -> FrozenSettings:
         ret = super().flatten(flatten_list)
         return type(self)(ret)
     flatten.__doc__ = Settings.flatten.__doc__
 
-    def unflatten(self, unflatten_list: bool = True) -> 'FrozenSettings':
+    def unflatten(self, unflatten_list: bool = True) -> FrozenSettings:
         ret = super().unflatten(unflatten_list)
         return type(self)(ret)
     unflatten.__doc__ = Settings.unflatten.__doc__
@@ -95,7 +97,7 @@ class FrozenSettings(Settings):
         dict.__setattr__(self, '_hash', ret)
         return ret
 
-    def copy(self, deep: bool = False) -> 'FrozenSettings':
+    def copy(self, deep: bool = False) -> FrozenSettings:
         """Create a copy of this instance.
 
         The returned instance is a recursive copy, the **deep** parameter only affecting the
@@ -110,11 +112,11 @@ class FrozenSettings(Settings):
             Settings.__setitem__(ret, key, value_cp)
         return ret
 
-    def __copy__(self) -> 'FrozenSettings':
+    def __copy__(self) -> FrozenSettings:
         """Create a shallow copy of this instance by calling :meth:`FrozenSettings.copy`."""
         return self.copy(deep=False)
 
-    def __deepcopy__(self, memo=None) -> 'FrozenSettings':
+    def __deepcopy__(self, memo=None) -> FrozenSettings:
         """Create a deep copy of this instance by calling :meth:`FrozenSettings.copy`."""
         return self.copy(deep=True)
 

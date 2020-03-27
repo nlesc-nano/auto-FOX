@@ -14,7 +14,7 @@ from ..io.read_xyz import XYZError
 if TYPE_CHECKING:
     from ..classes import MultiMolecule
 else:
-    TYPE_CHECKING = 'FOX.classes.multi_mol.MultiMolecule'
+    from ..type_alias import MultiMolecule
 
 
 def _md_preopt(self) -> List[Optional[MultiMolecule]]:

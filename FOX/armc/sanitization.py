@@ -18,7 +18,7 @@ import pandas as pd
 from scm.plams import Settings, Molecule
 
 from .mc_post_process import AtomsFromPSF
-from .mc_mover import ParamMapping
+from .param_mapping import ParamMapping
 from .workflow_manager import WorkflowManager
 from .phi_updater import PhiUpdater
 

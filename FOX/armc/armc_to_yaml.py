@@ -21,7 +21,7 @@ except AttributeError:
 if TYPE_CHECKING:
     from .armc import ARMC
 else:
-    ARMC = f'{__package__}.armc.ARMC'
+    from ..type_alias import ARMC
 
 __all__ = ['from_yaml', 'to_yaml']
 

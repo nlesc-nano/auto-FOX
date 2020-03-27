@@ -22,12 +22,10 @@ from typing import Iterable, List, Optional, MutableMapping, TYPE_CHECKING
 
 if TYPE_CHECKING:
     from .armc import ARMC
-    from ..io.read_psf import PSFContainer
-    from ..classes.multi_mol import MultiMolecule
+    from ..io import PSFContainer
+    from ..classes import MultiMolecule
 else:
-    ARMC = 'FOX.armc.armc.ARMC'
-    PSFContainer = 'FOX.io.read_psf.PSFContainer'
-    MultiMolecule = 'FOX.classes.multi_mol.MultiMolecule'
+    from ..type_alias import ARMC, PSFContainer, MultiMolecule
 
 __all__ = ['AtomsFromPSF']
 

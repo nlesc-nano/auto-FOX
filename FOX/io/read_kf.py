@@ -17,13 +17,16 @@ API
 """
 
 from itertools import chain
-from typing import Tuple, Dict, List
+from typing import Tuple, Dict, List, TYPE_CHECKING
 
 import numpy as np
 
-from scm.plams import KFReader
-
 from ..functions.utils import group_by_values
+
+if TYPE_CHECKING:
+    from scm.plams import KFReader
+else:
+    from ..type_alias import KFReader
 
 __all__ = ['read_kf']
 

@@ -19,9 +19,9 @@ from ..type_hints import Literal
 from ..io.read_xyz import XYZError
 
 if TYPE_CHECKING:
-    from .multi_mol import MultiMolecule
+    from ..classes.multi_mol import MultiMolecule
 else:
-    MultiMolecule = f'{__package__}.multi_mol.MultiMolecule'
+    from ..type_alias import MultiMolecule
 
 __all__ = ['WorkflowManager']
 

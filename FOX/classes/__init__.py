@@ -11,5 +11,5 @@ from .multi_mol import MultiMolecule
 
 __all__ = [
     'FrozenSettings',
-    'MultiMolecule',
+    'MultiMolecule'
 ]

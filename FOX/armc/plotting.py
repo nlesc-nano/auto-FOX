@@ -29,10 +29,10 @@ from ..functions.utils import assert_error
 
 try:
     import matplotlib.pyplot as plt
-    PltFigure = plt.Figure
-    PLT_ERROR = ''
+    from matplotlib.pyplot import Figure
+    PLT_ERROR = None
 except ImportError:
-    PltFigure = 'matplotlib.pyplot.Figure'
+    from ..type_alias import Figure
     PLT_ERROR = ("Use of the FOX.{} function requires the 'matplotlib' package."
                  "\n'matplotlib' can be installed via PyPi with the following command:"
                  "\n\tpip install matplotlib")
@@ -45,7 +45,7 @@ def plot_pes_descriptors(filename_in: str,
                          descriptor: str,
                          filename_out: Optional[str],
                          iteration: int = -1,
-                         savefig_kwarg: Optional[dict] = None) -> plt.Figure:
+                         savefig_kwarg: Optional[dict] = None) -> Figure:
     """Create and save a figure showing side-by-side comparisons of QM and MM PES descriptors.
 
     .. _matplotlib.savefig: https://matplotlib.org/3.1.0/api/_as_gen/matplotlib.pyplot.savefig.html
@@ -115,7 +115,7 @@ def plot_pes_descriptors(filename_in: str,
 @assert_error(PLT_ERROR)
 def plot_param(filename_in: str,
                filename_out: Optional[str] = None,
-               savefig_kwarg: Optional[dict] = None) -> plt.Figure:
+               savefig_kwarg: Optional[dict] = None) -> Figure:
     """Create and save a figure from the ``"param"`` hdf5 dataset in **filename_in**.
 
     .. _matplotlib.savefig: https://matplotlib.org/3.1.0/api/_as_gen/matplotlib.pyplot.savefig.html
@@ -179,7 +179,7 @@ def plot_param(filename_in: str,
 def plot_dset(filename_in: str,
               datasets: Union[Hashable, Iterable[Hashable]],
               filename_out: Optional[str] = None,
-              savefig_kwarg: Optional[dict] = None) -> plt.Figure:
+              savefig_kwarg: Optional[dict] = None) -> Figure:
     """Create and save a figure from an arbitrary hdf5 dataset in **filename_in**.
 
     See :func:`plot_pes_descriptors` and :func:`plot_param` for functions specialized in plotting
