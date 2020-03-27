@@ -246,7 +246,7 @@ class JobDict(TypedDict):
 
 #: Schema for validating sub blocks within the ``"pes"`` block.
 sub_job_schema = Schema({
-    Optional_('job_type', default=lambda: Cp2kJob): Or(
+    Optional_('type', default=lambda: Cp2kJob): Or(
         And(str, Use(str_to_callable)),
         And(type, lambda n: issubclass(n, SingleJob))
     ),
@@ -262,7 +262,7 @@ sub_job_schema = Schema({
 class SubJobDict(TypedDict):
     """A :class:`~typing.TypedDict` representing the output of :data:`sub_job_schema`."""
 
-    job_type: Type[SingleJob]
+    type: Type[SingleJob]
     name: str
     settings: Settings
 

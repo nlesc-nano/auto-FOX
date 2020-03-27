@@ -8,7 +8,7 @@ Index
 -----
 .. currentmodule:: FOX.type_alias
 .. autosummary::
-    {autosummary}
+{autosummary}
 
 API
 ---
@@ -36,7 +36,8 @@ TYPE_ALIAS: Mapping[str, str] = MappingProxyType({
     'KFReader': 'scm.plams.tools.kftools.KFReader',
     'Figre': 'matplotlib.figure.Figure',
     'File': 'h5py._hl.files.File',
-    'NDFrame': 'pandas.core.generic.NDFrame'
+    'NDFrame': 'pandas.core.generic.NDFrame',
+    'SingleJob': 'scm.plams.core.basejob.SingleJob'
 })
 
 globals().update(TYPE_ALIAS)

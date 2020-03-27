@@ -23,6 +23,8 @@ else:
 
 __all__ = ['get_template', 'template_to_df', 'get_example_xyz']
 
+KT = TypeVar('KT', bound=Hashable)
+VT = TypeVar('VT')
 T = TypeVar('T')
 
 
@@ -736,10 +738,6 @@ def str_to_callable(string: str) -> Callable:
             return eval('.'.join([class_, method]))
 
 
-KT = TypeVar('KT', bound=Hashable)
-VT = TypeVar('VT')
-
-
 def group_by_values(iterable: Iterable[Tuple[VT, KT]],
                     mapping_type: Type[Mapping] = dict) -> Mapping[KT, List[VT]]:
     """Take an iterable, yielding 2-tuples, and group all first elements by the second.
@@ -857,3 +855,40 @@ def fill_diagonal_blocks(a: np.ndarray, i: int, j: int, val: float = np.nan) -> 
         a[..., i0:i0+i, j0:j0+j] = val
         i0 += i
         j0 += j
+
+
+def split_dict(dct: MutableMapping[KT, VT], keep_keys: Iterable[KT]) -> Dict[KT, VT]:
+    """Pop all items from **dct** which are not in **keep_keys** and use them to construct a new dictionary.
+
+    Note that, by popping its keys, the passed **dct** will also be modified inplace.
+
+    Examples
+    --------
+    .. code:: python
+
+        >>> from FOX.functions.utils import split_dict
+
+        >>> dict1 = {1: 'a', 2: 'b', 3: 'c', 4: 'd'}
+        >>> dict2 = split_dict(dict1, keep_keys=[1, 2])
+
+        >>> print(dict1)
+        {1: 'a', 2: 'b'}
+
+        >>> print(dict2)
+        {3: 'c', 4: 'd'}
+
+    Parameters
+    ----------
+    dct : :class:`~collections.abc.MutableMapping`
+        A mutable mapping.
+    keep_keys : :class:`~collections.abc.Iterable`
+        An iterable with keys that should remain in **dct**.
+
+    Returns
+    -------
+    :class:`dict`
+        A new dictionaries with all key/value pairs from **dct** not specified in **keep_keys**.
+
+    """  # noqa
+    difference = set(dct.keys()).difference(keep_keys)
+    return {k: dct.pop(k) for k in difference}

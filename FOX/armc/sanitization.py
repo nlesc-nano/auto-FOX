@@ -8,7 +8,8 @@ A module for parsing and sanitizing ARMC settings.
 
 import os
 import functools
-from typing import Union, Iterable, Tuple, Optional, Mapping
+from typing import (Union, Iterable, Tuple, Optional, Mapping, Any, MutableMapping,
+                    Dict, TYPE_CHECKING, Hashable, TypeVar)
 from os.path import join, isfile, abspath
 from collections import abc
 
@@ -18,22 +19,31 @@ import pandas as pd
 from scm.plams import Settings, Molecule
 
 from .mc_post_process import AtomsFromPSF
-from .param_mapping import ParamMapping
-from .workflow_manager import WorkflowManager
-from .phi_updater import PhiUpdater
+from .schemas import (validate_phi, validate_pes, validate_monte_carlo, validate_psf,
+                      validate_job, validate_sub_job, validate_param)
 
+from ..type_hints import Literal
 from ..io.read_psf import PSFContainer, overlay_str_file, overlay_rtf_file
 from ..classes import MultiMolecule
-from ..functions.utils import get_template, dict_to_pandas, get_atom_count, _get_move_range
 from ..functions.cp2k_utils import set_keys, set_subsys_kind
 from ..functions.molecule_utils import fix_bond_orders
-from .schemas import (get_pes_schema, schema_armc, schema_move, schema_job,
-                      schema_param, schema_hdf5, schema_psf)
+from ..functions.utils import (get_template, dict_to_pandas, get_atom_count,
+                               _get_move_range, split_dict)
+
+if TYPE_CHECKING:
+    from .workflow_manager import WorkflowManager
+    from .param_mapping import ParamMapping
+    from .phi_updater import PhiUpdater
+else:
+    from ..type_alias import WorkflowManager, ParamMapping, PhiUpdater
 
 __all__ = ['init_armc_sanitization']
 
+ValidKeys = Literal['param', 'psf', 'pes', 'job', 'monte_carlo', 'phi']
+InputMapping = Mapping[ValidKeys, MutableMapping[str, Any]]
 
-def init_armc_sanitization(dct: Mapping) -> Settings:
+
+def init_armc_sanitization(dct: InputMapping):
     """Initialize the armc input settings sanitization.
 
     Parameters
@@ -47,9 +57,9 @@ def init_armc_sanitization(dct: Mapping) -> Settings:
         A Settings instance suitable for ARMC initialization.
 
     """
-    # Load and apply the template
-    s_inp = get_template('armc_template.yaml')
-    s_inp.update(dct)
+    phi = get_phi(dct['phi'])
+    workflow = get_workflow(dct['job'])
+    param = get_param(dct['param'])
 
     # Validate, post-process and return
     s = validate(s_inp)
@@ -65,6 +75,57 @@ def init_armc_sanitization(dct: Mapping) -> Settings:
     if job.get('psf', None) is not None:
         s['pes_post_process'] = [AtomsFromPSF.from_psf(*job['psf'])]
     return s, pes, job
+
+
+def get_phi(dct: Mapping[str, Any]) -> PhiUpdater:
+    """Construct a :class:`PhiUpdater` instance from **dct**."""
+    phi_dict = validate_phi(dct['phi'])
+    phi_type = phi_dict.pop('type')  # type: ignore
+    return phi_type(**phi_dict)
+
+
+def get_workflow(dct: MutableMapping[str, Any]) -> WorkflowManager:
+    """Construct a :class:`WorkflowManager` instance from **dct**."""
+    _job_dict = dct
+    _sub_job_dict = split_dict(_job_dict, keep_keys={'type', 'molecule'})
+
+    job_dict = validate_job(_job_dict)
+    mol_list = job_dict['molecule']
+
+    data = {}
+    for k, v in _sub_job_dict.items():
+        sub_job_dict = validate_sub_job(v)
+        singleob_type = sub_job_dict.pop('type')  # type: ignore
+        data[k] = [singleob_type(molecule=mol, **sub_job_dict) for mol in mol_list]
+
+    job_type = job_dict['type']
+    return job_type(data, post_process=None)
+
+
+def get_param(dct: MutableMapping[str, Any]) -> ParamMapping:
+    """Construct a :class:`ParamMapping` instance from **dct**."""
+    _prm_dict = dct
+    _sub_prm_dict = split_dict(_prm_dict, keep_keys={'type', 'move_range', 'func', 'kwargs'})
+
+    prm_dict = validate_param(_prm_dict)
+
+
+def _get_param_df(dct: Mapping[str, Any]) -> pd.DataFrame:
+    flat_iter
+
+
+def _prm_iter(dct: Mapping[str, Any]) -> Generator[Tuple[str, str, str, str, float], None, None]:
+    for _dct_list in dct.values():
+        key_path = str()
+        if isinstance(sub_dict, abc.Mapping):
+            dct_list = [_dct_list]
+        else:
+            dct_list = _dct_list
+        for sub_dict in dct_list:
+            param = sub_dict.pop('param')
+            unit = sub_dict.pop('param', None)
+            for atoms, value in sub_dict.items():
+
 
 
 def validate(s: Settings) -> Settings:

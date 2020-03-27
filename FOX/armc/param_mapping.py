@@ -116,7 +116,7 @@ class ParamMappingABC(AbstractDataClass, ABC, Mapping[ValidKeys, pd.Series]):
         'count': -1
     })
 
-    def __init__(self, df: Union[InputMapping, pd.DataFrame],
+    def __init__(self, data: Union[InputMapping, pd.DataFrame],
                  move_range: Iterable[float],
                  func: MoveFunc, **kwargs: Any) -> None:
         r"""Initialize an :class:`ParamMappingABC` instance.
@@ -356,8 +356,8 @@ class ParamMapping(ParamMappingABC):
     })
 
     @ParamMappingABC.inherit_annotations()
-    def __init__(self, df, move_range, func=np.multiply, **kwargs):
-        super().__init__(df, move_range, func=func, **kwargs)
+    def __init__(self, data, move_range, func=np.multiply, **kwargs):
+        super().__init__(data, move_range, func=func, **kwargs)
 
     def identify_move(self) -> Tuple[Tup2, float, float]:
         """Identify and return a random parameter and move size.
