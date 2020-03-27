@@ -25,7 +25,7 @@ import inspect
 from os import PathLike
 from io import TextIOBase
 from typing import (Dict, Optional, Any, Set, Iterator, Iterable, Callable,
-                    AnyStr, List, Mapping, Hashable, Union)
+                    AnyStr, List, Mapping, Hashable, Union, Collection)
 from itertools import chain
 from types import MappingProxyType
 
@@ -954,8 +954,8 @@ def overlay_str_file(psf: PSFContainer, filename: str,
         If ``None``, update the atoms in all residues.
 
     """
-    at_type, charge = read_str_file(filename)
-    _overlay(psf, at_type, charge, id_range)
+    atoms, charge = read_str_file(filename)
+    _overlay(psf, atoms, charge, id_range)
 
 
 def overlay_rtf_file(psf: PSFContainer, filename: str,
@@ -978,14 +978,34 @@ def overlay_rtf_file(psf: PSFContainer, filename: str,
         If ``None``, update the atoms in all residues.
 
     """
-    at_type, charge = read_rtf_file(filename)
-    _overlay(psf, at_type, charge, id_range)
+    atoms, charge = read_rtf_file(filename)
+    _overlay(psf, atoms, charge, id_range)
 
 
-def _overlay(psf: PSFContainer, at_type: Iterable[str], charge: Iterable[float],
+def _overlay(psf: PSFContainer, atom_list: Collection[str],
+             charge_list: Collection[float],
              id_range: Optional[Iterable[int]] = None) -> None:
     id_range = range(2, 1 + max(psf.residue_id)) if id_range is None else id_range
-    for i in id_range:
-        j = psf.residue_id == i
-        psf.atoms.loc[j, 'atom type'] = at_type
-        psf.atoms.loc[j, 'charge'] = charge
+    try:
+        for i in id_range:
+            j = psf.residue_id == i
+            psf.atoms.loc[j, 'atom type'] = atom_list
+            psf.atoms.loc[j, 'charge'] = charge_list
+
+    except ValueError as ex:
+        try:
+            ligand_size = np.count_nonzero(j)
+            at_len = len(atom_list)
+            charge_len = len(charge_list)
+        except Exception as ex2:  # Plan B in case something goes wrong here
+            raise ex from ex2
+
+        if ligand_size != at_len:
+            raise ValueError(f"Residue {i} in the passed {psf.__class__.__name__} contains "
+                             f"{ligand_size} atoms while the passed 'atom_list' "
+                             f"contains {at_len}") from ex
+        elif ligand_size != charge_len:
+            raise ValueError(f"Residue {i} in the passed {psf.__class__.__name__} contains "
+                             f"{ligand_size} atoms while the passed 'charge_list' "
+                             f"contains {charge_len}") from ex
+        raise ex
