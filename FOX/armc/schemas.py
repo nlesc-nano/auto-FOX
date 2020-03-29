@@ -121,15 +121,27 @@ mc_schema = Schema({
     ),
 
     Optional_('hdf5_file', default='armc.hdf5'): Or(
-        Or(str, os.PathLike)
+        And(None, Use(lambda n: 'armc.hdf5')),
+        And(str, Use(os.path.abspath)),
+        And(os.PathLike, Use(os.path.abspath))
+    ),
+
+    Optional_('logfile', default='armc.log'): Or(
+        And(None, Use(lambda n: 'armc.log')),
+        And(str, Use(os.path.abspath)),
+        And(os.PathLike, Use(os.path.abspath))
     ),
 
     Optional_('path', default=os.getcwd): Or(
-        Or(str, os.PathLike)
+        And(None, Use(lambda n: os.getcwd())),
+        And(str, Use(os.path.abspath)),
+        And(os.PathLike, Use(os.path.abspath))
     ),
 
     Optional_('folder', default='MM_MD_workdir'): Or(
-        Or(str, os.PathLike)
+        And(None, Use(lambda n: 'MM_MD_workdir')),
+        str,
+        os.PathLike
     ),
 
     Optional_('keep_files', default=True):
@@ -144,6 +156,7 @@ class MCDict(TypedDict):
     iter_len: int
     sub_iter_len: int
     hdf5_file: Union[str, os.PathLike]
+    logfile: Union[str, os.PathLike]
     path: Union[str, os.PathLike]
     folder: Union[str, os.PathLike]
     keep_files: bool

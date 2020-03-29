@@ -11,6 +11,7 @@ from typing import (Mapping, TypeVar, Hashable, Any, KeysView, ItemsView, Values
                     Iterable, overload, Sequence, Collection, TYPE_CHECKING)
 
 from scm.plams import SingleJob
+from qmflows import Package
 from assertionlib.dataclass import AbstractDataClass
 
 from ..functions.cp2k_utils import get_xyz_path
@@ -20,45 +21,28 @@ from ..io.read_xyz import XYZError
 
 if TYPE_CHECKING:
     from ..classes.multi_mol import MultiMolecule
+    from noodles.interface import PromisedObject
 else:
-    from ..type_alias import MultiMolecule
+    from ..type_alias import MultiMolecule, PromisedObject
 
-__all__ = ['WorkflowManager']
+__all__ = ['PackageManager']
 
 _KT = TypeVar('_KT')
 KT = TypeVar('KT', bound=str)
-JT = TypeVar('JT', bound=SingleJob)
+JT = TypeVar('JT', bound=PromisedObject)
 T = TypeVar('T')
 
-ExtractNames = Callable[[type, Type[JT]], FrozenSet[str]]
 MolLike = Iterable[Tuple[float, float, float]]
 
 DataMap = Mapping[KT, Iterable[JT]]
 DataIter = Iterable[Tuple[KT, Iterable[JT]]]
+
 PostProcess = Callable[[str, Iterable[JT], Iterable[MultiMolecule], Logger], bool]
 PostProcessMap = Mapping[KT, PostProcess]
 PostProcessIter = Iterable[Tuple[KT, PostProcess]]
 
 
-def cache_return(func: ExtractNames) -> ExtractNames:
-    """A caching decorator for :meth:`WorkflowManagerABC._extract_names`.
-
-    Caches the signatures of all passed :class:`~scm.plams.core.basejob.SingleJob` types.
-
-    """
-    cache: Dict[Type[SingleJob], FrozenSet[str]] = {}
-
-    @wraps(func)
-    def wrapper(cls, job_cls, blacklist):
-        try:
-            return cache[job_cls]
-        except KeyError:
-            cache[job_cls] = ret = func(cls, job_cls, blacklist)
-            return ret
-    return wrapper
-
-
-class WorkflowManagerABC(AbstractDataClass, ABC, Mapping[KT, Tuple[JT, ...]]):
+class PackageManagerABC(AbstractDataClass, ABC, Mapping[KT, Tuple[JT, ...]]):
 
     def __init__(self, data: Union[DataMap, DataIter],
                  post_process: Union[None, PostProcessMap, PostProcessIter]) -> None:
@@ -243,73 +227,26 @@ class WorkflowManagerABC(AbstractDataClass, ABC, Mapping[KT, Tuple[JT, ...]]):
 
         Parameters
         ----------
-        job : :class:`~scm.plams.core.basejob.SingleJob`
-            A PLAMS Job.
+        job : :class:`~noodles.interface.decorator.PromisedObject`
+            A promised object.
 
         Returns
         -------
-        :class:`~scm.plams.core.basejob.SingleJob`
-            A new Job instance constructed from **job**.
-            All arguments passed to
-            :meth:`<job.__init__()>scm.plams.core.basejob.SingleJob.__init__`
-            are shallow copies of their respective counterparts in **job**.
+        :class:`~noodles.interface.decorator.PromisedObject`
+            A new PromisedObject instance constructed from **job**.
 
         """
-        job_type = type(job)
+        nodes = job._workflow.nodes
+        function_node = next(iter(nodes.values()))
+        kwargs = function_node.bound_args.arguments.copy()
 
-        kwarg_names = self._extract_names(job_type)
-        kwargs = {}
-
-        for name in kwarg_names:
-            try:
-                kwargs[name] = copy.copy(getattr(job, name))
-            except AttributeError:
-                pass
-        return job_type(**kwargs)
-
-    @cache_return
-    @classmethod
-    def _extract_names(cls, job_type: Type[JT],
-                       blacklist: Collection[str] = ('self', 'kwargs', 'depend')
-                       ) -> FrozenSet[str]:
-        """Return a set with all argument names to-be passed to :meth:`job_type.__init__`.
-
-        Searches recursivelly through all subclasses of **job_type**
-        (until :class:`object` is reached) to ensure the returned set is set.
-
-        Parameters
-        ----------
-        job_type : :class:`type` [:class:`~scm.plams.core.basejob.SingleJob`]
-            A PLAMS Job type.
-        blacklist : :class:`~collections.abc.Collection` [:class:`str`]
-            An collection with to-be ignored parameter names.
-            These names will be removed from the returned set if necessary.
-
-        Returns
-        -------
-        :class:`frozenset` [:class:`set`]
-            A set with parameter names as extracted from **job_type**.
-
-        """
-        ret: Set[str] = set()
-
-        def dfs(obj_type: type) -> None:
-            if obj_type is object:
-                return
-            sgn = signature(obj_type)
-            ret.update(sgn.parameters.keys())
-            for base in obj_type.__bases__:
-                dfs(base)
-
-        dfs(job_type)
-        for name in blacklist:
-            ret.remove(name)
-        return frozenset(ret)
+        func = kwargs.pop('self')
+        return func(**kwargs)
 
 
-class WorkflowManager(WorkflowManagerABC):
+class PackageManager(PackageManagerABC):
 
-    @WorkflowManagerABC.inherit_annotations()
+    @PackageManagerABC.inherit_annotations()
     def __init__(self, data, post_process=None):
         super().__init__(data, post_process)
 
@@ -328,7 +265,10 @@ class WorkflowManager(WorkflowManagerABC):
             a list of MultiMolecule is returned otherwise.
 
         """
+        # Create new promised objects
         self.reset_jobs()
+
+        # Construct the logger
         if logger is None:
             logger = DummyLogger()
 

@@ -245,7 +245,7 @@ class MonteCarloABC(AbstractDataClass, ABC, Mapping[KT, VT]):
 
     @classmethod
     def restart(self, **kwargs: Any) -> None:
-        raise NotImplementedError('method not implemented')
+        raise NotImplementedError('Method not implemented')
 
     def move(self) -> KT:
         """Update a random parameter in **self.param** by a random value from **self.move.range**.
@@ -291,18 +291,16 @@ class MonteCarloABC(AbstractDataClass, ABC, Mapping[KT, VT]):
 
         """
         # Perform the move
-        idx0, _ = self.param(logger=self.logger)
+        prm_name, _ = self.param(logger=self.logger)
 
-        prm_iterator = zip(self.param['key_path'].loc[idx0].values,
-                           self.param['param'].loc[idx0].values,
-                           self.param['unit'].loc[idx0].values)
+        prm = self.param['param'].loc[prm_name]
+        prm_update = {k0: v for (k0, _), v in prm.items()}
+
         job_iterator = chain.from_iterable(self.workflow_manager.values())
 
         # Update the job settings
         for job in job_iterator:
-            s = job.settings
-            for key_path, value, unit in prm_iterator:
-                s.set_nested(key_path, unit.format(value))
+            job.settings.update(prm_update)
 
         return tuple(self.param['param'].values)  # type: ignore
 

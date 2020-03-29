@@ -8,12 +8,12 @@ Various functions related to ARMC.
 
 from .armc import ARMC, run_armc
 from .phi_updater import PhiUpdater
-from .workflow_manager import WorkflowManager
+from .package_manager import PackageManager
 from .param_mapping import ParamMapping
 
 __all__ = [
     'ARMC', 'run_armc',
     'PhiUpdater',
-    'WorkflowManager',
+    'PackageManager',
     'ParamMapping'
 ]

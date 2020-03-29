@@ -165,8 +165,8 @@ class ARMC(MonteCarloABC):
 
         # Settings specific to addaptive rate Monte Carlo (ARMC)
         self.phi = phi
-        self.iter_len: int = iter_len
-        self.sub_iter_len: int = sub_iter_len
+        self.iter_len = iter_len
+        self.sub_iter_len = sub_iter_len
 
     @classmethod
     def from_yaml(cls, filename: str) -> Tuple[ARMC, dict]:

@@ -8,21 +8,22 @@ A module for parsing and sanitizing ARMC settings.
 
 import os
 import functools
-from typing import (Union, Iterable, Tuple, Optional, Mapping, Any, MutableMapping,
-                    Dict, TYPE_CHECKING, Hashable, TypeVar)
 from os.path import join, isfile, abspath
 from collections import abc
+from typing import (Union, Iterable, Tuple, Optional, Mapping, Any, MutableMapping,
+                    Dict, TYPE_CHECKING, Hashable, TypeVar, Generator, Callable)
 
 import numpy as np
 import pandas as pd
 
 from scm.plams import Settings, Molecule
+from qmflows.cp2k_utils import CP2K_KEYS_ALIAS
 
 from .mc_post_process import AtomsFromPSF
 from .schemas import (validate_phi, validate_pes, validate_monte_carlo, validate_psf,
-                      validate_job, validate_sub_job, validate_param)
+                      validate_job, validate_sub_job, validate_param, PESDict)
 
-from ..type_hints import Literal
+from ..type_hints import Literal, TypedDict
 from ..io.read_psf import PSFContainer, overlay_str_file, overlay_rtf_file
 from ..classes import MultiMolecule
 from ..functions.cp2k_utils import set_keys, set_subsys_kind
@@ -34,13 +35,32 @@ if TYPE_CHECKING:
     from .workflow_manager import WorkflowManager
     from .param_mapping import ParamMapping
     from .phi_updater import PhiUpdater
+    from .armc import ARMC
 else:
-    from ..type_alias import WorkflowManager, ParamMapping, PhiUpdater
+    from ..type_alias import WorkflowManager, ParamMapping, PhiUpdater, ARMC
 
 __all__ = ['init_armc_sanitization']
 
 ValidKeys = Literal['param', 'psf', 'pes', 'job', 'monte_carlo', 'phi']
 InputMapping = Mapping[ValidKeys, MutableMapping[str, Any]]
+
+
+class PesMapping(TypedDict):
+    """A :class:`~typing.TypedDict` representing the input of :func:`get_pes`."""
+
+    func: Union[str, Callable]
+    kwargs: Union[Mapping[str, Any], Iterable[Mapping[str, Any]]]
+
+
+class RunDict(TypedDict, total=False):
+    """A :class:`~typing.TypedDict` representing the input of :func:`run_armc`."""
+
+    path: Union[str, os.PathLike]
+    folder: Union[str, os.PathLike]
+    logfile: Union[str, os.PathLike]
+    restart: bool
+    psf: Optional[Tuple[PSFContainer, ...]]
+    guess: Optional[Mapping[str, Mapping]]
 
 
 def init_armc_sanitization(dct: InputMapping):
@@ -57,9 +77,21 @@ def init_armc_sanitization(dct: InputMapping):
         A Settings instance suitable for ARMC initialization.
 
     """
+    # Construct an ARMC instance
     phi = get_phi(dct['phi'])
-    workflow = get_workflow(dct['job'])
+    workflow, mol_list = get_workflow(dct['job'])
     param = get_param(dct['param'])
+    mc, run_kwargs = get_armc(dct['monte_carlo'], workflow, param, phi, mol_list)
+
+    # Handle psf stuff
+    run_kwargs['psf'] = get_psf(dct['psf'])
+
+    # Add PES evaluators
+    pes = get_pes(dct['pes'])
+    for name, kwargs in pes.items():
+        mc.add_pes_evaluator(name, **kwargs)
+
+    return mc, run_kwargs
 
     # Validate, post-process and return
     s = validate(s_inp)
@@ -84,13 +116,14 @@ def get_phi(dct: Mapping[str, Any]) -> PhiUpdater:
     return phi_type(**phi_dict)
 
 
-def get_workflow(dct: MutableMapping[str, Any]) -> WorkflowManager:
+def get_workflow(dct: MutableMapping[str, Any]
+                 ) -> Tuple[WorkflowManager, Tuple[MultiMolecule, ...]]:
     """Construct a :class:`WorkflowManager` instance from **dct**."""
     _job_dict = dct
     _sub_job_dict = split_dict(_job_dict, keep_keys={'type', 'molecule'})
 
     job_dict = validate_job(_job_dict)
-    mol_list = job_dict['molecule']
+    mol_list = [mol.as_Molecule(mol_subset=0)[0] for mol in job_dict['molecule']]
 
     data = {}
     for k, v in _sub_job_dict.items():
@@ -99,7 +132,7 @@ def get_workflow(dct: MutableMapping[str, Any]) -> WorkflowManager:
         data[k] = [singleob_type(molecule=mol, **sub_job_dict) for mol in mol_list]
 
     job_type = job_dict['type']
-    return job_type(data, post_process=None)
+    return job_type(data, post_process=None), job_dict['molecule']
 
 
 def get_param(dct: MutableMapping[str, Any]) -> ParamMapping:
@@ -108,23 +141,70 @@ def get_param(dct: MutableMapping[str, Any]) -> ParamMapping:
     _sub_prm_dict = split_dict(_prm_dict, keep_keys={'type', 'move_range', 'func', 'kwargs'})
 
     prm_dict = validate_param(_prm_dict)
+    data = _get_param_df(_sub_prm_dict)
+    param_type = prm_dict.pop('type')  # type: ignore
+    return param_type(data, **prm_dict)
+
+
+def get_pes(dct: Mapping[str, PesMapping]) -> Dict[str, PESDict]:
+    """Construct a :class:`dict` with PES-descriptor workflows."""
+    return {k: validate_pes(v) for k, v in dct.items()}
+
+
+def get_armc(dct: MutableMapping[str, Any], workflow_manager: WorkflowManager,
+             param: ParamMapping, phi: PhiUpdater, mol: Iterable[MultiMolecule]
+             ) -> Tuple[ARMC, RunDict]:
+    """Construct an :class:`ARMC` instance from **dct**."""
+    mc_dict = validate_monte_carlo(dct)
+
+    pop_keys = ('path', 'folder', 'logfile')
+    kwargs = {k: mc_dict.pop(k) for k in pop_keys}  # type: ignore
+
+    mc_type = mc_dict.pop('type')  # type: ignore
+    return mc_type(phi=phi, param=param, workflow_manager=workflow_manager,
+                   molecule=mol, **mc_dict), kwargs
+
+
+def get_psf(dct: Mapping[str, Any]):
+    psf_dict = validate_psf(dct)
+    return psf_dict
 
 
 def _get_param_df(dct: Mapping[str, Any]) -> pd.DataFrame:
-    flat_iter
+    """Construct a DataFrame for :class:`ParamMapping`."""
+    columns = ['param_type', 'atoms', 'param', 'unit', 'key_path']
+    data = _prm_iter(dct)
+
+    df = pd.DataFrame(data, columns=columns)
+    df.set_index(['param_type', 'atoms'], inplace=True)
+    return df
 
 
-def _prm_iter(dct: Mapping[str, Any]) -> Generator[Tuple[str, str, str, str, float], None, None]:
-    for _dct_list in dct.values():
-        key_path = str()
-        if isinstance(sub_dict, abc.Mapping):
-            dct_list = [_dct_list]
+PrmTuple = Tuple[str, str, float, str, Tuple[str, ...]]
+
+
+def _prm_iter(dct: Mapping[str, Union[Mapping, Iterable[Mapping]]]
+              ) -> Generator[PrmTuple, None, None]:
+    """Create a generator yielding DataFrame rows for :class:`ParamMapping`."""
+    ignore_keys = {'frozen', 'constraints', 'param', 'unit', 'guess'}
+
+    for key_alias, _dct_list in dct.items():
+        key_path = CP2K_KEYS_ALIAS[key_alias]
+
+        # Ensure that we're dealing with a list of dicts
+        if isinstance(_dct_list, abc.Mapping):
+            dct_list: Iterable[Mapping] = [_dct_list]
         else:
             dct_list = _dct_list
+
+        # Traverse the list of dicts
         for sub_dict in dct_list:
-            param = sub_dict.pop('param')
-            unit = sub_dict.pop('param', None)
+            param = sub_dict['param']
+            unit = sub_dict.get('unit', None)
             for atoms, value in sub_dict.items():
+                if atoms in ignore_keys:
+                    continue
+                yield param, atoms, value, unit, key_path
 
 
 
@@ -239,43 +319,6 @@ def validate_mol(mol: Union[MultiMolecule, str, Iterable]) -> Tuple[MultiMolecul
     return ret
 
 
-def _parse_move(s: Settings) -> None:
-    move = s.move
-    s.apply_move = functools.partial(move.func, *move.args, **move.kwargs)
-    s.move_range = _get_move_range(**move.range)
-    del s.move
-
-
-def _parse_job(s: Settings) -> Settings:
-    job = s.job
-    if job.path == '.' or not job.path:
-        job.path = os.getcwd()
-
-    s.job_type = functools.partial(job.pop('job_type'), name=job.pop('name'))
-    s.md_settings = job.pop('md_settings')
-    s.preopt_settings = job.pop('preopt_settings')
-    s.keep_files = job.pop('keep_files')
-    s.rmsd_threshold = job.pop('rmsd_threshold')
-    return s.pop('job')
-
-
-def _parse_armc(s: Settings) -> None:
-    armc = s.armc
-
-    s.a_target = armc.a_target
-    s.gamma = armc.gamma
-    s.iter_len = armc.iter_len
-    s.sub_iter_len = armc.sub_iter_len
-    s.phi = armc.phi
-    s.apply_phi = np.add
-
-    # Delete leftovers
-    del s.armc
-
-
-def _parse_pes(s: Settings) -> Settings:
-    return s.pop('pes')
-
 
 def _parse_psf(s: Settings, path: str) -> Optional[PSFContainer]:
     s.md_settings = [s.md_settings.copy() for _ in s.molecule]
@@ -288,19 +331,6 @@ def _parse_psf(s: Settings, path: str) -> Optional[PSFContainer]:
     for md_settings, i in zip(s.md_settings, psf):
         set_subsys_kind(md_settings, i.atoms)
     return psf
-
-
-def _parse_preopt(s: Settings) -> None:
-    if s.preopt_settings is None:
-        return
-
-    if s.preopt_settings is True:
-        s.preopt_settings = [Settings() for _ in s.md_settings]
-
-    for md, preopt in zip(s.md_settings, s.preopt_settings):
-        preopt += md
-        del preopt.input.motion.md
-        preopt.input['global'].run_type = 'geometry_optimization'
 
 
 def _parse_param(s: Settings, job: str) -> None:

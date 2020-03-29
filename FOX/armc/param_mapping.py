@@ -19,8 +19,8 @@ __all__ = ['ParamMapping']
 T = TypeVar('T')
 
 # MultiIndex keys
-_KT1 = TypeVar('_KT1', bound=Hashable, covariant=True)
-_KT2 = TypeVar('_KT2', bound=Hashable, covariant=True)
+_KT1 = TypeVar('_KT1', bound=Hashable)
+_KT2 = TypeVar('_KT2', bound=Hashable)
 
 # All dict keys in ParamMappingABC
 ValidKeys = Literal['param', 'param_old', 'unit', 'key_path', 'min', 'max', 'constraints', 'count']
@@ -38,10 +38,11 @@ Tup2 = Tuple[_KT1, _KT2]
 class InputMapping(TypedDict, total=False):
     """A :class:`~typing.TypedDict` representing the :class:`ParamMappingABC` **df** parameter."""  # noqa
 
+    # Variables
     param: pd.Series
     param_old: pd.Series
-    unit: pd.Series
-    key_path: pd.Series
+
+    # Constants
     min: pd.Series
     max: pd.Series
     constraints: pd.Series
@@ -109,7 +110,6 @@ class ParamMappingABC(AbstractDataClass, ABC, Mapping[ValidKeys, pd.Series]):
     #: Fill values for when optional keys are absent.
     FILL_VALUE: ClassVar[Mapping[ValidKeys, Any]] = MappingProxyType({
         'param_old': np.nan,
-        'unit': '{}',
         'min': -np.inf,
         'max': np.inf,
         'constraints': None,  # Dict[str, functools.partial]
@@ -188,8 +188,6 @@ class ParamMappingABC(AbstractDataClass, ABC, Mapping[ValidKeys, pd.Series]):
             param = dct['param']
         except KeyError as ex:
             raise KeyError("The {'param'!r} key is absent from the passed mapping") from ex
-        if 'key_path' not in dct:
-            raise KeyError("The {'key_path'!r} key is absent from the passed mapping")
 
         # Check that it has a 2-level MultiIndex
         if not isinstance(param.index, pd.MultiIndex):
@@ -198,9 +196,6 @@ class ParamMappingABC(AbstractDataClass, ABC, Mapping[ValidKeys, pd.Series]):
         elif param.index.levels != 2:
             raise ValueError("Series.index expected a 2-level MultiIndex; "
                              f"observed number levels: {param.index.levels!r}")
-
-        if 'unit' in dct:
-            dct['unit'] = [f'[{u}] {{}}' for u in dct['unit']]
 
         # Fill in the defaults
         for name, fill_value in self.FILL_VALUE.items():

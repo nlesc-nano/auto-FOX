@@ -23,6 +23,8 @@ install_requires = [
     'pandas',
     'schema',
     'AssertionLib>=2.1',
+    'noodles>=0.3.3',
+    'qmflows@git+https://github.com/SCM-NV/qmflows@master',
     'plams@git+https://github.com/SCM-NV/PLAMS@master'
 ]
 if sys.version_info < (3, 8):

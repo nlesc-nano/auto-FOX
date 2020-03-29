@@ -26,8 +26,8 @@ TYPE_ALIAS: Mapping[str, str] = MappingProxyType({
     'PSFContainer': 'FOX.io.read_psf.PSFContainer',
     'MonteCarloABC': 'FOX.armc.monte_carlo.MonteCarloABC',
     'ARMC': 'FOX.armc.armc.ARMC',
-    'WorkflowManagerABC': 'FOX.armc.workflow_manager.WorkflowManagerABC',
-    'WorkflowManager': 'FOX.armc.workflow_manager.WorkflowManager',
+    'PackageManagerABC': 'FOX.armc.package_manager.PackageManagerABC',
+    'PackageManager': 'FOX.armc.package_manager.PackageManager',
     'PhiUpdaterABC': 'FOX.armc.phi_updater.PhiUpdaterABC',
     'PhiUpdater': 'FOX.armc.phi_updater.PhiUpdater',
     'ParamMappingABC': 'FOX.armc.param_mapping.ParamMappingABC',
@@ -37,7 +37,9 @@ TYPE_ALIAS: Mapping[str, str] = MappingProxyType({
     'Figre': 'matplotlib.figure.Figure',
     'File': 'h5py._hl.files.File',
     'NDFrame': 'pandas.core.generic.NDFrame',
-    'SingleJob': 'scm.plams.core.basejob.SingleJob'
+    'SingleJob': 'scm.plams.core.basejob.SingleJob',
+    'Settings': 'scm.plams.core.settings.Settings',
+    'Molecule': 'scm.plams.mol.molecule.Molecule'
 })
 
 globals().update(TYPE_ALIAS)
