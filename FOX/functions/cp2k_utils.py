@@ -1,15 +1,21 @@
 """A module with miscellaneous functions related to CP2K."""
 
 from types import MappingProxyType
-from typing import Mapping, Union, Optional, TypeVar
+from typing import Mapping, Union, Optional, TypeVar, TYPE_CHECKING
 
 import numpy as np
 import pandas as pd
 from scipy import constants
 
-from scm.plams import Settings, Units, Cp2kResults
+from scm.plams import Settings, Units
 
 from .charge_utils import assign_constraints
+
+if TYPE_CHECKING:
+    from scm.plams import Results
+    from qmflows.packages import Result
+else:
+    from ..type_lias import Results, Result
 
 __all__ = ['set_keys', 'parse_cp2k_value']
 
@@ -98,7 +104,7 @@ def parse_cp2k_value(param: Union[str, T], unit: str, default_unit: Optional[str
     return param * Units.conversion_ratio(value_unit_parsed, unit)
 
 
-def get_xyz_path(results: Cp2kResults) -> str:
+def get_xyz_path(results: Union[Results, Result]) -> str:
     """Return the path + filename to an .xyz file."""
     for file in results.files:
         if '-pos' in file and '.xyz' in file:

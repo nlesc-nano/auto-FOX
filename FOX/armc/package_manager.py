@@ -10,9 +10,9 @@ from typing import (Mapping, TypeVar, Hashable, Any, KeysView, ItemsView, Values
                     Union, Dict, List, Optional, FrozenSet, Callable, Type, Set, Tuple,
                     Iterable, overload, Sequence, Collection, TYPE_CHECKING)
 
-from scm.plams import SingleJob
-from qmflows import Package
-from assertionlib.dataclass import AbstractDataClass
+from qmflows.packages import registry as pkg_registry
+from noodles import gather
+from noodles.run.threading.sqlite3 import run_parallel
 
 from ..functions.cp2k_utils import get_xyz_path
 from ..logger import DummyLogger
@@ -21,9 +21,11 @@ from ..io.read_xyz import XYZError
 
 if TYPE_CHECKING:
     from ..classes.multi_mol import MultiMolecule
+    from qmflows.packages import Result
     from noodles.interface import PromisedObject
+    from noodles.serial import Registry
 else:
-    from ..type_alias import MultiMolecule, PromisedObject
+    from ..type_alias import MultiMolecule, PromisedObject, Registry, Result
 
 __all__ = ['PackageManager']
 
@@ -42,7 +44,7 @@ PostProcessMap = Mapping[KT, PostProcess]
 PostProcessIter = Iterable[Tuple[KT, PostProcess]]
 
 
-class PackageManagerABC(AbstractDataClass, ABC, Mapping[KT, Tuple[JT, ...]]):
+class PackageManagerABC(ABC, Mapping[KT, Tuple[JT, ...]]):
 
     def __init__(self, data: Union[DataMap, DataIter],
                  post_process: Union[None, PostProcessMap, PostProcessIter]) -> None:
@@ -66,7 +68,7 @@ class PackageManagerABC(AbstractDataClass, ABC, Mapping[KT, Tuple[JT, ...]]):
         """  # noqa
         super().__init__()
         self._data = data
-        self.post_process = post_process
+        self.post_process = None
 
     # Attributes and properties
 
@@ -99,7 +101,7 @@ class PackageManagerABC(AbstractDataClass, ABC, Mapping[KT, Tuple[JT, ...]]):
 
     @property
     def _data(self) -> Dict[KT, Tuple[JT, ...]]:
-        """A (private) property containing this instance's underlying :class:`dict` or :class:`~collections.OrderedDict`.
+        """A (private) property containing this instance's underlying :class:`dict`.
 
         The getter will simply return the attribute's value.
         The setter will validate and assign any mapping or iterable containing of key/value pairs.
@@ -194,63 +196,16 @@ class PackageManagerABC(AbstractDataClass, ABC, Mapping[KT, Tuple[JT, ...]]):
         """
         raise NotImplementedError('Trying to call an abstract method')
 
-    @staticmethod
-    @abstractmethod
-    def run_job(job: JT, logger: Logger, **kwargs: Any) -> Optional[T]:
-        r"""Run a single **job** and return a user-specified result.
-
-        Parameters
-        ----------
-        job : :class:`~scm.plams.core.basejob.SingleJob`
-            The to-be run job.
-        logger : :class:`logging.Logger`
-            A logger for reporting the updated value.
-        \**kwargs : :data:`~typing.Any`
-            Keyword arguments which can be further customized in a sub-class.
-
-        Returns
-        -------
-        :class:`~collections.abc.Sequence`, optional
-            Returns ``None`` if the job crashed; a user-specified object is returned otherwise.
-            The nature of the to-be returned objects should be defined in a sub-class.
-
-        """
-        raise NotImplementedError('Trying to call an abstract method')
-
-    def reset_jobs(self) -> None:
-        """Replace all Jobs stored in this instance with freshly created Job instances."""
-        for k, job_tup in self.items():
-            self[k] = tuple(self._copy_job(job) for job in job_tup)
-
-    def _copy_job(self, job: JT) -> JT:
-        """Create shallow-ish copy of the passed job.
-
-        Parameters
-        ----------
-        job : :class:`~noodles.interface.decorator.PromisedObject`
-            A promised object.
-
-        Returns
-        -------
-        :class:`~noodles.interface.decorator.PromisedObject`
-            A new PromisedObject instance constructed from **job**.
-
-        """
-        nodes = job._workflow.nodes
-        function_node = next(iter(nodes.values()))
-        kwargs = function_node.bound_args.arguments.copy()
-
-        func = kwargs.pop('self')
-        return func(**kwargs)
-
 
 class PackageManager(PackageManagerABC):
 
-    @PackageManagerABC.inherit_annotations()
     def __init__(self, data, post_process=None):
         super().__init__(data, post_process)
 
-    def __call__(self, logger: Optional[Logger] = None) -> Optional[List[MultiMolecule]]:
+    def __call__(self, logger: Optional[Logger] = None,
+                 n_processes: int = 1,
+                 always_cache: bool = True,
+                 registry: Callable[[], Registry] = pkg_registry) -> Optional[List[MultiMolecule]]:
         r"""Run all jobs and return a sequence of list of MultiMolecules.
 
         Parameters
@@ -265,112 +220,40 @@ class PackageManager(PackageManagerABC):
             a list of MultiMolecule is returned otherwise.
 
         """
-        # Create new promised objects
-        self.reset_jobs()
-
         # Construct the logger
         if logger is None:
             logger = DummyLogger()
 
-        mol_list = repeat((None,))
-        for name, jobs in self.items():
-            mol_list = [self.run_job(job, logger, mol[-1]) for mol, job in zip(mol_list, jobs)]
-            if None in mol_list:
-                logger.info(f"One or more {name!r} jobs have failed; aborting further jobs")
-                return None
+        jobs_iter = iter(self.values())
 
-            func = self.post_process.get(name)
-            if func is None:
-                continue
-            condition = func(name, jobs, mol_list, logger)
-            if not condition:
-                return None
-            logger.info(f"All {name!r} jobs were successful")
+        jobs = next(jobs_iter)
+        promised_jobs = (j(molecule=None) for j in jobs)
+        for jobs in jobs_iter:
+            promised_jobs = (j(molecule=j_old.molecule) for j, j_old in zip(jobs, promised_jobs))
 
-        return mol_list
+        results = run_parallel(gather(*promised_jobs),
+                               db_file='cache.db',
+                               n_threads=n_processes,
+                               always_cache=always_cache,
+                               registry=registry)
+        return self._extract_mol(results, logger)
 
     @staticmethod
-    def run_job(job: JT, logger: Logger,
-                molecule: Optional[MolLike] = None) -> Optional[MultiMolecule]:
-        r"""Run a single **job** and return a MultiMolecule if the **job** doesn't crash.
-
-        Parameters
-        ----------
-        job : :class:`~scm.plams.core.basejob.SingleJob`
-            The to-be run job.
-        logger : :class:`logging.Logger`
-            A logger for reporting job statuses.
-        molecule : :class:`~FOX.classes.multi_mol.MultiMolecule` or :class:`~scm.plams.mol.molecule.Molecule`
-            A Molecule whose Cartesian coordinates will be superimposed on
-            :attr:`job.molecule<scm.plams.core.basejob.SingleJob>`.
-
-        Returns
-        -------
-        :class:`~FOX.classes.multi_mol.MultiMolecule`, optional
-            Returns ``None`` if the job crashed; a MultiMolecule is returned otherwise.
-
-        """  # noqa
-        if molecule is not None:
-            job.molecule.from_array(molecule)
-
-        try:
-            results = job.run()
-        except FileNotFoundError:
-            return None  # Precaution against PLAMS unpickling old Jobs that don't exist
-        if job.status in {'crashed', 'failed'}:
-            return None
-
-        try:  # Construct and return a MultiMolecule object
-            path = get_xyz_path(results)
-            mol = MultiMolecule.from_xyz(path)
-            mol.round(3, inplace=True)
-            return mol
-        except XYZError:  # The .xyz file is unreadable for some reason
-            logger.warning(f"Failed to parse ...{os.sep}{os.path.basename(path)}")
-            return None
-        except FileNotFoundError as ex:
-            logger.warn(str(ex))
-            return None
-
-    @staticmethod
-    def evaluate_rmsd(name: str, jobs: Iterable[JT], mol_list: Iterable[MultiMolecule],
-                    logger: Logger, threshold: Optional[float] = None) -> bool:
-        """Evaluate the RMSD of a geometry optimization.
-
-        If the root mean square displacement (RMSD) of the last frame is
-        larger than **threshold** then ``False`` will be returned;
-        ``True`` is returned otherwise.
-
-        Parameters
-        ----------
-        name : :class:`str`
-            The name of the job set.
-        job_list : :class:`~collections.abc.Iterable` [:class:`~scm.plams.core.basejob.SingleJob`]
-            An iterable of Jobs.
-        mol_list : :class:`~collections.abc.Iterable` [:class:`~FOX.classes.multi_mol.MultiMolecule`]
-            An iterable consisting of MultiMolecules.
-            The last frame of each molecule is compared to the first one when determining the RMSD.
-        logger : :class:`~logging.Logger`
-            A logger for reporting results.
-        threshold : :class:`float`, optional
-            An RMSD threshold in Angstrom.
-            Determines whether or not a given RMSD will return ``True`` or ``False``.
-
-        Returns
-        -------
-        :class:`bool`
-            Return ``False`` if the RMSD is larger than **threshold** and ``True`` otherwise.
-
-        """
-        if threshold is None:
-            return True
-
-        for i, mol in enumerate(mol_list):
-            rmsd = mol.get_rmsd(mol_subset=-1)
-            if rmsd > threshold:
-                logger.warning(f'RMSD too large for {name} job {i!r}: {rmsd!r} > {threshold!r}')
-                return False
-        return True
+    def _extract_mol(results: List['Result'], logger: Logger) -> Optional[List[MultiMolecule]]:
+        ret = []
+        for result in results:
+            try:  # Construct and return a MultiMolecule object
+                path = get_xyz_path(result)
+                mol = MultiMolecule.from_xyz(path)
+                mol.round(3, inplace=True)
+                ret.append(mol)
+            except XYZError:  # The .xyz file is unreadable for some reason
+                logger.warning(f"Failed to parse ...{os.sep}{os.path.basename(path)}")
+                return None
+            except Exception as ex:
+                logger.warn(f'{ex.__class__.__name__}: {ex}')
+                return None
+        return ret
 
 
-WorkflowManager.__doc__ = WorkflowManagerABC.__doc__
+PackageManager.__doc__ = PackageManagerABC.__doc__

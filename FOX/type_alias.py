@@ -34,12 +34,20 @@ TYPE_ALIAS: Mapping[str, str] = MappingProxyType({
     'ParamMapping': 'FOX.armc.param_mapping.ParamMapping',
 
     'KFReader': 'scm.plams.tools.kftools.KFReader',
-    'Figre': 'matplotlib.figure.Figure',
-    'File': 'h5py._hl.files.File',
-    'NDFrame': 'pandas.core.generic.NDFrame',
     'SingleJob': 'scm.plams.core.basejob.SingleJob',
     'Settings': 'scm.plams.core.settings.Settings',
-    'Molecule': 'scm.plams.mol.molecule.Molecule'
+    'Molecule': 'scm.plams.mol.molecule.Molecule',
+    'Results': 'scm.plams.core.results.Results',
+
+    'Figure': 'matplotlib.figure.Figure',
+
+    'File': 'h5py._hl.files.File',
+
+    'NDFrame': 'pandas.core.generic.NDFrame',
+
+    'Result': 'qmflows.packages.packages.Result',
+
+    'Registry': 'noodles.serial.registry.Registry'
 })
 
 globals().update(TYPE_ALIAS)
