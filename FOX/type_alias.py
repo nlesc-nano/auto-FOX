@@ -46,8 +46,10 @@ TYPE_ALIAS: Mapping[str, str] = MappingProxyType({
     'NDFrame': 'pandas.core.generic.NDFrame',
 
     'Result': 'qmflows.packages.packages.Result',
+    'Package': 'qmflows.packages.packages.Package',
 
-    'Registry': 'noodles.serial.registry.Registry'
+    'Registry': 'noodles.serial.registry.Registry',
+    'PromisedObject': 'noodles.interface.decorator.PromisedObject'
 })
 
 globals().update(TYPE_ALIAS)

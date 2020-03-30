@@ -39,11 +39,11 @@ from ..logger import get_logger
 from ..type_hints import ArrayOrScalar
 
 if TYPE_CHECKING:
-    from .workflow_manager import WorkflowManager
+    from .package_manager import PackageManager
     from .param_mapping import ParamMapping
     from ..classes.multi_mol import MultiMolecule
 else:
-    from ..type_alias import WorkflowManager, ParamMapping, MultiMolecule
+    from ..type_alias import PackageManager, ParamMapping, MultiMolecule
 
 __all__ = ['MonteCarloABC']
 
@@ -59,9 +59,9 @@ class MonteCarloABC(AbstractDataClass, ABC, Mapping[KT, VT]):
     r"""The base :class:`.MonteCarlo` class."""
 
     param: ParamMapping
-    workflow_manager: WorkflowManager
+    package_manager: PackageManager
     keep_files: bool
-    hdf5: Union[str, PathLike]
+    hdf5_file: Union[str, PathLike]
     pes: Dict[str, GetPesDescriptor]
 
     _data: Dict[KT, VT]
@@ -101,10 +101,10 @@ class MonteCarloABC(AbstractDataClass, ABC, Mapping[KT, VT]):
     _PRIVATE_ATTR = frozenset({'_plams_molecule', 'job_cache'})
 
     def __init__(self, molecule: Iterable[MultiMolecule],
-                 workflow_manager: WorkflowManager,
+                 package_manager: PackageManager,
                  param: ParamMapping,
                  keep_files: bool = False,
-                 hdf5: Union[str, bytes, PathLike] = 'armc.hdf5',
+                 hdf5_file: Union[str, bytes, PathLike] = 'armc.hdf5',
                  logger: Optional[Logger] = None,
                  pes_post_process: Optional[Iterable[PostProcess]] = None) -> None:
         """Initialize a :class:`MonteCarlo` instance."""
@@ -114,12 +114,12 @@ class MonteCarloABC(AbstractDataClass, ABC, Mapping[KT, VT]):
 
         # Settings for running the actual MD calculations
         self.molecule = molecule
-        self.workflow_manager = workflow_manager
+        self.package_manager = package_manager
         self.keep_files = keep_files
         self.pes_post_process = pes_post_process
 
         # HDF5 settings
-        self.hdf5 = hdf5
+        self.hdf5_file = hdf5_file
 
         # Logging settings
         self.logger = logger
@@ -296,11 +296,11 @@ class MonteCarloABC(AbstractDataClass, ABC, Mapping[KT, VT]):
         prm = self.param['param'].loc[prm_name]
         prm_update = {k0: v for (k0, _), v in prm.items()}
 
-        job_iterator = chain.from_iterable(self.workflow_manager.values())
+        job_iterator = chain.from_iterable(self.package_manager.values())
 
         # Update the job settings
         for job in job_iterator:
-            job.settings.update(prm_update)
+            job['settings'].update(prm_update)
 
         return tuple(self.param['param'].values)  # type: ignore
 
@@ -320,14 +320,14 @@ class MonteCarloABC(AbstractDataClass, ABC, Mapping[KT, VT]):
             Will return ``None`` if one of the jobs crashed
 
         """
-        return self.workflow_manager(logger=self.logger)
+        return self.package_manager(logger=self.logger)
 
     def clear_jobs(self) -> None:
         """Delete all cp2k output files if :attr:`keep_files == False<keep_files>`."""
         if self.keep_files:
             return
 
-        iterator = chain.from_iterable(self.workflow_manager.values())
+        iterator = chain.from_iterable(self.package_manager.result_cache.values())
         for job in iterator:
             shutil.rmtree(job.path)
         return

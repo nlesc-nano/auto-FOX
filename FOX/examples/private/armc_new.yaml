@@ -30,7 +30,7 @@ param:
             Se O_1: 0.3526
 
 psf:
-    str_file: ligand.str
+    str_file: /Users/bvanbeek/Documents/GitHub/auto-FOX/FOX/examples/private/ligand.str
     ligand_atoms: [C, O, H]
 
 pes:
@@ -40,16 +40,18 @@ pes:
             atom_subset: [Cd, Se, O]
 
 job:
-    type: FOX.armc.WorkflowManager
+    type: FOX.armc.PackageManager
     molecule: /Users/bvanbeek/Documents/GitHub/auto-FOX/FOX/data/Cd68Se55_26COO_MD_trajec.xyz
 
     geometry:
-        job_type: scm.plams.Cp2kJob
+        type: qmflows.cp2k_mm
         name: armc_preopt
         settings: null
+        template: qmflows.geometry.cp2k_mm
     md:
-        job_type: scm.plams.Cp2kJob
+        type: qmflows.cp2k_mm
         name: armc_md
+        template: qmflows.md.cp2k_mm
         settings:
             prm: ligand.prm
             input:

@@ -1,37 +1,46 @@
 import os
-import copy
 from abc import ABC, abstractmethod
 from logging import Logger
-from inspect import signature
-from functools import wraps
 from itertools import repeat
 from collections import abc
 from typing import (Mapping, TypeVar, Hashable, Any, KeysView, ItemsView, ValuesView, Iterator,
                     Union, Dict, List, Optional, FrozenSet, Callable, Type, Set, Tuple,
                     Iterable, overload, Sequence, Collection, TYPE_CHECKING)
 
+from scm.plams import config, Settings, Molecule
+from qmflows import Settings as QmSettings
 from qmflows.packages import registry as pkg_registry
-from noodles import gather
+from noodles import gather, schedule
 from noodles.run.threading.sqlite3 import run_parallel
 
 from ..functions.cp2k_utils import get_xyz_path
 from ..logger import DummyLogger
-from ..type_hints import Literal
+from ..type_hints import Literal, TypedDict
 from ..io.read_xyz import XYZError
 
 if TYPE_CHECKING:
     from ..classes.multi_mol import MultiMolecule
-    from qmflows.packages import Result
+    from qmflows.packages import Result, Package
     from noodles.interface import PromisedObject
     from noodles.serial import Registry
 else:
-    from ..type_alias import MultiMolecule, PromisedObject, Registry, Result
+    from ..type_alias import MultiMolecule, PromisedObject, Registry, Result, Package
 
 __all__ = ['PackageManager']
 
+
+class JobMapping(TypedDict, total=False):
+
+    type: Package
+    name: str
+    molecule: Molecule
+    settings: Settings
+
+
 _KT = TypeVar('_KT')
 KT = TypeVar('KT', bound=str)
-JT = TypeVar('JT', bound=PromisedObject)
+RT = TypeVar('RT', bound=Result)
+JT = TypeVar('JT', bound=JobMapping)
 T = TypeVar('T')
 
 MolLike = Iterable[Tuple[float, float, float]]
@@ -39,15 +48,12 @@ MolLike = Iterable[Tuple[float, float, float]]
 DataMap = Mapping[KT, Iterable[JT]]
 DataIter = Iterable[Tuple[KT, Iterable[JT]]]
 
-PostProcess = Callable[[str, Iterable[JT], Iterable[MultiMolecule], Logger], bool]
-PostProcessMap = Mapping[KT, PostProcess]
-PostProcessIter = Iterable[Tuple[KT, PostProcess]]
+DictLike = Union[Mapping[_KT, Iterable[T]], Iterable[Tuple[_KT, Iterable[T]]]]
 
 
 class PackageManagerABC(ABC, Mapping[KT, Tuple[JT, ...]]):
 
-    def __init__(self, data: Union[DataMap, DataIter],
-                 post_process: Union[None, PostProcessMap, PostProcessIter]) -> None:
+    def __init__(self, data: Union[DataMap, DataIter]) -> None:
         """Initialize an instance.
 
         Parameters
@@ -68,36 +74,13 @@ class PackageManagerABC(ABC, Mapping[KT, Tuple[JT, ...]]):
         """  # noqa
         super().__init__()
         self._data = data
-        self.post_process = None
 
     # Attributes and properties
 
     @property
-    def post_process(self) -> Dict[KT, PostProcess]:
-        """A propery containing a dictionary for post processing jobs.
-
-        The getter will simply return the attribute's value.
-        The setter will validate and assign any mapping or iterable containing of key/value pairs.
-
-        """
-        return self._post_process
-
-    @post_process.setter
-    def post_process(self, value: Union[None, PostProcessMap, PostProcessIter]) -> None:
-        if value is None:
-            self._post_process: Dict[KT, PostProcess] = {}
-            return
-
-        dct = self._parse_dict_like(value, to_tuple=False)
-
-        # Check that the keys post_process are a subset of those in self
-        if not set(dct).issubset(self.keys()):
-            illegal_keys = set(self.keys()).difference(dct)
-            keys_str = ' '.join(repr(k) for k in illegal_keys)
-            raise KeyError(f"{'post_process'!r} got one or more unexpected keys: {keys_str}")
-        else:
-            self._post_process = dct
-        return
+    def workdir(self) -> str:
+        """Get the path to the current PLAMS workdir."""
+        return config.default_jobmanager.workdir
 
     @property
     def _data(self) -> Dict[KT, Tuple[JT, ...]]:
@@ -111,7 +94,8 @@ class PackageManagerABC(ABC, Mapping[KT, Tuple[JT, ...]]):
 
     @_data.setter
     def _data(self, value: Union[DataMap, DataIter]) -> None:  # noqa
-        ret = self._parse_dict_like(value, to_tuple=True)
+        iterable = value.items() if isinstance(value, abc.Mapping) else value
+        ret = {k: tuple(v) for k, v in iterable}
 
         value_len = {len(v) for v in ret.values()}
         if not value:
@@ -120,24 +104,6 @@ class PackageManagerABC(ABC, Mapping[KT, Tuple[JT, ...]]):
             raise ValueError(f"All values passed to {self.__class__.__name__!r}() "
                              "must be of the same length")
         self.__data = ret
-
-    @overload
-    @classmethod
-    def _parse_dict_like(cls, value: Union[Mapping[_KT, T], Iterable[Tuple[_KT, T]]],
-                         to_tuple: Literal[False]) -> Dict[_KT, T]: ...
-
-    @overload
-    @classmethod
-    def _parse_dict_like(cls, value: Union[Mapping[_KT, Iterable[T]], Iterable[Tuple[_KT, Iterable[T]]]],  # noqa
-                         to_tuple: Literal[True]) -> Dict[_KT, Tuple[T, ...]]: ...
-
-    @classmethod
-    def _parse_dict_like(cls, value, to_tuple=False):
-        iterable = value.items() if isinstance(value, abc.Mapping) else value
-        if to_tuple:
-            return {k: tuple(v) for k, v in iterable}
-        else:
-            return dict(iterable)
 
     # Mapping implementation
 
@@ -196,11 +162,17 @@ class PackageManagerABC(ABC, Mapping[KT, Tuple[JT, ...]]):
         """
         raise NotImplementedError('Trying to call an abstract method')
 
+    @staticmethod
+    @abstractmethod
+    def assemble_job(job: JobMapping, **kwargs: Any) -> T:
+        """Assemble a :class:`JobMapping` into an actual job."""
+        raise NotImplementedError('Trying to call an abstract method')
+
 
 class PackageManager(PackageManagerABC):
 
-    def __init__(self, data, post_process=None):
-        super().__init__(data, post_process)
+    def __init__(self, data):
+        super().__init__(data)
 
     def __call__(self, logger: Optional[Logger] = None,
                  n_processes: int = 1,
@@ -224,22 +196,38 @@ class PackageManager(PackageManagerABC):
         if logger is None:
             logger = DummyLogger()
 
-        jobs_iter = iter(self.values())
+        jobs_iter = iter(self.items())
+        assemble_job = self.assemble_job
 
-        jobs = next(jobs_iter)
-        promised_jobs = (j(molecule=None) for j in jobs)
-        for jobs in jobs_iter:
-            promised_jobs = (j(molecule=j_old.molecule) for j, j_old in zip(jobs, promised_jobs))
+        name, jobs = next(jobs_iter)
+        promised_jobs = (assemble_job(j, name=name) for j in jobs)
+        for name, jobs in jobs_iter:
+            promised_jobs = (assemble_job(*args, name=name) for args in zip(jobs, promised_jobs))
 
         results = run_parallel(gather(*promised_jobs),
-                               db_file='cache.db',
+                               db_file=os.path.join(self.workdir, 'cache.db'),
                                n_threads=n_processes,
                                always_cache=always_cache,
-                               registry=registry)
+                               registry=pkg_registry)
         return self._extract_mol(results, logger)
 
+    @schedule
     @staticmethod
-    def _extract_mol(results: List['Result'], logger: Logger) -> Optional[List[MultiMolecule]]:
+    def assemble_job(job: JobMapping, old_job: Optional[PromisedObject] = None,
+                     name: Optional[str] = None) -> PromisedObject:
+        """Create a :class:`PromisedObject` from a qmflow :class:`Package` instance."""
+        kwargs = job.copy()
+
+        mol = old_job.molecule if old_job is not None else kwargs['molecule']
+        job_name = name if name is not None else ''
+        settings = QmSettings(kwargs.pop('settings'))
+
+        obj_type = kwargs.pop('type')
+        return obj_type(settings=settings, mol=mol, job_name=job_name, **kwargs)
+
+    @staticmethod
+    def _extract_mol(results: List[Result], logger: Logger) -> Optional[List[MultiMolecule]]:
+        """Create a list of MultiMolecule from the passed **results**."""
         ret = []
         for result in results:
             try:  # Construct and return a MultiMolecule object

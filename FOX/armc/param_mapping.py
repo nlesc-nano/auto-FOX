@@ -159,7 +159,7 @@ class ParamMappingABC(AbstractDataClass, ABC, Mapping[ValidKeys, pd.Series]):
         super().__init__()
         self.move_range = move_range
         self.func = wraps(func)(partial(func, **kwargs))
-        self._data = df
+        self._data = data
 
     # Properties
 
@@ -193,7 +193,7 @@ class ParamMappingABC(AbstractDataClass, ABC, Mapping[ValidKeys, pd.Series]):
         if not isinstance(param.index, pd.MultiIndex):
             raise TypeError("Series.index expected a 2-level MultiIndex; "
                             f"observed type: {param.index.__class__.__name!r}")
-        elif param.index.levels != 2:
+        elif len(param.index.levels) != 2:
             raise ValueError("Series.index expected a 2-level MultiIndex; "
                              f"observed number levels: {param.index.levels!r}")
 
@@ -213,7 +213,7 @@ class ParamMappingABC(AbstractDataClass, ABC, Mapping[ValidKeys, pd.Series]):
 
     def __repr__(self) -> str:
         indent = 4 * ' '
-        data = repr(self._data)
+        data = repr(pd.DataFrame(self._data))
         return f'{self.__class__.__name__}(\n{textwrap.indent(data, indent)}\n)'
 
     def __getitem__(self, key: ValidKeys) -> pd.Series:

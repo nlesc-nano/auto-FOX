@@ -15,7 +15,7 @@ if TYPE_CHECKING:
     from scm.plams import Results
     from qmflows.packages import Result
 else:
-    from ..type_lias import Results, Result
+    from ..type_alias import Results, Result
 
 __all__ = ['set_keys', 'parse_cp2k_value']
 

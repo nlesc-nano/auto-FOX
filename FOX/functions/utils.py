@@ -1,13 +1,16 @@
 """A module with miscellaneous functions."""
 
+import reprlib
 import warnings
-from collections import abc
+import importlib
+from os import PathLike
 from os.path import join, isfile
 from functools import wraps
+from collections import abc
 from pkg_resources import resource_filename
 from typing import (
     Iterable, Tuple, Callable, Hashable, Sequence, Optional, List, Any, TypeVar, Dict,
-    Type, Mapping, Union, MutableMapping, TYPE_CHECKING
+    Type, Mapping, Union, MutableMapping, TYPE_CHECKING, AnyStr
 )
 
 import yaml
@@ -220,7 +223,7 @@ def serialize_array(array: np.ndarray, items_per_row: int = 4) -> str:
     return ret
 
 
-def read_str_file(filename: str) -> Optional[Tuple[Sequence, Sequence]]:
+def read_str_file(filename: Union[AnyStr, PathLike]) -> Optional[Tuple[Sequence, Sequence]]:
     """Read atomic charges from CHARMM-compatible stream files (.str).
 
     Returns a settings object with atom types and (atomic) charges.
@@ -250,6 +253,8 @@ def read_str_file(filename: str) -> Optional[Tuple[Sequence, Sequence]]:
         for i in f:
             if 'GROUP' in i:
                 return zip(*inner_loop(f))
+        else:
+            raise RuntimeError(f"Failed to parse {filename!r}")
 
 
 def get_shape(item: Iterable) -> Tuple[int]:
@@ -409,7 +414,7 @@ def array_to_index(ar: np.ndarray) -> pd.Index:
                      {:d}-dimensional array'.format(ar.dim))
 
 
-def get_example_xyz(name: str = 'Cd68Se55_26COO_MD_trajec.xyz') -> str:
+def get_example_xyz(name: Union[str, PathLike] = 'Cd68Se55_26COO_MD_trajec.xyz') -> str:
     """Return the path + name of the example multi-xyz file."""
     err = "'FOX.get_example_xyz()' has been deprecated in favour of 'FOX.example_xyz'"
     warnings.warn(err, FutureWarning)
@@ -738,6 +743,38 @@ def str_to_callable(string: str) -> Callable:
             return eval('.'.join([class_, method]))
 
 
+def get_importable(string: str, validate: Optional[Callable[[T], bool]] = None) -> T:
+    """Import an importable object.
+
+    Parameters
+    ----------
+    string : str
+        A string representing an importable object.
+    validate : str
+        A callable for validating the imported object.
+        Will raise an :exc:`AssertionError` if evaluating to ``False``.
+
+    Returns
+    -------
+    :data:`~typing.Any`
+        The import object
+
+    """
+    if '.' not in string:
+        ret = eval(string)
+    else:
+        head, *tail = string.split('.')
+        ret = importlib.import_module(head)
+        for name in tail:
+            ret = getattr(ret, name)
+
+    if validate is not None:
+        msg = f'Passing {reprlib.repr(ret)} to {validate!r} failed to return True'
+        assert validate(ret), msg
+
+    return ret
+
+
 def group_by_values(iterable: Iterable[Tuple[VT, KT]],
                     mapping_type: Type[Mapping] = dict) -> Mapping[KT, List[VT]]:
     """Take an iterable, yielding 2-tuples, and group all first elements by the second.
@@ -791,7 +828,8 @@ def group_by_values(iterable: Iterable[Tuple[VT, KT]],
     return ret if mutable else mapping_type(ret)
 
 
-def read_rtf_file(filename: str) -> Optional[Tuple[Sequence[str], Sequence[float]]]:
+def read_rtf_file(filename: Union[AnyStr, PathLike]
+                  ) -> Optional[Tuple[Sequence[str], Sequence[float]]]:
     """Return a 2-tuple with all atom types and charges."""
     def _parse_item(item: str) -> Tuple[str, float]:
         item_list = item.split()

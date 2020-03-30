@@ -23,88 +23,26 @@ from __future__ import annotations
 
 import os
 import io
-from contextlib import redirect_stdout
-from typing import (Tuple, TYPE_CHECKING, Any, Optional, Iterable, Mapping,
-                    Union, AnyStr, TypeVar, ContextManager)
+from typing import Tuple, TYPE_CHECKING, Any, Optional, Iterable, Mapping, Union, AnyStr, TypeVar
 
-import yaml
 import numpy as np
 
-from scm.plams import init, finish
-
-from .guess import guess_param
 from .monte_carlo import MonteCarloABC
-from .armc_to_yaml import to_yaml, from_yaml
-from ..logger import Plams2Logger, wrap_plams_logger
+from .armc_to_yaml import to_yaml
 from ..type_hints import ArrayLikeOrScalar, Literal
 from ..io.hdf5_utils import (
     create_hdf5, to_hdf5, create_xyz_hdf5, _get_filename_xyz, hdf5_clear_status
 )
 
-try:
-    Dumper = yaml.CDumper
-except AttributeError:
-    Dumper = yaml.Dumper  # type: ignore
-
 if TYPE_CHECKING:
     from .phi_updater import PhiUpdater
     from ..classes import MultiMolecule
-    from ..io import PSFContainer
 else:
-    from ..type_alias import MultiMolecule, PhiUpdater, PSFContainer
+    from ..type_alias import MultiMolecule, PhiUpdater
 
-__all__ = ['ARMC', 'run_armc']
+__all__ = ['ARMC']
 
 KT = TypeVar('KT', bound=Tuple[float, ...])
-
-
-class Init(ContextManager[None]):
-    """A context manager for calling :func:`init` and :func:`finish`."""
-
-    def __init__(self, path: Union[None, str, os.PathLike] = None,
-                 folder: Union[None, str, os.PathLike] = None) -> None:
-        self.path = path
-        self.folder = folder
-
-    def __enter__(self) -> None:
-        init(self.path, self.folder)
-
-    def __exit__(self, exc_type, exc_value, traceback) -> None:
-        finish()
-
-
-def run_armc(armc: ARMC,
-             path: Union[None, str, os.PathLike] = None,
-             folder: Union[None, str, os.PathLike] = None,
-             logfile: Union[None, str, os.PathLike] = None,
-             psf: Optional[Iterable[PSFContainer]] = None,
-             restart: bool = False,
-             guess: Optional[Mapping[str, Mapping]] = None) -> None:
-    """A wrapper arround :class:`ARMC` for handling the JobManager."""
-    # Create a .psf file if specified
-    if psf is not None:
-        for item in psf:
-            item.write(None)
-
-    # Guess the remaining unspecified parameters based on either UFF or the RDF
-    if guess is not None:
-        for k, v in guess.items():
-            frozen = k if v['frozen'] else None
-            guess_param(armc, mode=v['mode'], columns=k, frozen=frozen)
-
-    # Initialize the ARMC procedure
-    with Init(path=path, folder=folder):
-        armc.logger = wrap_plams_logger(logfile, armc.__class__.__name__)
-        writer = Plams2Logger(armc.logger,
-                              lambda n: 'STARTED' in n,
-                              lambda n: 'Renaming' in n,
-                              lambda n: 'Trying to obtain results of crashed or failed job' in n)
-
-        with redirect_stdout(writer):
-            if not restart:  # To restart or not? That's the question
-                armc()
-            else:
-                armc.restart()
 
 
 class ARMC(MonteCarloABC):
@@ -184,7 +122,8 @@ class ARMC(MonteCarloABC):
             a dictionary with keyword arguments for :func:`.run_armc`.
 
         """
-        return from_yaml(cls, filename)
+        raise NotImplementedError
+        # return from_yaml(cls, filename)
 
     def to_yaml(self, filename: Union[AnyStr, os.PathLike, io.IOBase],
                 logfile: Optional[str] = None, path: Optional[str] = None,
@@ -202,7 +141,7 @@ class ARMC(MonteCarloABC):
     def __call__(self, start: int = 0, key_new: Optional[KT] = None) -> None:
         """Initialize the Addaptive Rate Monte Carlo procedure."""
         if start == 0:
-            create_hdf5(self.hdf5, self)  # Construct the HDF5 file
+            create_hdf5(self.hdf5_file, self)  # Construct the HDF5 file
 
             key_new = self._get_first_key()  # Initialize the first MD calculation
             if np.inf in self[key_new]:
@@ -216,7 +155,7 @@ class ARMC(MonteCarloABC):
         # Start the main loop
         for kappa in range(start, self.super_iter_len):
             acceptance = np.zeros(self.sub_iter_len, dtype=bool)
-            create_xyz_hdf5(self.hdf5, self.molecule, iter_len=self.sub_iter_len)
+            create_xyz_hdf5(self.hdf5_file, self.molecule, iter_len=self.sub_iter_len)
 
             for omega in range(self.sub_iter_len):
                 key_new = self.do_inner(kappa, omega, acceptance, key_new)
@@ -346,7 +285,7 @@ class ARMC(MonteCarloABC):
         }
         hdf5_kwarg.update(pes_new)
 
-        to_hdf5(self.hdf5, hdf5_kwarg, kappa, omega)
+        to_hdf5(self.hdf5_file, hdf5_kwarg, kappa, omega)
 
     def get_aux_error(self, pes_dict: Mapping[str, ArrayLikeOrScalar]) -> np.ndarray:
         r"""Return the auxiliary error :math:`\Delta \varepsilon_{QM-MM}`.
@@ -392,18 +331,18 @@ class ARMC(MonteCarloABC):
         i, j, key, acceptance = self._restart_from_hdf5()
 
         # Validate the xyz .hdf5 file; create a new one if required
-        xyz = _get_filename_xyz(self.hdf5)
+        xyz = _get_filename_xyz(self.hdf5_file)
         if not os.path.isfile(xyz):
-            create_xyz_hdf5(self.hdf5, self.molecule, iter_len=self.sub_iter_len)
+            create_xyz_hdf5(self.hdf5_file, self.molecule, iter_len=self.sub_iter_len)
 
         # Check that both .hdf5 files can be opened; clear their status if not
         closed = hdf5_clear_status(xyz)
         if not closed:
             self.logger.warning(f"Unable to open ...{os.sep}{os.path.basename(xyz)}, "
                                 "file status was forcibly reset")
-        closed = hdf5_clear_status(self.hdf5)
+        closed = hdf5_clear_status(self.hdf5_file)
         if not closed:
-            self.logger.warning(f"Unable to open ...{os.sep}{os.path.basename(self.hdf5)}, "
+            self.logger.warning(f"Unable to open ...{os.sep}{os.path.basename(self.hdf5_file)}, "
                                 "file status was forcibly reset")
 
         # Finish the current set of sub-iterations
@@ -420,7 +359,7 @@ class ARMC(MonteCarloABC):
         """Read and process the .hdf5 file for :meth:`ARMC.restart`."""
         import h5py
 
-        with h5py.File(self.hdf5, 'r', libver='latest') as f:
+        with h5py.File(self.hdf5_file, 'r', libver='latest') as f:
             i, j = f.attrs['super-iteration'], f.attrs['sub-iteration']
             if i < 0:
                 raise ValueError(f'i: {i.__class__.__name__} = {i}')

@@ -1,8 +1,6 @@
-from __future__ import annotations
-
 import io
 import os
-from typing import TYPE_CHECKING, Tuple, Union, AnyStr, Optional, Type
+from typing import TYPE_CHECKING, Union, AnyStr, Optional
 from functools import partial
 from contextlib import nullcontext
 
@@ -10,8 +8,6 @@ import yaml
 from scm.plams import Settings
 
 from .df_to_dict import df_to_dict
-from .sanitization import init_armc_sanitization
-from ..functions.utils import get_template
 
 try:
     Dumper = yaml.CDumper
@@ -23,37 +19,7 @@ if TYPE_CHECKING:
 else:
     from ..type_alias import ARMC
 
-__all__ = ['from_yaml', 'to_yaml']
-
-
-def from_yaml(obj_type: Type[ARMC], filename: str) -> Tuple[ARMC, dict]:
-    """Create a :class:`.ARMC` instance from a .yaml file.
-
-    Parameters
-    ----------
-    filename : str
-        The path+filename of a .yaml file containing all :class:`ARMC` settings.
-
-    Returns
-    -------
-    |FOX.ARMC|_ and |dict|_
-        A new :class:`ARMC` instance and
-        a dictionary with keyword arguments for :func:`.run_armc`.
-
-    """
-    # Load the .yaml file
-    if os.path.isfile(filename):
-        path, filename = os.path.split(filename)
-    else:
-        path = None
-    yaml_dict = get_template(filename, path=path)
-
-    # Parse and sanitize the .yaml file
-    s, pes_kwarg, job_kwarg = init_armc_sanitization(yaml_dict)
-    obj = obj_type.from_dict(s)
-    for name, options in pes_kwarg.items():
-        obj.add_pes_evaluator(name, options.func, options.args, options.kwargs)
-    return obj, job_kwarg
+__all__ = ['to_yaml']
 
 
 def to_yaml(obj: ARMC, filename: Union[AnyStr, os.PathLike, io.IOBase],
@@ -123,13 +89,13 @@ def to_yaml(obj: ARMC, filename: Union[AnyStr, os.PathLike, io.IOBase],
     s.molecule = [mol.properties.filename for mol in obj.molecule]
 
     # The pes block
-    for name, partial in obj.pes.items():
+    for name, partial_func in obj.pes.items():
         pes_dict = s.pes[name.rsplit('.', maxsplit=1)[0]]
-        pes_dict.func = f'{partial.__module__}.{partial.__qualname__}'
-        pes_dict.args = list(partial.args)
+        pes_dict.func = f'{partial_func.__module__}.{partial_func.__qualname__}'
+        pes_dict.args = list(partial_func.args)
         if 'kwargs' not in pes_dict:
             pes_dict.kwargs = []
-        pes_dict.kwargs.append(partial.keywords)
+        pes_dict.kwargs.append(partial_func.keywords)
 
     # The move block
     move_range = obj.param.move_range

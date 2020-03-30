@@ -934,7 +934,7 @@ class PSFContainer(AbstractDataClass, AbstractFileContainer):
         writepdb(mol, pdb_file)
 
 
-def overlay_str_file(psf: PSFContainer, filename: str,
+def overlay_str_file(psf: PSFContainer, filename: Union[AnyStr, PathLike],
                      id_range: Optional[Iterable[int]] = None) -> None:
     """Update all ligand atom types and atomic charges in :attr:`PSF.atoms`.
 
@@ -954,11 +954,14 @@ def overlay_str_file(psf: PSFContainer, filename: str,
         If ``None``, update the atoms in all residues.
 
     """
-    atoms, charge = read_str_file(filename)
+    try:
+        atoms, charge = read_str_file(filename)  # type: ignore
+    except TypeError as ex:
+        raise RuntimeError(f"Failed to parse {filename!r}") from ex
     _overlay(psf, atoms, charge, id_range)
 
 
-def overlay_rtf_file(psf: PSFContainer, filename: str,
+def overlay_rtf_file(psf: PSFContainer, filename: Union[AnyStr, PathLike],
                      id_range: Optional[Iterable[int]] = None) -> None:
     """Update all ligand atom types and atomic charges in :attr:`PSF.atoms`.
 
@@ -978,7 +981,10 @@ def overlay_rtf_file(psf: PSFContainer, filename: str,
         If ``None``, update the atoms in all residues.
 
     """
-    atoms, charge = read_rtf_file(filename)
+    try:
+        atoms, charge = read_rtf_file(filename)  # type: ignore
+    except TypeError as ex:
+        raise RuntimeError(f"Failed to parse {filename!r}") from ex
     _overlay(psf, atoms, charge, id_range)
 
 
