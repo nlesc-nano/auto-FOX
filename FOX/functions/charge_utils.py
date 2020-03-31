@@ -3,8 +3,7 @@
 import functools
 from types import MappingProxyType
 from typing import (
-    Callable, Hashable, Optional, Collection, Mapping, Container, List, Dict, Union, Iterable,
-    Tuple
+    Callable, Hashable, Optional, Collection, Mapping, Container, Set, Dict, Union, Iterable, Tuple
 )
 
 import numpy as np
@@ -87,14 +86,14 @@ def update_charge(atom: str, value: float, df: pd.DataFrame,
     if not constrain_dict or atom in constrain_dict:
         exclude = constrained_update(atom, df, constrain_dict)
     else:
-        exclude = [atom]
+        exclude = {atom}
 
     if charge:
         unconstrained_update(net_charge, df, exclude)
 
 
 def constrained_update(at1: str, df: pd.DataFrame,
-                       constrain_dict: Optional[Mapping[Hashable, Callable]] = None) -> List[str]:
+                       constrain_dict: Optional[Mapping[Hashable, Callable]] = None) -> Set[str]:
     """Perform a constrained update of atomic charges.
 
     Performs an inplace update of the ``"param"`` column in **df**.
@@ -117,17 +116,16 @@ def constrained_update(at1: str, df: pd.DataFrame,
 
     """
     charge = df.at[at1, 'param']
-    exclude = [at1]
+    exclude = {at1}
     if not constrain_dict:
         return exclude
-    exclude_append = exclude.append
 
     # Perform a constrained charge update
     func1 = invert_partial_ufunc(constrain_dict[at1])
     for at2, func2 in constrain_dict.items():
         if at2 == at1:
             continue
-        exclude_append(at2)
+        exclude.add(at2)
 
         # Update the charges
         df.at[at2, 'param'] = func2(func1(charge))
@@ -151,18 +149,31 @@ def unconstrained_update(net_charge: float, df: pd.DataFrame,
     df : |pd.DataFrame|_
         A dataframe with atomic charges.
 
-    exclude : list [str]
-        A list of atom types whose atomic charges should not be updated.
+    exclude : set [str]
+        A set of atom types whose atomic charges should not be updated.
 
     """
-    exclude = exclude or ()
-    include = np.array([i not in exclude for i in df.index])
+    exclude = exclude or set()
+    include = np.fromiter([i not in exclude for i in df.index], count=len(df.index), dtype=bool)
     if not include.any():
         return
 
-    i = net_charge - get_net_charge(df, np.invert(include))
+    i = net_charge - get_net_charge(df, ~include)
     i /= get_net_charge(df, include)
-    df.loc[include, 'param'] *= i
+
+    iterator = enumerate(df[['param', 'min', 'max']].iterrows())
+    v_new = v_new_clip = 0
+    for j, (atom, (prm, prm_min, prm_max)) in iterator:
+        if atom in exclude:
+            continue
+        elif v_new != v_new_clip:
+            i = net_charge - get_net_charge(df, ~include)
+            i /= get_net_charge(df, include)
+
+        v_new = i * prm
+        v_new_clip = np.clip(v_new, prm_min, prm_max)
+        df.loc[atom, 'param'] = v_new_clip
+        include[j] = False
 
 
 def invert_partial_ufunc(ufunc: functools.partial) -> Callable:
