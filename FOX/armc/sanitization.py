@@ -7,13 +7,11 @@ A module for parsing and sanitizing ARMC settings.
 """
 
 import os
-import functools
 from pathlib import Path
 from os.path import join, isfile, abspath
 from collections import abc
-from typing import (Union, Iterable, Tuple, Optional, Mapping, Any, MutableMapping, Type,
-                    Dict, TYPE_CHECKING, Hashable, TypeVar, Generator, Callable, ContextManager,
-                    List, Collection)
+from typing import (Union, Iterable, Tuple, Optional, Mapping, Any, MutableMapping,
+                    Dict, TYPE_CHECKING, Generator, Callable, List, Collection)
 
 import numpy as np
 import pandas as pd
@@ -27,9 +25,9 @@ from .schemas import (validate_phi, validate_pes, validate_monte_carlo, validate
 from ..type_hints import Literal, TypedDict
 from ..io.read_psf import PSFContainer, overlay_str_file, overlay_rtf_file
 from ..classes import MultiMolecule
-from ..functions.cp2k_utils import set_keys, set_subsys_kind
+from ..functions.cp2k_utils import set_keys
 from ..functions.molecule_utils import fix_bond_orders, residue_argsort
-from ..functions.utils import get_template, dict_to_pandas, get_atom_count, split_dict
+from ..functions.utils import dict_to_pandas, get_atom_count, split_dict
 
 if TYPE_CHECKING:
     from .package_manager import PackageManager
@@ -102,23 +100,6 @@ def init_armc_sanitization(input_dict: InputMapping):
     # import pdb; pdb.set_trace()
     return mc, run_kwargs
 
-    # Validate, post-process and return
-    """
-    s = validate(s_inp)
-    _parse_move(s)
-    _parse_armc(s)
-    job: Settings = _parse_job(s)
-    pes: Settings = _parse_pes(s)
-
-    _parse_param(s, job)
-    job.psf = _parse_psf(s, job.path)
-    _parse_preopt(s)
-
-    if job.get('psf', None) is not None:
-        s['pes_post_process'] = [AtomsFromPSF.from_psf(*job['psf'])]
-    return s, pes, job
-    """
-
 
 def get_phi(dct: Mapping[str, Any]) -> PhiUpdater:
     """Construct a :class:`PhiUpdater` instance from **dct**."""
@@ -183,7 +164,9 @@ def get_armc(dct: MutableMapping[str, Any],
 
 def get_psf(dct: Mapping[str, Any], mol_list: Iterable[MultiMolecule]
             ) -> Optional[List[PSFContainer]]:
+    """Construct a list of :class:`PSFContainer` instances from **dct**."""
     psf_dict = validate_psf(dct)
+
     atoms = psf_dict.get('ligand_atoms')
     mol_list_ = [mol.as_Molecule(mol_subset=0)[0] for mol in mol_list]
 
