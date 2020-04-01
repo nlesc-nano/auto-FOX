@@ -1,43 +1,51 @@
 import os
 from abc import ABC, abstractmethod
+from types import FunctionType
+from pathlib import Path
 from logging import Logger
-from itertools import repeat
+from itertools import chain
 from collections import abc
 from typing import (Mapping, TypeVar, Hashable, Any, KeysView, ItemsView, ValuesView, Iterator,
-                    Union, Dict, List, Optional, FrozenSet, Callable, Type, Set, Tuple,
-                    Iterable, overload, Sequence, Collection, TYPE_CHECKING)
+                    Union, Dict, List, Optional, Callable, Tuple, Iterable, Sequence,
+                    TYPE_CHECKING)
 
+import numpy as np
+import pandas as pd
 from scm.plams import config, Settings, Molecule
 from qmflows import Settings as QmSettings
-from qmflows.packages import registry as pkg_registry
+from qmflows.packages.packages import REGISTRY, registry as pkg_registry
+from qmflows.cp2k_utils import prm_to_df
 from noodles import gather, schedule
+from noodles.serial.base import SerImportable
 from noodles.run.threading.sqlite3 import run_parallel
 
+from ..classes.multi_mol import MultiMolecule
 from ..functions.cp2k_utils import get_xyz_path
 from ..logger import DummyLogger
-from ..type_hints import Literal, TypedDict
+from ..type_hints import TypedDict
 from ..io.read_xyz import XYZError
 
 if TYPE_CHECKING:
-    from ..classes.multi_mol import MultiMolecule
     from qmflows.packages import Result, Package
     from noodles.interface import PromisedObject
     from noodles.serial import Registry
 else:
-    from ..type_alias import MultiMolecule, PromisedObject, Registry, Result, Package
+    from ..type_alias import PromisedObject, Registry, Result, Package
 
 __all__ = ['PackageManager']
 
+REGISTRY[FunctionType] = SerImportable()
 
-class JobMapping(TypedDict, total=False):
+
+class JobMapping(TypedDict):
+    """A :class:`~typing.TypedDict` representing a single job recipe."""
 
     type: Package
-    name: str
     molecule: Molecule
     settings: Settings
 
 
-_KT = TypeVar('_KT')
+_KT = TypeVar('_KT', bound=Hashable)
 KT = TypeVar('KT', bound=str)
 RT = TypeVar('RT', bound=Result)
 JT = TypeVar('JT', bound=JobMapping)
@@ -47,7 +55,6 @@ MolLike = Iterable[Tuple[float, float, float]]
 
 DataMap = Mapping[KT, Iterable[JT]]
 DataIter = Iterable[Tuple[KT, Iterable[JT]]]
-
 DictLike = Union[Mapping[_KT, Iterable[T]], Iterable[Tuple[_KT, Iterable[T]]]]
 
 
@@ -78,9 +85,13 @@ class PackageManagerABC(ABC, Mapping[KT, Tuple[JT, ...]]):
     # Attributes and properties
 
     @property
-    def workdir(self) -> str:
+    def workdir(self) -> Path:
         """Get the path to the current PLAMS workdir."""
-        return config.default_jobmanager.workdir
+        try:
+            return Path(config.default_jobmanager.workdir)
+        except TypeError as ex:
+            raise RuntimeError(f"Accessing {self.__class__.__name__}.workdir requires "
+                               "plams.init() to be called") from ex
 
     @property
     def _data(self) -> Dict[KT, Tuple[JT, ...]]:
@@ -89,7 +100,7 @@ class PackageManagerABC(ABC, Mapping[KT, Tuple[JT, ...]]):
         The getter will simply return the attribute's value.
         The setter will validate and assign any mapping or iterable containing of key/value pairs.
 
-        """  # noqa
+        """
         return self.__data
 
     @_data.setter
@@ -168,11 +179,21 @@ class PackageManagerABC(ABC, Mapping[KT, Tuple[JT, ...]]):
         """Assemble a :class:`JobMapping` into an actual job."""
         raise NotImplementedError('Trying to call an abstract method')
 
+    @abstractmethod
+    def update_settings(self, dct: Any, **kwargs: Any) -> None:
+        """Update the Settings embedded in this instance using **dct**."""
+        raise NotImplementedError('Trying to call an abstract method')
+
 
 class PackageManager(PackageManagerABC):
 
     def __init__(self, data):
         super().__init__(data)
+
+        # Transform all forcefield parameter blocks into DataFrames
+        job_iterator = (job['settings'] for job in chain.from_iterable(self.values()))
+        for settings in job_iterator:
+            prm_to_df(settings)
 
     def __call__(self, logger: Optional[Logger] = None,
                  n_processes: int = 1,
@@ -208,11 +229,12 @@ class PackageManager(PackageManagerABC):
                                db_file=os.path.join(self.workdir, 'cache.db'),
                                n_threads=n_processes,
                                always_cache=always_cache,
-                               registry=pkg_registry)
+                               registry=pkg_registry,
+                               echo_log=False)
         return self._extract_mol(results, logger)
 
-    @schedule
     @staticmethod
+    @schedule
     def assemble_job(job: JobMapping, old_job: Optional[PromisedObject] = None,
                      name: Optional[str] = None) -> PromisedObject:
         """Create a :class:`PromisedObject` from a qmflow :class:`Package` instance."""
@@ -225,21 +247,43 @@ class PackageManager(PackageManagerABC):
         obj_type = kwargs.pop('type')
         return obj_type(settings=settings, mol=mol, job_name=job_name, **kwargs)
 
+    def update_settings(self, dct: Sequence[Tuple[str, Mapping]], new_keys: bool = True) -> None:
+        """Update all forcefield parameter blocks in this instance's CP2K settings."""
+        iterator = (job['settings'] for job in chain.from_iterable(self.values()))
+        for settings in iterator:
+            for key_alias, sub_dict in dct:
+                param = sub_dict['param']
+
+                if key_alias not in settings:
+                    settings[key_alias] = pd.DataFrame(sub_dict, index=[param])
+                    continue
+
+                df: pd.DataFrame = settings[key_alias]
+                if new_keys:
+                    keys = set(sub_dict.keys()).difference(df.columns)
+                    for k in keys:
+                        df[k] = np.nan
+
+                df_update = pd.DataFrame(sub_dict, index=[param])
+                if param not in df.index:
+                    df.loc[param] = np.nan
+                df.update(df_update)
+
     @staticmethod
     def _extract_mol(results: List[Result], logger: Logger) -> Optional[List[MultiMolecule]]:
         """Create a list of MultiMolecule from the passed **results**."""
         ret = []
         for result in results:
             try:  # Construct and return a MultiMolecule object
-                path = get_xyz_path(result)
+                path = get_xyz_path(result.results)
                 mol = MultiMolecule.from_xyz(path)
                 mol.round(3, inplace=True)
                 ret.append(mol)
-            except XYZError:  # The .xyz file is unreadable for some reason
-                logger.warning(f"Failed to parse ...{os.sep}{os.path.basename(path)}")
+            except XYZError as ex:  # The .xyz file is unreadable for some reason
+                logger.warning(f"Failed to parse ...{os.sep}{os.path.basename(path)}", exc_info=ex)
                 return None
             except Exception as ex:
-                logger.warn(f'{ex.__class__.__name__}: {ex}')
+                logger.warning(f'{ex.__class__.__name__}: {ex}', exc_info=ex)
                 return None
         return ret
 

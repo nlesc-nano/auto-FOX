@@ -18,8 +18,8 @@ API
 
 import os
 from collections import abc
-from typing import (overload, Any, SupportsInt, SupportsFloat, Type, Mapping,
-                    Callable, Union, Optional, Tuple, FrozenSet, MutableMapping)
+from typing import (overload, Any, SupportsInt, SupportsFloat, Type, Mapping, Collection, Sequence,
+                    Callable, Union, Optional, Tuple, FrozenSet, Iterable, Dict)
 
 import numpy as np
 from schema import And, Or, Schema, Use, Optional as Optional_
@@ -70,59 +70,17 @@ def supports_int(value):  # noqa: E302
         return False
 
 
-main_schema = Schema({
-    'param': Or(
-        And(abc.MutableMapping, lambda n: all(isinstance(k, str) for k in n.keys())),
-        And(abc.Mapping, lambda n: all(isinstance(k, str) for k in n.keys()), Use(dict))
-    ),
-
-    'pes': Or(
-        And(abc.MutableMapping, lambda n: all(isinstance(k, str) for k in n.keys())),
-        And(abc.Mapping, lambda n: all(isinstance(k, str) for k in n.keys()), Use(dict))
-    ),
-
-    'job': Or(
-        And(abc.MutableMapping, lambda n: all(isinstance(k, str) for k in n.keys())),
-        And(abc.Mapping, lambda n: all(isinstance(k, str) for k in n.keys()), Use(dict))
-    ),
-
-    Optional_('monte_carlo', default=dict): Or(
-        And(None, lambda n: {}),
-        And(abc.MutableMapping, lambda n: all(isinstance(k, str) for k in n.keys())),
-        And(abc.Mapping, lambda n: all(isinstance(k, str) for k in n.keys()), Use(dict))
-    ),
-
-    Optional_('phi', default=dict): Or(
-        And(None, lambda n: {}),
-        And(abc.MutableMapping, lambda n: all(isinstance(k, str) for k in n.keys())),
-        And(abc.Mapping, lambda n: all(isinstance(k, str) for k in n.keys()), Use(dict))
-    ),
-
-    Optional_('psf', default=None): Or(
-        And(None, lambda n: {}),
-        And(abc.MutableMapping, lambda n: all(isinstance(k, str) for k in n.keys())),
-        And(abc.Mapping, lambda n: all(isinstance(k, str) for k in n.keys()), Use(dict))
-    )
-})
-
-
-class MainDict(TypedDict):
-    """A :class:`~typing.TypedDict` representing the output of :data:`main_schema`."""
-
-    param: MutableMapping[str, Any]
-    pes: MutableMapping[str, Any]
-    job: MutableMapping[str, Any]
-    monte_carlo: MutableMapping[str, Any]
-    phi: MutableMapping[str, Any]
-    psf: MutableMapping[str, Any]
+def phi_subclass(cls: type) -> bool:
+    """Check if **cls** is a subclass of :class:`PhiUpdaterABC`."""
+    return issubclass(cls, PhiUpdaterABC)
 
 
 #: Schema for validating the ``"phi"`` block.
 phi_schema = Schema({
     Optional_('type', default=lambda: PhiUpdater): Or(
         And(None, Use(lambda n: PhiUpdater())),
-        And(str, Use(lambda n: get_importable(n, lambda i: issubclass(i, PhiUpdaterABC)))),
-        And(type, lambda n: issubclass(n, PhiUpdaterABC))
+        And(str, Use(lambda n: get_importable(n, validate=phi_subclass))),
+        And(type, phi_subclass)
     ),
 
     Optional_('phi', default=1.0): Or(
@@ -142,15 +100,26 @@ phi_schema = Schema({
 
     Optional_('func', default=lambda: np.add): Or(
         And(None, Use(lambda n: np.add)),
-        And(str, Use(lambda n: get_importable(n, lambda i: isinstance(i, abc.Callable)))),
+        And(str, Use(lambda n: get_importable(n, validate=callable))),
         And(abc.Callable)
     ),
 
     Optional_('kwargs', default=dict): Or(
         And(None, Use(lambda n: {})),
-        And(abc.Mapping, lambda n: all(isinstance(k, str) for k, _ in n.items()))
+        And(abc.Mapping, lambda n: all(isinstance(k, str) for k in n.keys()))
     )
 })
+
+
+class PhiMapping(TypedDict, total=False):
+    """A :class:`~typing.TypedDict` representing the input of :data:`phi_schema`."""
+
+    type: Union[None, str, Type[PhiUpdaterABC]]
+    phi: Optional[SupportsFloat]
+    gamma: Optional[SupportsFloat]
+    a_target: Optional[SupportsFloat]
+    func: Union[None, str, Callable[[float, float], float]]
+    kwargs: Optional[Mapping[str, Any]]
 
 
 class PhiDict(TypedDict):
@@ -164,12 +133,17 @@ class PhiDict(TypedDict):
     kwargs: Mapping[str, Any]
 
 
+def mc_subclass(cls: type) -> bool:
+    """Check if **cls** is a subclass of :class:`MonteCarloABC`."""
+    return issubclass(cls, MonteCarloABC)
+
+
 #: Schema for validating the ``"monte_carlo"`` block.
 mc_schema = Schema({
     Optional_('type', default=lambda: ARMC): Or(
         And(None, Use(lambda n: ARMC)),
-        And(str, Use(lambda n: get_importable(n, lambda i: issubclass(i, MonteCarloABC)))),
-        And(type, lambda n: issubclass(n, MonteCarloABC))
+        And(str, Use(lambda n: get_importable(n, validate=mc_subclass))),
+        And(type, mc_subclass)
     ),
 
     Optional_('iter_len', default=50000): Or(
@@ -182,16 +156,16 @@ mc_schema = Schema({
         And(supports_int, lambda n: int(n) > 0, Use(int))
     ),
 
-    Optional_('hdf5_file', default=lambda: os.path.abspath('armc.hdf5')): Or(
-        And(None, Use(lambda n: os.path.abspath('armc.hdf5'))),
-        And(str, Use(os.path.abspath)),
-        And(os.PathLike, Use(os.path.abspath))
+    Optional_('hdf5_file', default='armc.hdf5'): Or(
+        And(None, Use(lambda n: 'armc.hdf5')),
+        str,
+        os.PathLike
     ),
 
-    Optional_('logfile', default=lambda: os.path.abspath('armc.log')): Or(
-        And(None, Use(lambda n: os.path.abspath('armc.log'))),
-        And(str, Use(os.path.abspath)),
-        And(os.PathLike, Use(os.path.abspath))
+    Optional_('logfile', default=lambda: 'armc.log'): Or(
+        And(None, Use(lambda n: 'armc.log')),
+        str,
+        os.PathLike
     ),
 
     Optional_('path', default=lambda: os.getcwd()): Or(
@@ -211,6 +185,19 @@ mc_schema = Schema({
         bool
     )
 })
+
+
+class MCMapping(TypedDict, total=False):
+    """A :class:`~typing.TypedDict` representing the input of :data:`mc_schema`."""
+
+    type: Union[None, str, Type[MonteCarloABC]]
+    iter_len: Optional[SupportsInt]
+    sub_iter_len:  Optional[SupportsInt]
+    hdf5_file: Union[None, str, os.PathLike]
+    logfile: Union[None, str, os.PathLike]
+    path: Union[None, str, os.PathLike]
+    folder: Union[None, str, os.PathLike]
+    keep_files: Optional[bool]
 
 
 class MCDict(TypedDict):
@@ -257,6 +244,15 @@ psf_schema = Schema({
 })
 
 
+class PSFMapping(TypedDict, total=False):
+    """A :class:`~typing.TypedDict` representing the input of :data:`psf_schema`."""
+
+    str_file: Union[None, str, os.PathLike, Sequence[Union[str, os.PathLike]]]
+    rtf_file: Union[None, str, os.PathLike, Sequence[Union[str, os.PathLike]]]
+    psf_file: Union[None, str, os.PathLike, Sequence[Union[str, os.PathLike]]]
+    ligand_atoms: Optional[Collection[str]]
+
+
 class PSFDict(TypedDict):
     """A typed dict represneting the output of :data:`psf_schema`."""
 
@@ -275,15 +271,25 @@ pes_schema = Schema({
 
     Optional_('kwargs', default=dict): Or(
         And(None, Use(lambda n: {})),
-        And(abc.Mapping, lambda dct: all(isinstance(k, str) for k, _ in dct.items())),
+        And(abc.Mapping, lambda dct: all(isinstance(k, str) for k in dct.keys())),
         And(
             abc.Sequence,
             lambda n: all(isinstance(i, abc.Mapping) for i in n),
-            lambda n: all(isinstance(k, str) for dct in n for k, _ in dct.items()),
+            lambda n: all(isinstance(k, str) for dct in n for k in dct.keys()),
             Use(tuple)
         )
     )
 })
+
+
+class _PESMapping(TypedDict):
+    func: Union[str, Callable]
+
+
+class PESMapping(_PESMapping, total=False):
+    """A :class:`~typing.TypedDict` representing the input of :data:`pes_schema`."""
+
+    kwargs: Union[None, Mapping[str, Any], Sequence[Mapping[str, Any]]]
 
 
 class PESDict(TypedDict):
@@ -293,12 +299,17 @@ class PESDict(TypedDict):
     kwargs: Union[Mapping[str, Any], Tuple[Mapping[str, Any], ...]]
 
 
+def pkg_subclass(cls: type) -> bool:
+    """Check if **cls** is a subclass of :class:`PackageManagerABC`."""
+    return issubclass(cls, PackageManagerABC)
+
+
 #: Schema for validating the ``"job"`` block.
 job_schema = Schema({
     Optional_('type', default=lambda: PackageManager): Or(
         And(None, Use(lambda n: PackageManager)),
-        And(str, Use(lambda n: get_importable(n, lambda i: issubclass(i, PackageManagerABC)))),
-        And(type, lambda n: issubclass(n, PackageManagerABC))
+        And(str, Use(lambda n: get_importable(n, validate=pkg_subclass))),
+        And(type, pkg_subclass)
     ),
 
     'molecule': Or(
@@ -316,6 +327,13 @@ job_schema = Schema({
 })
 
 
+class JobMapping(TypedDict, total=False):
+    """A :class:`~typing.TypedDict` representing the input of :data:`job_schema`."""
+
+    type: Union[None, str, Type[PackageManagerABC]]
+    molecule: Union[MultiMolecule, str, os.PathLike, Sequence[Union[MultiMolecule, str, os.PathLike]]]  # noqa: E501
+
+
 class JobDict(TypedDict):
     """A :class:`~typing.TypedDict` representing the output of :data:`job_schema`."""
 
@@ -323,17 +341,22 @@ class JobDict(TypedDict):
     molecule: Tuple[MultiMolecule, ...]
 
 
+def qm_pkg_instance(obj: Any) -> bool:
+    """Check if **cls** is a subclass of :class:`Package`."""
+    return isinstance(obj, Package)
+
+
+def mapping_instance(obj: Any) -> bool:
+    """Check if **cls** is a subclass of :class:`Settings`."""
+    return isinstance(obj, abc.Mapping)
+
+
 #: Schema for validating sub blocks within the ``"pes"`` block.
 sub_job_schema = Schema({
     Optional_('type', default=lambda: cp2k_mm): Or(
         And(None, Use(lambda n: cp2k_mm)),
-        And(str, Use(lambda n: get_importable(n, validate=lambda i: isinstance(i, Package)))),
+        And(str, Use(lambda n: get_importable(n, validate=qm_pkg_instance))),
         Package
-    ),
-
-    Optional_('name', default='plamsjob'): Or(
-        And(None, Use(lambda n: 'plamsjob')),
-        str,
     ),
 
     Optional_('settings', default=Settings): Or(
@@ -343,16 +366,24 @@ sub_job_schema = Schema({
 
     Optional_('template', default=Settings): Or(
         And(None, Use(lambda n: Settings())),
-        And(str, Use(lambda n: get_importable(n, validate=lambda i: isinstance(i, Settings)))),
+        And(str, Use(lambda n: get_importable(n, validate=mapping_instance))),
+        And(abc.Mapping, Use(Settings))
     )
 })
+
+
+class SubJobMapping(TypedDict, total=False):
+    """A :class:`~typing.TypedDict` representing the input of :data:`sub_job_schema`."""
+
+    type: Union[None, str, Type[Package]]
+    settings: Optional[Mapping]
+    template: Union[None, str, Mapping]
 
 
 class SubJobDict(TypedDict):
     """A :class:`~typing.TypedDict` representing the output of :data:`sub_job_schema`."""
 
     type: Type[Package]
-    name: str
     settings: Settings
     template: Settings
 
@@ -367,23 +398,28 @@ MOVE_DEFAULT = np.array([
 MOVE_DEFAULT.setflags(write=False)
 
 
+def prm_subclass(cls: type) -> bool:
+    """Check if **cls** is a subclass of :class:`ParamMappingABC`."""
+    return issubclass(cls, ParamMappingABC)
+
+
 #: Schema for validating the ``"param"`` block.
 param_schema = Schema({
     Optional_('type', default=lambda: ParamMapping): Or(
         And(None, Use(lambda n: ParamMapping)),
-        And(str, Use(lambda n: get_importable(n, lambda i: issubclass(i, ParamMappingABC)))),
-        And(type, lambda n: issubclass(n, ParamMappingABC))
+        And(str, Use(lambda n: get_importable(n, validate=prm_subclass))),
+        And(type, prm_subclass)
     ),
 
     Optional_('func', default=lambda: np.multiply): Or(
         And(None, Use(lambda n: np.multiply)),
-        And(str, Use(lambda n: get_importable(n, lambda i: isinstance(i, abc.Callable)))),
-        And(abc.Callable)
+        And(str, Use(lambda n: get_importable(n, callable))),
+        abc.Callable
     ),
 
     Optional_('kwargs', default=dict): Or(
         And(None, Use(lambda n: {})),
-        And(abc.Mapping, lambda n: all(isinstance(k, str) for k, _ in n.items())),
+        And(abc.Mapping, lambda n: all(isinstance(k, str) for k in n.keys())),
     ),
 
     Optional_('move_range', default=lambda: MOVE_DEFAULT.copy()): Or(
@@ -391,11 +427,28 @@ param_schema = Schema({
         And(abc.Sequence, Use(lambda n: np.asarray(n, dtype=float))),
         And(SupportsArray, Use(lambda n: np.asarray(n, dtype=float))),
         And(abc.Iterable, Use(lambda n: np.fromiter(n, dtype=float))),
-        And(abc.Mapping, lambda n: {'start', 'stop', 'step'} == n.keys(),
+        And(abc.Mapping, lambda n: {'start', 'stop', 'step'}.issuperset(n.keys()),
             Use(lambda n: _get_move_range(**n)))
     )
 
 })
+
+
+class MoveRange(TypedDict, total=False):
+    """A :class:`~typing.TypedDict` representing the ``"move_range"`` block in :data:`param_schema`."""  # noqa: E501
+
+    start: float
+    stop: float
+    step: float
+
+
+class ParamMapping_(TypedDict, total=False):
+    """A :class:`~typing.TypedDict` representing the input of :data:`param_schema`."""
+
+    type: Union[None, str, Type[ParamMappingABC]]
+    func: Union[None, str, Callable[[float, float], float]]
+    kwargs: Optional[Mapping[str, Any]]
+    move_range: Union[None, Iterable, SupportsArray, MoveRange]
 
 
 class ParamDict(TypedDict):
@@ -407,42 +460,103 @@ class ParamDict(TypedDict):
     move_range: NDArray[float]
 
 
-def validate_main(mapping: Mapping[str, Any]) -> MainDict:
+main_schema = Schema({
+    'param': Or(
+        And(abc.MutableMapping, lambda n: all(isinstance(k, str) for k in n.keys())),
+        And(abc.Mapping, lambda n: all(isinstance(k, str) for k in n.keys()), Use(dict))
+    ),
+
+    'pes': Or(
+        And(abc.MutableMapping, lambda n: all(isinstance(k, str) for k in n.keys())),
+        And(abc.Mapping, lambda n: all(isinstance(k, str) for k in n.keys()), Use(dict))
+    ),
+
+    'job': Or(
+        And(abc.MutableMapping, lambda n: all(isinstance(k, str) for k in n.keys())),
+        And(abc.Mapping, lambda n: all(isinstance(k, str) for k in n.keys()), Use(dict))
+    ),
+
+    Optional_('monte_carlo', default=dict): Or(
+        And(None, lambda n: {}),
+        And(abc.MutableMapping, lambda n: all(isinstance(k, str) for k in n.keys())),
+        And(abc.Mapping, lambda n: all(isinstance(k, str) for k in n.keys()), Use(dict))
+    ),
+
+    Optional_('phi', default=dict): Or(
+        And(None, lambda n: {}),
+        And(abc.MutableMapping, lambda n: all(isinstance(k, str) for k in n.keys())),
+        And(abc.Mapping, lambda n: all(isinstance(k, str) for k in n.keys()), Use(dict))
+    ),
+
+    Optional_('psf', default=dict): Or(
+        And(None, lambda n: {}),
+        And(abc.MutableMapping, lambda n: all(isinstance(k, str) for k in n.keys())),
+        And(abc.Mapping, lambda n: all(isinstance(k, str) for k in n.keys()), Use(dict))
+    )
+})
+
+
+class _MainMapping(TypedDict):
+    param: ParamMapping_
+    pes: Mapping[str, PESMapping]
+    job: JobMapping
+
+
+class MainMapping(_MainMapping, total=False):
+    """A :class:`~typing.TypedDict` representing the input of :data:`main_schema`."""
+
+    monte_carlo: Optional[MCMapping]
+    phi: Optional[PhiMapping]
+    psf: Optional[PSFMapping]
+
+
+class MainDict(TypedDict):
+    """A :class:`~typing.TypedDict` representing the output of :data:`main_schema`."""
+
+    param: ParamMapping_
+    pes: Dict[str, PESMapping]
+    job: JobMapping
+    monte_carlo: MCMapping
+    phi: PhiMapping
+    psf: PSFMapping
+
+
+def validate_main(mapping: MainMapping) -> MainDict:
     """Validate the all super-keys."""
     return main_schema.validate(mapping)
 
 
-def validate_phi(mapping: Mapping[str, Any]) -> PhiDict:
+def validate_phi(mapping: PhiMapping) -> PhiDict:
     """Validate the ``"phi"`` block."""
     return phi_schema.validate(mapping)
 
 
-def validate_monte_carlo(mapping: Mapping[str, Any]) -> MCDict:
+def validate_monte_carlo(mapping: MCMapping) -> MCDict:
     """Validate the ``"monte_carlo"`` block."""
     return mc_schema.validate(mapping)
 
 
-def validate_psf(mapping: Mapping[str, Any]) -> PSFDict:
+def validate_psf(mapping: PSFMapping) -> PSFDict:
     """Validate the ``"psf"`` block."""
     return psf_schema.validate(mapping)
 
 
-def validate_pes(mapping: Mapping[str, Any]) -> PESDict:
+def validate_pes(mapping: PESMapping) -> PESDict:
     """Validate the ``"pes"`` block."""
     return pes_schema.validate(mapping)
 
 
-def validate_job(mapping: Mapping[str, Any]) -> JobDict:
+def validate_job(mapping: JobMapping) -> JobDict:
     """Validate the ``"job"`` block."""
     return job_schema.validate(mapping)
 
 
-def validate_sub_job(mapping: Mapping[str, Any]) -> SubJobDict:
+def validate_sub_job(mapping: SubJobMapping) -> SubJobDict:
     """Validate sub-blocks within the ``"job"`` block."""
     return sub_job_schema.validate(mapping)
 
 
-def validate_param(mapping: Mapping[str, Any]) -> ParamDict:
+def validate_param(mapping: ParamMapping_) -> ParamDict:
     """Validate the ``"param"`` block."""
     return param_schema.validate(mapping)
 

@@ -12,7 +12,8 @@ param:
         Cd: 0.9768
         Se: -0.9768
         O_1: -0.4704
-        C_1: 0.4524
+        frozen:
+            C_1: 0.4524
     lennard_jones:
         -   unit: kjmol
             param: epsilon
@@ -43,29 +44,20 @@ job:
     type: FOX.armc.PackageManager
     molecule: /Users/bvanbeek/Documents/GitHub/auto-FOX/FOX/data/Cd68Se55_26COO_MD_trajec.xyz
 
-    geometry:
-        type: qmflows.cp2k_mm
-        name: armc_preopt
-        settings: null
-        template: qmflows.geometry.cp2k_mm
+    #geometry:
+    #    type: qmflows.cp2k_mm
+    #    template: qmflows.geometry.specific.cp2k_mm
+    #    settings:
+    #        prm: /Users/bvanbeek/Documents/GitHub/auto-FOX/FOX/examples/private/ligand.prm
     md:
         type: qmflows.cp2k_mm
-        name: armc_md
-        template: qmflows.md.cp2k_mm
+        template: qmflows.md.specific.cp2k_mm
         settings:
-            prm: ligand.prm
+            prm: /Users/bvanbeek/Documents/GitHub/auto-FOX/FOX/examples/private/ligand.prm
             input:
                 motion:
                     md:
-                        ensemble: NVT
-                        temperature: 300.0
-                        timestep: 1.0
-                        time_start_val: 50
                         steps: 100
-                        thermostat:
-                            type: CSVR
-                            csvr:
-                                timecon: 1250
 
 monte_carlo:
     type: FOX.armc.ARMC

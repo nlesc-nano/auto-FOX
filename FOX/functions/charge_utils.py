@@ -40,7 +40,7 @@ def get_net_charge(param: pd.Series, count: pd.Series,
 
     """
     index_ = slice(None) if index is None else index
-    ret = param.loc[index_] * count.loc[index_]
+    ret = param[index_] * count[index_]
     return ret.sum()
 
 
@@ -86,7 +86,7 @@ def update_charge(atom: str, value: float, param: pd.Series, count: pd.Series,
     net_charge = get_net_charge(param, count)
     param[atom] = value
 
-    if not constrain_dict or atom in constrain_dict:
+    if constrain_dict is None or atom in constrain_dict:
         exclude = constrained_update(atom, param, constrain_dict)
     else:
         exclude = [atom]
@@ -120,7 +120,7 @@ def constrained_update(at1: str, param: pd.Series,
     """
     charge = param[at1]
     exclude = [at1]
-    if not constrain_dict:
+    if constrain_dict is None:
         return exclude
     exclude_append = exclude.append
 

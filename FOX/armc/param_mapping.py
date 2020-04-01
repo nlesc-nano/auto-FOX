@@ -21,9 +21,10 @@ T = TypeVar('T')
 # MultiIndex keys
 _KT1 = TypeVar('_KT1', bound=Hashable)
 _KT2 = TypeVar('_KT2', bound=Hashable)
+_KT3 = TypeVar('_KT2', bound=Hashable)
 
 # All dict keys in ParamMappingABC
-ValidKeys = Literal['param', 'param_old', 'unit', 'key_path', 'min', 'max', 'constraints', 'count']
+ValidKeys = Literal['param', 'param_old', 'min', 'max', 'constraints', 'count']
 
 # A function for moving parameters
 MoveFunc = Callable[[float, float], float]
@@ -32,15 +33,17 @@ MoveFunc = Callable[[float, float], float]
 ConstrainDict = Mapping[_KT2, partial]
 
 # MultiIndex keys as a 2-tuple
-Tup2 = Tuple[_KT1, _KT2]
+Tup3 = Tuple[_KT1, _KT2, _KT3]
 
 
-class InputMapping(TypedDict, total=False):
-    """A :class:`~typing.TypedDict` representing the :class:`ParamMappingABC` **df** parameter."""  # noqa
-
+class _InputMapping(TypedDict):
     # Variables
     param: pd.Series
     param_old: pd.Series
+
+
+class InputMapping(_InputMapping, total=False):
+    """A :class:`~typing.TypedDict` representing the :class:`ParamMappingABC` **df** parameter."""  # noqa
 
     # Constants
     min: pd.Series
@@ -84,8 +87,9 @@ class ParamMappingABC(AbstractDataClass, ABC, Mapping[ValidKeys, pd.Series]):
 
     _data : :class:`dict` [:class:`str`, :class:`pandas.Series`], private
         A dictionary of Series containing the forcefield parameters.
-        The index should be a 2-level :class:`~pandas.MultiIndex`,
-        the first level containg the parameter name and the second the atom (pair).
+        The index should be a 3-level :class:`~pandas.MultiIndex`,
+        the first level containg the key-alias, the second the parameter name and
+        the third the atom (pair).
 
         Has access to the the following keys:
 
@@ -193,7 +197,7 @@ class ParamMappingABC(AbstractDataClass, ABC, Mapping[ValidKeys, pd.Series]):
         if not isinstance(param.index, pd.MultiIndex):
             raise TypeError("Series.index expected a 2-level MultiIndex; "
                             f"observed type: {param.index.__class__.__name!r}")
-        elif len(param.index.levels) != 2:
+        elif len(param.index.levels) != 3:
             raise ValueError("Series.index expected a 2-level MultiIndex; "
                              f"observed number levels: {param.index.levels!r}")
 
@@ -256,7 +260,7 @@ class ParamMappingABC(AbstractDataClass, ABC, Mapping[ValidKeys, pd.Series]):
 
     # The actual meat of the class
 
-    def __call__(self, logger: Optional[Logger] = None) -> Tup2:
+    def __call__(self, logger: Optional[Logger] = None) -> Tup3:
         """Update a random parameter in **self.param** by a random value from **self.move.range**.
 
         Performs in inplace update of the ``'param'`` column in **self.param**.
@@ -275,28 +279,24 @@ class ParamMappingABC(AbstractDataClass, ABC, Mapping[ValidKeys, pd.Series]):
             The index of the updated parameter.
 
         """
-        self['param_old'][:] = self['param']
-
         # Prepare arguments a move
         idx, x1, x2 = self.identify_move()
         _value = self.func(x1, x2)
-        value = self.clip_move(idx, _value)
+        value = self['param'][idx] = self.clip_move(idx, _value)
 
         # Create a call to the logger
         if logger is not None:
-            prm_type, atoms = idx
+            _, prm_type, atoms = idx
             logger.info(f"Moving {prm_type} ({atoms}): {x1:.4f} -> {value:.4f}")
 
-        constraints = self['constraints'].at[idx]
-        if constraints is not None:
+        constraints = self['constraints'][idx]
+        if not pd.isnull(constraints):
             self.apply_constraints(idx, value, constraints)
 
         return idx
 
-    move = __call__  # An alias
-
     @abstractmethod
-    def identify_move(self) -> Tuple[Tup2, float, float]:
+    def identify_move(self) -> Tuple[Tup3, float, float]:
         """Identify the to-be moved parameter and the size of the move.
 
         Returns
@@ -307,7 +307,7 @@ class ParamMappingABC(AbstractDataClass, ABC, Mapping[ValidKeys, pd.Series]):
         """  # noqa
         raise NotImplementedError('Trying to call an abstract method')
 
-    def clip_move(self, idx: Tup2, value: float) -> float:
+    def clip_move(self, idx: Tup3, value: float) -> float:
         """An optional function for clipping the value of **value**.
 
         Parameters
@@ -325,7 +325,7 @@ class ParamMappingABC(AbstractDataClass, ABC, Mapping[ValidKeys, pd.Series]):
         """
         return value
 
-    def apply_constraints(self, idx: Tup2, value: float, constraints: ConstrainDict) -> None:
+    def apply_constraints(self, idx: Tup3, value: float, constraints: ConstrainDict) -> None:
         """An optional function for applying further constraints based on **idx** and **value**.
 
         Should perform an inplace update of this instance.
@@ -354,7 +354,7 @@ class ParamMapping(ParamMappingABC):
     def __init__(self, data, move_range, func=np.multiply, **kwargs):
         super().__init__(data, move_range, func=func, **kwargs)
 
-    def identify_move(self) -> Tuple[Tup2, float, float]:
+    def identify_move(self) -> Tuple[Tup3, float, float]:
         """Identify and return a random parameter and move size.
 
         Returns
@@ -371,7 +371,7 @@ class ParamMapping(ParamMappingABC):
         x2 = np.random.choice(self.move_range, 1)[0]
         return idx, x1, x2
 
-    def clip_move(self, idx: Tup2, value: float) -> float:
+    def clip_move(self, idx: Tup3, value: float) -> float:
         """Ensure that **value** falls within a user-specified range.
 
         Parameters
@@ -387,11 +387,11 @@ class ParamMapping(ParamMappingABC):
             The newly clipped value of the moved parameter.
 
         """
-        prm_min = self['min'].at[idx]
-        prm_max = self['max'].at[idx]
+        prm_min = self['min'][idx]
+        prm_max = self['max'][idx]
         return np.clip(value, prm_min, prm_max)
 
-    def apply_constraints(self, idx: Tup2, value: float, constraints: ConstrainDict) -> None:
+    def apply_constraints(self, idx: Tup3, value: float, constraints: ConstrainDict) -> None:
         """Apply further constraints based on **idx** and **value**.
 
         Performs an inplace update of this instance.
@@ -406,7 +406,7 @@ class ParamMapping(ParamMappingABC):
             A Mapping with the to-be applied constraints per atom (pair).
 
         """
-        prm_type, atoms = idx
+        _, prm_type, atoms = idx
         charge = prm_type in self.CHARGE_LIKE
         update_charge(atoms, value, self['param'], self['count'],
                       constrain_dict=constraints, charge=charge)

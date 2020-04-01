@@ -33,6 +33,7 @@ from typing import (
 )
 
 import numpy as np
+from scm.plams import Settings
 from assertionlib.dataclass import AbstractDataClass
 
 from ..logger import get_logger
@@ -291,16 +292,15 @@ class MonteCarloABC(AbstractDataClass, ABC, Mapping[KT, VT]):
 
         """
         # Perform the move
-        prm_name, _ = self.param(logger=self.logger)
+        key, prm_name, _ = self.param(logger=self.logger)
+        prm_update = self.param['param'].loc[(key, prm_name)].copy()
+        prm_update.name = prm_name
 
-        prm = self.param['param'].loc[prm_name]
-        prm_update = {k0: v for (k0, _), v in prm.items()}
-
-        job_iterator = chain.from_iterable(self.package_manager.values())
+        iterator = (job['settings'] for job in chain.from_iterable(self.package_manager.values()))
 
         # Update the job settings
-        for job in job_iterator:
-            job['settings'].update(prm_update)
+        for settings in iterator:
+            settings[key].update(prm_update)
 
         return tuple(self.param['param'].values)  # type: ignore
 

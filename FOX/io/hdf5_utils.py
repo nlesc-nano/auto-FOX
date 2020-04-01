@@ -110,8 +110,9 @@ def create_hdf5(filename: Union[AnyStr, PathLike], armc: ARMC) -> None:
 
     # Store the *index*, *column* and *name* attributes of dataframes/series in the hdf5 file
     kappa = armc.iter_len // armc.sub_iter_len
-    idx = armc.param['param'].index.append(pd.MultiIndex.from_tuples([('phi', '')]))
+    idx = armc.param['param'].index.append(pd.MultiIndex.from_tuples([('', 'phi', '')]))
     aux_error_idx = list(armc.pes.keys())
+
     pd_dict = {
         'param': armc.param['param'],
         'phi': pd.Series(np.nan, index=np.arange(kappa), name='phi'),
@@ -252,7 +253,7 @@ def _get_kwarg_dict(armc: ARMC) -> Settings:
     ret.phi.dtype = float
     ret.phi.fillvalue = np.nan
 
-    ret.param.shape = shape + (len(armc.param), )
+    ret.param.shape = shape + (len(armc.param['param']), )
     ret.param.dtype = float
     ret.param.fillvalue = np.nan
 
@@ -262,7 +263,7 @@ def _get_kwarg_dict(armc: ARMC) -> Settings:
     ret.aux_error.shape = shape + (len(armc.molecule), len(armc.pes) // len(armc.molecule))
     ret.aux_error.dtype = float
     ret.aux_error.fillvalue = np.nan
-    ret.aux_error_mod.shape = shape + (1 + len(armc.param), )
+    ret.aux_error_mod.shape = shape + (1 + len(armc.param['param']), )
     ret.aux_error_mod.dtype = float
     ret.aux_error_mod.fillvalue = np.nan
 
@@ -586,6 +587,8 @@ def _get_filename_xyz(filename: Union[AnyStr, PathLike], **kwargs: Any) -> str:
         filename_ = filename.decode(**kwargs)
     elif isinstance(filename, PathLike):
         filename_ = str(filename)
+    else:
+        filename_ = filename
 
     if '.hdf5' in filename_:
         return filename_.replace('.hdf5', '.xyz.hdf5')
@@ -626,7 +629,7 @@ def _attr_to_array(index: Union[str, pd.Index]) -> np.ndarray:
 
     # Convert **item** into an array
     ret = np.array(index.to_list())
-    if 'U' in ret.dtype.str:  # h5py does not support unicode strings
+    if 'str' in ret.dtype.name or ret.dtype == object:  # h5py does not support unicode strings
         return ret.astype('S', copy=False)  # Convert to byte strings
     return ret
 

@@ -577,65 +577,39 @@ def slice_str(str_: str, intervals: List[Optional[int]],
     return [str_[i:j] for i, j in zip(iter1, iter2)]
 
 
-def get_atom_count(iterable: pd.MultiIndex,
-                   mol: Union[pd.Series, MultiMolecule]) -> pd.Series:
-    """Count the occurences of each atom/atom-pair (from **iterable**) in **mol**.
-
-    Duplicate values are removed if when evaluating atom pairs when atom-pairs consist of
-    identical atom types (*e.g.* ``"Cd Cd"``).
-
-    Examples
-    --------
-    .. code:: python
-
-        >>> Cd_count = len(mol.atoms['Cd'])
-        >>> print(Cd_count)
-        50
-
-        >>> Se_count = len(mol.atoms['Se'])
-        >>> print(Se_count)
-        25
-
-        >>> iterable = ['Cd', 'Cd Se', 'Cd Cd']
-        >>> at_count = get_atom_count(get_atom_count)
-        >>> print(at_count)
-        [50, 1250, 1225]
+def get_atom_count(iterable: Iterable[Sequence[KT]],
+                   count: Mapping[KT, int]) -> List[Optional[int]]:
+    """Count the occurences of each atom/atom-pair (from **iterable**) in as defined by **count**.
 
     Parameters
     ----------
-    iterable : |Iterable|_ [|Sequence|_ [str]]
-        A nested iterable with :math:`n` atoms and/or atom pairs.
-        Atom pairs are to-be provided as space seperated strings (*e.g.* ``"Cd Cd"``).
+    iterable : :class:`~collections.abc.Iterable` [:class:`~collections.abc.Sequence` [:class:`str`]], shape :math:`(n, m)`
+        An iterable consisting of atom-lists.
 
-    mol : |FOX.MultiMolecule|_
-        A :class:`.MultiMolecule` instance.
+    count : :class:`~collections.abc.Mapping` [:class:`str`, :class:`int`]
+        A dict which maps atoms to atom counts.
 
     Returns
     -------
-    :math:`n` |list|_ [|int|_]:
+    :class:`list` [:class:`int`, optional], shape :math:`(n,)`
         A list of atom(-pair) counts.
+        A particular value is replace with ``None`` if a :exc:`KeyError` is encountered.
 
-    """
-    if isinstance(mol, pd.Series):
-        at_list = pd.Series(mol.index, index=mol)
-    else:
-        at_list = mol.atoms
-
-    def _get_atom_count(at):
-        atoms = at.split()
+    """  # noqa: E501
+    def _get_atom_count(tup: Sequence[KT]) -> Optional[int]:
         try:
-            if len(atoms) == 2 and atoms[0] == atoms[1]:
-                at1, _ = [len(at_list[i]) for i in atoms]
-                return (at1**2 - at1) // 2
-            elif len(atoms) == 2:
-                return np.product([len(at_list[i]) for i in atoms])
-            else:
-                return len(at_list[at])
+            if len(tup) == 2 and tup[0] == tup[1]:
+                int1 = count[tup[0]]
+                return (int1**2 - int1) // 2
+            elif len(tup) == 2:
+                return np.product([count[i] for i in tup])
+            elif len(tup) == 1:
+                return count[tup[0]]
+            return None
         except KeyError:
-            return -1
+            return None
 
-    ret = pd.Series({(i, at): _get_atom_count(at) for i, at in iterable}, dtype=int, name='count')
-    return ret[ret >= 0]
+    return [_get_atom_count(tup) for tup in iterable]
 
 
 def get_nested_element(iterable: Iterable) -> Any:
@@ -750,9 +724,11 @@ def get_importable(string: str, validate: Optional[Callable[[T], bool]] = None) 
     ----------
     string : str
         A string representing an importable object.
-    validate : str
+        Note that the string *must* contain the object's module.
+
+    validate : :class:`~Collections.abc.Callable`, optional
         A callable for validating the imported object.
-        Will raise an :exc:`AssertionError` if evaluating to ``False``.
+        Will raise an :exc:`AssertionError` if its output evaluates to ``False``.
 
     Returns
     -------
@@ -760,13 +736,15 @@ def get_importable(string: str, validate: Optional[Callable[[T], bool]] = None) 
         The import object
 
     """
-    if '.' not in string:
-        ret = eval(string)
-    else:
+    try:
         head, *tail = string.split('.')
-        ret = importlib.import_module(head)
-        for name in tail:
-            ret = getattr(ret, name)
+    except ValueError as ex:
+        raise ValueError("No module has been specified in the "
+                         f"passed 'string' ({string!r})") from ex
+
+    ret: T = importlib.import_module(head)  # type: ignore
+    for name in tail:
+        ret = getattr(ret, name)
 
     if validate is not None:
         msg = f'Passing {reprlib.repr(ret)} to {validate!r} failed to return True'

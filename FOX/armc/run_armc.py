@@ -4,6 +4,7 @@ from pathlib import Path
 from contextlib import redirect_stdout
 
 from scm.plams import init, finish, config
+from qmflows.utils import InitRestart
 
 from .guess import guess_param
 from ..logger import Plams2Logger, wrap_plams_logger
@@ -15,39 +16,6 @@ else:
     from ..type_alias import ARMC, PSFContainer
 
 
-class Init(ContextManager[None]):
-    """A context manager for calling :func:`init` and :func:`finish`."""
-
-    def __init__(self, path: Union[None, str, os.PathLike] = None,
-                 folder: Union[None, str, os.PathLike] = None) -> None:
-        self.path = path
-        self.folder = folder
-
-    def __enter__(self) -> None:
-        init(self.path, self.folder)
-
-    def __exit__(self, exc_type, exc_value, traceback) -> None:
-        finish()
-
-
-def from_yaml(obj_type: Type[ARMC], filename: str) -> Tuple[ARMC, dict]:
-    """Create a :class:`.ARMC` instance from a .yaml file.
-
-    Parameters
-    ----------
-    filename : str
-        The path+filename of a .yaml file containing all :class:`ARMC` settings.
-
-    Returns
-    -------
-    |FOX.ARMC|_ and |dict|_
-        A new :class:`ARMC` instance and
-        a dictionary with keyword arguments for :func:`.run_armc`.
-
-    """
-    return NotImplemented
-
-
 def run_armc(armc: ARMC,
              path: Union[None, str, os.PathLike] = None,
              folder: Union[None, str, os.PathLike] = None,
@@ -56,11 +24,6 @@ def run_armc(armc: ARMC,
              restart: bool = False,
              guess: Optional[Mapping[str, Mapping]] = None) -> None:
     """A wrapper arround :class:`ARMC` for handling the JobManager."""
-    # Create a .psf file if specified
-    if psf is not None:
-        for item in psf:
-            item.write(None)
-
     # Guess the remaining unspecified parameters based on either UFF or the RDF
     if guess is not None:
         for k, v in guess.items():
@@ -68,12 +31,15 @@ def run_armc(armc: ARMC,
             guess_param(armc, mode=v['mode'], columns=k, frozen=frozen)
 
     # Initialize the ARMC procedure
-    with Init(path=path, folder=folder):
+    with InitRestart(path=path, folder=folder):
         # Create the .psf file
         if psf is not None:
             workdir = Path(config.default_jobmanager.workdir)
             for i, psf_obj in enumerate(psf):
                 psf_obj.write(workdir / f'mol.{i}.psf')
+
+        armc()
+        return None
 
         # Create the logger
         armc.logger = wrap_plams_logger(logfile, armc.__class__.__name__)

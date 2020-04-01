@@ -202,7 +202,7 @@ class ARMC(MonteCarloABC):
             self.logger.info(f"Accepting move {(kappa, omega)}; total error change / error: "
                              f"{round(error_change, 4)} / {round(aux_new.sum(), 4)}\n")
             self[key_new] = self.phi(aux_new)
-            self.param['param_old'] = self.param['param']
+            self.param['param_old'][:] = self.param['param']
 
         else:
             self.logger.info(f"Rejecting move {(kappa, omega)}; total error change / error: "
