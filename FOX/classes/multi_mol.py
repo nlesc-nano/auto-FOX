@@ -2213,7 +2213,8 @@ class MultiMolecule(_MultiMolecule):
     @classmethod
     def from_xyz(cls, filename: Union[AnyStr, PathLike],
                  bonds: Optional[np.ndarray] = None,
-                 properties: Optional[dict] = None) -> MultiMolecule:
+                 properties: Optional[dict] = None,
+                 read_comment: bool = False) -> MultiMolecule:
         """Construct a :class:`.MultiMolecule` instance from a (multi) .xyz file.
 
         Comment lines extracted from the .xyz file are stored, as array, under
@@ -2234,16 +2235,25 @@ class MultiMolecule(_MultiMolecule):
             miscellaneous user-defined (meta-)data. Is devoid of keys by default.
             Stored in the **MultiMolecule.properties** attribute.
 
+        read_comments : bool
+            If ``True``, extract all comment lines from the passed .xyz file and
+            store them under :attr:`properties.comments<MultiMolecule.properties>`.
+
         Returns
         -------
         |FOX.MultiMolecule|_:
             A :class:`.MultiMolecule` instance constructed from **filename**.
 
         """
-        coords, atoms, comments = read_multi_xyz(filename)
+        if read_comment:
+            coords, atoms, comments = read_multi_xyz(filename, return_comment=True)
+        else:
+            coords, atoms = read_multi_xyz(filename, return_comment=False)
+
         ret = cls(coords, atoms, bonds, properties)
-        ret.properties['comments'] = comments
         ret.properties['filename'] = filename
+        if read_comment:
+            ret.properties['comments'] = comments
         return ret
 
     @classmethod
