@@ -89,7 +89,7 @@ def update_charge(atom: str, value: float, param: pd.Series, count: pd.Series,
     if constrain_dict is None or atom in constrain_dict:
         exclude = constrained_update(atom, param, constrain_dict)
     else:
-        exclude = [atom]
+        exclude = {atom}
 
     if charge:
         unconstrained_update(net_charge, param, exclude)
@@ -122,14 +122,13 @@ def constrained_update(at1: str, param: pd.Series,
     exclude = [at1]
     if constrain_dict is None:
         return exclude
-    exclude_append = exclude.append
 
     # Perform a constrained charge update
     func1 = invert_partial_ufunc(constrain_dict[at1])
     for at2, func2 in constrain_dict.items():
         if at2 == at1:
             continue
-        exclude_append(at2)
+        exclude.add(at2)
 
         # Update the charges
         param[at2] = func2(func1(charge))
@@ -153,8 +152,8 @@ def unconstrained_update(net_charge: float, param: pd.Series,
     df : |pd.DataFrame|_
         A dataframe with atomic charges.
 
-    exclude : list [str]
-        A list of atom types whose atomic charges should not be updated.
+    exclude : set [str]
+        A set of atom types whose atomic charges should not be updated.
 
     """
     exclude = exclude or ()
