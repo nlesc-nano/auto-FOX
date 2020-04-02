@@ -37,3 +37,4 @@ script:
 branches:
     only:
         - master
+        - Auto-FOX-0.8
