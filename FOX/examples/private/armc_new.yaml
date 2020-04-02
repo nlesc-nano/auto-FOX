@@ -44,11 +44,11 @@ job:
     type: FOX.armc.PackageManager
     molecule: /Users/bvanbeek/Documents/GitHub/auto-FOX/FOX/data/Cd68Se55_26COO_MD_trajec.xyz
 
-    #geometry:
-    #    type: qmflows.cp2k_mm
-    #    template: qmflows.geometry.specific.cp2k_mm
-    #    settings:
-    #        prm: /Users/bvanbeek/Documents/GitHub/auto-FOX/FOX/examples/private/ligand.prm
+    geometry:
+        type: qmflows.cp2k_mm
+        template: qmflows.geometry.specific.cp2k_mm
+        settings:
+            prm: /Users/bvanbeek/Documents/GitHub/auto-FOX/FOX/examples/private/ligand.prm
     md:
         type: qmflows.cp2k_mm
         template: qmflows.md.specific.cp2k_mm

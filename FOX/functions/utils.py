@@ -906,5 +906,8 @@ def split_dict(dct: MutableMapping[KT, VT], keep_keys: Iterable[KT]) -> Dict[KT,
         A new dictionaries with all key/value pairs from **dct** not specified in **keep_keys**.
 
     """  # noqa
-    difference = set(dct.keys()).difference(keep_keys)
+    # The ordering of dict elements is preserved in this manner,
+    # as opposed to the use of set.difference()
+    difference = [k for k in dct if k not in keep_keys]
+
     return {k: dct.pop(k) for k in difference}

@@ -42,6 +42,7 @@ import numpy as np
 import pandas as pd
 from scm.plams import Settings
 
+from ..__version__ import __version__
 from ..functions.utils import get_shape, assert_error, array_to_index, group_by_values
 
 try:
@@ -103,10 +104,11 @@ def create_hdf5(filename: Union[AnyStr, PathLike], armc: ARMC) -> None:
 
     # Create a hdf5 file with *n* datasets
     with h5py.File(filename, 'w-', libver='latest') as f:
-        for key, kwarg in kwarg_dict.items():
-            f.create_dataset(name=key, compression='gzip', **kwarg)
+        for key, kwargs in kwarg_dict.items():
+            f.create_dataset(name=key, compression='gzip', **kwargs)
         f.attrs['super-iteration'] = -1
         f.attrs['sub-iteration'] = -1
+        f.attrs['__version__'] = np.fromiter(__version__.split('.'), count=3, dtype=int)
 
     # Store the *index*, *column* and *name* attributes of dataframes/series in the hdf5 file
     kappa = armc.iter_len // armc.sub_iter_len
@@ -156,6 +158,8 @@ def create_xyz_hdf5(filename: Union[AnyStr, PathLike],
 
     # Create a new hdf5 xyz files
     with h5py.File(filename_xyz, 'w-', libver='latest') as f:
+        f.attrs['__version__'] = np.fromiter(__version__.split('.'), count=3, dtype=int)
+
         for i, mol in enumerate(mol_list):
             key = f'xyz.{i}'
             f.create_dataset(

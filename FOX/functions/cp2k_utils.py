@@ -1,13 +1,14 @@
 """A module with miscellaneous functions related to CP2K."""
 
+import os
 from types import MappingProxyType
-from typing import Mapping, Union, Optional, TypeVar
+from typing import Mapping, Union, Optional, TypeVar, TYPE_CHECKING
 
 import numpy as np
 import pandas as pd
 from scipy import constants
 
-from scm.plams import Settings, Units, Results
+from scm.plams import Settings, Units
 
 from .charge_utils import assign_constraints
 
@@ -98,12 +99,12 @@ def parse_cp2k_value(param: Union[str, T], unit: str, default_unit: Optional[str
     return param * Units.conversion_ratio(value_unit_parsed, unit)
 
 
-def get_xyz_path(results: Results) -> str:
+def get_xyz_path(path: Union[str, os.PathLike]) -> str:
     """Return the path + filename to an .xyz file."""
-    for file in results.files:
+    for file in os.listdir(path):
         if '-pos' in file and '.xyz' in file:
-            return results[file]
-    raise FileNotFoundError(f'No .xyz files found in {results.job.path!r}')
+            return os.path.join(path, file)
+    raise FileNotFoundError(f'No .xyz files found in {path!r}')
 
 
 def set_subsys_kind(settings: Settings, df: pd.DataFrame) -> None:

@@ -1,9 +1,9 @@
 import os
-from typing import Type, Union, ContextManager, Tuple, TYPE_CHECKING, Optional, Iterable, Mapping
+from typing import Union, TYPE_CHECKING, Optional, Iterable, Mapping
 from pathlib import Path
 from contextlib import redirect_stdout
 
-from scm.plams import init, finish, config
+from scm.plams import config
 from qmflows.utils import InitRestart
 
 from .guess import guess_param
@@ -26,6 +26,7 @@ def run_armc(armc: ARMC,
     """A wrapper arround :class:`ARMC` for handling the JobManager."""
     # Guess the remaining unspecified parameters based on either UFF or the RDF
     if guess is not None:
+        raise NotImplementedError("'guess = None' is not yet implemented")
         for k, v in guess.items():
             frozen = k if v['frozen'] else None
             guess_param(armc, mode=v['mode'], columns=k, frozen=frozen)
@@ -38,8 +39,8 @@ def run_armc(armc: ARMC,
             for i, psf_obj in enumerate(psf):
                 psf_obj.write(workdir / f'mol.{i}.psf')
 
-        armc()
-        return None
+        # Disable rerun prevention
+        config.default_jobmanager.settings.hashing = None
 
         # Create the logger
         armc.logger = wrap_plams_logger(logfile, armc.__class__.__name__)

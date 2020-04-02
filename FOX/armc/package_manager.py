@@ -1,4 +1,7 @@
+from __future__ import annotations
+
 import os
+import shutil
 from abc import ABC, abstractmethod
 from types import FunctionType
 from pathlib import Path
@@ -6,7 +9,7 @@ from logging import Logger
 from itertools import chain
 from collections import abc
 from typing import (Mapping, TypeVar, Hashable, Any, KeysView, ItemsView, ValuesView, Iterator,
-                    Union, Dict, List, Optional, Callable, Tuple, Iterable, Sequence,
+                    Union, Dict, List, Optional, Callable, Tuple, Iterable, Sequence, Set,
                     TYPE_CHECKING)
 
 import numpy as np
@@ -15,9 +18,8 @@ from scm.plams import config, Settings, Molecule
 from qmflows import Settings as QmSettings
 from qmflows.packages.packages import REGISTRY, registry as pkg_registry
 from qmflows.cp2k_utils import prm_to_df
-from noodles import gather, schedule
+from noodles import gather, schedule, has_scheduled_methods, run_parallel
 from noodles.serial.base import SerImportable
-from noodles.run.threading.sqlite3 import run_parallel
 
 from ..classes.multi_mol import MultiMolecule
 from ..functions.cp2k_utils import get_xyz_path
@@ -60,6 +62,9 @@ DictLike = Union[Mapping[_KT, Iterable[T]], Iterable[Tuple[_KT, Iterable[T]]]]
 
 class PackageManagerABC(ABC, Mapping[KT, Tuple[JT, ...]]):
 
+    __data: Dict[KT, Tuple[JT, ...]]
+    _result_cache: Set[RT]
+
     def __init__(self, data: Union[DataMap, DataIter]) -> None:
         """Initialize an instance.
 
@@ -81,6 +86,7 @@ class PackageManagerABC(ABC, Mapping[KT, Tuple[JT, ...]]):
         """  # noqa
         super().__init__()
         self._data = data
+        self._result_cache = set()
 
     # Attributes and properties
 
@@ -180,11 +186,17 @@ class PackageManagerABC(ABC, Mapping[KT, Tuple[JT, ...]]):
         raise NotImplementedError('Trying to call an abstract method')
 
     @abstractmethod
+    def clear_jobs(self, **kwargs: Any) -> None:
+        """Delete all jobs located in :attr:`_job_cache`."""
+        raise NotImplementedError('Trying to call an abstract method')
+
+    @abstractmethod
     def update_settings(self, dct: Any, **kwargs: Any) -> None:
         """Update the Settings embedded in this instance using **dct**."""
         raise NotImplementedError('Trying to call an abstract method')
 
 
+@has_scheduled_methods
 class PackageManager(PackageManagerABC):
 
     def __init__(self, data):
@@ -197,7 +209,6 @@ class PackageManager(PackageManagerABC):
 
     def __call__(self, logger: Optional[Logger] = None,
                  n_processes: int = 1,
-                 always_cache: bool = True,
                  registry: Callable[[], Registry] = pkg_registry) -> Optional[List[MultiMolecule]]:
         r"""Run all jobs and return a sequence of list of MultiMolecules.
 
@@ -221,31 +232,41 @@ class PackageManager(PackageManagerABC):
         assemble_job = self.assemble_job
 
         name, jobs = next(jobs_iter)
-        promised_jobs = (assemble_job(j, name=name) for j in jobs)
+        promised_jobs = [assemble_job(j, name=name) for j in jobs]
         for name, jobs in jobs_iter:
-            promised_jobs = (assemble_job(*args, name=name) for args in zip(jobs, promised_jobs))
+            promised_jobs = [assemble_job(*args, name=name) for
+                             args in zip(jobs, promised_jobs)]
 
         results = run_parallel(gather(*promised_jobs),
-                               db_file=os.path.join(self.workdir, 'cache.db'),
-                               n_threads=n_processes,
-                               always_cache=always_cache,
-                               registry=pkg_registry,
-                               echo_log=False)
+                               n_threads=n_processes)
+
         return self._extract_mol(results, logger)
 
     @staticmethod
     @schedule
-    def assemble_job(job: JobMapping, old_job: Optional[PromisedObject] = None,
+    def assemble_job(job: JobMapping, old_results: Optional[Result] = None,
                      name: Optional[str] = None) -> PromisedObject:
         """Create a :class:`PromisedObject` from a qmflow :class:`Package` instance."""
         kwargs = job.copy()
 
-        mol = old_job.molecule if old_job is not None else kwargs['molecule']
+        if old_results is not None:
+            mol = old_results.geometry
+        else:
+            mol = kwargs['molecule']
+
         job_name = name if name is not None else ''
         settings = QmSettings(kwargs.pop('settings'))
 
         obj_type = kwargs.pop('type')
         return obj_type(settings=settings, mol=mol, job_name=job_name, **kwargs)
+
+    def clear_jobs(self) -> None:
+        """Delete all jobs located in :attr:`_job_cache`."""
+        for job in self._result_cache:
+            try:
+                shutil.rmtree(job.archive['work_dir'])
+            except FileNotFoundError:
+                pass
 
     def update_settings(self, dct: Sequence[Tuple[str, Mapping]], new_keys: bool = True) -> None:
         """Update all forcefield parameter blocks in this instance's CP2K settings."""
@@ -258,32 +279,34 @@ class PackageManager(PackageManagerABC):
                     settings[key_alias] = pd.DataFrame(sub_dict, index=[param])
                     continue
 
+                # Ensure all column-keys in **sub_dict** are also in **df**
                 df: pd.DataFrame = settings[key_alias]
                 if new_keys:
                     keys = set(sub_dict.keys()).difference(df.columns)
                     for k in keys:
                         df[k] = np.nan
 
+                # Ensure that the **param** index-key is in **df** and update
                 df_update = pd.DataFrame(sub_dict, index=[param])
                 if param not in df.index:
                     df.loc[param] = np.nan
                 df.update(df_update)
 
     @staticmethod
-    def _extract_mol(results: List[Result], logger: Logger) -> Optional[List[MultiMolecule]]:
+    def _extract_mol(results: Iterable[Result], logger: Logger) -> Optional[List[MultiMolecule]]:
         """Create a list of MultiMolecule from the passed **results**."""
         ret = []
         for result in results:
             try:  # Construct and return a MultiMolecule object
-                path = get_xyz_path(result.results)
+                path = get_xyz_path(result.archive['work_dir'])
                 mol = MultiMolecule.from_xyz(path)
                 mol.round(3, inplace=True)
                 ret.append(mol)
-            except XYZError as ex:  # The .xyz file is unreadable for some reason
-                logger.warning(f"Failed to parse ...{os.sep}{os.path.basename(path)}", exc_info=ex)
+            except XYZError:  # The .xyz file is unreadable for some reason
+                logger.warning(f"Failed to parse ...{os.sep}{os.path.basename(path)}")
                 return None
             except Exception as ex:
-                logger.warning(f'{ex.__class__.__name__}: {ex}', exc_info=ex)
+                logger.warning(ex)
                 return None
         return ret
 

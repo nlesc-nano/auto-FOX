@@ -29,7 +29,7 @@ from itertools import repeat, cycle, chain
 from collections import abc
 from typing import (
     Tuple, List, Dict, Optional, Union, Iterable, Hashable, Iterator, Any, Mapping, Callable,
-    KeysView, ValuesView, ItemsView, Sequence, TypeVar, overload, TYPE_CHECKING
+    KeysView, ValuesView, ItemsView, Sequence, TypeVar, overload, TYPE_CHECKING, AnyStr
 )
 
 import numpy as np
@@ -244,9 +244,34 @@ class MonteCarloABC(AbstractDataClass, ABC, Mapping[KT, VT]):
     def __call__(self, **kwargs: Any) -> None:
         raise NotImplementedError('Trying to call an abstract method')
 
-    @classmethod
     def restart(self, **kwargs: Any) -> None:
         raise NotImplementedError('Method not implemented')
+
+    def to_yaml(self, filename: Union[AnyStr, PathLike], **kwargs: Any) -> None:
+        raise NotImplementedError('Method not implemented')
+
+    @property
+    def clear_jobs(self) -> Callable[[], None]:
+        """Delete all cp2k output files."""
+        return self.package_manager.clear_jobs
+
+    def run_jobs(self) -> Optional[List[MultiMolecule]]:
+        """Run a geometry optimization followed by a molecular dynamics (MD) job.
+
+        Returns a new :class:`.MultiMolecule` instance constructed from the MD trajectory and the
+        path to the MD results.
+        If no trajectory is available (*i.e.* the job crashed) return *None* instead.
+
+        * The MD job is constructed according to the provided settings in **self.job**.
+
+        Returns
+        -------
+        :class:`list` [:class:`MultiMolecule`]
+            A list of MultiMolecule instance(s) constructed from the MD trajectory.
+            Will return ``None`` if one of the jobs crashed
+
+        """
+        return self.package_manager(logger=self.logger)
 
     def move(self) -> KT:
         """Update a random parameter in **self.param** by a random value from **self.move.range**.
@@ -293,9 +318,9 @@ class MonteCarloABC(AbstractDataClass, ABC, Mapping[KT, VT]):
         """
         # Perform the move
         key, prm_name, _ = self.param(logger=self.logger)
-        prm_update = self.param['param'].loc[(key, prm_name)].copy()
-        prm_update.name = prm_name
 
+        prm_update = self.param['param'].loc[(key, prm_name)].to_frame().T
+        prm_update.index = [prm_name]
         iterator = (job['settings'] for job in chain.from_iterable(self.package_manager.values()))
 
         # Update the job settings
@@ -303,34 +328,6 @@ class MonteCarloABC(AbstractDataClass, ABC, Mapping[KT, VT]):
             settings[key].update(prm_update)
 
         return tuple(self.param['param'].values)  # type: ignore
-
-    def run_jobs(self) -> Optional[List[MultiMolecule]]:
-        """Run a geometry optimization followed by a molecular dynamics (MD) job.
-
-        Returns a new :class:`.MultiMolecule` instance constructed from the MD trajectory and the
-        path to the MD results.
-        If no trajectory is available (*i.e.* the job crashed) return *None* instead.
-
-        * The MD job is constructed according to the provided settings in **self.job**.
-
-        Returns
-        -------
-        :class:`list` [:class:`MultiMolecule`]
-            A list of MultiMolecule instance(s) constructed from the MD trajectory.
-            Will return ``None`` if one of the jobs crashed
-
-        """
-        return self.package_manager(logger=self.logger)
-
-    def clear_jobs(self) -> None:
-        """Delete all cp2k output files if :attr:`keep_files == False<keep_files>`."""
-        if self.keep_files:
-            return
-
-        iterator = chain.from_iterable(self.package_manager.result_cache.values())
-        for job in iterator:
-            shutil.rmtree(job.path)
-        return
 
     def get_pes_descriptors(self, key: KT, get_first_key: bool = False,
                             ) -> Tuple[Dict[str, ArrayOrScalar], Optional[List[MultiMolecule]]]:
@@ -369,7 +366,7 @@ class MonteCarloABC(AbstractDataClass, ABC, Mapping[KT, VT]):
             iterator = zip(self.pes.items(), cycle(mol_list))
             ret = {k: func(mol) for (k, func), mol in iterator}
 
-        if not get_first_key:
+        if not (get_first_key and self.keep_files):
             self.clear_jobs()
 
         return ret, mol_list

@@ -106,25 +106,6 @@ class ARMC(MonteCarloABC):
         self.iter_len = iter_len
         self.sub_iter_len = sub_iter_len
 
-    @classmethod
-    def from_yaml(cls, filename: str) -> Tuple[ARMC, dict]:
-        """Create a :class:`.ARMC` instance from a .yaml file.
-
-        Parameters
-        ----------
-        filename : str
-            The path+filename of a .yaml file containing all :class:`ARMC` settings.
-
-        Returns
-        -------
-        |FOX.ARMC|_ and |dict|_
-            A new :class:`ARMC` instance and
-            a dictionary with keyword arguments for :func:`.run_armc`.
-
-        """
-        raise NotImplementedError
-        # return from_yaml(cls, filename)
-
     def to_yaml(self, filename: Union[AnyStr, os.PathLike, io.IOBase],
                 logfile: Optional[str] = None, path: Optional[str] = None,
                 folder: Optional[str] = None) -> None:
@@ -147,7 +128,8 @@ class ARMC(MonteCarloABC):
             if np.inf in self[key_new]:
                 raise RuntimeError('One or more jobs crashed in the first ARMC iteration; '
                                    'manual inspection of the cp2k output is recomended')
-            self.clear_jobs()
+            if not self.keep_files:
+                self.clear_jobs()
 
         elif key_new is None:
             raise TypeError("'key_new' cannot be 'None' if 'start' is larger than 0")
@@ -186,6 +168,9 @@ class ARMC(MonteCarloABC):
         """
         # Step 1: Perform a random move
         key_new = self.move()
+        if key_new in self:
+            self.logger.info("Move has already been visited; calculating new move")
+            return self.do_inner(kappa, omega, acceptance, key_old)
 
         # Step 2: Check if the move has been performed already; calculate PES descriptors if not
         pes_new, mol_list = self.get_pes_descriptors(key_new)

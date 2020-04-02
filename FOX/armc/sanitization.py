@@ -7,6 +7,7 @@ A module for parsing and sanitizing ARMC settings.
 """
 
 import os
+import copy
 from pathlib import Path
 from os.path import join, isfile, abspath
 from collections import abc
@@ -75,7 +76,7 @@ def init_armc_sanitization(input_dict: MainMapping) -> Tuple[MonteCarloABC, RunD
         A Settings instance suitable for ARMC initialization.
 
     """
-    dct = validate_main(input_dict)
+    dct = validate_main(copy.deepcopy(input_dict))
 
     # Construct an ARMC instance
     phi = get_phi(dct['phi'])
@@ -238,9 +239,9 @@ def _generate_psf(file_list: Iterable[Union[str, os.PathLike]],
 def _update_psf_settings(job_lists: Iterable[Iterable[dict]],
                          workdir: Union[str, os.PathLike]) -> None:
     """Set the .psf path in all job settings."""
-    job_iterator = chain.from_iterable(job_lists)
-    for i, job in enumerate(job_iterator):
-        job['settings'].psf = os.path.join(workdir, f'mol.{i}.psf')
+    for job_list in job_lists:
+        for i, job in enumerate(job_list):
+            job['settings'].psf = os.path.join(workdir, f'mol.{i}.psf')
 
 
 NestedDict = Mapping[KT, Union[MT, Iterable[MT]]]
