@@ -169,30 +169,32 @@ def unconstrained_update(net_charge: float, param: pd.Series, count: pd.Series,
                          prm_max: Optional[Iterable[float]] = None,
                          exclude: Optional[Container[str]] = None) -> None:
     """Perform an unconstrained update of atomic charges."""
-    exclude = exclude or ()
-    include = np.array([i not in exclude for i in param.keys()])
+    include = pd.Series([i not in exclude for i in param.keys()], index=param.index)
     if not include.any():
         return
 
-    v_new = v_new_clip = 0
     i = net_charge - get_net_charge(param, count, ~include)
     i /= get_net_charge(param, count, include)
 
-    min_iter = prm_min if prm_min is not None else repeat(-np.inf)
-    max_iter = prm_max if prm_max is not None else repeat(np.inf)
-    iterator = enumerate(zip(param.items(), min_iter, max_iter))
+    s_min = prm_min if prm_min is not None else -np.inf
+    s_max = prm_max if prm_max is not None else np.inf
 
-    for j, ((atom, prm), prm_min, prm_max) in iterator:
-        if atom in exclude:
-            continue
-        elif v_new != v_new_clip:
+    s = param * i
+    s_clip = np.clip(s, s_min, s_max).loc[include]
+    s_delta = abs(s_clip - s.loc[include])
+    s_delta.sort_values(ascending=False, inplace=True)
+
+    start = -len(s_delta) + 1
+    for j, atom in enumerate(s_delta.index, start=start):
+        param[atom] = s_clip[atom]
+        include[atom] = False
+
+        if s_clip[atom] != s[atom] and j:
             i = net_charge - get_net_charge(param, count, ~include)
             i /= get_net_charge(param, count, include)
 
-        v_new = i * prm
-        v_new_clip = np.clip(v_new, prm_min, prm_max)
-        param[atom] = v_new_clip
-        include[j] = False
+            s = param * i
+            s_clip = np.clip(s, s_min, s_max).loc[include]
 
     net_charge_new = get_net_charge(param, count)
     if abs(net_charge - net_charge_new) > 0.001:

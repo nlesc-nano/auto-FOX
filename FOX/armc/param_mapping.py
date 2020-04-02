@@ -218,6 +218,7 @@ class ParamMappingABC(AbstractDataClass, ABC, Mapping[ValidKeys, pd.Series]):
             self._net_charge = get_net_charge(dct['param']['charge'], dct['count']['charge'])
         else:
             self._net_charge = None
+
         self.__data = dct
 
     # Magic methods and Mapping implementation
@@ -435,14 +436,14 @@ class ParamMapping(ParamMappingABC):
             A Mapping with the to-be applied constraints per atom (pair).
 
         """  # noqa
-        _, prm_type, _ = idx
+        key, prm_type, _ = idx
         charge = self._net_charge if prm_type in self.CHARGE_LIKE else None
 
         constraints_ = None if pd.isnull(constraints) else constraints
-        return update_charge(idx, value, self['param'],
-                             count=self['count'],
-                             prm_min=self['min'],
-                             prm_max=self['max'],
+        return update_charge(idx[1:], value, self['param'].loc[key],
+                             count=self['count'].loc[key],
+                             prm_min=self['min'].loc[key],
+                             prm_max=self['max'].loc[key],
                              constrain_dict=constraints_,
                              net_charge=charge)
 
