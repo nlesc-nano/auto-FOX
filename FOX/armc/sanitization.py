@@ -9,18 +9,15 @@ A module for parsing and sanitizing ARMC settings.
 import os
 import copy
 from pathlib import Path
-from os.path import join, isfile, abspath
 from collections import abc
-from itertools import chain
 from typing import (
     Union, Iterable, Tuple, Optional, Mapping, Any, MutableMapping, Hashable,
-    Dict, TYPE_CHECKING, Generator, Callable, List, Collection, TypeVar, overload
+    Dict, TYPE_CHECKING, Generator, List, Collection, TypeVar, overload
 )
 
-import numpy as np
 import pandas as pd
 
-from scm.plams import Settings, Molecule
+from scm.plams import Molecule
 
 from .mc_post_process import AtomsFromPSF
 from .schemas import (
@@ -33,9 +30,8 @@ from .schemas import (
 from ..type_hints import Literal, TypedDict
 from ..io.read_psf import PSFContainer, overlay_str_file, overlay_rtf_file
 from ..classes import MultiMolecule
-from ..functions.cp2k_utils import set_keys
 from ..functions.molecule_utils import fix_bond_orders, residue_argsort
-from ..functions.utils import dict_to_pandas, get_atom_count, split_dict
+from ..functions.utils import get_atom_count, split_dict
 
 if TYPE_CHECKING:
     from .package_manager import PackageManager

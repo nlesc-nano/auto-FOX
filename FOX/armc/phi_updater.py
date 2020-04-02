@@ -11,9 +11,8 @@ from ..type_hints import ArrayLikeOrScalar, ArrayLike
 
 __all__ = ['PhiUpdater']
 
-ALT = TypeVar('ALT', bound=ArrayLikeOrScalar)
 AT = TypeVar('AT', bound=np.ndarray)
-PhiFunc = Callable[[Union[ALT, AT], float], AT]
+PhiFunc = Callable[[Union[ArrayLikeOrScalar, AT], float], AT]
 
 
 class PhiUpdaterABC(AbstractDataClass, ABC):
@@ -85,7 +84,7 @@ class PhiUpdaterABC(AbstractDataClass, ABC):
         self.a_target = a_target
         self.func = wraps(func)(partial(func, **kwargs))
 
-    def __call__(self, value: Union[AT, ALT]) -> AT:
+    def __call__(self, value: Union[AT, ArrayLikeOrScalar], dtype: type = float) -> AT:
         """Pass **value** and :attr:`phi` to :attr:`func`.
 
         Parameters
@@ -100,7 +99,7 @@ class PhiUpdaterABC(AbstractDataClass, ABC):
 
         """
         phi = self.phi
-        ar = np.asarray(value)
+        ar = np.asarray(value, dtype=float)
         return self.func(ar, phi)
 
     @abstractmethod

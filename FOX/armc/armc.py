@@ -171,6 +171,9 @@ class ARMC(MonteCarloABC):
         if key_new in self:
             self.logger.info("Move has already been visited; calculating new move")
             return self.do_inner(kappa, omega, acceptance, key_old)
+        elif isinstance(key_new, Exception):
+            self.logger.warning("{ex}; calculating new move")
+            return self.do_inner(kappa, omega, acceptance, key_old)
 
         # Step 2: Check if the move has been performed already; calculate PES descriptors if not
         pes_new, mol_list = self.get_pes_descriptors(key_new)

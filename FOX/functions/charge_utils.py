@@ -2,8 +2,10 @@
 
 import functools
 from types import MappingProxyType
+from itertools import repeat
 from typing import (
-    Hashable, Optional, Collection, Mapping, Container, List, Dict, Union, Iterable, Tuple
+    Hashable, Optional, Collection, Mapping, Container, List, Dict, Union, Iterable, Tuple, Any,
+    SupportsFloat
 )
 
 import numpy as np
@@ -12,6 +14,23 @@ import pandas as pd
 __all__ = ['update_charge']
 
 ConstrainDict = Mapping[Hashable, functools.partial]
+
+
+class ChargeError(ValueError):
+    """A :exc:`ValueError` subclass for charge-related errors."""
+
+    reference: float
+    value: float
+    tol: Hashable
+
+    def __init__(self, *args: Any, reference: Optional[SupportsFloat] = None,
+                 value: Optional[SupportsFloat] = None,
+                 tol: SupportsFloat = 0.001) -> None:
+        """Initialize an instance."""
+        super().__init__(*args)
+        self.reference = float(reference)
+        self.value = float(value)
+        self.tol = float(tol)
 
 
 def get_net_charge(param: pd.Series, count: pd.Series,
@@ -46,7 +65,9 @@ def get_net_charge(param: pd.Series, count: pd.Series,
 
 def update_charge(atom: str, value: float, param: pd.Series, count: pd.Series,
                   constrain_dict: Optional[ConstrainDict] = None,
-                  charge: bool = True) -> None:
+                  prm_min: Optional[Iterable[float]] = None,
+                  prm_max: Optional[Iterable[float]] = None,
+                  net_charge: Optional[float] = None) -> Optional[ChargeError]:
     """Set the atomic charge of **at** equal to **charge**.
 
     The atomic charges in **df** are furthermore exposed to the following constraints:
@@ -83,7 +104,7 @@ def update_charge(atom: str, value: float, param: pd.Series, count: pd.Series,
         A dictionary with charge constrains.
 
     """
-    net_charge = get_net_charge(param, count)
+    param_backup = param.copy()
     param[atom] = value
 
     if constrain_dict is None or atom in constrain_dict:
@@ -91,8 +112,15 @@ def update_charge(atom: str, value: float, param: pd.Series, count: pd.Series,
     else:
         exclude = {atom}
 
-    if charge:
-        unconstrained_update(net_charge, param, exclude)
+    if net_charge is not None:
+        try:
+            unconstrained_update(net_charge, param, count,
+                                 prm_min=prm_min,
+                                 prm_max=prm_max,
+                                 exclude=exclude)
+        except ChargeError as ex:
+            param[:] = param_backup
+            return ex
 
 
 def constrained_update(at1: str, param: pd.Series,
@@ -136,34 +164,40 @@ def constrained_update(at1: str, param: pd.Series,
     return exclude
 
 
-def unconstrained_update(net_charge: float, param: pd.Series,
+def unconstrained_update(net_charge: float, param: pd.Series, count: pd.Series,
+                         prm_min: Optional[Iterable[float]] = None,
+                         prm_max: Optional[Iterable[float]] = None,
                          exclude: Optional[Container[str]] = None) -> None:
-    """Perform an unconstrained update of atomic charges.
-
-    The total charge in **df** is kept equal to **net_charge**.
-
-    Performs an inplace update of the ``"param"`` column in **df**.
-
-    Parameters
-    ----------
-    net_charge : float
-        The total charge of the system.
-
-    df : |pd.DataFrame|_
-        A dataframe with atomic charges.
-
-    exclude : set [str]
-        A set of atom types whose atomic charges should not be updated.
-
-    """
+    """Perform an unconstrained update of atomic charges."""
     exclude = exclude or ()
     include = np.array([i not in exclude for i in param.keys()])
     if not include.any():
         return
 
-    i = net_charge - get_net_charge(param, np.invert(include))
-    i /= get_net_charge(param, include)
-    param.loc[include] *= i
+    v_new = v_new_clip = 0
+    i = net_charge - get_net_charge(param, count, ~include)
+    i /= get_net_charge(param, count, include)
+
+    min_iter = prm_min if prm_min is not None else repeat(-np.inf)
+    max_iter = prm_max if prm_max is not None else repeat(np.inf)
+    iterator = enumerate(zip(param.items(), min_iter, max_iter))
+
+    for j, ((atom, prm), prm_min, prm_max) in iterator:
+        if atom in exclude:
+            continue
+        elif v_new != v_new_clip:
+            i = net_charge - get_net_charge(param, count, ~include)
+            i /= get_net_charge(param, count, include)
+
+        v_new = i * prm
+        v_new_clip = np.clip(v_new, prm_min, prm_max)
+        param[atom] = v_new_clip
+        include[j] = False
+
+    net_charge_new = get_net_charge(param, count)
+    if abs(net_charge - net_charge_new) > 0.001:
+        msg = f"Failed to conserve the net charge ({net_charge:.4f}): {net_charge_new:.4f}"
+        raise ChargeError(msg, reference=net_charge, value=net_charge_new, tol=0.001)
 
 
 def invert_partial_ufunc(ufunc: functools.partial) -> functools.partial:

@@ -11,7 +11,7 @@ import pandas as pd
 from assertionlib.dataclass import AbstractDataClass
 
 from ..type_hints import Literal, TypedDict, NDArray
-from ..functions.charge_utils import update_charge
+from ..functions.charge_utils import update_charge, get_net_charge, ChargeError
 
 __all__ = ['ParamMapping']
 
@@ -105,11 +105,16 @@ class ParamMappingABC(AbstractDataClass, ABC, Mapping[ValidKeys, pd.Series]):
           as the latter requires a charge renormalization after every move to ensure
           the total molecular charge remains constant.
 
+    _net_charge : :class:`float`, optional
+        The net charge of the molecular system.
+        Only applicable if the ``"charge"`` is among the passed parameters.
+
     """
 
-    # move_range: np.ndarray
-    # df: Mapping[ValidKeys, pd.Series]
-    # apply_move: Callable[[float, float], float]
+    _net_charge: Optional[float]
+    _move_range: np.ndarray
+    __data: Mapping[ValidKeys, pd.Series]
+    # func: Callable[[float, float], float]
 
     #: Fill values for when optional keys are absent.
     FILL_VALUE: ClassVar[Mapping[ValidKeys, Any]] = MappingProxyType({
@@ -193,13 +198,14 @@ class ParamMappingABC(AbstractDataClass, ABC, Mapping[ValidKeys, pd.Series]):
         except KeyError as ex:
             raise KeyError("The {'param'!r} key is absent from the passed mapping") from ex
 
-        # Check that it has a 2-level MultiIndex
+        # Check that it has a 3-level MultiIndex
+        n_level = 3
         if not isinstance(param.index, pd.MultiIndex):
-            raise TypeError("Series.index expected a 2-level MultiIndex; "
+            raise TypeError(f"Series.index expected a {n_level}-level MultiIndex; "
                             f"observed type: {param.index.__class__.__name!r}")
-        elif len(param.index.levels) != 3:
-            raise ValueError("Series.index expected a 2-level MultiIndex; "
-                             f"observed number levels: {param.index.levels!r}")
+        elif len(param.index.levels) != n_level:
+            raise ValueError(f"Series.index expected a {n_level}-level MultiIndex; "
+                             f"observed number levels: {len(param.index.levels)}")
 
         # Fill in the defaults
         for name, fill_value in self.FILL_VALUE.items():
@@ -208,6 +214,10 @@ class ParamMappingABC(AbstractDataClass, ABC, Mapping[ValidKeys, pd.Series]):
             dtype = type(fill_value) if fill_value is not None else object
             dct[name] = pd.Series(fill_value, index=param.index, name=name, dtype=dtype)
 
+        if 'charge' in dct['param']:
+            self._net_charge = get_net_charge(dct['param']['charge'], dct['count']['charge'])
+        else:
+            self._net_charge = None
         self.__data = dct
 
     # Magic methods and Mapping implementation
@@ -260,7 +270,7 @@ class ParamMappingABC(AbstractDataClass, ABC, Mapping[ValidKeys, pd.Series]):
 
     # The actual meat of the class
 
-    def __call__(self, logger: Optional[Logger] = None) -> Tup3:
+    def __call__(self, logger: Optional[Logger] = None) -> Union[ChargeError, Tup3]:
         """Update a random parameter in **self.param** by a random value from **self.move.range**.
 
         Performs in inplace update of the ``'param'`` column in **self.param**.
@@ -282,7 +292,7 @@ class ParamMappingABC(AbstractDataClass, ABC, Mapping[ValidKeys, pd.Series]):
         # Prepare arguments a move
         idx, x1, x2 = self.identify_move()
         _value = self.func(x1, x2)
-        value = self['param'][idx] = self.clip_move(idx, _value)
+        value = self.clip_move(idx, _value)
 
         # Create a call to the logger
         if logger is not None:
@@ -290,9 +300,11 @@ class ParamMappingABC(AbstractDataClass, ABC, Mapping[ValidKeys, pd.Series]):
             logger.info(f"Moving {prm_type} ({atoms}): {x1:.4f} -> {value:.4f}")
 
         constraints = self['constraints'][idx]
-        if not pd.isnull(constraints):
-            self.apply_constraints(idx, value, constraints)
+        ex = self.apply_constraints(idx, value, constraints)
+        if ex is not None:
+            return ex
 
+        self['param'][idx] = value
         return idx
 
     @abstractmethod
@@ -312,9 +324,10 @@ class ParamMappingABC(AbstractDataClass, ABC, Mapping[ValidKeys, pd.Series]):
 
         Parameters
         ----------
-        :class:`tuple` [:class:`~Collections.abc.Hashable`, :class:`~Collections.abc.Hashable`]
+        idx : :class:`tuple` [:class:`~Collections.abc.Hashable`, :class:`~Collections.abc.Hashable`]
             The index of the moved parameter.
-        :class:`float`
+
+        value : :class:`float`
             The value of the moved parameter.
 
         Returns
@@ -322,7 +335,7 @@ class ParamMappingABC(AbstractDataClass, ABC, Mapping[ValidKeys, pd.Series]):
         :class:`float`
             The newly clipped value of the moved parameter.
 
-        """
+        """  # noqa
         return value
 
     def apply_constraints(self, idx: Tup3, value: float, constraints: ConstrainDict) -> None:
@@ -332,15 +345,27 @@ class ParamMappingABC(AbstractDataClass, ABC, Mapping[ValidKeys, pd.Series]):
 
         Parameters
         ----------
-        :class:`tuple` [:class:`~Collections.abc.Hashable`, :class:`~Collections.abc.Hashable`]
+        idx : :class:`tuple` [:class:`~Collections.abc.Hashable`, :class:`~Collections.abc.Hashable`]
             The index of the moved parameter.
-        :class:`float`
+
+        value : :class:`float`
             The value of the moved parameter.
-        :class:`~collections.abc.Mapping`
+
+        idx : :class:`~collections.abc.Mapping`
             A Mapping with the to-be applied constraints per atom (pair).
 
-        """
+        """  # noqa
         pass
+
+
+MOVE_RANGE = np.array([
+    0.900, 0.905, 0.910, 0.915, 0.920, 0.925, 0.930, 0.935, 0.940,
+    0.945, 0.950, 0.955, 0.960, 0.965, 0.970, 0.975, 0.980, 0.985,
+    0.990, 0.995, 1.005, 1.010, 1.015, 1.020, 1.025, 1.030, 1.035,
+    1.040, 1.045, 1.050, 1.055, 1.060, 1.065, 1.070, 1.075, 1.080,
+    1.085, 1.090, 1.095, 1.100
+], dtype=float)
+MOVE_RANGE.setflags(write=False)
 
 
 class ParamMapping(ParamMappingABC):
@@ -351,7 +376,7 @@ class ParamMapping(ParamMappingABC):
     })
 
     @ParamMappingABC.inherit_annotations()
-    def __init__(self, data, move_range, func=np.multiply, **kwargs):
+    def __init__(self, data, move_range=MOVE_RANGE, func=np.multiply, **kwargs):
         super().__init__(data, move_range, func=func, **kwargs)
 
     def identify_move(self) -> Tuple[Tup3, float, float]:
@@ -376,9 +401,10 @@ class ParamMapping(ParamMappingABC):
 
         Parameters
         ----------
-        :class:`tuple` [:class:`~Collections.abc.Hashable`, :class:`~Collections.abc.Hashable`]
+        idx : :class:`tuple` [:class:`~Collections.abc.Hashable`, :class:`~Collections.abc.Hashable`]
             The index of the moved parameter.
-        :class:`float`
+
+        value : :class:`float`
             The value of the moved parameter.
 
         Returns
@@ -386,30 +412,39 @@ class ParamMapping(ParamMappingABC):
         :class:`float`
             The newly clipped value of the moved parameter.
 
-        """
+        """  # noqa
         prm_min = self['min'][idx]
         prm_max = self['max'][idx]
         return np.clip(value, prm_min, prm_max)
 
-    def apply_constraints(self, idx: Tup3, value: float, constraints: ConstrainDict) -> None:
+    def apply_constraints(self, idx: Tup3, value: float,
+                          constraints: ConstrainDict) -> Optional[ChargeError]:
         """Apply further constraints based on **idx** and **value**.
 
         Performs an inplace update of this instance.
 
         Parameters
         ----------
-        :class:`tuple` [:class:`~Collections.abc.Hashable`, :class:`~Collections.abc.Hashable`]
+        idx : :class:`tuple` [:class:`~Collections.abc.Hashable`, :class:`~Collections.abc.Hashable`]
             The index of the moved parameter.
-        :class:`float`
+
+        value : :class:`float`
             The value of the moved parameter.
-        :class:`~collections.abc.Mapping`
+
+        constraints : :class:`~collections.abc.Mapping`
             A Mapping with the to-be applied constraints per atom (pair).
 
-        """
-        _, prm_type, atoms = idx
-        charge = prm_type in self.CHARGE_LIKE
-        update_charge(atoms, value, self['param'], self['count'],
-                      constrain_dict=constraints, charge=charge)
+        """  # noqa
+        _, prm_type, _ = idx
+        charge = self._net_charge if prm_type in self.CHARGE_LIKE else None
+
+        constraints_ = None if pd.isnull(constraints) else constraints
+        return update_charge(idx, value, self['param'],
+                             count=self['count'],
+                             prm_min=self['min'],
+                             prm_max=self['max'],
+                             constrain_dict=constraints_,
+                             net_charge=charge)
 
 
 ParamMapping.__doc__ = ParamMappingABC.__doc__

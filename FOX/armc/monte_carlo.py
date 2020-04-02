@@ -273,7 +273,7 @@ class MonteCarloABC(AbstractDataClass, ABC, Mapping[KT, VT]):
         """
         return self.package_manager(logger=self.logger)
 
-    def move(self) -> KT:
+    def move(self) -> Union[Exception, KT]:
         """Update a random parameter in **self.param** by a random value from **self.move.range**.
 
         Performs in inplace update of the ``'param'`` column in **self.param**.
@@ -317,7 +317,11 @@ class MonteCarloABC(AbstractDataClass, ABC, Mapping[KT, VT]):
 
         """
         # Perform the move
-        key, prm_name, _ = self.param(logger=self.logger)
+        ret = self.param(logger=self.logger)
+        if isinstance(ret, Exception):
+            return ret
+        else:
+            key, prm_name, _ = ret
 
         prm_update = self.param['param'].loc[(key, prm_name)].to_frame().T
         prm_update.index = [prm_name]
