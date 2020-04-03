@@ -43,7 +43,7 @@ if TYPE_CHECKING:
 else:
     from ..type_alias import PackageManager, ParamMapping, PhiUpdater, MonteCarloABC
 
-__all__ = ['init_armc_sanitization']
+__all__ = ['dict_to_armc']
 
 KT = TypeVar('KT', bound=Hashable)
 MT = TypeVar('MT', bound=Mapping[Any, Any])
@@ -60,7 +60,7 @@ class RunDict(TypedDict, total=False):
     guess: Optional[Mapping[str, Mapping]]
 
 
-def init_armc_sanitization(input_dict: MainMapping) -> Tuple[MonteCarloABC, RunDict]:
+def dict_to_armc(input_dict: MainMapping) -> Tuple[MonteCarloABC, RunDict]:
     """Initialize the armc input settings sanitization.
 
     Parameters
