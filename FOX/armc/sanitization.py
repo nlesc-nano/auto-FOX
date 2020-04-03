@@ -56,7 +56,7 @@ class RunDict(TypedDict, total=False):
     folder: Union[str, os.PathLike]
     logfile: Union[str, os.PathLike]
     restart: bool
-    psf: Union[None, List[PSFContainer], Tuple[Union[str, os.PathLike], ...]]
+    psf: Union[None, List[PSFContainer]]
     guess: Optional[Mapping[str, Mapping]]
 
 
@@ -71,7 +71,7 @@ def init_armc_sanitization(input_dict: MainMapping) -> Tuple[MonteCarloABC, RunD
     Returns
     -------
     :class:`ARMC` and :class:`dict`
-        A Settings instance suitable for ARMC initialization.
+        An ARMC instance and a dictionary with keyword arguments for :func:`run_armc`.
 
     """
     dct = validate_main(copy.deepcopy(input_dict))
@@ -104,7 +104,14 @@ def init_armc_sanitization(input_dict: MainMapping) -> Tuple[MonteCarloABC, RunD
 
 
 def get_phi(dct: PhiMapping) -> PhiUpdater:
-    """Construct a :class:`PhiUpdater` instance from **dct**."""
+    """Construct a :class:`PhiUpdater` instance from **dct**.
+
+    Returns
+    -------
+    :class:`PhiUpdater`
+        A PhiUpdater for :class:`~FOX.armc.ARMC`.
+
+    """
     phi_dict = validate_phi(dct)
     phi_type = phi_dict.pop('type')  # type: ignore
     kwargs = phi_dict.pop('kwargs')  # type: ignore
@@ -112,7 +119,14 @@ def get_phi(dct: PhiMapping) -> PhiUpdater:
 
 
 def get_package(dct: JobMapping) -> Tuple[PackageManager, Tuple[MultiMolecule, ...]]:
-    """Construct a :class:`PackageManager` instance from **dct**."""
+    """Construct a :class:`PackageManager` instance from **dct**.
+
+    Returns
+    -------
+    :class:`~FOX.armc.PackageManager` and :class:`tuple` [:class:`~FOX.MultiMolecule`]
+        A PackageManager and a tuple of MultiMolecules.
+
+    """
     _sub_pkg_dict: Dict[str, Any] = split_dict(dct, keep_keys={'type', 'molecule'})
 
     job_dict = validate_job(dct)
@@ -134,16 +148,21 @@ def get_package(dct: JobMapping) -> Tuple[PackageManager, Tuple[MultiMolecule, .
 
 
 def get_param(dct: ParamMapping_) -> Tuple[ParamMapping, dict, dict]:
-    """Construct a :class:`ParamMapping` instance from **dct**."""
+    """Construct a :class:`ParamMapping` instance from **dct**.
+
+    Returns
+    -------
+    :class:`ParamMapping`, :class:`dict`, :class:`dict`
+        A ParamMapping, a parameter dictionary and
+        a parameter dictionary with all frozen parameters.
+
+    """
     _prm_dict = dct
     _sub_prm_dict = split_dict(_prm_dict, keep_keys={'type', 'move_range', 'func', 'kwargs'})
 
     prm_dict = validate_param(_prm_dict)
     kwargs = prm_dict.pop('kwargs')
     data = _get_param_df(_sub_prm_dict)
-    data['constraints'] = None
-    data['min'] = -np.inf
-    data['max'] = np.inf
     data[['constraints', 'min', 'max']] = list(_get_prm_constraints(_sub_prm_dict))
 
     _sub_prm_dict_frozen = _get_prm_frozen(_sub_prm_dict)
@@ -162,7 +181,14 @@ def get_armc(dct: MCMapping,
              param: ParamMapping,
              phi: PhiUpdater,
              mol: Iterable[MultiMolecule]) -> Tuple[MonteCarloABC, RunDict]:
-    """Construct an :class:`ARMC` instance from **dct**."""
+    """Construct an :class:`ARMC` instance from **dct**.
+
+    Returns
+    -------
+    :class:`~FOX.armc.ARMC` and :class:`dict`
+        A ARMC instance and a dictionary with keyword arguments for :func:`FOX.armc.run_armc`.
+
+    """
     mc_dict = validate_monte_carlo(dct)
 
     pop_keys = ('path', 'folder', 'logfile')
@@ -173,8 +199,13 @@ def get_armc(dct: MCMapping,
     hdf5 = mc_dict['hdf5_file']
     if not os.path.isdir(os.path.dirname(logfile)):
         kwargs['logfile'] = os.path.join(workdir, logfile)
+    else:
+        kwargs['logfile'] = os.path.abspath(logfile)
+
     if not os.path.isdir(os.path.dirname(hdf5)):
         mc_dict['hdf5_file'] = os.path.join(workdir, hdf5)
+    else:
+        kwargs['hdf5_file'] = os.path.abspath(hdf5)
 
     mc_type = mc_dict.pop('type')  # type: ignore
     return mc_type(phi=phi, param=param, package_manager=package_manager,
@@ -183,7 +214,16 @@ def get_armc(dct: MCMapping,
 
 def get_psf(dct: PSFMapping, mol_list: Iterable[MultiMolecule]
             ) -> Optional[List[PSFContainer]]:
-    """Construct a list of :class:`PSFContainer` instances from **dct**."""
+    """Construct a list of :class:`PSFContainer` instances from **dct**.
+
+    Returns
+    -------
+    :class:`list` [:class:`~FOX.PSFContainer`], optional
+        If either the ``"psf_file"``, ``"rtf_file"`` or ``"str_file"`` key is present in **dct**
+        then return a list of PSFContaisers.
+        Return ``None`` otherwise.
+
+    """
     psf_dict = validate_psf(dct)
 
     atoms = psf_dict.get('ligand_atoms')
@@ -209,6 +249,7 @@ def _generate_psf(file_list: Iterable[Union[str, os.PathLike]],
                   mol_list: Iterable[Molecule],
                   ligand_atoms: Optional[Collection[str]] = None,
                   mode: Mode = 'rtf') -> List[PSFContainer]:
+    """Construct a list of :class:`~FOX.PSFContainer` instances."""
     ret = []
     for file, mol in zip(file_list, mol_list):
         if ligand_atoms is not None:
@@ -252,7 +293,14 @@ PrmTuple = Tuple[str, str, str, float]
 
 
 def prm_iter(dct: NestedDict) -> Generator[Tuple[KT, MT], None, None]:
-    """Create a an iterator yielding individual parameter dictionaries."""
+    """Create a an iterator yielding individual parameter dictionaries.
+
+    Yields
+    ------
+    :class:`~collections.abc.Hashable` and :class:`~collections.abc.Mapping`
+        An iterator yielding the super-keys of **dct** and its nested dictionaries.
+
+    """
     for key_alias, _dct_list in dct.items():
 
         # Ensure that we're dealing with a list of dicts
@@ -266,18 +314,39 @@ def prm_iter(dct: NestedDict) -> Generator[Tuple[KT, MT], None, None]:
 
 
 def _get_param_df(dct: Mapping[str, Any]) -> pd.DataFrame:
-    """Construct a DataFrame for :class:`ParamMapping`."""
+    """Construct a DataFrame for :class:`ParamMapping`.
+
+    Returns
+    -------
+    :class:`pandas.DataFrame`
+        A parameter DataFrame with a three-level :class:`~pandas.MultiIndex` as index.
+        The available columns are: ``"param"``, ``"constraints"``, ``"min"`` and ``"max"``.
+
+    """
     columns = ['key', 'param_type', 'atoms', 'param']
     data = _get_prm(dct)
 
     df = pd.DataFrame(data, columns=columns)
     df.set_index(['key', 'param_type', 'atoms'], inplace=True)
+
+    df['constraints'] = None
+    df['min'] = -np.inf
+    df['max'] = np.inf
     return df
 
 
 def _get_prm(dct: Mapping[str, Union[Mapping, Iterable[Mapping]]]
              ) -> Generator[PrmTuple, None, None]:
-    """Create a generator yielding DataFrame rows for :class:`ParamMapping`."""
+    """Create a generator yielding DataFrame rows for :func:`_get_param_df`.
+
+    Yields
+    ------
+    :class:`str`, :class:`str`, :class:`str` and :class:`float`
+        A generator yielding 4-tuples.
+        The first three elements represent :class:`~pandas.MultiIndex` keys while the
+        last one is the actual parameter value.
+
+    """
     ignore_keys = {'frozen', 'constraints', 'param', 'unit', 'guess'}
 
     dct_iterator = prm_iter(dct)
@@ -291,7 +360,16 @@ def _get_prm(dct: Mapping[str, Union[Mapping, Iterable[Mapping]]]
 
 def _get_prm_frozen(dct: Mapping[str, Union[MutableMapping, Iterable[MutableMapping]]]
                     ) -> Optional[Dict[str, List[dict]]]:
-    """Extract  a generator yielding DataFrame rows for :class:`ParamMapping`."""
+    """Return a parameter dictionary for all frozen parameters.
+
+    Returns
+    -------
+    :class:`dict` [:class:`str`, :class:`list` [:class:`dict`]], optional
+        If not ``None``, a dictionary consting of lists of dictionaries.
+        The list-embedded dictionary consist of normal parameter dictionaries,
+        except that it represents constant (rather than variable) parameters.
+
+    """
     ret: Dict[str, List[dict]] = {}
 
     dct_iterator = prm_iter(dct)
@@ -312,9 +390,19 @@ def _get_prm_frozen(dct: Mapping[str, Union[MutableMapping, Iterable[MutableMapp
 
 def _get_prm_constraints(dct: Mapping[str, Union[MutableMapping, Iterable[MutableMapping]]]
                          ) -> Generator[Tuple[Optional[dict], float, float], None, None]:
-    """Parse all user-provided constraints."""
+    """Parse all user-provided constraints.
+
+    Yields
+    ------
+    :class:`dct` (optional), :class:`float` and :class:`float`
+        A generator yielding a tuple of three values for each parameter:
+
+        1. A dictionary of constraints (optional).
+        2. The parameter's minimum value.
+        3. The parameter's maximum value.
+
+    """
     ignore_keys = {'frozen', 'constraints', 'param', 'unit', 'guess'}
-    ret: Dict[str, List[dict]] = {}
 
     dct_iterator = prm_iter(dct)
     for key_alias, sub_dict in dct_iterator:
@@ -339,8 +427,8 @@ def update_count(param: ParamMapping, psf: Iterable[PSFContainer], mol: Any) -> 
 @overload   # noqa: E302
 def update_count(param: ParamMapping, psf: None, mol: Iterable[MultiMolecule]) -> None: ...
 def update_count(param, psf=None, mol=None):  # noqa: E302
-    """Assign atomc-ounts to the passed :class:`ParamMapping`."""
-    # Construct a gener
+    """Assign atom-counts to the passed :class:`ParamMapping`."""
+    # Construct a generator
     if psf is not None:
         count_iter = (pd.value_counts(p.atom_type) for p in psf)
     elif mol is not None:
