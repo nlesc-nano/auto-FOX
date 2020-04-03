@@ -114,10 +114,7 @@ class Default:
 
     """
 
-    #: The to-be returned value.
     value: Any
-
-    #: Whether to call the to-be returned value before its return (if possible) or not.
     call: bool
 
     def __init__(self, value: Union[T, Callable[[], T]], call: bool = True) -> None:
@@ -125,7 +122,7 @@ class Default:
         self.call = call
 
     def __repr__(self) -> str:
-        return f'{self.__class__.__name__}({self.value!r}, call={self.call})'
+        return f'{self.__class__.__name__}({self.value!r}, call={self.call!r})'
 
     def validate(self, data: Any) -> Union[T, Callable[[], T]]:
         if self.call and callable(self.value):
