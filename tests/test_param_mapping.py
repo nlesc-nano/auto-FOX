@@ -33,7 +33,7 @@ def test_mapping():
 def test_call():
     """Test :meth:`ParamMapping.__call__`."""
     param = PARAM.copy(deep=True)
-    ref = sum(param['param'].iloc[:4] * param['count'].iloc[:4])
+    ref = sum(param['param'].loc['charge'] * param['count'].loc['charge'])
 
     for i in range(1000):
         ex = param()

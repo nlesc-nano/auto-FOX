@@ -67,7 +67,7 @@ monte_carlo:
     hdf5_file: armc.hdf5
     path: .
     folder: MM_MD_workdir
-    keep_files: True
+    keep_files: False
 
 phi:
     type: FOX.armc.PhiUpdater

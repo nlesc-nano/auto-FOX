@@ -3,23 +3,18 @@ from __future__ import annotations
 import os
 import shutil
 from abc import ABC, abstractmethod
-from types import FunctionType
-from pathlib import Path
 from logging import Logger
 from itertools import chain
 from collections import abc
 from typing import (Mapping, TypeVar, Hashable, Any, KeysView, ItemsView, ValuesView, Iterator,
-                    Union, Dict, List, Optional, Callable, Tuple, Iterable, Sequence, Set,
-                    TYPE_CHECKING)
+                    Union, Dict, List, Optional, Tuple, Iterable, Sequence, Set, TYPE_CHECKING)
 
 import numpy as np
 import pandas as pd
-from scm.plams import config, Settings, Molecule
+from scm.plams import config, Molecule, JobManager
 from qmflows import Settings as QmSettings
-from qmflows.packages.packages import REGISTRY, registry as pkg_registry
 from qmflows.cp2k_utils import prm_to_df
 from noodles import gather, schedule, has_scheduled_methods, run_parallel
-from noodles.serial.base import SerImportable
 
 from ..classes.multi_mol import MultiMolecule
 from ..functions.cp2k_utils import get_xyz_path
@@ -30,13 +25,10 @@ from ..io.read_xyz import XYZError
 if TYPE_CHECKING:
     from qmflows.packages import Result, Package
     from noodles.interface import PromisedObject
-    from noodles.serial import Registry
 else:
-    from ..type_alias import PromisedObject, Registry, Result, Package
+    from ..type_alias import PromisedObject, Result, Package
 
 __all__ = ['PackageManager']
-
-REGISTRY[FunctionType] = SerImportable()
 
 
 class JobMapping(TypedDict):
@@ -44,26 +36,22 @@ class JobMapping(TypedDict):
 
     type: Package
     molecule: Molecule
-    settings: Settings
+    settings: QmSettings
 
 
-_KT = TypeVar('_KT', bound=Hashable)
-KT = TypeVar('KT', bound=str)
-RT = TypeVar('RT', bound=Result)
-JT = TypeVar('JT', bound=JobMapping)
 T = TypeVar('T')
 
 MolLike = Iterable[Tuple[float, float, float]]
 
-DataMap = Mapping[KT, Iterable[JT]]
-DataIter = Iterable[Tuple[KT, Iterable[JT]]]
-DictLike = Union[Mapping[_KT, Iterable[T]], Iterable[Tuple[_KT, Iterable[T]]]]
+DataMap = Mapping[str, Iterable[JobMapping]]
+DataIter = Iterable[Tuple[str, Iterable[JobMapping]]]
+DictLike = Union[Mapping[Hashable, Iterable],
+                 Iterable[Tuple[Hashable, Iterable]]]
 
 
-class PackageManagerABC(ABC, Mapping[KT, Tuple[JT, ...]]):
+class PackageManagerABC(ABC, Mapping[str, Tuple[JobMapping, ...]]):
 
-    __data: Dict[KT, Tuple[JT, ...]]
-    _result_cache: Set[RT]
+    __data: Dict[str, Tuple[JobMapping, ...]]
 
     def __init__(self, data: Union[DataMap, DataIter]) -> None:
         """Initialize an instance.
@@ -86,21 +74,11 @@ class PackageManagerABC(ABC, Mapping[KT, Tuple[JT, ...]]):
         """  # noqa
         super().__init__()
         self._data = data
-        self._result_cache = set()
 
     # Attributes and properties
 
     @property
-    def workdir(self) -> Path:
-        """Get the path to the current PLAMS workdir."""
-        try:
-            return Path(config.default_jobmanager.workdir)
-        except TypeError as ex:
-            raise RuntimeError(f"Accessing {self.__class__.__name__}.workdir requires "
-                               "plams.init() to be called") from ex
-
-    @property
-    def _data(self) -> Dict[KT, Tuple[JT, ...]]:
+    def _data(self) -> Dict[str, Tuple[JobMapping, ...]]:
         """A (private) property containing this instance's underlying :class:`dict`.
 
         The getter will simply return the attribute's value.
@@ -120,15 +98,20 @@ class PackageManagerABC(ABC, Mapping[KT, Tuple[JT, ...]]):
         elif len(value_len) != 1:
             raise ValueError(f"All values passed to {self.__class__.__name__!r}() "
                              "must be of the same length")
+
+        # Ensure all settings are qmflows.Settings instances
+        for job_tup in ret.values():
+            for job in job_tup:
+                job['settings'] = QmSettings(job['settings'])
         self.__data = ret
 
     # Mapping implementation
 
-    def __getitem__(self, key: KT) -> Tuple[JT, ...]:
+    def __getitem__(self, key: str) -> Tuple[JobMapping, ...]:
         """Implement :code:`self[key]`."""
         return self._data[key]
 
-    def __iter__(self) -> Iterator[KT]:
+    def __iter__(self) -> Iterator[str]:
         """Implement :code:`iter(self)`."""
         return iter(self._data)
 
@@ -140,26 +123,26 @@ class PackageManagerABC(ABC, Mapping[KT, Tuple[JT, ...]]):
         """Implement :code:`key in self`."""
         return key in self._data
 
-    def keys(self) -> KeysView[KT]:
+    def keys(self) -> KeysView[str]:
         """Return a set-like object providing a view of this instance's keys."""
         return self._data.keys()
 
-    def items(self) -> ItemsView[KT, Tuple[JT, ...]]:
+    def items(self) -> ItemsView[str, Tuple[JobMapping, ...]]:
         """Return a set-like object providing a view of this instance's key/value pairs."""
         return self._data.items()
 
-    def values(self) -> ValuesView[Tuple[JT, ...]]:
+    def values(self) -> ValuesView[Tuple[JobMapping, ...]]:
         """Return an object providing a view of this instance's values."""
         return self._data.values()
 
-    def get(self, key: Hashable, default: T = None) -> Union[Tuple[JT, ...], T]:  # type: ignore
+    def get(self, key: Hashable, default: T = None) -> Union[Tuple[JobMapping, ...], T]:
         """Return the value for **key** if it's available; return **default** otherwise."""
         return self._data.get(key, default)  # type: ignore
 
     # The actual job runner
 
     @abstractmethod
-    def __call__(self, logger: Optional[Logger] = None, **kwargs: Any) -> Optional[Sequence[T]]:
+    def __call__(self, logger: Optional[Logger] = None, **kwargs: Any) -> Optional[Sequence]:
         r"""Run all jobs and return a sequence of user-specified results.
 
         Parameters
@@ -181,7 +164,7 @@ class PackageManagerABC(ABC, Mapping[KT, Tuple[JT, ...]]):
 
     @staticmethod
     @abstractmethod
-    def assemble_job(job: JobMapping, **kwargs: Any) -> T:
+    def assemble_job(job: JobMapping, **kwargs: Any) -> Any:
         """Assemble a :class:`JobMapping` into an actual job."""
         raise NotImplementedError('Trying to call an abstract method')
 
@@ -208,8 +191,7 @@ class PackageManager(PackageManagerABC):
             prm_to_df(settings)
 
     def __call__(self, logger: Optional[Logger] = None,
-                 n_processes: int = 1,
-                 registry: Callable[[], Registry] = pkg_registry) -> Optional[List[MultiMolecule]]:
+                 n_processes: int = 1) -> Optional[List[MultiMolecule]]:
         r"""Run all jobs and return a sequence of list of MultiMolecules.
 
         Parameters
@@ -239,7 +221,6 @@ class PackageManager(PackageManagerABC):
 
         results = run_parallel(gather(*promised_jobs),
                                n_threads=n_processes)
-
         return self._extract_mol(results, logger)
 
     @staticmethod
@@ -255,18 +236,24 @@ class PackageManager(PackageManagerABC):
             mol = kwargs['molecule']
 
         job_name = name if name is not None else ''
-        settings = QmSettings(kwargs.pop('settings'))
+        obj_type = kwargs.pop('type')  # type: ignore
+        return obj_type(mol=mol, job_name=job_name, **kwargs)
 
-        obj_type = kwargs.pop('type')
-        return obj_type(settings=settings, mol=mol, job_name=job_name, **kwargs)
+    @staticmethod
+    def clear_jobs() -> None:
+        """Delete all jobs."""
+        job_manager: JobManager = config.default_jobmanager
+        workdir = job_manager.workdir
 
-    def clear_jobs(self) -> None:
-        """Delete all jobs located in :attr:`_job_cache`."""
-        for job in self._result_cache:
+        for job in job_manager.jobs:
+            name = os.path.join(workdir, job.name)
             try:
-                shutil.rmtree(job.archive['work_dir'])
-            except FileNotFoundError:
+                shutil.rmtree(name)  # type: ignore
+            except (TypeError, FileNotFoundError):
                 pass
+
+        job_manager.jobs = []
+        job_manager.names = {}
 
     def update_settings(self, dct: Sequence[Tuple[str, Mapping]], new_keys: bool = True) -> None:
         """Update all forcefield parameter blocks in this instance's CP2K settings."""

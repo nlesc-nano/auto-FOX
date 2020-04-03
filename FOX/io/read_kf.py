@@ -21,12 +21,9 @@ from typing import Tuple, Dict, List, TYPE_CHECKING
 
 import numpy as np
 
-from ..functions.utils import group_by_values
+from scm.plams import KFReader
 
-if TYPE_CHECKING:
-    from scm.plams import KFReader
-else:
-    from ..type_alias import KFReader
+from ..functions.utils import group_by_values
 
 __all__ = ['read_kf']
 

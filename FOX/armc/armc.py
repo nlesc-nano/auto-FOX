@@ -169,10 +169,10 @@ class ARMC(MonteCarloABC):
         # Step 1: Perform a random move
         key_new = self.move()
         if key_new in self:
-            self.logger.info("Move has already been visited; calculating new move")
+            self.logger.info("Move has already been visited; recalculating move")
             return self.do_inner(kappa, omega, acceptance, key_old)
         elif isinstance(key_new, Exception):
-            self.logger.warning("{ex}; calculating new move")
+            self.logger.warning("{ex}; recalculating move")
             return self.do_inner(kappa, omega, acceptance, key_old)
 
         # Step 2: Check if the move has been performed already; calculate PES descriptors if not

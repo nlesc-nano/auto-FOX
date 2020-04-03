@@ -70,6 +70,7 @@ def wrap_plams_logger(logfile: Union[None, str, os.PathLike] = None,
 
     return logger
 
+
 def get_logger(name: str,
                handler_type: Type[logging.Handler] = logging.FileHandler,
                level: int = logging.DEBUG,

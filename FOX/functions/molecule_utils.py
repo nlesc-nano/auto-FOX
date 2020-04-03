@@ -267,7 +267,7 @@ def get_impropers(mol: Molecule) -> np.ndarray:
 
 @overload
 def residue_argsort(mol: Molecule, concatenate: Literal[True] = ...) -> np.ndarray: ...
-@overload
+@overload   # noqa: E302
 def residue_argsort(mol: Molecule, concatenate: Literal[False] = ...) -> List[List[int]]: ...
 def residue_argsort(mol, concatenate=True):  # noqa: E302
     """Return the indices that would sort this instance by residue number.

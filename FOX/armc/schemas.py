@@ -45,7 +45,7 @@ __all__ = [
 
 @overload
 def supports_float(value: SupportsFloat) -> Literal[True]: ...
-@overload
+@overload   # noqa: E302
 def supports_float(value: Any) -> bool: ...
 def supports_float(value):  # noqa: E302
     """Check if a float-like object has been passed (:data:`~typing.SupportsFloat`)."""
@@ -58,7 +58,7 @@ def supports_float(value):  # noqa: E302
 
 @overload
 def supports_int(value: SupportsInt) -> Literal[True]: ...
-@overload
+@overload   # noqa: E302
 def supports_int(value: Any) -> bool: ...
 def supports_int(value):  # noqa: E302
     """Check if a int-like object has been passed (:data:`~typing.SupportsInt`)."""

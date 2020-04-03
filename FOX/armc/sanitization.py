@@ -305,7 +305,7 @@ def _get_prm_frozen(dct: Mapping[str, Union[MutableMapping, Iterable[MutableMapp
 
 @overload
 def update_count(param: ParamMapping, psf: Iterable[PSFContainer], mol: None) -> None: ...
-@overload
+@overload   # noqa: E302
 def update_count(param: ParamMapping, psf: None, mol: Iterable[MultiMolecule]) -> None: ...
 def update_count(param, psf=None, mol=None):  # noqa: E302
     """Assign atomc-ounts to the passed :class:`ParamMapping`."""
