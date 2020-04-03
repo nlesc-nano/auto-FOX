@@ -19,12 +19,12 @@ API
 import os
 from collections import abc
 from typing import (overload, Any, SupportsInt, SupportsFloat, Type, Mapping, Collection, Sequence,
-                    Callable, Union, Optional, Tuple, FrozenSet, Iterable, Dict)
+                    Callable, Union, Optional, Tuple, FrozenSet, Iterable, Dict, TypeVar)
 
 import numpy as np
 from schema import And, Or, Schema, Use, Optional as Optional_
 
-from scm.plams import Settings
+from scm.plams import Settings as QmSettings
 from qmflows import cp2k_mm
 from qmflows.packages import Package
 
@@ -41,6 +41,8 @@ __all__ = [
     'validate_phi', 'validate_monte_carlo', 'validate_psf', 'validate_pes',
     'validate_job', 'validate_sub_job', 'validate_param', 'validate_main'
 ]
+
+T = TypeVar('T')
 
 
 @overload
@@ -75,37 +77,94 @@ def phi_subclass(cls: type) -> bool:
     return issubclass(cls, PhiUpdaterABC)
 
 
+class Default:
+    """A validation class akin to the likes of :class:`schemas.Use`.
+
+    Upon executing :meth:`Default.validate` returns the stored :attr:`~Default.value`.
+    If :attr:`~Default.call` is ``True`` and the value is a callable,
+    then it is called before its return.
+
+    Examples
+    --------
+    .. code:: python
+
+        >>> from schema import Schema
+
+        >>> schema1 = Schema(int, Default(True))
+        >>> schema1.validate(1)
+        True
+
+        >>> schema2 = Schema(int, Default(dict))
+        >>> schema2.validate(1)
+        {}
+
+        >>> schema3 = Schema(int, Default(dict, call=False))
+        >>> schema3.validate(1)
+        <class 'dict'>
+
+
+    Attributes
+    ----------
+    value : :class:`~collections.abc.Callable` or :data:`~typing.Any`
+        The to-be return value for when :meth:`Default.validate` is called.
+        If :attr:`Default.call` is ``True`` then the value is called
+        (if possible) before its return.
+    call : :class:`bool`
+        Whether to call :attr:`Default.value` before its return (if possible) or not.
+
+    """
+
+    #: The to-be returned value.
+    value: Any
+
+    #: Whether to call the to-be returned value before its return (if possible) or not.
+    call: bool
+
+    def __init__(self, value: Union[T, Callable[[], T]], call: bool = True) -> None:
+        self.value = value
+        self.call = call
+
+    def __repr__(self) -> str:
+        return f'{self.__class__.__name__}({self.value!r}, call={self.call})'
+
+    def validate(self, data: Any) -> Union[T, Callable[[], T]]:
+        if self.call and callable(self.value):
+            return self.value()
+        else:
+            return self.value
+
+
 #: Schema for validating the ``"phi"`` block.
 phi_schema = Schema({
     Optional_('type', default=lambda: PhiUpdater): Or(
-        And(None, Use(lambda n: PhiUpdater())),
+        And(None, Default(PhiUpdater)),
         And(str, Use(lambda n: get_importable(n, validate=phi_subclass))),
         And(type, phi_subclass)
     ),
 
     Optional_('phi', default=1.0): Or(
-        And(None, Use(lambda n: 1.0)),
+        And(None, Default(1.0)),
         And(supports_float, Use(float)),
     ),
 
     Optional_('gamma', default=2.0): Or(
-        And(None, Use(lambda n: 2.0)),
+        And(None, Default(2.0)),
         And(supports_float, Use(float)),
     ),
 
     Optional_('a_target', default=0.25): Or(
-        And(None, Use(lambda n: 0.25)),
+        And(None, Default(0.25)),
         And(supports_float, lambda n: 0 < float(n) <= 1, Use(float)),
     ),
 
     Optional_('func', default=lambda: np.add): Or(
-        And(None, Use(lambda n: np.add)),
+        And(None, Default(np.add, call=False)),
         And(str, Use(lambda n: get_importable(n, validate=callable))),
         And(abc.Callable)
     ),
 
     Optional_('kwargs', default=dict): Or(
-        And(None, Use(lambda n: {})),
+        And(None, Default(dict)),
         And(abc.Mapping, lambda n: all(isinstance(k, str) for k in n.keys()))
     )
 })
@@ -141,47 +200,47 @@ def mc_subclass(cls: type) -> bool:
 #: Schema for validating the ``"monte_carlo"`` block.
 mc_schema = Schema({
     Optional_('type', default=lambda: ARMC): Or(
-        And(None, Use(lambda n: ARMC)),
+        And(None, Default(ARMC, call=False)),
         And(str, Use(lambda n: get_importable(n, validate=mc_subclass))),
         And(type, mc_subclass)
     ),
 
     Optional_('iter_len', default=50000): Or(
-        And(None, Use(lambda n: 50000)),
+        And(None, Default(50000)),
         And(supports_int, lambda n: int(n) > 0, Use(int))
     ),
 
     Optional_('sub_iter_len', default=100): Or(
-        And(None, Use(lambda n: 100)),
+        And(None, Default(100)),
         And(supports_int, lambda n: int(n) > 0, Use(int))
     ),
 
     Optional_('hdf5_file', default='armc.hdf5'): Or(
-        And(None, Use(lambda n: 'armc.hdf5')),
+        And(None, Default('armc.hdf5')),
         str,
         os.PathLike
     ),
 
     Optional_('logfile', default=lambda: 'armc.log'): Or(
-        And(None, Use(lambda n: 'armc.log')),
+        And(None, Default('armc.log')),
         str,
         os.PathLike
     ),
 
     Optional_('path', default=lambda: os.getcwd()): Or(
-        And(None, Use(lambda n: os.getcwd())),
+        And(None, Default(os.getcwd)),
         And(str, Use(os.path.abspath)),
         And(os.PathLike, Use(os.path.abspath))
     ),
 
     Optional_('folder', default='MM_MD_workdir'): Or(
-        And(None, Use(lambda n: 'MM_MD_workdir')),
+        And(None, Default('MM_MD_workdir')),
         str,
         os.PathLike
     ),
 
     Optional_('keep_files', default=True): Or(
-        And(None, Use(lambda n: True)),
+        And(None, Default(True)),
         bool
     )
 })
@@ -270,7 +329,7 @@ pes_schema = Schema({
     ),
 
     Optional_('kwargs', default=dict): Or(
-        And(None, Use(lambda n: {})),
+        And(None, Default(dict)),
         And(abc.Mapping, lambda dct: all(isinstance(k, str) for k in dct.keys())),
         And(
             abc.Sequence,
@@ -307,7 +366,7 @@ def pkg_subclass(cls: type) -> bool:
 #: Schema for validating the ``"job"`` block.
 job_schema = Schema({
     Optional_('type', default=lambda: PackageManager): Or(
-        And(None, Use(lambda n: PackageManager)),
+        And(None, Default(PackageManager, call=False)),
         And(str, Use(lambda n: get_importable(n, validate=pkg_subclass))),
         And(type, pkg_subclass)
     ),
@@ -354,20 +413,20 @@ def mapping_instance(obj: Any) -> bool:
 #: Schema for validating sub blocks within the ``"pes"`` block.
 sub_job_schema = Schema({
     Optional_('type', default=lambda: cp2k_mm): Or(
-        And(None, Use(lambda n: cp2k_mm)),
+        And(None, Default(cp2k_mm, call=False)),
         And(str, Use(lambda n: get_importable(n, validate=qm_pkg_instance))),
         Package
     ),
 
-    Optional_('settings', default=Settings): Or(
-        And(None, Use(lambda n: Settings())),
-        And(abc.Mapping, Use(Settings))
+    Optional_('settings', default=QmSettings): Or(
+        And(None, Default(QmSettings)),
+        And(abc.Mapping, Use(QmSettings))
     ),
 
-    Optional_('template', default=Settings): Or(
-        And(None, Use(lambda n: Settings())),
-        And(str, Use(lambda n: get_importable(n, validate=mapping_instance))),
-        And(abc.Mapping, Use(Settings))
+    Optional_('template', default=QmSettings): Or(
+        And(None, Default(QmSettings)),
+        And(str, Use(lambda n: QmSettings(get_importable(n, validate=mapping_instance)))),
+        And(abc.Mapping, Use(QmSettings))
     )
 })
 
@@ -384,8 +443,8 @@ class SubJobDict(TypedDict):
     """A :class:`~typing.TypedDict` representing the output of :data:`sub_job_schema`."""
 
     type: Type[Package]
-    settings: Settings
-    template: Settings
+    settings: QmSettings
+    template: QmSettings
 
 
 MOVE_DEFAULT = np.array([
@@ -406,24 +465,24 @@ def prm_subclass(cls: type) -> bool:
 #: Schema for validating the ``"param"`` block.
 param_schema = Schema({
     Optional_('type', default=lambda: ParamMapping): Or(
-        And(None, Use(lambda n: ParamMapping)),
+        And(None, Default(ParamMapping, call=False)),
         And(str, Use(lambda n: get_importable(n, validate=prm_subclass))),
         And(type, prm_subclass)
     ),
 
     Optional_('func', default=lambda: np.multiply): Or(
-        And(None, Use(lambda n: np.multiply)),
+        And(None, Default(np.multiply, call=False)),
         And(str, Use(lambda n: get_importable(n, callable))),
         abc.Callable
     ),
 
     Optional_('kwargs', default=dict): Or(
-        And(None, Use(lambda n: {})),
+        And(None, Default(dict)),
         And(abc.Mapping, lambda n: all(isinstance(k, str) for k in n.keys())),
     ),
 
     Optional_('move_range', default=lambda: MOVE_DEFAULT.copy()): Or(
-        And(None, Use(lambda n: MOVE_DEFAULT.copy())),
+        And(None, Default(MOVE_DEFAULT.copy)),
         And(abc.Sequence, Use(lambda n: np.asarray(n, dtype=float))),
         And(SupportsArray, Use(lambda n: np.asarray(n, dtype=float))),
         And(abc.Iterable, Use(lambda n: np.fromiter(n, dtype=float))),
@@ -477,19 +536,19 @@ main_schema = Schema({
     ),
 
     Optional_('monte_carlo', default=dict): Or(
-        And(None, lambda n: {}),
+        And(None, Default(dict)),
         And(abc.MutableMapping, lambda n: all(isinstance(k, str) for k in n.keys())),
         And(abc.Mapping, lambda n: all(isinstance(k, str) for k in n.keys()), Use(dict))
     ),
 
     Optional_('phi', default=dict): Or(
-        And(None, lambda n: {}),
+        And(None, Default(dict)),
         And(abc.MutableMapping, lambda n: all(isinstance(k, str) for k in n.keys())),
         And(abc.Mapping, lambda n: all(isinstance(k, str) for k in n.keys()), Use(dict))
     ),
 
     Optional_('psf', default=dict): Or(
-        And(None, lambda n: {}),
+        And(None, Default(dict)),
         And(abc.MutableMapping, lambda n: all(isinstance(k, str) for k in n.keys())),
         And(abc.Mapping, lambda n: all(isinstance(k, str) for k in n.keys()), Use(dict))
     )
