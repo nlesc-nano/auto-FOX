@@ -15,6 +15,7 @@ from typing import (
     Dict, TYPE_CHECKING, Generator, List, Collection, TypeVar, overload
 )
 
+import numpy as np
 import pandas as pd
 
 from scm.plams import Molecule
@@ -32,6 +33,7 @@ from ..io.read_psf import PSFContainer, overlay_str_file, overlay_rtf_file
 from ..classes import MultiMolecule
 from ..functions.molecule_utils import fix_bond_orders, residue_argsort
 from ..functions.utils import get_atom_count, split_dict
+from ..functions.charge_utils import assign_constraints
 
 if TYPE_CHECKING:
     from .package_manager import PackageManager
@@ -139,6 +141,11 @@ def get_param(dct: ParamMapping_) -> Tuple[ParamMapping, dict, dict]:
     prm_dict = validate_param(_prm_dict)
     kwargs = prm_dict.pop('kwargs')
     data = _get_param_df(_sub_prm_dict)
+    data['constraints'] = None
+    data['min'] = -np.inf
+    data['max'] = np.inf
+    data[['constraints', 'min', 'max']] = list(_get_prm_constraints(_sub_prm_dict))
+
     _sub_prm_dict_frozen = _get_prm_frozen(_sub_prm_dict)
 
     param_type = prm_dict.pop('type')  # type: ignore
@@ -261,15 +268,15 @@ def prm_iter(dct: NestedDict) -> Generator[Tuple[KT, MT], None, None]:
 def _get_param_df(dct: Mapping[str, Any]) -> pd.DataFrame:
     """Construct a DataFrame for :class:`ParamMapping`."""
     columns = ['key', 'param_type', 'atoms', 'param']
-    data = _get_param(dct)
+    data = _get_prm(dct)
 
     df = pd.DataFrame(data, columns=columns)
     df.set_index(['key', 'param_type', 'atoms'], inplace=True)
     return df
 
 
-def _get_param(dct: Mapping[str, Union[Mapping, Iterable[Mapping]]]
-               ) -> Generator[PrmTuple, None, None]:
+def _get_prm(dct: Mapping[str, Union[Mapping, Iterable[Mapping]]]
+             ) -> Generator[PrmTuple, None, None]:
     """Create a generator yielding DataFrame rows for :class:`ParamMapping`."""
     ignore_keys = {'frozen', 'constraints', 'param', 'unit', 'guess'}
 
@@ -303,8 +310,32 @@ def _get_prm_frozen(dct: Mapping[str, Union[MutableMapping, Iterable[MutableMapp
     return ret if ret else None
 
 
+def _get_prm_constraints(dct: Mapping[str, Union[MutableMapping, Iterable[MutableMapping]]]
+                         ) -> Generator[Tuple[Optional[dict], float, float], None, None]:
+    """Parse all user-provided constraints."""
+    ignore_keys = {'frozen', 'constraints', 'param', 'unit', 'guess'}
+    ret: Dict[str, List[dict]] = {}
+
+    dct_iterator = prm_iter(dct)
+    for key_alias, sub_dict in dct_iterator:
+        try:
+            proto_constraints = sub_dict.pop('constraints')
+        except KeyError:
+            for k in sub_dict:
+                if k not in ignore_keys:
+                    yield None, -np.inf, np.inf
+            continue
+
+        extremites, constraints = assign_constraints(proto_constraints)
+        for k in sub_dict:
+            if k not in ignore_keys:
+                yield (constraints,
+                       extremites.get((k, 'min'), -np.inf),
+                       extremites.get((k, 'max'), np.inf))
+
+
 @overload
-def update_count(param: ParamMapping, psf: Iterable[PSFContainer], mol: None) -> None: ...
+def update_count(param: ParamMapping, psf: Iterable[PSFContainer], mol: Any) -> None: ...
 @overload   # noqa: E302
 def update_count(param: ParamMapping, psf: None, mol: Iterable[MultiMolecule]) -> None: ...
 def update_count(param, psf=None, mol=None):  # noqa: E302

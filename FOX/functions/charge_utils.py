@@ -2,10 +2,9 @@
 
 import functools
 from types import MappingProxyType
-from itertools import repeat
 from typing import (
     Hashable, Optional, Collection, Mapping, Container, List, Dict, Union, Iterable, Tuple, Any,
-    SupportsFloat
+    SupportsFloat, Generator, Iterator
 )
 
 import numpy as np
@@ -13,7 +12,7 @@ import pandas as pd
 
 __all__ = ['update_charge']
 
-ConstrainDict = Mapping[Hashable, functools.partial]
+ConstrainDict = Mapping[str, functools.partial]
 
 
 class ChargeError(ValueError):
@@ -169,7 +168,10 @@ def unconstrained_update(net_charge: float, param: pd.Series, count: pd.Series,
                          prm_max: Optional[Iterable[float]] = None,
                          exclude: Optional[Container[str]] = None) -> None:
     """Perform an unconstrained update of atomic charges."""
-    include = pd.Series([i not in exclude for i in param.keys()], index=param.index)
+    if exclude is None:
+        include = pd.Series(np.ones_like(param, dtype=bool), index=param.index)
+    else:
+        include = pd.Series([i not in exclude for i in param.keys()], index=param.index)
     if not include.any():
         return
 
@@ -209,8 +211,11 @@ def invert_partial_ufunc(ufunc: functools.partial) -> functools.partial:
     return functools.partial(func, x2**-1)
 
 
-def assign_constraints(constraints: Union[str, Iterable[str]],
-                       param: pd.DataFrame, idx_key: str) -> None:
+ExtremiteDict = Dict[Tuple[str, str], float]
+
+
+def assign_constraints(constraints: Union[str, Iterable[str]]
+                       ) -> Tuple[ExtremiteDict, Optional[ConstrainDict]]:
     operator_set = {'>', '<', '*', '=='}
 
     # Parse integers and floats
@@ -237,11 +242,14 @@ def assign_constraints(constraints: Union[str, Iterable[str]],
         constrain_list.append(item_list)
 
     # Set values in **param**
+    extremite_dict: ExtremiteDict = {}
+    constraints_ = None
     for constrain in constrain_list:
         if '==' in constrain:
-            _eq_constraints(constrain, param, idx_key)
+            constraints_ = _eq_constraints(constrain)
         else:
-            _gt_lt_constraints(constrain, param, idx_key)
+            extremite_dict.update(_gt_lt_constraints(constrain))
+    return extremite_dict, constraints_
 
 
 #: Map ``"min"`` to ``"max"`` and *vice versa*.
@@ -251,20 +259,17 @@ _INVERT = MappingProxyType({'max': 'min', 'min': 'max'})
 _OPPERATOR_MAPPING = MappingProxyType({'<': 'min', '<=': 'min', '>': 'max', '>=': 'max'})
 
 
-def _gt_lt_constraints(constrain: list, param: pd.DataFrame, idx_key: str) -> None:
+def _gt_lt_constraints(constrain: list) -> Generator[Tuple[Tuple[str, str], float], None, None]:
     r"""Parse :math:`>`, :math:`<`, :math:`\ge` and :math:`\le`-type constraints."""
     for i, j in enumerate(constrain):
         if j not in _OPPERATOR_MAPPING:
             continue
 
-        operator, value, at = _OPPERATOR_MAPPING[j], constrain[i-1], constrain[i+1]
-        if isinstance(at, float):
-            at, value = value, at
+        operator, value, atom = _OPPERATOR_MAPPING[j], constrain[i-1], constrain[i+1]
+        if isinstance(atom, float):
+            atom, value = value, atom
             operator = _INVERT[operator]
-        if (idx_key, at) not in param.index:
-            raise KeyError(f"Assigning invalid constraint '({' '.join(str(i) for i in constrain)})'"
-                           f"; no parameter available of type ({repr(idx_key)}, {repr(at)})")
-        param.at[(idx_key, at), operator] = value
+        yield (atom, operator), value
 
 
 def _find_float(iterable: Tuple[str, str]) -> Tuple[str, float]:
@@ -280,34 +285,26 @@ def _find_float(iterable: Tuple[str, str]) -> Tuple[str, float]:
         return i, float(j)
 
 
-def _eq_constraints(constrain_: list, param: pd.DataFrame, idx_key: str) -> None:
+def _eq_constraints(constrain_: list) -> Dict[str, functools.partial]:
     """Parse :math:`a = i * b`-type constraints."""
     constrain_dict: Dict[str, functools.partial] = {}
     constrain = ''.join(str(i) for i in constrain_).split('==')
-    iterator = iter(constrain)
+    iterator: Iterator[str] = iter(constrain)
 
     # Set the first item; remove any prefactor and compensate al other items if required
-    item = next(iterator).split('*')
-    if len(item) == 1:
-        at = item[0]
+    item_ = next(iterator).split('*')
+    if len(item_) == 1:
+        at = item_[0]
         multiplier = 1.0
-    elif len(item) == 2:
-        at, multiplier = _find_float(item)
+    elif len(item_) == 2:
+        at, multiplier = _find_float(item_)
         multiplier **= -1
     constrain_dict[at] = functools.partial(np.multiply, 1.0)
 
     # Assign all other constraints
     for item in iterator:
-        item = item.split('*')
-        at, i = _find_float(item)
+        item_ = item.split('*')
+        atom, i = _find_float(item_)
         i *= multiplier
         constrain_dict[at] = functools.partial(np.multiply, i)
-
-    # Update the dataframe
-    param['constraints'] = None
-    for k in constrain_dict:
-        if (idx_key, k) not in param.index:
-            raise KeyError(f"Assigning invalid constraint '({' '.join(str(i) for i in constrain_)})"
-                           f"'; no parameter available of type ({repr(idx_key)}, {repr(at)})")
-    for at, _ in param.loc[idx_key].iterrows():
-        param.at[(idx_key, at), 'constraints'] = constrain_dict
+    return constrain_dict
