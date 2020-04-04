@@ -48,6 +48,9 @@ T = TypeVar('T')
 
 EPILOG = '.\n\n{name}: {type} = {value!r:100}'
 
+# Create a number of callables which take a single parameter is argument
+# This ensures they can be used with :class:`schema.Use`.
+
 phi_subclass = issubclass_factory(PhiUpdaterABC)
 mc_subclass = issubclass_factory(MonteCarloABC)
 pkg_subclass = issubclass_factory(PackageManagerABC)
