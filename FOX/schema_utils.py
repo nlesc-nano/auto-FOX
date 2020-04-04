@@ -18,6 +18,7 @@ API
 
 import inspect
 import warnings
+from types import FunctionType
 from typing import (TypeVar, SupportsFloat, SupportsInt, Any, Callable, Union, Tuple,
                     Optional, overload)
 
@@ -25,7 +26,7 @@ from .type_hints import Literal
 from .functions.utils import get_importable
 
 __all__ = ['Default', 'Formatter', 'supports_float', 'supports_int',
-           'isinstance_factory', 'issubclass_factory']
+           'isinstance_factory', 'issubclass_factory', 'import_factory']
 
 T = TypeVar('T')
 
@@ -234,7 +235,8 @@ def import_factory(validate: Optional[Callable[[T], bool]] = None) -> Callable[[
     return func
 
 
-def _get_directive(obj: Any) -> str:
+def _get_directive(string: str) -> str:
+    obj: Union[type, FunctionType] = globals()[string]
     if isinstance(obj, type):
         return f'.. autoclass:: {obj}'
     else:
