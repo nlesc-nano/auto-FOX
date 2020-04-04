@@ -17,9 +17,8 @@ API
 """
 
 import os
-import warnings
 from collections import abc
-from typing import (overload, Any, SupportsInt, SupportsFloat, Type, Mapping, Collection, Sequence,
+from typing import (Any, SupportsInt, SupportsFloat, Type, Mapping, Collection, Sequence,
                     Callable, Union, Optional, Tuple, FrozenSet, Iterable, Dict, TypeVar)
 
 import numpy as np
@@ -34,9 +33,11 @@ from .monte_carlo import MonteCarloABC
 from .package_manager import PackageManager, PackageManagerABC
 from .phi_updater import PhiUpdater, PhiUpdaterABC
 from .param_mapping import ParamMapping, ParamMappingABC
-from ..type_hints import Literal, SupportsArray, TypedDict, NDArray
+from ..type_hints import SupportsArray, TypedDict, NDArray
 from ..classes import MultiMolecule
-from ..functions.utils import get_importable, _get_move_range
+from ..functions.utils import _get_move_range
+from ..schema_utils import (Default, Formatter, supports_float, supports_int,
+                            isinstance_factory, issubclass_factory, import_factory)
 
 __all__ = [
     'validate_phi', 'validate_monte_carlo', 'validate_psf', 'validate_pes',
@@ -45,124 +46,30 @@ __all__ = [
 
 T = TypeVar('T')
 
-
-@overload
-def supports_float(value: SupportsFloat) -> Literal[True]: ...
-@overload   # noqa: E302
-def supports_float(value: Any) -> bool: ...
-def supports_float(value):  # noqa: E302
-    """Check if a float-like object has been passed (:data:`~typing.SupportsFloat`)."""
-    try:
-        value.__float__()
-        return True
-    except Exception:
-        return False
-
-
-@overload
-def supports_int(value: SupportsInt) -> Literal[True]: ...
-@overload   # noqa: E302
-def supports_int(value: Any) -> bool: ...
-def supports_int(value):  # noqa: E302
-    """Check if a int-like object has been passed (:data:`~typing.SupportsInt`)."""
-    # floats that can be exactly represented by an integer are also fine
-    try:
-        value.__int__()
-        return float(value).is_integer()
-    except Exception:
-        return False
-
-
-def phi_subclass(cls: type) -> bool:
-    """Check if **cls** is a subclass of :class:`PhiUpdaterABC`."""
-    return issubclass(cls, PhiUpdaterABC)
-
-
-class Default:
-    """A validation class akin to the likes of :class:`schemas.Use`.
-
-    Upon executing :meth:`Default.validate` returns the stored :attr:`~Default.value`.
-    If :attr:`~Default.call` is ``True`` and the value is a callable,
-    then it is called before its return.
-
-    Examples
-    --------
-    .. code:: python
-
-        >>> from schema import Schema
-
-        >>> schema1 = Schema(int, Default(True))
-        >>> schema1.validate(1)
-        True
-
-        >>> schema2 = Schema(int, Default(dict))
-        >>> schema2.validate(1)
-        {}
-
-        >>> schema3 = Schema(int, Default(dict, call=False))
-        >>> schema3.validate(1)
-        <class 'dict'>
-
-
-    Attributes
-    ----------
-    value : :class:`~collections.abc.Callable` or :data:`~typing.Any`
-        The to-be return value for when :meth:`Default.validate` is called.
-        If :attr:`Default.call` is ``True`` then the value is called
-        (if possible) before its return.
-    call : :class:`bool`
-        Whether to call :attr:`Default.value` before its return (if possible) or not.
-
-    """
-
-    value: Any
-    call: bool
-
-    def __init__(self, value: Union[T, Callable[[], T]], call: bool = True) -> None:
-        self.value = value
-        self.call = call
-
-    def __repr__(self) -> str:
-        return f'{self.__class__.__name__}({self.value!r}, call={self.call!r})'
-
-    def validate(self, data: Any) -> Union[T, Callable[[], T]]:
-        if self.call and callable(self.value):
-            return self.value()
-        else:
-            return self.value
-
-
-class Formatter(str):
-    def __init__(self, msg: str):
-        self.msg = msg
-
-    def __repr__(self) -> str:
-        return f'{self.__class__.__name__}(msg={self.msg!r})'
-
-    def format(self, obj: Any) -> str:
-        name = self.msg.split("'", maxsplit=2)[1]
-        name_ = name or 'value'
-        try:
-            return self.msg.format(name=name_, value=obj, type=obj.__class__.__name__)
-        except Exception as ex:
-            err = RuntimeWarning(ex)
-            err.__cause__ = ex
-            warnings.warn(err)
-            return repr(obj)
-
-    @property
-    def __mod__(self) -> Callable[[Any], str]:
-        return self.format
-
-
 EPILOG = '.\n\n{name}: {type} = {value!r:100}'
+
+phi_subclass = issubclass_factory(PhiUpdaterABC)
+mc_subclass = issubclass_factory(MonteCarloABC)
+pkg_subclass = issubclass_factory(PackageManagerABC)
+prm_subclass = issubclass_factory(ParamMappingABC)
+qm_pkg_instance = isinstance_factory(Package)
+mapping_instance = isinstance_factory(abc.Mapping)
+
+import_phi = import_factory(validate=phi_subclass)
+import_mc = import_factory(validate=mc_subclass)
+import_pkg = import_factory(validate=pkg_subclass)
+import_prm = import_factory(validate=prm_subclass)
+import_qm_pkg = import_factory(validate=qm_pkg_instance)
+import_mapping = import_factory(validate=mapping_instance)
+
+import_func = import_factory(validate=callable)
 
 
 #: Schema for validating the ``"phi"`` block.
 phi_schema = Schema({
     Optional_('type', default=lambda: PhiUpdater): Or(
         And(None, Default(PhiUpdater)),
-        And(str, Use(lambda n: get_importable(n, validate=phi_subclass))),
+        And(str, Use(import_phi)),
         And(type, phi_subclass),
         error=Formatter(f"'phi.type' expected a PhiUpdater class; observed value{EPILOG}")
     ),
@@ -187,7 +94,7 @@ phi_schema = Schema({
 
     Optional_('func', default=lambda: np.add): Or(
         And(None, Default(np.add, call=False)),
-        And(str, Use(lambda n: get_importable(n, validate=callable))),
+        And(str, Use(import_func)),
         abc.Callable,
         error=Formatter(f"'phi.func' expected a Callable object{EPILOG}")
     ),
@@ -222,16 +129,11 @@ class PhiDict(TypedDict):
     kwargs: Mapping[str, Any]
 
 
-def mc_subclass(cls: type) -> bool:
-    """Check if **cls** is a subclass of :class:`MonteCarloABC`."""
-    return issubclass(cls, MonteCarloABC)
-
-
 #: Schema for validating the ``"monte_carlo"`` block.
 mc_schema = Schema({
     Optional_('type', default=lambda: ARMC): Or(
         And(None, Default(ARMC, call=False)),
-        And(str, Use(lambda n: get_importable(n, validate=mc_subclass))),
+        And(str, Use(import_mc)),
         And(type, mc_subclass),
         error=Formatter(f"'monte_carlo.type' expected an ARMC class{EPILOG}")
     ),
@@ -366,7 +268,7 @@ class PSFDict(TypedDict):
 #: Schema for validating the ``"pes"`` block.
 pes_schema = Schema({
     'func': Or(
-        And(str, Use(lambda n: get_importable(n, validate=callable))),
+        And(str, Use(import_func)),
         abc.Callable,
         error=Formatter(f"'pes.*.func' expected a callable object{EPILOG}")
     ),
@@ -402,16 +304,11 @@ class PESDict(TypedDict):
     kwargs: Union[Mapping[str, Any], Tuple[Mapping[str, Any], ...]]
 
 
-def pkg_subclass(cls: type) -> bool:
-    """Check if **cls** is a subclass of :class:`PackageManagerABC`."""
-    return issubclass(cls, PackageManagerABC)
-
-
 #: Schema for validating the ``"job"`` block.
 job_schema = Schema({
     Optional_('type', default=lambda: PackageManager): Or(
         And(None, Default(PackageManager, call=False)),
-        And(str, Use(lambda n: get_importable(n, validate=pkg_subclass))),
+        And(str, Use(import_pkg)),
         And(type, pkg_subclass),
         error=Formatter(f"'job.func' expected a PackageManager class{EPILOG}")
     ),
@@ -446,21 +343,11 @@ class JobDict(TypedDict):
     molecule: Tuple[MultiMolecule, ...]
 
 
-def qm_pkg_instance(obj: Any) -> bool:
-    """Check if **cls** is a subclass of :class:`Package`."""
-    return isinstance(obj, Package)
-
-
-def mapping_instance(obj: Any) -> bool:
-    """Check if **cls** is a subclass of :class:`Settings`."""
-    return isinstance(obj, abc.Mapping)
-
-
 #: Schema for validating sub blocks within the ``"pes"`` block.
 sub_job_schema = Schema({
     Optional_('type', default=lambda: cp2k_mm): Or(
         And(None, Default(cp2k_mm, call=False)),
-        And(str, Use(lambda n: get_importable(n, validate=qm_pkg_instance))),
+        And(str, Use(import_qm_pkg)),
         Package,
         error=Formatter(f"'job.*.type' expected a Package instance{EPILOG}")
     ),
@@ -473,7 +360,7 @@ sub_job_schema = Schema({
 
     Optional_('template', default=QmSettings): Or(
         And(None, Default(QmSettings)),
-        And(str, Use(lambda n: QmSettings(get_importable(n, validate=mapping_instance)))),
+        And(str, Use(lambda n: QmSettings(import_mapping(n)))),
         And(abc.Mapping, Use(QmSettings)),
         error=Formatter(f"'job.*.template' expected a Mapping{EPILOG}")
     )
@@ -506,23 +393,18 @@ MOVE_DEFAULT = np.array([
 MOVE_DEFAULT.setflags(write=False)
 
 
-def prm_subclass(cls: type) -> bool:
-    """Check if **cls** is a subclass of :class:`ParamMappingABC`."""
-    return issubclass(cls, ParamMappingABC)
-
-
 #: Schema for validating the ``"param"`` block.
 param_schema = Schema({
     Optional_('type', default=lambda: ParamMapping): Or(
         And(None, Default(ParamMapping, call=False)),
-        And(str, Use(lambda n: get_importable(n, validate=prm_subclass))),
+        And(str, Use(import_prm)),
         And(type, prm_subclass),
         error=Formatter(f"'param.type' expected a ParamMapping class{EPILOG}")
     ),
 
     Optional_('func', default=lambda: np.multiply): Or(
         And(None, Default(np.multiply, call=False)),
-        And(str, Use(lambda n: get_importable(n, callable))),
+        And(str, Use(import_func)),
         abc.Callable,
         error=Formatter(f"'param.func' expected a Callable object{EPILOG}")
     ),
@@ -574,41 +456,41 @@ class ParamDict(TypedDict):
 
 main_schema = Schema({
     'param': Or(
-        And(abc.MutableMapping, lambda n: all(isinstance(k, str) for k in n.keys())),
-        And(abc.Mapping, lambda n: all(isinstance(k, str) for k in n.keys()), Use(dict)),
+        abc.MutableMapping,
+        And(abc.Mapping, Use(dict)),
         error=Formatter(f"'param' expected a Mapping{EPILOG}")
     ),
 
     'pes': Or(
-        And(abc.MutableMapping, lambda n: all(isinstance(k, str) for k in n.keys())),
-        And(abc.Mapping, lambda n: all(isinstance(k, str) for k in n.keys()), Use(dict)),
+        abc.MutableMapping,
+        And(abc.Mapping, Use(dict)),
         error=Formatter(f"'pes' expected a Mapping{EPILOG}")
     ),
 
     'job': Or(
-        And(abc.MutableMapping, lambda n: all(isinstance(k, str) for k in n.keys())),
-        And(abc.Mapping, lambda n: all(isinstance(k, str) for k in n.keys()), Use(dict)),
+        abc.MutableMapping,
+        And(abc.Mapping, Use(dict)),
         error=Formatter(f"'job' expected a Mapping{EPILOG}")
     ),
 
     Optional_('monte_carlo', default=dict): Or(
         And(None, Default(dict)),
-        And(abc.MutableMapping, lambda n: all(isinstance(k, str) for k in n.keys())),
-        And(abc.Mapping, lambda n: all(isinstance(k, str) for k in n.keys()), Use(dict)),
+        abc.MutableMapping,
+        And(abc.Mapping, Use(dict)),
         error=Formatter(f"'monte_carlo' expected a Mapping{EPILOG}")
     ),
 
     Optional_('phi', default=dict): Or(
         And(None, Default(dict)),
-        And(abc.MutableMapping, lambda n: all(isinstance(k, str) for k in n.keys())),
-        And(abc.Mapping, lambda n: all(isinstance(k, str) for k in n.keys()), Use(dict)),
+        abc.MutableMapping,
+        And(abc.Mapping, Use(dict)),
         error=Formatter(f"'phi' expected a Mapping{EPILOG}")
     ),
 
     Optional_('psf', default=dict): Or(
         And(None, Default(dict)),
-        And(abc.MutableMapping, lambda n: all(isinstance(k, str) for k in n.keys())),
-        And(abc.Mapping, lambda n: all(isinstance(k, str) for k in n.keys()), Use(dict)),
+        abc.MutableMapping,
+        And(abc.Mapping, Use(dict)),
         error=Formatter(f"'psf' expected a Mapping{EPILOG}")
     )
 })
