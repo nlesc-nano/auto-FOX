@@ -18,7 +18,8 @@ API
 
 import inspect
 import warnings
-from typing import TypeVar, SupportsFloat, SupportsInt, Any, Callable, Union, Tuple, Optional, overload
+from typing import (TypeVar, SupportsFloat, SupportsInt, Any, Callable, Union, Tuple,
+                    Optional, overload)
 
 from .type_hints import Literal
 from .functions.utils import get_importable
@@ -96,7 +97,7 @@ class Default:
     value: Any
     call: bool
 
-    def __init__(self, value: Union[T, Callable[[], T]], call: bool = True) -> None:
+    def __init__(self, value: Union[Any, Callable[[], Any]], call: bool = True) -> None:
         """Initialize an instance."""
         self.value = value
         self.call = call
@@ -105,7 +106,7 @@ class Default:
         """Implement :code:`str(self)` and :code:`repr(self)`."""
         return f'{self.__class__.__name__}({self.value!r}, call={self.call!r})'
 
-    def validate(self, data: Any) -> Union[T, Callable[[], T]]:
+    def validate(self, data: Any) -> Union[Any, Callable[[], Any]]:
         """Validate the passed **data**."""
         if self.call and callable(self.value):
             return self.value()
@@ -143,7 +144,7 @@ class Formatter(str):
         return self.format
 
 
-def _get_caller_module(n: int = 2) -> str:
+def _get_caller_module(n: int = 1) -> str:
     """Return the module name **n** levels up the stack."""
     try:
         frm = inspect.stack()[n]
@@ -151,10 +152,17 @@ def _get_caller_module(n: int = 2) -> str:
         return f'{__package__}.{__name__}'
 
     mod = inspect.getmodule(frm[0])
-    try:
+    if mod is not None:
         return mod.__name__
-    except AttributeError:
+    else:
         return f'{__package__}.{__name__}'
+
+
+def _setattrs(func: Callable, name: str, doc: str) -> None:
+    """Set the :attr:`__name__`, :attr:`__qualname__`, :attr:`__doc__` and :attr:`__module__` attributes of **func**."""  # noqa: E501
+    func.__name__ = func.__qualname__ = name
+    func.__doc__ = f"Return :func:`isinstance(obj, {doc})<isinstance>`."
+    func.__module__ = _get_caller_module(n=3)
 
 
 ClassOrTuple = Union[type, Tuple[type, ...]]
@@ -162,7 +170,11 @@ Doc = Union[str, Tuple[str, ...]]
 
 
 def isinstance_factory(class_or_tuple: ClassOrTuple) -> Callable[[Any], bool]:
-    """Return a function which checks if the passed object is an instance of **class_or_tuple**."""
+    """Return a function which checks if the passed object is an instance of **class_or_tuple**.
+
+    Serves a similar, albit more specialized, function as :class:`functools.partial`.
+
+    """
     if isinstance(class_or_tuple, type):
         name = f"isinstance_{class_or_tuple.__name__}"
         doc: Doc = class_or_tuple.__name__
@@ -173,14 +185,16 @@ def isinstance_factory(class_or_tuple: ClassOrTuple) -> Callable[[Any], bool]:
     def func(obj: Any) -> bool:
         return isinstance(obj, class_or_tuple)
 
-    func.__name__ = func.__qualname__ = name
-    func.__doc__ = f"""Return :code:`isinstance(obj, {doc})`."""
-    func.__module__ = _get_caller_module()
+    _setattrs(func, name, f"Return :func:`isinstance(obj, {doc})<isinstance>`.")
     return func
 
 
 def issubclass_factory(class_or_tuple: ClassOrTuple) -> Callable[[type], bool]:
-    """Return a function which checks if the passed class is a subclass of **class_or_tuple**."""
+    """Return a function which checks if the passed class is a subclass of **class_or_tuple**.
+
+    Serves a similar, albit more specialized, function as :class:`functools.partial`.
+
+    """
     if isinstance(class_or_tuple, type):
         name = f"issubclass_{class_or_tuple.__name__}"
         doc: Doc = class_or_tuple.__name__
@@ -191,9 +205,7 @@ def issubclass_factory(class_or_tuple: ClassOrTuple) -> Callable[[type], bool]:
     def func(cls: type) -> bool:
         return issubclass(cls, class_or_tuple)
 
-    func.__name__ = func.__qualname__ = name
-    func.__doc__ = f"""Return :code:`issubclass(cls, {doc})`."""
-    func.__module__ = _get_caller_module()
+    _setattrs(func, name, f"Return :func:`issubclass(cls, {doc})<issubclass>`.")
     return func
 
 
@@ -201,16 +213,24 @@ GET_IMPORTABLE = f"{get_importable.__module__}.{get_importable.__name__}"
 
 
 def import_factory(validate: Optional[Callable[[T], bool]] = None) -> Callable[[str], T]:
-    """Return a function which calls :func:`get_importable` with the **validate** argument."""
+    """Return a function which calls :func:`~FOX.functions.utils.get_importable` with the **validate** argument.
+
+    Serves a similar, albit more specialized, function as :class:`functools.partial`.
+
+    """  # noqa: E501
     def func(string: str) -> T:
         return get_importable(string, validate=validate)
 
-    _doc = getattr(validate, '__qualname__', validate.__name__)
-    doc = f'{validate.__module__}.{_doc}'
+    try:
+        _doc = getattr(validate, '__qualname__', validate.__name__)  # type: ignore
+    except AttributeError:  # Incase something like a functools.partial object is encountered
+        _doc = repr(validate)
+    finally:
+        name = f'get_importable_{hash(validate)}'
+        doc = f'{validate.__module__}.{_doc}'
 
-    func.__name__ = func.__qualname__ = f'get_importable_{hash(validate)}'
-    func.__doc__ = f"""Return :code:`{GET_IMPORTABLE}(string, validate={doc})`."""
-    func.__module__ = _get_caller_module()
+    _setattrs(func, name,
+              f"Return :func:`get_importable(string, validate={doc})<{GET_IMPORTABLE}>`.")
     return func
 
 
