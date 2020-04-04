@@ -17,6 +17,7 @@ API
 """
 
 import os
+import warnings
 from collections import abc
 from typing import (overload, Any, SupportsInt, SupportsFloat, Type, Mapping, Collection, Sequence,
                     Callable, Union, Optional, Tuple, FrozenSet, Iterable, Dict, TypeVar)
@@ -131,46 +132,72 @@ class Default:
             return self.value
 
 
+class Formatter(str):
+    def __init__(self, msg: str):
+        self.msg = msg
+
+    def __repr__(self) -> str:
+        return f'{self.__class__.__name__}(msg={self.msg!r})'
+
+    def format(self, obj: Any) -> str:
+        name = self.msg.split("'", maxsplit=2)[1]
+        name_ = name or 'value'
+        try:
+            return self.msg.format(name=name_, value=obj, type=obj.__class__.__name__)
+        except Exception as ex:
+            err = RuntimeWarning(ex)
+            err.__cause__ = ex
+            warnings.warn(err)
+            return repr(obj)
+
+    @property
+    def __mod__(self) -> Callable[[Any], str]:
+        return self.format
+
+
+EPILOG = '.\n\n{name}: {type} = {value!r:100}'
+
+
 #: Schema for validating the ``"phi"`` block.
 phi_schema = Schema({
     Optional_('type', default=lambda: PhiUpdater): Or(
         And(None, Default(PhiUpdater)),
         And(str, Use(lambda n: get_importable(n, validate=phi_subclass))),
         And(type, phi_subclass),
-        error="'phi.type' expected a PhiUpdater class; observed value: {!r:100}"
+        error=Formatter(f"'phi.type' expected a PhiUpdater class; observed value{EPILOG}")
     ),
 
     Optional_('phi', default=1.0): Or(
         And(None, Default(1.0)),
         And(supports_float, Use(float)),
-        error="'phi.phi' expected a float; observed value: {!r:100}"
+        error=Formatter(f"'phi.phi' expected a float{EPILOG}")
     ),
 
     Optional_('gamma', default=2.0): Or(
         And(None, Default(2.0)),
         And(supports_float, Use(float)),
-        error="'phi.gamma' expected a float; observed value: {!r:100}"
+        error=Formatter(f"'phi.gamma' expected a float{EPILOG}")
     ),
 
     Optional_('a_target', default=0.25): Or(
         And(None, Default(0.25)),
         And(supports_float, lambda n: 0 < float(n) <= 1, Use(float)),
-        error="'phi.a_target' expected a float in the (0, 1] interval; observed value: {!r:100}"
+        error=Formatter(f"'phi.a_target' expected a float in the (0, 1] interval{EPILOG}")
     ),
 
     Optional_('func', default=lambda: np.add): Or(
         And(None, Default(np.add, call=False)),
         And(str, Use(lambda n: get_importable(n, validate=callable))),
         abc.Callable,
-        error="'phi.func' expected a Callable object; observed value: {!r:100}"
+        error=Formatter(f"'phi.func' expected a Callable object{EPILOG}")
     ),
 
     Optional_('kwargs', default=dict): Or(
         And(None, Default(dict)),
         And(abc.Mapping, lambda n: all(isinstance(k, str) for k in n.keys())),
-        error="'phi.kwargs' expected a Mapping; observed value: {!r:100}"
+        error=Formatter(f"'phi.kwargs' expected a Mapping{EPILOG}")
     )
-})
+}, name='phi_schema', description='Schema for validating the ``"phi"`` block.')
 
 
 class PhiMapping(TypedDict, total=False):
@@ -206,53 +233,53 @@ mc_schema = Schema({
         And(None, Default(ARMC, call=False)),
         And(str, Use(lambda n: get_importable(n, validate=mc_subclass))),
         And(type, mc_subclass),
-        error="'monte_carlo.type' expected an ARMC class; observed value: {!r:100}"
+        error=Formatter(f"'monte_carlo.type' expected an ARMC class{EPILOG}")
     ),
 
     Optional_('iter_len', default=50000): Or(
         And(None, Default(50000)),
         And(supports_int, lambda n: int(n) > 0, Use(int)),
-        error="'monte_carlo.iter_len' expected a positive integer; observed value: {!r:100}"
+        error=Formatter(f"'monte_carlo.iter_len' expected a positive integer{EPILOG}")
     ),
 
     Optional_('sub_iter_len', default=100): Or(
         And(None, Default(100)),
         And(supports_int, lambda n: int(n) > 0, Use(int)),
-        error="'monte_carlo.sub_iter_len' expected a positive integer; observed value: {!r:100}"
+        error=Formatter(f"'monte_carlo.sub_iter_len' expected a positive integer{EPILOG}")
     ),
 
     Optional_('hdf5_file', default='armc.hdf5'): Or(
         And(None, Default('armc.hdf5')),
         str,
         os.PathLike,
-        error="'monte_carlo.hdf5_file' expected a path-like object; observed value: {!r:100}"
+        error=Formatter(f"'monte_carlo.hdf5_file' expected a path-like object{EPILOG}")
     ),
 
     Optional_('logfile', default=lambda: 'armc.log'): Or(
         And(None, Default('armc.log')),
         str,
         os.PathLike,
-        error="'monte_carlo.logfile' expected a path-like object; observed value: {!r:100}"
+        error=Formatter(f"'monte_carlo.logfile' expected a path-like object{EPILOG}")
     ),
 
     Optional_('path', default=lambda: os.getcwd()): Or(
         And(None, Default(os.getcwd)),
         And(str, Use(os.path.abspath)),
         And(os.PathLike, Use(os.path.abspath)),
-        error="'monte_carlo.path' expected a path-like object; observed value: {!r:100}"
+        error=Formatter(f"'monte_carlo.path' expected a path-like object{EPILOG}")
     ),
 
     Optional_('folder', default='MM_MD_workdir'): Or(
         And(None, Default('MM_MD_workdir')),
         str,
         os.PathLike,
-        error="'monte_carlo.folder' expected a path-like object; observed value: {!r:100}"
+        error=Formatter(f"'monte_carlo.folder' expected a path-like object{EPILOG}")
     ),
 
     Optional_('keep_files', default=True): Or(
         And(None, Default(True)),
         bool,
-        error="'monte_carlo.keep_files' expected a boolean; observed value: {!r:100}"
+        error=Formatter(f"'monte_carlo.keep_files' expected a boolean{EPILOG}")
     )
 })
 
@@ -290,7 +317,7 @@ psf_schema = Schema({
         And(str, Use(lambda n: (n,))),
         And(os.PathLike, Use(lambda n: (n,))),
         And(abc.Sequence, lambda n: all(isinstance(i, (os.PathLike, str)) for i in n), Use(tuple)),
-        error="'psf.str_file' expected None or one or more path-like objects; observed value: {!r:100}"
+        error=Formatter(f"'psf.str_file' expected None or one or more path-like objects{EPILOG}")
     ),
 
     Optional_('rtf_file', default=None): Or(
@@ -298,7 +325,7 @@ psf_schema = Schema({
         And(str, Use(lambda n: (n,))),
         And(os.PathLike, Use(lambda n: (n,))),
         And(abc.Sequence, lambda n: all(isinstance(i, (os.PathLike, str)) for i in n), Use(tuple)),
-        error="'psf.rtf_file' expected None or one or more path-like objects; observed value: {!r:100}"
+        error=Formatter(f"'psf.rtf_file' expected None or one or more path-like objects{EPILOG}")
     ),
 
     Optional_('psf_file', default=None): Or(
@@ -306,14 +333,14 @@ psf_schema = Schema({
         And(str, Use(lambda n: (n,))),
         And(os.PathLike, Use(lambda n: (n,))),
         And(abc.Sequence, lambda n: all(isinstance(i, (os.PathLike, str)) for i in n), Use(tuple)),
-        error="'psf.psf_file' expected None or one or more path-like objects; observed value: {!r:100}"
+        error=Formatter(f"'psf.psf_file' expected None or one or more path-like objects{EPILOG}")
     ),
 
     Optional_('ligand_atoms', default=None): Or(
         None,
         And(str, Use(lambda n: frozenset({n}))),
         And(abc.Collection, lambda n: all(isinstance(i, str) for i in n), Use(frozenset)),
-        error="'psf.ligand_atoms' expected None or a Collection of atoms; observed value: {!r:100}"
+        error=Formatter(f"'psf.ligand_atoms' expected None or a Collection of atoms{EPILOG}")
     ),
 })
 
@@ -341,7 +368,7 @@ pes_schema = Schema({
     'func': Or(
         And(str, Use(lambda n: get_importable(n, validate=callable))),
         abc.Callable,
-        error="'pes.*.func' expected a callable object; observed value: {!r:100}"
+        error=Formatter(f"'pes.*.func' expected a callable object{EPILOG}")
     ),
 
     Optional_('kwargs', default=dict): Or(
@@ -353,7 +380,7 @@ pes_schema = Schema({
             lambda n: all(isinstance(k, str) for dct in n for k in dct.keys()),
             Use(tuple)
         ),
-        error="'pes.*.kwargs' expected a Mapping or Sequence of Mappings; observed value: {!r:100}"
+        error=Formatter(f"'pes.*.kwargs' expected a Mapping or Sequence of Mappings{EPILOG}")
     )
 })
 
@@ -386,7 +413,7 @@ job_schema = Schema({
         And(None, Default(PackageManager, call=False)),
         And(str, Use(lambda n: get_importable(n, validate=pkg_subclass))),
         And(type, pkg_subclass),
-        error="'job.func' expected a PackageManager class; observed value: {!r:100}"
+        error=Formatter(f"'job.func' expected a PackageManager class{EPILOG}")
     ),
 
     'molecule': Or(
@@ -400,7 +427,7 @@ job_schema = Schema({
                 (i if isinstance(i, MultiMolecule) else MultiMolecule.from_xyz(i)) for i in n
             ))
         ),
-        error="'job.molecule' expected one or more .xyz files; observed value: {!r:100}"
+        error=Formatter(f"'job.molecule' expected one or more .xyz files{EPILOG}")
     )
 })
 
@@ -435,20 +462,20 @@ sub_job_schema = Schema({
         And(None, Default(cp2k_mm, call=False)),
         And(str, Use(lambda n: get_importable(n, validate=qm_pkg_instance))),
         Package,
-        error="'job.*.type' expected a Package instance; observed value: {!r}"
+        error=Formatter(f"'job.*.type' expected a Package instance{EPILOG}")
     ),
 
     Optional_('settings', default=QmSettings): Or(
         And(None, Default(QmSettings)),
         And(abc.Mapping, Use(QmSettings)),
-        error="'job.*.settings' expected a Mapping; observed value: {!r}"
+        error=Formatter(f"'job.*.settings' expected a Mapping{EPILOG}")
     ),
 
     Optional_('template', default=QmSettings): Or(
         And(None, Default(QmSettings)),
         And(str, Use(lambda n: QmSettings(get_importable(n, validate=mapping_instance)))),
         And(abc.Mapping, Use(QmSettings)),
-        error="'job.*.template' expected a Mapping; observed value: {!r}"
+        error=Formatter(f"'job.*.template' expected a Mapping{EPILOG}")
     )
 })
 
@@ -490,20 +517,20 @@ param_schema = Schema({
         And(None, Default(ParamMapping, call=False)),
         And(str, Use(lambda n: get_importable(n, validate=prm_subclass))),
         And(type, prm_subclass),
-        error="'param.type' expected a ParamMapping class; observed value: {!r}"
+        error=Formatter(f"'param.type' expected a ParamMapping class{EPILOG}")
     ),
 
     Optional_('func', default=lambda: np.multiply): Or(
         And(None, Default(np.multiply, call=False)),
         And(str, Use(lambda n: get_importable(n, callable))),
         abc.Callable,
-        error="'param.func' expected a Callable object; observed value: {!r}"
+        error=Formatter(f"'param.func' expected a Callable object{EPILOG}")
     ),
 
     Optional_('kwargs', default=dict): Or(
         And(None, Default(dict)),
         And(abc.Mapping, lambda n: all(isinstance(k, str) for k in n.keys())),
-        error="'param.kwargs' expected a Mapping; observed value: {!r}"
+        error=Formatter(f"'param.kwargs' expected a Mapping{EPILOG}")
     ),
 
     Optional_('move_range', default=lambda: MOVE_DEFAULT.copy()): Or(
@@ -513,7 +540,7 @@ param_schema = Schema({
         And(abc.Iterable, Use(lambda n: np.fromiter(n, dtype=float))),
         And(abc.Mapping, lambda n: {'start', 'stop', 'step'}.issuperset(n.keys()),
             Use(lambda n: _get_move_range(**n))),
-        error="'param.move_range' expected a Mapping or array-like object; observed value: {!r}"
+        error=Formatter(f"'param.move_range' expected a Mapping or array-like object{EPILOG}")
     )
 
 })
@@ -548,35 +575,41 @@ class ParamDict(TypedDict):
 main_schema = Schema({
     'param': Or(
         And(abc.MutableMapping, lambda n: all(isinstance(k, str) for k in n.keys())),
-        And(abc.Mapping, lambda n: all(isinstance(k, str) for k in n.keys()), Use(dict))
+        And(abc.Mapping, lambda n: all(isinstance(k, str) for k in n.keys()), Use(dict)),
+        error=Formatter(f"'param' expected a Mapping{EPILOG}")
     ),
 
     'pes': Or(
         And(abc.MutableMapping, lambda n: all(isinstance(k, str) for k in n.keys())),
-        And(abc.Mapping, lambda n: all(isinstance(k, str) for k in n.keys()), Use(dict))
+        And(abc.Mapping, lambda n: all(isinstance(k, str) for k in n.keys()), Use(dict)),
+        error=Formatter(f"'pes' expected a Mapping{EPILOG}")
     ),
 
     'job': Or(
         And(abc.MutableMapping, lambda n: all(isinstance(k, str) for k in n.keys())),
-        And(abc.Mapping, lambda n: all(isinstance(k, str) for k in n.keys()), Use(dict))
+        And(abc.Mapping, lambda n: all(isinstance(k, str) for k in n.keys()), Use(dict)),
+        error=Formatter(f"'job' expected a Mapping{EPILOG}")
     ),
 
     Optional_('monte_carlo', default=dict): Or(
         And(None, Default(dict)),
         And(abc.MutableMapping, lambda n: all(isinstance(k, str) for k in n.keys())),
-        And(abc.Mapping, lambda n: all(isinstance(k, str) for k in n.keys()), Use(dict))
+        And(abc.Mapping, lambda n: all(isinstance(k, str) for k in n.keys()), Use(dict)),
+        error=Formatter(f"'monte_carlo' expected a Mapping{EPILOG}")
     ),
 
     Optional_('phi', default=dict): Or(
         And(None, Default(dict)),
         And(abc.MutableMapping, lambda n: all(isinstance(k, str) for k in n.keys())),
-        And(abc.Mapping, lambda n: all(isinstance(k, str) for k in n.keys()), Use(dict))
+        And(abc.Mapping, lambda n: all(isinstance(k, str) for k in n.keys()), Use(dict)),
+        error=Formatter(f"'phi' expected a Mapping{EPILOG}")
     ),
 
     Optional_('psf', default=dict): Or(
         And(None, Default(dict)),
         And(abc.MutableMapping, lambda n: all(isinstance(k, str) for k in n.keys())),
-        And(abc.Mapping, lambda n: all(isinstance(k, str) for k in n.keys()), Use(dict))
+        And(abc.Mapping, lambda n: all(isinstance(k, str) for k in n.keys()), Use(dict)),
+        error=Formatter(f"'psf' expected a Mapping{EPILOG}")
     )
 })
 
