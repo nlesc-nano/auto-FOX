@@ -19,8 +19,7 @@ API
 import inspect
 import warnings
 from types import FunctionType
-from typing import (TypeVar, SupportsFloat, SupportsInt, Any, Callable, Union, Tuple,
-                    Optional, overload)
+from typing import TypeVar, SupportsFloat, SupportsInt, Any, Callable, Union, Tuple, overload
 
 from .type_hints import Literal
 from .functions.utils import get_importable
@@ -32,9 +31,11 @@ T = TypeVar('T')
 
 
 @overload
-def supports_float(value: SupportsFloat) -> Literal[True]: ...
-@overload   # noqa: E302
-def supports_float(value: Any) -> bool: ...
+def supports_float(value: SupportsFloat) -> Literal[True]:
+    ...
+@overload
+def supports_float(value: Any) -> bool:
+    ...
 def supports_float(value):  # noqa: E302
     """Check if a float-like object has been passed (:data:`~typing.SupportsFloat`)."""
     try:
@@ -45,11 +46,13 @@ def supports_float(value):  # noqa: E302
 
 
 @overload
-def supports_int(value: SupportsInt) -> Literal[True]: ...
-@overload   # noqa: E302
-def supports_int(value: Any) -> bool: ...
+def supports_int(value: SupportsInt) -> Literal[True]:
+    ...
+@overload
+def supports_int(value: Any) -> bool:
+    ...
 def supports_int(value):  # noqa: E302
-    """Check if a int-like object has been passed (:data:`~typing.SupportsInt`)."""
+    """Check if an int-like object has been passed (:data:`~typing.SupportsInt`)."""
     # floats that can be exactly represented by an integer are also fine
     try:
         value.__int__()
@@ -146,7 +149,7 @@ class Formatter(str):
 
 
 def _get_caller_module(n: int = 1) -> str:
-    """Return the module name **n** levels up the stack."""
+    """Return the name of the module **n** levels up the stack."""
     try:
         frm = inspect.stack()[n]
     except IndexError:
@@ -162,12 +165,11 @@ def _get_caller_module(n: int = 1) -> str:
 def _setattrs(func: Callable, name: str, doc: str) -> None:
     """Set the :attr:`__name__`, :attr:`__qualname__`, :attr:`__doc__` and :attr:`__module__` attributes of **func**."""  # noqa: E501
     func.__name__ = func.__qualname__ = name
-    func.__doc__ = f"Return :func:`isinstance(obj, {doc})<isinstance>`."
+    func.__doc__ = doc
     func.__module__ = _get_caller_module(n=3)
 
 
 ClassOrTuple = Union[type, Tuple[type, ...]]
-Doc = Union[str, Tuple[str, ...]]
 
 
 def isinstance_factory(class_or_tuple: ClassOrTuple) -> Callable[[Any], bool]:
@@ -176,12 +178,18 @@ def isinstance_factory(class_or_tuple: ClassOrTuple) -> Callable[[Any], bool]:
     Serves a similar, albit more specialized, function as :class:`functools.partial`.
 
     """
+    try:
+        isinstance('bob', class_or_tuple)
+    except TypeError as ex:
+        raise TypeError("'class_or_tuple' expected a type or tuple of types; "  # type: ignore
+                        f"observed type: {class_or_tuple.__class__.__name_!r}") from ex
+
     if isinstance(class_or_tuple, type):
-        name = f"isinstance_{class_or_tuple.__name__}"
-        doc: Doc = class_or_tuple.__name__
+        arg: Tuple[type, ...] = (class_or_tuple,)
     else:
-        name = "isinstance_type_tuple"
-        doc = tuple(i.__name__ for i in class_or_tuple)
+        arg = class_or_tuple
+    name = f"isinstance_{abs(hash(frozenset(arg)))}"
+    doc = f"({', '.join(obj.__name__ for obj in arg)})"
 
     def func(obj: Any) -> bool:
         return isinstance(obj, class_or_tuple)
@@ -196,15 +204,21 @@ def issubclass_factory(class_or_tuple: ClassOrTuple) -> Callable[[type], bool]:
     Serves a similar, albit more specialized, function as :class:`functools.partial`.
 
     """
+    try:
+        issubclass(int, class_or_tuple)
+    except TypeError as ex:
+        raise TypeError("'class_or_tuple' expected a type or tuple of types; "  # type: ignore
+                        f"observed type: {class_or_tuple.__class__.__name_!r}") from ex
+
     if isinstance(class_or_tuple, type):
-        name = f"issubclass_{class_or_tuple.__name__}"
-        doc: Doc = class_or_tuple.__name__
+        arg: Tuple[type, ...] = (class_or_tuple,)
     else:
-        name = "issubclass_type_tuple"
-        doc = tuple(i.__name__ for i in class_or_tuple)
+        arg = class_or_tuple
+    name = f"issubclass_{abs(hash(frozenset(arg)))}"
+    doc = f"({', '.join(obj.__name__ for obj in arg)})"
 
     def func(cls: type) -> bool:
-        return issubclass(cls, class_or_tuple)
+        return issubclass(cls, arg)
 
     _setattrs(func, name, f"Return :func:`issubclass(cls, {doc})<issubclass>`.")
     return func
@@ -213,25 +227,28 @@ def issubclass_factory(class_or_tuple: ClassOrTuple) -> Callable[[type], bool]:
 GET_IMPORTABLE = f"{get_importable.__module__}.{get_importable.__name__}"
 
 
-def import_factory(validate: Optional[Callable[[T], bool]] = None) -> Callable[[str], T]:
+def import_factory(validate: Callable[[T], bool]) -> Callable[[str], T]:
     """Return a function which calls :func:`~FOX.functions.utils.get_importable` with the **validate** argument.
 
     Serves a similar, albit more specialized, function as :class:`functools.partial`.
 
     """  # noqa: E501
-    def func(string: str) -> T:
-        return get_importable(string, validate=validate)
+    if not callable(validate):
+        raise TypeError("'validate' expected a callable; observed type: "
+                        f"{validate.__class__.__name__!r}")
 
     try:
         _doc = getattr(validate, '__qualname__', validate.__name__)  # type: ignore
     except AttributeError:  # Incase something like a functools.partial object is encountered
         _doc = repr(validate)
     finally:
-        name = f'get_importable_{hash(validate)}'
+        name = f'get_importable_{abs(hash(validate))}'
         doc = f'{validate.__module__}.{_doc}'
 
-    _setattrs(func, name,
-              f"Return :func:`get_importable(string, validate={doc})<{GET_IMPORTABLE}>`.")
+    def func(string: str) -> T:
+        return get_importable(string, validate=validate)
+
+    _setattrs(func, name, f"Return :func:`get_importable(string, validate={doc})<{GET_IMPORTABLE}>`.")  # noqa: E501
     return func
 
 

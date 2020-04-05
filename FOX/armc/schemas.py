@@ -107,7 +107,7 @@ phi_schema = Schema({
         And(abc.Mapping, lambda n: all(isinstance(k, str) for k in n.keys())),
         error=Formatter(f"'phi.kwargs' expected a Mapping{EPILOG}")
     )
-}, name='phi_schema', description='Schema for validating the ``"phi"`` block.')
+}, name='phi_schema', description='Schema for validating the "phi" block.')
 
 
 class PhiMapping(TypedDict, total=False):
@@ -186,7 +186,7 @@ mc_schema = Schema({
         bool,
         error=Formatter(f"'monte_carlo.keep_files' expected a boolean{EPILOG}")
     )
-})
+}, name='mc_schema', description='Schema for validating the "monte_carlo" block.')
 
 
 class MCMapping(TypedDict, total=False):
@@ -247,7 +247,7 @@ psf_schema = Schema({
         And(abc.Collection, lambda n: all(isinstance(i, str) for i in n), Use(frozenset)),
         error=Formatter(f"'psf.ligand_atoms' expected None or a Collection of atoms{EPILOG}")
     ),
-})
+}, name='psf_schema', description='Schema for validating the "psf" block.')
 
 
 class PSFMapping(TypedDict, total=False):
@@ -287,7 +287,7 @@ pes_schema = Schema({
         ),
         error=Formatter(f"'pes.*.kwargs' expected a Mapping or Sequence of Mappings{EPILOG}")
     )
-})
+}, name='pes_schema', description='Schema for validating the "pes" block.')
 
 
 class _PESMapping(TypedDict):
@@ -329,7 +329,7 @@ job_schema = Schema({
         ),
         error=Formatter(f"'job.molecule' expected one or more .xyz files{EPILOG}")
     )
-})
+}, name='job_schema', description='Schema for validating the "job" block.')
 
 
 class JobMapping(TypedDict, total=False):
@@ -346,7 +346,7 @@ class JobDict(TypedDict):
     molecule: Tuple[MultiMolecule, ...]
 
 
-#: Schema for validating sub blocks within the ``"pes"`` block.
+#: Schema for validating sub blocks within the ``"job"`` block.
 sub_job_schema = Schema({
     Optional_('type', default=lambda: cp2k_mm): Or(
         And(None, Default(cp2k_mm, call=False)),
@@ -367,7 +367,7 @@ sub_job_schema = Schema({
         And(abc.Mapping, Use(QmSettings)),
         error=Formatter(f"'job.*.template' expected a Mapping{EPILOG}")
     )
-})
+}, name='sub_job_schema', description='Schema for validating sub blocks within the "job" block.')
 
 
 class SubJobMapping(TypedDict, total=False):
@@ -427,8 +427,7 @@ param_schema = Schema({
             Use(lambda n: _get_move_range(**n))),
         error=Formatter(f"'param.move_range' expected a Mapping or array-like object{EPILOG}")
     )
-
-})
+}, name='param_schema', description='Schema for validating the "param" block.')
 
 
 class MoveRange(TypedDict, total=False):
@@ -457,6 +456,7 @@ class ParamDict(TypedDict):
     move_range: NDArray[float]
 
 
+#: Schema for validating the main input blocks.
 main_schema = Schema({
     'param': Or(
         abc.MutableMapping,
@@ -496,7 +496,7 @@ main_schema = Schema({
         And(abc.Mapping, Use(dict)),
         error=Formatter(f"'psf' expected a Mapping{EPILOG}")
     )
-})
+}, name='main_schema', description='Schema for validating the main input blocks.')
 
 
 class _MainMapping(TypedDict):
