@@ -33,6 +33,7 @@ def to_yaml(obj: ARMC, filename: Union[AnyStr, os.PathLike, io.IOBase],
         A filename or a file-like object.
 
     """
+    raise NotImplementedError
     try:  # is filename an actual filename or a file-like object?
         assert callable(filename.write)
     except (AttributeError, AssertionError):

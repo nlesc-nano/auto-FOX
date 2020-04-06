@@ -36,10 +36,6 @@ from .ff import (
     estimate_lj, get_free_energy
 )
 
-from .armc import (
-    ARMC, run_armc
-)
-
 __author__ = "Bas van Beek"
 __email__ = 'b.f.van.beek@vu.nl'
 __version__ = __version__
@@ -56,7 +52,6 @@ __all__ = [
     'create_hdf5', 'create_xyz_hdf5', 'to_hdf5', 'from_hdf5',
 
     'MultiMolecule',
-    'ARMC', 'run_armc',
 
     'estimate_lj', 'get_free_energy',
     'get_non_bonded',

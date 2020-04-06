@@ -1,10 +1,9 @@
 """A module for testing :mod:`FOX.functions.charge_utils` ."""
 
-from pathlib import Path
 import functools
+from pathlib import Path
 
 import numpy as np
-import pandas as pd
 from assertionlib import assertion
 
 from FOX.functions.charge_utils import assign_constraints
@@ -14,13 +13,6 @@ PATH = Path('tests') / 'test_files'
 
 def test_assign_constraints() -> None:
     """Test :func:`assign_constraints`."""
-    df = pd.DataFrame(index=pd.MultiIndex.from_product(
-        [['key'], ['H', 'C', 'N', 'O', 'F', 'P', 'S', 'Cl', 'Br', 'I', 'H H']]
-    ))
-    df['constraints'] = None
-    df['min'] = -np.inf
-    df['max'] = np.inf
-
     constraints = [
         'H < 1',
         'C >2.0',
@@ -32,25 +24,32 @@ def test_assign_constraints() -> None:
         '1 < H H < 2'
     ]
 
-    assign_constraints(constraints, df, 'key')
+    partial: dict
+    extremite, partial = assign_constraints(constraints)  # type: ignore
 
-    inf = np.inf
-    min_ar = np.array([-inf, 2.0, -inf, 4.0, 1.0, 1.0, -inf, -inf, -inf, -inf, 1.0])
-    max_ar = np.array([1.0, inf, 3.0, inf, 2.0, 2.0, inf, inf, inf, inf, 2.0])
-    np.testing.assert_allclose(df['min'], min_ar)
-    np.testing.assert_allclose(df['max'], max_ar)
+    extremite_ref = {
+        ('H', 'max'): 1.0,
+        ('C', 'min'): 2.0,
+        ('N', 'max'): 3.0,
+        ('O', 'min'): 4.0,
+        ('F', 'min'): 1.0,
+        ('F', 'max'): 2.0,
+        ('P', 'max'): 2.0,
+        ('P', 'min'): 1.0,
+        ('H H', 'min'): 1.0,
+        ('H H', 'max'): 2.0
+    }
+    assertion.eq(extremite, extremite_ref)
 
-    partial_dict = df.loc[('key', 'H'), 'constraints']
     partial_ref = {'S': functools.partial(np.multiply, 1.0),
                    'Cl': functools.partial(np.multiply, 2.0),
                    'Br': functools.partial(np.multiply, 0.5),
                    'I': functools.partial(np.multiply, 1.0)}
 
-    for k, v1 in partial_dict.items():
-        v2 = partial_ref[k]
+    assertion.eq(partial.keys(), partial_ref.keys())
+    iterator = ((v, partial_ref[k]) for k, v in partial.items())
+    for v1, v2 in iterator:
         assertion.isinstance(v1, functools.partial)
         assertion.is_(v1.func, v2.func)
         assertion.eq(v1.args, v2.args)
-
-    assertion.assert_(assign_constraints, ['bob == bub'], df, 'key', exception=KeyError)
-    assertion.assert_(assign_constraints, ['bob > 1.0'], df, 'key', exception=KeyError)
+        assertion.eq(v1.keywords, v2.keywords)

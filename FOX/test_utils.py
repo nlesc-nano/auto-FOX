@@ -150,6 +150,10 @@ def validate_mapping(mapping: Mapping[KT, VT],
 
     try:
         key = next(iter(mapping.keys()))
+    except StopIteration:  # In case **mapping** is empty
+        err_dict[f'{cls}.get'] = None
+        err_dict[f'{cls}.__getitem__'] = None
+        err_dict[f'{cls}.__contains__'] = None
     except Exception as ex:
         err_dict[f'{cls}.get'] = ex
         err_dict[f'{cls}.__getitem__'] = ex

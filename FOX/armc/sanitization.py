@@ -425,7 +425,7 @@ def _get_prm_constraints(dct: Mapping[str, Union[MutableMapping, Iterable[Mutabl
 @overload
 def update_count(param: ParamMapping, psf: Iterable[PSFContainer], mol: Any) -> None: ...
 @overload   # noqa: E302
-def update_count(param: ParamMapping, psf: None, mol: Iterable[MultiMolecule]) -> None: ...
+def update_count(param: ParamMapping, psf: None, mol: Iterable[MultiMolecule]) -> None: ...  # noqa: E302
 def update_count(param, psf=None, mol=None):  # noqa: E302
     """Assign atom-counts to the passed :class:`ParamMapping`."""
     # Construct a generator

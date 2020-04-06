@@ -175,12 +175,15 @@ def unconstrained_update(net_charge: float, param: pd.Series, count: pd.Series,
     if not include.any():
         return
 
+    # Identify the multplicative factor that yields a net-neutral charge
     i = net_charge - get_net_charge(param, count, ~include)
     i /= get_net_charge(param, count, include)
 
+    # Define the minimum and maximum values
     s_min = prm_min if prm_min is not None else -np.inf
     s_max = prm_max if prm_max is not None else np.inf
 
+    # Identify which parameters are closest to their extreme values
     s = param * i
     s_clip = np.clip(s, s_min, s_max).loc[include]
     s_delta = abs(s_clip - s.loc[include])
@@ -198,6 +201,7 @@ def unconstrained_update(net_charge: float, param: pd.Series, count: pd.Series,
             s = param * i
             s_clip = np.clip(s, s_min, s_max).loc[include]
 
+    # Check if the net charge is actually conserved
     net_charge_new = get_net_charge(param, count)
     if abs(net_charge - net_charge_new) > 0.001:
         msg = f"Failed to conserve the net charge ({net_charge:.4f}): {net_charge_new:.4f}"
@@ -294,17 +298,17 @@ def _eq_constraints(constrain_: list) -> Dict[str, functools.partial]:
     # Set the first item; remove any prefactor and compensate al other items if required
     item_ = next(iterator).split('*')
     if len(item_) == 1:
-        at = item_[0]
+        atom = item_[0]
         multiplier = 1.0
     elif len(item_) == 2:
-        at, multiplier = _find_float(item_)
+        atom, multiplier = _find_float(item_)
         multiplier **= -1
-    constrain_dict[at] = functools.partial(np.multiply, 1.0)
+    constrain_dict[atom] = functools.partial(np.multiply, 1.0)
 
     # Assign all other constraints
     for item in iterator:
         item_ = item.split('*')
         atom, i = _find_float(item_)
         i *= multiplier
-        constrain_dict[at] = functools.partial(np.multiply, i)
+        constrain_dict[atom] = functools.partial(np.multiply, i)
     return constrain_dict

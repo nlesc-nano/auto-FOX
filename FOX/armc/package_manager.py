@@ -2,12 +2,13 @@ from __future__ import annotations
 
 import os
 import shutil
+import textwrap
 from abc import ABC, abstractmethod
 from logging import Logger
-from itertools import chain
+from itertools import chain, zip_longest
 from collections import abc
 from typing import (Mapping, TypeVar, Hashable, Any, KeysView, ItemsView, ValuesView, Iterator,
-                    Union, Dict, List, Optional, Tuple, Iterable, Sequence, Set, TYPE_CHECKING)
+                    Union, Dict, List, Optional, Tuple, Iterable, Sequence, TYPE_CHECKING)
 
 import numpy as np
 import pandas as pd
@@ -104,6 +105,41 @@ class PackageManagerABC(ABC, Mapping[str, Tuple[JobMapping, ...]]):
             for job in job_tup:
                 job['settings'] = QmSettings(job['settings'])
         self.__data = ret
+
+    def __eq__(self, value: Any) -> bool:
+        """Implement :code:`self == value`."""
+        if type(self) is not type(value):
+            return False
+
+        iterator: Iterator[Tuple[JobMapping, JobMapping]]
+        iterator = chain.from_iterable(zip_longest(v, value[k]) for k, v in self.items())
+        ret = True
+
+        try:
+            for job1, job2 in iterator:
+                if None in (job1, job2):
+                    return False
+                for k, v1 in job1.items():
+                    v2 = job2[k]
+                    if isinstance(v1, Molecule):
+                        ret &= (np.asarray(v1) == np.asarray(v2)).all()
+        except KeyError:
+            return False
+        else:
+            return ret
+
+    def __repr__(self) -> str:
+        """Implement :code:`repr(self)` and :code:`str(self)`."""
+        data = ''
+        for k, v in self.items():
+            end = '}, ...)' if len(v) > 1 else '},)'
+            data += (
+                repr(k) +
+                ': ({' +
+                ', '.join(f'{_k!r}: {_v.__class__.__name__}(...)' for _k, _v in v[0].items()) +
+                end
+            )
+        return f'{self.__class__.__name__}(' + '{\n' + textwrap.indent(data, 4 * ' ') + '\n})'
 
     # Mapping implementation
 

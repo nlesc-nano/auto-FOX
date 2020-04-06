@@ -12,7 +12,7 @@ with open(file, 'r') as f:
 
 try:
     shutil.rmtree('MM_MD_workdir')
-except:
+except Exception:
     pass
 
 try:

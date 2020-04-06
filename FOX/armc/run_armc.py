@@ -15,6 +15,8 @@ if TYPE_CHECKING:
 else:
     from ..type_alias import ARMC, PSFContainer
 
+__all__ = ['run_armc']
+
 
 def run_armc(armc: ARMC,
              path: Union[None, str, os.PathLike] = None,

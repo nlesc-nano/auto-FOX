@@ -9,6 +9,7 @@ from functools import wraps, partial
 import numpy as np
 import pandas as pd
 from assertionlib.dataclass import AbstractDataClass
+from assertionlib.ndrepr import aNDRepr
 
 from ..type_hints import Literal, TypedDict, NDArray
 from ..functions.charge_utils import update_charge, get_net_charge, ChargeError
@@ -114,7 +115,6 @@ class ParamMappingABC(AbstractDataClass, ABC, Mapping[ValidKeys, pd.Series]):
     _net_charge: Optional[float]
     _move_range: np.ndarray
     __data: Mapping[ValidKeys, pd.Series]
-    # func: Callable[[float, float], float]
 
     #: Fill values for when optional keys are absent.
     FILL_VALUE: ClassVar[Mapping[ValidKeys, Any]] = MappingProxyType({
@@ -167,7 +167,7 @@ class ParamMappingABC(AbstractDataClass, ABC, Mapping[ValidKeys, pd.Series]):
         """  # noqa
         super().__init__()
         self.move_range = move_range
-        self.func = wraps(func)(partial(func, **kwargs))
+        self.func: Callable[[float, float], float] = wraps(func)(partial(func, **kwargs))
         self._data = data
 
     # Properties
@@ -224,11 +224,28 @@ class ParamMappingABC(AbstractDataClass, ABC, Mapping[ValidKeys, pd.Series]):
     # Magic methods and Mapping implementation
 
     def __eq__(self, value: Any) -> bool:
-        return object.__eq__(self, value)
+        """Implement :code:`self == value`."""
+        if type(self) is not type(value):
+            return False
+
+        ret = True
+        ret &= np.all(self.move_range == value.move_range)
+        ret &= self._net_charge == value._net_charge
+
+        names = ("func", "args", "keywords")
+        v1, v2 = self.func, value.func
+        ret &= all([getattr(v1, n, np.nan) == getattr(v2, n, np.nan) for n in names])
+
+        ret &= self.keys() == value.keys()
+        iterator = ((v, value[k]) for k, v in self.items())
+        for v1, v2 in iterator:
+            ret &= np.all(v1 == v2)
+        return ret
 
     def __repr__(self) -> str:
         indent = 4 * ' '
         data = repr(pd.DataFrame(self._data))
+        data += f',\nfunc       = {repr(self.func)},\nmove_range = {aNDRepr.repr(self.move_range)}'
         return f'{self.__class__.__name__}(\n{textwrap.indent(data, indent)}\n)'
 
     def __getitem__(self, key: ValidKeys) -> pd.Series:

@@ -19,7 +19,6 @@ API
 
 """
 
-import shutil
 from os import PathLike
 from functools import wraps, partial
 from logging import Logger, StreamHandler
@@ -33,7 +32,6 @@ from typing import (
 )
 
 import numpy as np
-from scm.plams import Settings
 from assertionlib.dataclass import AbstractDataClass
 
 from ..logger import get_logger
@@ -64,7 +62,9 @@ class MonteCarloABC(AbstractDataClass, ABC, Mapping[KT, VT]):
     keep_files: bool
     hdf5_file: Union[str, PathLike]
     pes: Dict[str, GetPesDescriptor]
-
+    _molecule: Tuple[MultiMolecule, ...]
+    _logger: Logger
+    _pes_post_process: Tuple[PostProcess, ...]
     _data: Dict[KT, VT]
 
     @property
@@ -90,6 +90,7 @@ class MonteCarloABC(AbstractDataClass, ABC, Mapping[KT, VT]):
 
     @property
     def pes_post_process(self) -> Tuple[PostProcess, ...]:
+        """Get or set post-processing functions."""
         return self._pes_post_process
 
     @pes_post_process.setter
@@ -98,8 +99,6 @@ class MonteCarloABC(AbstractDataClass, ABC, Mapping[KT, VT]):
             self._pes_post_process = tuple(value)
         else:
             self._pes_post_process = ()
-
-    _PRIVATE_ATTR = frozenset({'_plams_molecule', 'job_cache'})
 
     def __init__(self, molecule: Iterable[MultiMolecule],
                  package_manager: PackageManager,
@@ -135,9 +134,19 @@ class MonteCarloABC(AbstractDataClass, ABC, Mapping[KT, VT]):
         return sorted(iterator)
 
     def __eq__(self, value: Any) -> bool:
-        return object.__eq__(self, value)
+        """Implement :code:`self == value`."""
+        if type(self) is not type(value):
+            return False
+        elif self.keys() != value.keys():
+            return False
+        elif not (self.package_manager == value.package_manager and self.param == value.param):
+            return False
 
-    __eq__.__doc__ = object.__eq__.__doc__
+        ret = True
+        for k, v1 in self.items():
+            v2 = value[k]
+            ret &= (v1 == v2).all()
+        return ret
 
     # Implementation of the Mapping protocol
 

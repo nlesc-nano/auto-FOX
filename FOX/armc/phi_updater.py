@@ -52,7 +52,6 @@ class PhiUpdaterABC(AbstractDataClass, ABC):
     phi: float
     gamma: float
     a_target: float
-    # func: PhiFunc
 
     def __init__(self, phi: float, gamma: float, a_target: float,
                  func: PhiFunc, **kwargs: Any) -> None:
@@ -82,7 +81,16 @@ class PhiUpdaterABC(AbstractDataClass, ABC):
         self.phi = phi
         self.gamma = gamma
         self.a_target = a_target
-        self.func = wraps(func)(partial(func, **kwargs))
+        self.func: PhiFunc = wraps(func)(partial(func, **kwargs))
+
+    @staticmethod
+    @AbstractDataClass.inherit_annotations()
+    def _eq(v1, v2):
+        if isinstance(v1, partial):
+            names = ("func", "args", "keywords")
+            return all([getattr(v1, n) == getattr(v2, n) for n in names])
+        else:
+            return v1 == v2
 
     def __call__(self, value: Union[AT, ArrayLikeOrScalar], dtype: type = float) -> AT:
         """Pass **value** and :attr:`phi` to :attr:`func`.
