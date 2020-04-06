@@ -19,6 +19,8 @@ API
 
 """
 
+from __future__ import annotations
+
 import copy as pycopy
 import textwrap
 import itertools
@@ -97,7 +99,7 @@ class LocGetter(AbstractDataClass):
     @property
     def atoms(self) -> Dict[str, List[int]]: return self.mol.atoms
 
-    def __init__(self, mol: '_MultiMolecule') -> None:
+    def __init__(self, mol: _MultiMolecule) -> None:
         super().__init__()
         self.mol = mol
 
@@ -106,7 +108,7 @@ class LocGetter(AbstractDataClass):
         yield 'mol', self.mol
         yield 'keys', self.atoms.keys()
 
-    def __getitem__(self, key: Union[str, Iterable[str]]) -> '_MultiMolecule':
+    def __getitem__(self, key: Union[str, Iterable[str]]) -> _MultiMolecule:
         """Get items from :attr:`AtGetter.mol`."""
         idx = self._parse_key(key)
         try:
@@ -114,7 +116,7 @@ class LocGetter(AbstractDataClass):
         except IndexError as ex:
             raise ValueError(self._VALUE_ERR.format(self.mol.ndim)).with_traceback(ex.__traceback__)
 
-    def __setitem__(self, key: Union[str, Iterable[str]], value: '_MultiMolecule') -> None:
+    def __setitem__(self, key: Union[str, Iterable[str]], value: _MultiMolecule) -> None:
         """Set items in :attr:`AtGetter.mol`."""
         idx = self._parse_key(key)
         try:
@@ -126,6 +128,7 @@ class LocGetter(AbstractDataClass):
         """Delete items from :attr:`AtGetter.mol`, thus raising a :exc:`ValueError`."""
         idx = self._parse_key(key)
         del self.mol[..., idx, :]  # This will raise a ValueError
+        raise
 
     def _parse_key(self, key: Union[str, Iterable[str]]) -> List[int]:
         """Return the atomic indices of **key** are all atoms in **key**.
@@ -175,7 +178,7 @@ class _MultiMolecule(np.ndarray):
     def __new__(cls, coords: np.ndarray,
                 atoms: Optional[Dict[str, List[int]]] = None,
                 bonds: Optional[np.ndarray] = None,
-                properties: Optional[Dict[str, Any]] = None) -> '_MultiMolecule':
+                properties: Optional[Dict[str, Any]] = None) -> _MultiMolecule:
         """Create and return a new object."""
         obj = np.array(coords, dtype=float, ndmin=3, copy=False).view(cls)
 
@@ -240,7 +243,7 @@ class _MultiMolecule(np.ndarray):
     """###############################  PLAMS-based properties  ################################"""
 
     @property
-    def atom12(self) -> '_MultiMolecule':
+    def atom12(self) -> _MultiMolecule:
         """Get or set the indices of the atoms for all bonds in :attr:`.MultiMolecule.bonds` as 2D array."""  # noqa
         return self._bonds[:, 0:2]
 
@@ -249,7 +252,7 @@ class _MultiMolecule(np.ndarray):
         self._bonds[:, 0:2] = value
 
     @property
-    def atom1(self) -> '_MultiMolecule':
+    def atom1(self) -> _MultiMolecule:
         """Get or set the indices of the first atoms in all bonds of :attr:`.MultiMolecule.bonds` as 1D array."""  # noqa
         return self._bonds[:, 0]
 
@@ -276,7 +279,7 @@ class _MultiMolecule(np.ndarray):
         self._bonds[:, 2] = value * 10
 
     @property
-    def x(self) -> '_MultiMolecule':
+    def x(self) -> _MultiMolecule:
         """Get or set the x coordinates for all atoms in instance as 2D array."""
         return self[:, :, 0]
 
@@ -285,7 +288,7 @@ class _MultiMolecule(np.ndarray):
         self[:, :, 0] = value
 
     @property
-    def y(self) -> '_MultiMolecule':
+    def y(self) -> _MultiMolecule:
         """Get or set the y coordinates for all atoms in this instance as 2D array."""
         return self[:, :, 1]
 
@@ -364,7 +367,7 @@ class _MultiMolecule(np.ndarray):
 
     """##################################  Magic methods  #################################### """
 
-    def copy(self, order: str = 'C', deep: bool = True) -> '_MultiMolecule':
+    def copy(self, order: str = 'C', deep: bool = True) -> _MultiMolecule:
         """Create a copy of this instance.
 
         .. _np.ndarray.copy: https://docs.scipy.org/doc/numpy/reference/generated/numpy.ndarray.copy.html  # noqa
@@ -389,17 +392,17 @@ class _MultiMolecule(np.ndarray):
             return ret
 
         # Copy attributes
-        copy_func = pycopy.deepcopy if deep else pycopy.copy()
+        copy_func = pycopy.deepcopy if deep else pycopy.copy
         iterator = copy_func(vars(self)).items()
         for key, value in iterator:
             setattr(ret, key, value)
         return ret
 
-    def __copy__(self) -> '_MultiMolecule':
+    def __copy__(self) -> _MultiMolecule:
         """Create copy of this instance."""
         return self.copy(order='K', deep=False)
 
-    def __deepcopy__(self, memo: None) -> '_MultiMolecule':
+    def __deepcopy__(self, memo: Optional[Dict[int, Any]] = None) -> _MultiMolecule:
         """Create a deep copy of this instance."""
         return self.copy(order='K', deep=True)
 

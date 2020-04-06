@@ -27,6 +27,8 @@ _KT2 = TypeVar('_KT2', bound=Hashable)
 _KT3 = TypeVar('_KT3', bound=Hashable)
 
 # All dict keys in ParamMappingABC
+SeriesKeys = Literal['min', 'max', 'constraints', 'count']
+DictSeriesKeys = Literal['param', 'param_old']
 ValidKeys = Literal['param', 'param_old', 'min', 'max', 'constraints', 'count']
 
 # A function for moving parameters
@@ -40,11 +42,11 @@ Tup3 = Tuple[_KT1, _KT2, _KT3]
 
 
 class _InputMapping(TypedDict):
-    param: Union[pd.Series, MutableMapping[str, pd.Series]]
+    param: Union[pd.Series, Mapping[str, pd.Series]]
 
 
 class InputMapping(_InputMapping, total=False):
-    """A :class:`~typing.TypedDict` representing the :class:`ParamMappingABC` **df** parameter."""  # noqa
+    """A :class:`~typing.TypedDict` representing the :class:`ParamMappingABC` input."""
 
     min: pd.Series
     max: pd.Series
@@ -63,7 +65,40 @@ class Data(TypedDict):
     count: pd.Series
 
 
-class ParamMappingABC(AbstractDataClass, ABC, Mapping[ValidKeys, pd.Series]):
+def _parse_param(dct: MutableMapping[str, Any]) -> Dict[Hashable, pd.Series]:
+    # Check that the 'param' key is present
+    try:
+        _param = dct['param']
+    except KeyError as ex:
+        raise KeyError(f"The {'param'!r} key is absent from the passed mapping") from ex
+
+    # Cast the data into the correct shape
+    param: Dict[Hashable, pd.Series]
+    if isinstance(_param, pd.Series):
+        dct['param'] = param = {0: _param}
+    else:
+        try:
+            param = dict(_param)
+        except TypeError as ex:
+            raise TypeError(f"the 'param' value expected a Series or dict of Series; "
+                            f"observed type: {_param.__class__.__name__!r}") from ex
+
+    # Check that it has a 3-level MultiIndex
+    n_level = 3
+    for prm in param.values():
+        if not isinstance(prm.index, pd.MultiIndex):
+            raise TypeError(f"Series.index expected a {n_level}-level MultiIndex; "
+                            f"observed type: {prm.index.__class__.__name!r}")
+        elif len(prm.index.levels) != n_level:
+            raise ValueError(f"Series.index expected a {n_level}-level MultiIndex; "
+                             f"observed number levels: {len(prm.index.levels)}")
+    return param
+
+
+_ParamMappingABC = Mapping[ValidKeys, Union[Dict[Hashable, pd.Series], pd.Series]]
+
+
+class ParamMappingABC(AbstractDataClass, ABC, _ParamMappingABC):
     r"""A :class:`~collections.abc.Mapping` for storing and updating forcefield parameters.
 
     Besides the implementation of the :class:`~collections.abc.Mapping` protocol,
@@ -135,7 +170,7 @@ class ParamMappingABC(AbstractDataClass, ABC, Mapping[ValidKeys, pd.Series]):
         'count': -1
     })
 
-    def __init__(self, data: Union[InputMapping, pd.DataFrame],
+    def __init__(self, data: Union[InputMapping, pd.DataFrame],  # type: ignore
                  move_range: Iterable[float],
                  func: MoveFunc, **kwargs: Any) -> None:
         r"""Initialize an :class:`ParamMappingABC` instance.
@@ -176,9 +211,11 @@ class ParamMappingABC(AbstractDataClass, ABC, Mapping[ValidKeys, pd.Series]):
 
         """  # noqa
         super().__init__()
-        self.move_range = move_range
+        self.move_range = move_range  # type: ignore
         self.func: Callable[[float, float], float] = wraps(func)(partial(func, **kwargs))
-        self._data = data
+        self._data = data  # type: ignore
+        self._data: Data
+        self.__data: Data
 
     # Properties
 
@@ -203,28 +240,8 @@ class ParamMappingABC(AbstractDataClass, ABC, Mapping[ValidKeys, pd.Series]):
         dct = dict(value)
 
         # Check that the 'param' key is present
-        try:
-            _param = dct['param']
-        except KeyError as ex:
-            raise KeyError(f"The {'param'!r} key is absent from the passed mapping") from ex
-        else:
-            if isinstance(_param, pd.Series):
-                dct['param'] = param = {0: _param}
-            elif isinstance(_param, abc.MutableMapping):
-                param = dict(_param)
-            else:
-                raise TypeError(f"the 'param' value expected a Series or dict of Series; "
-                                f"observed type: {_param.__class__.__name__!r}")
-
-        # Check that it has a 3-level MultiIndex
-        n_level = 3
-        for prm in param.values():
-            if not isinstance(prm.index, pd.MultiIndex):
-                raise TypeError(f"Series.index expected a {n_level}-level MultiIndex; "
-                                f"observed type: {prm.index.__class__.__name!r}")
-            elif len(prm.index.levels) != n_level:
-                raise ValueError(f"Series.index expected a {n_level}-level MultiIndex; "
-                                 f"observed number levels: {len(prm.index.levels)}")
+        param = _parse_param(dct)
+        prm = next(iter(param.values()))
 
         # Fill in the defaults
         for name, fill_value in self.FILL_VALUE.items():
@@ -233,12 +250,14 @@ class ParamMappingABC(AbstractDataClass, ABC, Mapping[ValidKeys, pd.Series]):
             dtype = type(fill_value) if fill_value is not None else object
             dct[name] = pd.Series(fill_value, index=prm.index, name=name, dtype=dtype)
 
+        # Set the total charge of the system
         if 'charge' in prm:
             self._net_charge = get_net_charge(prm['charge'], dct['count']['charge'])
         else:
             self._net_charge = None
 
-        dct['param_old'] = {k: pd.Series(np.nan, index=v.index, name=v.name) for k, v in param.items()}
+        # Construct a dictionary to contain the old parameter
+        dct['param_old'] = {k: pd.Series(np.nan, index=v.index, name=v.name) for k, v in param.items()}  # noqa: E501
         self.__data = dct
 
     # Magic methods and Mapping implementation
@@ -259,7 +278,10 @@ class ParamMappingABC(AbstractDataClass, ABC, Mapping[ValidKeys, pd.Series]):
         ret &= self.keys() == value.keys()
         iterator = ((v, value[k]) for k, v in self.items())
         for v1, v2 in iterator:
-            ret &= np.all(v1 == v2)
+            if isinstance(v, dict):
+                ret &= np.all(_v1 == _v2 for _v1, _v2 in zip(v1.values(), v2.values()))
+            else:
+                ret &= np.all(v1 == v2)
         return ret
 
     def __repr__(self) -> str:
@@ -268,7 +290,13 @@ class ParamMappingABC(AbstractDataClass, ABC, Mapping[ValidKeys, pd.Series]):
         data += f',\nfunc       = {repr(self.func)},\nmove_range = {aNDRepr.repr(self.move_range)}'
         return f'{self.__class__.__name__}(\n{textwrap.indent(data, indent)}\n)'
 
-    def __getitem__(self, key: ValidKeys) -> pd.Series:
+    @overload
+    def __getitem__(self, key: SeriesKeys) -> pd.Series: ...
+    @overload  # noqa: E301
+    def __getitem__(self, key: DictSeriesKeys) -> Dict[Hashable, pd.Series]: ...
+    @overload  # noqa: E301
+    def __getitem__(self, key: Any) -> Any: ...
+    def __getitem__(self, key):  # noqa: E301
         """Implement :code:`self[key]`."""
         return self._data[key]
 
@@ -280,7 +308,11 @@ class ParamMappingABC(AbstractDataClass, ABC, Mapping[ValidKeys, pd.Series]):
         """Implement :code:`len(self)`."""
         return len(self._data)
 
-    def __contains__(self, key: Any) -> bool:
+    @overload
+    def __contains__(self, key: ValidKeys) -> Literal[True]: ...
+    @overload  # noqa: E301
+    def __contains__(self, key: Any) -> bool: ...
+    def __contains__(self, key):  # noqa: E301
         """Implement :code:`key in self`."""
         return key in self._data
 

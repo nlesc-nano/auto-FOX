@@ -28,7 +28,7 @@ from itertools import repeat, cycle, chain
 from collections import abc
 from typing import (
     Tuple, List, Dict, Optional, Union, Iterable, Hashable, Iterator, Any, Mapping, Callable,
-    KeysView, ValuesView, ItemsView, Sequence, TypeVar, overload, TYPE_CHECKING, AnyStr
+    KeysView, ValuesView, ItemsView, Sequence, TypeVar, overload, TYPE_CHECKING, AnyStr, Generic
 )
 
 import numpy as np
@@ -54,7 +54,7 @@ PostProcess = Callable[[Optional[Iterable[MultiMolecule]], Optional['MonteCarloA
 GetPesDescriptor = Callable[[MultiMolecule], ArrayOrScalar]
 
 
-class MonteCarloABC(AbstractDataClass, ABC, Mapping[KT, VT]):
+class MonteCarloABC(AbstractDataClass, ABC, Mapping[KT, VT], Generic[KT, VT]):
     r"""The base :class:`.MonteCarlo` class."""
 
     param: ParamMapping
@@ -332,7 +332,7 @@ class MonteCarloABC(AbstractDataClass, ABC, Mapping[KT, VT]):
         else:
             key, prm_name, _ = ret
 
-        prm_update = self.param['param'].loc[(key, prm_name)].to_frame().T
+        prm_update = self.param['param'][0].loc[(key, prm_name)].to_frame().T
         prm_update.index = [prm_name]
         iterator = (job['settings'] for job in chain.from_iterable(self.package_manager.values()))
 

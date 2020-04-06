@@ -202,7 +202,7 @@ class ARMC(MonteCarloABC):
         # Step 5: Export the results to HDF5
         self.to_hdf5(mol_list, accept, aux_new, pes_new, kappa, omega)
         if not accept:
-            self.param['param'][:] = self.param['param_old']
+            self.param['param'][0][:] = self.param['param_old']
         return key_new
 
     def apply_phi(self, value: ArrayLikeOrScalar) -> np.ndarray:
