@@ -1,3 +1,6 @@
+"""A module with utility functions for testing Auto-FOX."""
+
+import warnings
 from types import MappingProxyType
 from typing import Mapping, Optional, TypeVar, Type, Dict, Callable, Any
 from collections import abc
@@ -10,6 +13,10 @@ __all__ = ['validate_mapping']
 
 KT = TypeVar('KT')
 VT = TypeVar('VT')
+
+
+class AssertionWarning(Warning):
+    """A :exc:`Warning` subclass for assertion-related warnings."""
 
 
 class _Key:
@@ -150,10 +157,14 @@ def validate_mapping(mapping: Mapping[KT, VT],
 
     try:
         key = next(iter(mapping.keys()))
-    except StopIteration:  # In case **mapping** is empty
+    except StopIteration as ex:  # In case **mapping** is empty
         err_dict[f'{cls}.get'] = None
         err_dict[f'{cls}.__getitem__'] = None
         err_dict[f'{cls}.__contains__'] = None
+        warning = AssertionWarning("The passed 'mapping' is empty; cannot validate "
+                                   f"'{cls}.get', '{cls}.__getitem__' and '{cls}.__contains__'")
+        warning.__cause__ = ex
+        warnings.warn(warning)
     except Exception as ex:
         err_dict[f'{cls}.get'] = ex
         err_dict[f'{cls}.__getitem__'] = ex
