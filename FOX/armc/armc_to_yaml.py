@@ -7,8 +7,6 @@ from contextlib import nullcontext
 import yaml
 from scm.plams import Settings
 
-from .df_to_dict import df_to_dict
-
 try:
     Dumper = yaml.CDumper
 except AttributeError:
@@ -53,7 +51,7 @@ def to_yaml(obj: ARMC, filename: Union[AnyStr, os.PathLike, io.IOBase],
     s.hdf5_file = obj.hdf5
 
     # The pram block
-    s.param = df_to_dict(obj.param)
+    # s.param = df_to_dict(obj.param)
 
     # The job block
     s.job.path = os.getcwd() if path is None else str(path)
