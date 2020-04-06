@@ -10,7 +10,7 @@ from collections import abc
 from pkg_resources import resource_filename
 from typing import (
     Iterable, Tuple, Callable, Hashable, Sequence, Optional, List, Any, TypeVar, Dict,
-    Type, Mapping, Union, MutableMapping, TYPE_CHECKING, AnyStr
+    Type, Mapping, Union, MutableMapping, TYPE_CHECKING, AnyStr, Iterable
 )
 
 import yaml
@@ -18,6 +18,8 @@ import numpy as np
 import pandas as pd
 
 from scm.plams import Settings, add_to_class
+
+from ..type_hints import Scalar
 
 if TYPE_CHECKING:
     from ..classes import MultiMolecule
@@ -830,3 +832,18 @@ def split_dict(dct: MutableMapping[KT, VT], keep_keys: Iterable[KT]) -> Dict[KT,
     difference = [k for k in dct if k not in keep_keys]
 
     return {k: dct.pop(k) for k in difference}
+
+
+def as_1d_array(value: Union[Scalar, Iterable[Scalar]],
+                dtype: Union[type, np.dtype], ndmin: int = 1) -> np.ndarray:
+    """Convert **value**, a scalar or iterable of scalars, into an array."""
+    try:
+        return np.array(value, dtype=dtype, ndmin=ndmin, copy=False)
+
+    except TypeError as ex:
+        if not isinstance(value, abc.Iterable):
+            raise ex
+
+        ret = np.fromiter(value, dtype=dtype)
+        ret.shape += (ndmin - ret.ndmim) * (1,)
+        return ret

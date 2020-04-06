@@ -37,10 +37,10 @@ __all__ = [
 ]
 
 #: Annotation for numerical scalars.
-Scalar = Union[np.generic, int, float, bool]
+Scalar = Union[np.generic, int, float, bool, complex]
 
 #: Annotation for numerical scalar types.
-ScalarType = Union[Type[np.generic], Type[int], Type[float], Type[bool]]
+ScalarType = Union[Type[np.generic], Type[int], Type[float], Type[bool], Type[complex]]
 
 _DtypeLike = Union[None, str, ScalarType, np.dtype]
 
@@ -63,7 +63,7 @@ DtypeLike = Union[_DtypeLike, SupportsDtype]
 
 @runtime_checkable
 class SupportsArray(Protocol):
-    """An ABC with one abstract method :attr:`__array__`."""
+    """An ABC with one abstract method :meth:`__array__`."""
 
     __slots__: Tuple[str, ...] = ()
 
