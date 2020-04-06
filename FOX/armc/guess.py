@@ -14,7 +14,6 @@ import numpy as np
 import pandas as pd
 
 from ..type_hints import Literal
-from ..functions.cp2k_utils import _populate_keys
 from ..io.read_psf import PSFContainer
 from ..io.read_prm import PRMContainer
 from ..ff.lj_param import estimate_lj
@@ -97,7 +96,6 @@ def guess_param(armc: ARMC, mode: Mode = 'rdf',
 
     # Update all ARMC Settings instacnes with the new parameters
     df_transform = _transform_df(df[column_list])
-    populate_keys(armc, df_transform)
 
     # Define which guessed parameters are variables and constants
     if frozen is None:
@@ -113,29 +111,6 @@ def guess_param(armc: ARMC, mode: Mode = 'rdf',
         param.loc[ij, ['unit', 'param', 'keys']] = value
         param.loc[ij, ['min', 'max']] = -np.inf, np.inf
     param.sort_index(inplace=True)
-
-
-def populate_keys(armc: ARMC, df: pd.DataFrame) -> None:
-    """Update all cp2k Settings in **armc** with the new parameters from **df**."""
-    keys = df['keys'].copy()
-    keys[:] = [l.copy() for l in keys.values]
-
-    # Update the job Settings
-    s_iterator = iter(armc.md_settings)
-    s = next(s_iterator)
-    _populate_keys(s, df)
-
-    keys_backup = df['keys'].copy()
-    df['keys'] = keys
-
-    for s in s_iterator:
-        _populate_keys(s, df, update_keys=False)
-
-    if armc.preopt_settings is not None:
-        for s in armc.preopt_settings:
-            _populate_keys(s, df, update_keys=False)
-
-    df['keys'] = keys_backup
 
 
 def _transform_df(df: pd.DataFrame) -> pd.DataFrame:
