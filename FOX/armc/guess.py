@@ -1,19 +1,19 @@
 """
-FOX.armc_functions.guess
-========================
+FOX.armc.guess
+==============
 
 A module with functions for guessing ARMC parameters.
 
 """
 
 import reprlib
-from typing import Sequence, Union, Iterable, Mapping, Tuple, List, Container
+from typing import Union, Iterable, Mapping, Tuple, List, Collection, TYPE_CHECKING
 from itertools import chain
 
 import numpy as np
 import pandas as pd
 
-from ..functions.cp2k_utils import _populate_keys, UNIT_MAP
+from ..type_hints import Literal
 from ..io.read_psf import PSFContainer
 from ..io.read_prm import PRMContainer
 from ..ff.lj_param import estimate_lj
@@ -21,13 +21,22 @@ from ..ff.lj_uff import UFF_DF
 from ..ff.shannon_radii import SIGMA_DF
 from ..ff.lj_dataframe import LJDataFrame
 
+if TYPE_CHECKING:
+    from .armc import ARMC
+    from ..classes import MultiMolecule
+else:
+    from ..type_alias import ARMC, MultiMolecule
+
 __all__ = ['guess_param']
 
-ARMC = 'FOX.classes.armc.ARMC'
+Columns = Literal['epsilon', 'sigma']
+
+Mode = Literal['ionic_radius', 'ion_radius', 'ionic_radii', 'ion_radii',
+               'rdf', 'uff', 'crystal_radius', 'crystal_radii']
 
 
-def guess_param(armc: ARMC, mode: str = 'rdf',
-                columns: Union[str, Iterable[str]] = ('epsilon', 'sigma'),
+def guess_param(armc: ARMC, mode: Mode = 'rdf',
+                columns: Union[Columns, Iterable[Columns]] = ('epsilon', 'sigma'),
                 frozen: Union[None, str, Iterable[str]] = None) -> None:
     r"""Guess Lennard-Jones parameters absent from **armc**.
 
@@ -48,11 +57,11 @@ def guess_param(armc: ARMC, mode: str = 'rdf',
         the based of the first peak and the well-depth of the (Boltzmann-inverted) RDF are used
         for estimating :math:`\sigma` and :math:`\varepsilon`, respectively.
 
-    columns : :class:`str` or :class:`Iterable<collections.abc.Iterable>` [:class:`str`]
+    columns : :class:`str` or :class:`~collections.abc.Iterable` [:class:`str`]
         The type of to-be guessed parameters.
         Accepted values are ``"epsilon"`` and/or ``"sigma"``.
 
-    frozen : :class:`str` or :class:`Iterable<collections.abc.Iterable>` [:class:`str`], optional
+    frozen : :class:`str` or :class:`~collections.abc.Iterable` [:class:`str`], optional
         Which parameter-types in **columns** are to-be treated as constants rather than variables.
 
     See Also
@@ -65,20 +74,20 @@ def guess_param(armc: ARMC, mode: str = 'rdf',
 
     """
     # Parse and sort the columns
-    columns = sorted(columns) if not isinstance(columns, str) else [columns]
+    column_list = sorted(columns) if not isinstance(columns, str) else [columns]
     df, mol_list = _process_df(armc)
 
     # Populate df with the guess parameters
     try:
         prm_df = _process_prm(armc)
         if mode.lower() == 'rdf':
-            rdf(df, mol_list, columns=columns)
+            rdf(df, mol_list, columns=column_list)
         elif mode.lower() == 'uff':
-            uff(df, prm_df.loc, columns=columns)
+            uff(df, prm_df.loc, columns=column_list)
         elif mode.lower() in {'ionic_radius', 'ion_radius', 'ionic_radii', 'ion_radii'}:
-            ion_radius(df, prm_df.loc, columns=columns)
+            ion_radius(df, prm_df.loc, columns=column_list)
         elif mode.lower() in {'crystal_radius', 'crystal_radii'}:
-            crystal_radius(df, prm_df.loc, columns=columns)
+            crystal_radius(df, prm_df.loc, columns=column_list)
         else:
             raise AttributeError
     except AttributeError as ex:
@@ -86,15 +95,14 @@ def guess_param(armc: ARMC, mode: str = 'rdf',
                          "'rdf', 'uff', 'crystal_radius' and 'ion_radius'") from ex
 
     # Update all ARMC Settings instacnes with the new parameters
-    df_transform = _transform_df(df[columns])
-    populate_keys(armc, df_transform)
+    df_transform = _transform_df(df[column_list])
 
     # Define which guessed parameters are variables and constants
     if frozen is None:
-        unfrozen = columns
+        unfrozen = column_list
     else:
         frozen = sorted(frozen) if not isinstance(frozen, str) else [frozen]
-        unfrozen = list(set(columns).difference(frozen))
+        unfrozen = list(set(column_list).difference(frozen))
 
     # Update the DataFrame with containing all variables
     param = armc.param
@@ -103,29 +111,6 @@ def guess_param(armc: ARMC, mode: str = 'rdf',
         param.loc[ij, ['unit', 'param', 'keys']] = value
         param.loc[ij, ['min', 'max']] = -np.inf, np.inf
     param.sort_index(inplace=True)
-
-
-def populate_keys(armc: ARMC, df: pd.DataFrame) -> None:
-    """Update all cp2k Settings in **armc** with the new parameters from **df**."""
-    keys = df['keys'].copy()
-    keys[:] = [l.copy() for l in keys.values]
-
-    # Update the job Settings
-    s_iterator = iter(armc.md_settings)
-    s = next(s_iterator)
-    _populate_keys(s, df)
-
-    keys_backup = df['keys'].copy()
-    df['keys'] = keys
-
-    for s in s_iterator:
-        _populate_keys(s, df, update_keys=False)
-
-    if armc.preopt_settings is not None:
-        for s in armc.preopt_settings:
-            _populate_keys(s, df, update_keys=False)
-
-    df['keys'] = keys_backup
 
 
 def _transform_df(df: pd.DataFrame) -> pd.DataFrame:
@@ -187,7 +172,7 @@ def _process_df(armc: ARMC) -> Tuple[LJDataFrame, List['MultiMolecule']]:
 def _radii(df: pd.DataFrame,
            ref_map: Mapping[str, Tuple[float, float]],
            prm_mapping: Mapping[str, Tuple[float, float]],
-           columns: Container[str] = frozenset({'epsilon', 'sigma'})) -> None:
+           columns: Collection[str] = frozenset({'epsilon', 'sigma'})) -> None:
     for i, j in df.index:  # pd.MultiIndex
         try:
             eps_i, sig_i = prm_mapping[i]
@@ -206,14 +191,14 @@ def _radii(df: pd.DataFrame,
 
 
 def uff(df: pd.DataFrame, prm_mapping: Mapping[str, Tuple[float, float]],
-        columns: Container[str] = frozenset({'epsilon', 'sigma'})) -> None:
+        columns: Collection[str] = frozenset({'epsilon', 'sigma'})) -> None:
     """Guess parameters in **df** using UFF parameters."""
     column_set = set(columns)
     _radii(df, UFF_DF.loc, prm_mapping, column_set)
 
 
 def ion_radius(df: pd.DataFrame, prm_mapping: Mapping[str, Tuple[float, float]],
-               columns: Container[str] = frozenset({'sigma'})) -> None:
+               columns: Collection[str] = frozenset({'sigma'})) -> None:
     """Guess parameters in **df** using ionic radii."""
     column_set = set(columns)
     if 'epsilon' in column_set:
@@ -224,7 +209,7 @@ def ion_radius(df: pd.DataFrame, prm_mapping: Mapping[str, Tuple[float, float]],
 
 
 def crystal_radius(df: pd.DataFrame, prm_mapping: Mapping[str, Tuple[float, float]],
-                   columns: Container[str] = frozenset({'sigma'})) -> None:
+                   columns: Collection[str] = frozenset({'sigma'})) -> None:
     """Guess parameters in **df** using crystal radii."""
     column_set = set(columns)
     if 'epsilon' in column_set:
@@ -234,8 +219,8 @@ def crystal_radius(df: pd.DataFrame, prm_mapping: Mapping[str, Tuple[float, floa
     _radii(df, ion_loc, prm_mapping, column_set)
 
 
-def rdf(df: pd.DataFrame, mol_list: Iterable['MultiMolecule'],
-        columns: Sequence[str] = ['epsilon', 'sigma']) -> None:
+def rdf(df: pd.DataFrame, mol_list: Iterable[MultiMolecule],
+        columns: List[str] = ['epsilon', 'sigma']) -> None:
     """Guess parameters in **df** using the Boltzmann-inverted radial distribution function."""
     # Construct the RDF and guess the parameters
     rdf_gen = (mol.init_rdf() for mol in mol_list)

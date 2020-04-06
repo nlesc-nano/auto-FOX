@@ -28,6 +28,7 @@ from types import MappingProxyType
 from typing import (Any, Iterator, Dict, Tuple, FrozenSet, Mapping, List, Union, Iterable, Sequence,
                     Hashable, Optional, ClassVar, MutableSequence)
 from itertools import chain, repeat
+from contextlib import nullcontext
 from collections import abc
 
 import numpy as np
@@ -40,12 +41,6 @@ from .cp2k_to_prm import PRMMappingType, PostProcess
 from .cp2k_to_prm import CP2K_TO_PRM as _CP2K_TO_PRM
 from .file_container import AbstractFileContainer
 from ..functions.cp2k_utils import parse_cp2k_value
-
-# nullcontext() was added in Python 3.7; suppress() sorta serves as an alternative
-try:
-    from contextlib import nullcontext
-except ImportError:
-    from contextlib import suppress as nullcontext
 
 __all__ = ['PRMContainer']
 

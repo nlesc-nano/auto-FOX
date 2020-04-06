@@ -8,7 +8,6 @@ env:
     global:
         - COMMIT_AUTHOR_EMAIL: b.f.van.beek@vu.nl
     matrix:
-        - PYTHON_VERSION=3.6
         - PYTHON_VERSION=3.7
         - PYTHON_VERSION=3.8
 
@@ -38,3 +37,4 @@ script:
 branches:
     only:
         - master
+        - Auto-FOX-0.8

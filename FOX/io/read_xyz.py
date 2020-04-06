@@ -12,29 +12,24 @@ Index
     read_multi_xyz
     get_comments
     validate_xyz
-    _get_atom_count
-    _get_line_count
-    _get_idx_dict
 
 API
 ---
-.. autoexception:: FOX.io.read_xyz.XYZError
-.. autofunction:: FOX.io.read_xyz.read_multi_xyz
-.. autofunction:: FOX.io.read_xyz.get_comments
-.. autofunction:: FOX.io.read_xyz.validate_xyz
-.. autofunction:: FOX.io.read_xyz._get_atom_count
-.. autofunction:: FOX.io.read_xyz._get_line_count
-.. autofunction:: FOX.io.read_xyz._get_idx_dict
+.. autoexception::XYZError
+.. autofunction:: read_multi_xyz
+.. autofunction:: get_comments
+.. autofunction:: validate_xyz
 
 """
 
 import os
 import reprlib
-from typing import Tuple, Dict, Iterable, List, Union, Iterator, Generator, AnyStr
+from typing import Tuple, Dict, Iterable, List, Union, Iterator, Generator, AnyStr, overload
 from itertools import islice, chain
 
 import numpy as np
 
+from ..type_hints import Literal
 from ..functions.utils import group_by_values
 
 __all__ = ['read_multi_xyz']
@@ -44,11 +39,21 @@ class XYZError(OSError):
     """Raise when there are issues related to parsing .xyz files."""
 
 
-XYZoutput = Union[Tuple[np.ndarray, Dict[str, List[int]]],
-                  Tuple[np.ndarray, Dict[str, List[int]], np.ndarray]]
+XYZoutput1 = Tuple[np.ndarray, Dict[str, List[int]]]
+XYZoutput2 = Tuple[np.ndarray, Dict[str, List[int]], np.ndarray]
 
 
-def read_multi_xyz(filename: Union[AnyStr, os.PathLike], return_comment: bool = True) -> XYZoutput:
+@overload
+def read_multi_xyz(filename: Union[AnyStr, os.PathLike],
+                   return_comment: Literal[False]) -> XYZoutput1: ...
+
+
+@overload
+def read_multi_xyz(filename: Union[AnyStr, os.PathLike],
+                   return_comment: Literal[True]) -> XYZoutput2: ...
+
+
+def read_multi_xyz(filename, return_comment=True):
     r"""Read a (multi) .xyz file.
 
     Parameters
@@ -103,7 +108,7 @@ def read_multi_xyz(filename: Union[AnyStr, os.PathLike], return_comment: bool = 
         return xyz, idx_dict
 
 
-def _xyz_generator(f: Iterable[str], atom_count: int) -> Generator[Iterator[int], None, None]:
+def _xyz_generator(f: Iterable[str], atom_count: int) -> Generator[Iterator[str], None, None]:
     """Create a Cartesian coordinate generator for :func:`.read_multi_xyz`."""
     stop = 1 + atom_count
     for _ in f:
@@ -135,7 +140,8 @@ def get_comments(filename: Union[AnyStr, os.PathLike], atom_count: int) -> np.nd
         return np.array([i.rstrip() for i in iterator])
 
 
-def validate_xyz(mol_count: float, atom_count: int, filename: str) -> None:
+def validate_xyz(mol_count: float, atom_count: int,
+                 filename: Union[AnyStr, os.PathLike]) -> None:
     """Validate **mol_count** and **atom_count** in **xyz_file**.
 
     Parameters
@@ -157,14 +163,13 @@ def validate_xyz(mol_count: float, atom_count: int, filename: str) -> None:
         Raised when issues are encountered related to parsing .xyz files.
 
     """
-    filename = f"'...{os.sep}{os.path.basename(filename)}'"
     if not mol_count.is_integer():
-        raise XYZError(f"A non-integer number of molecules was found in '{filename}'; "
+        raise XYZError(f"A non-integer number of molecules was found in {filename!r}; "
                        f"mol count: {mol_count}")
     elif mol_count < 1.0:
-        raise XYZError(f"No molecules were found in '{filename}'; mol count: {mol_count}")
+        raise XYZError(f"No molecules were found in {filename!r}; mol count: {mol_count}")
     if atom_count < 1:
-        raise XYZError(f"No atoms were found in '{filename}'; atom count: {atom_count}")
+        raise XYZError(f"No atoms were found in {filename!r}; atom count: {atom_count}")
 
 
 def _get_atom_count(f: Iterator[str]) -> int:
@@ -192,7 +197,7 @@ def _get_atom_count(f: Iterator[str]) -> int:
     except ValueError as ex:
         err = (f"{reprlib.repr(ret)} is not a valid integer, the first line in an .xyz file "
                "should contain the number of atoms per molecule")
-        raise XYZError(err).with_traceback(ex.__traceback__)
+        raise XYZError(err) from ex
 
 
 def _get_line_count(f: Iterable, add: Union[int, Iterable[int]] = 0) -> int:
@@ -212,7 +217,7 @@ def _get_line_count(f: Iterable, add: Union[int, Iterable[int]] = 0) -> int:
         The total number of lines in **f**.
 
     """
-    start = 1 + sum(add)
+    start = 1 + np.sum(add)
     for i, _ in enumerate(f, start):
         pass
     return i

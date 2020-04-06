@@ -17,7 +17,7 @@ API
 """
 
 from itertools import chain
-from typing import Tuple, Dict, List
+from typing import Tuple, Dict, List, TYPE_CHECKING
 
 import numpy as np
 

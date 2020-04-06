@@ -4,12 +4,14 @@ from os import remove
 from os.path import join, isfile
 
 import h5py
+import yaml
 import numpy as np
 
 from scm.plams import Settings
 from assertionlib import assertion
 
 import FOX
+from FOX.armc import dict_to_armc
 from FOX.io.hdf5_utils import create_hdf5, to_hdf5, from_hdf5, create_xyz_hdf5
 
 PATH: str = join('tests', 'test_files')
@@ -18,7 +20,8 @@ PATH: str = join('tests', 'test_files')
 def test_create_hdf5():
     """Test :meth:`FOX.io.hdf5_utils.create_hdf5`."""
     yaml_file = join(PATH, 'armc.yaml')
-    armc, _ = FOX.ARMC.from_yaml(yaml_file)
+    with open(yaml_file, 'r') as f:
+        armc, _ = dict_to_armc(yaml.load(f.read(), Loader=yaml.FullLoader))
     armc.hdf5_file = hdf5_file = join(PATH, 'test.hdf5')
 
     ref_dict = Settings()
@@ -50,7 +53,8 @@ def test_create_hdf5():
 def test_to_hdf5():
     """Test :meth:`FOX.io.hdf5_utils.to_hdf5`."""
     yaml_file = join(PATH, 'armc.yaml')
-    armc, _ = FOX.ARMC.from_yaml(yaml_file)
+    with open(yaml_file, 'r') as f:
+        armc, _ = dict_to_armc(yaml.load(f.read(), Loader=yaml.FullLoader))
     armc.hdf5_file = hdf5_file = join(PATH, 'test.hdf5')
 
     kappa = 5
@@ -95,7 +99,8 @@ def test_to_hdf5():
 def test_from_hdf5():
     """Test :meth:`FOX.io.hdf5_utils.from_hdf5`."""
     yaml_file = join(PATH, 'armc.yaml')
-    armc, _ = FOX.ARMC.from_yaml(yaml_file)
+    with open(yaml_file, 'r') as f:
+        armc, _ = dict_to_armc(yaml.load(f.read(), Loader=yaml.FullLoader))
     armc.hdf5_file = hdf5_file = join(PATH, 'test.hdf5')
 
     kappa = 0

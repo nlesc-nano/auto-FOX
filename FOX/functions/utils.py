@@ -1,27 +1,37 @@
 """A module with miscellaneous functions."""
 
+import reprlib
 import warnings
-from collections import abc
+import importlib
+from os import PathLike
 from os.path import join, isfile
 from functools import wraps
+from collections import abc
 from pkg_resources import resource_filename
 from typing import (
     Iterable, Tuple, Callable, Hashable, Sequence, Optional, List, Any, TypeVar, Dict,
-    Type, Mapping, Union
+    Type, Mapping, Union, MutableMapping, TYPE_CHECKING, AnyStr
 )
 
 import yaml
 import numpy as np
 import pandas as pd
 
-from scm.plams import (Settings, add_to_class)
+from scm.plams import Settings, add_to_class
+
+if TYPE_CHECKING:
+    from ..classes import MultiMolecule
+else:
+    MultiMolecule = 'FOX.classes.multi_Mol.MultiMolecule'
 
 __all__ = ['get_template', 'template_to_df', 'get_example_xyz']
 
+KT = TypeVar('KT', bound=Hashable)
+VT = TypeVar('VT')
 T = TypeVar('T')
 
 
-def append_docstring(item: Callable) -> Callable:
+def append_docstring(item: Callable[..., T]) -> Callable[..., T]:
     r"""A decorator for appending the docstring of a Callable one provided by another Callable.
 
     Examples
@@ -213,7 +223,7 @@ def serialize_array(array: np.ndarray, items_per_row: int = 4) -> str:
     return ret
 
 
-def read_str_file(filename: str) -> Optional[Tuple[Sequence, Sequence]]:
+def read_str_file(filename: Union[AnyStr, PathLike]) -> Optional[Tuple[Sequence, Sequence]]:
     """Read atomic charges from CHARMM-compatible stream files (.str).
 
     Returns a settings object with atom types and (atomic) charges.
@@ -243,6 +253,8 @@ def read_str_file(filename: str) -> Optional[Tuple[Sequence, Sequence]]:
         for i in f:
             if 'GROUP' in i:
                 return zip(*inner_loop(f))
+        else:
+            raise RuntimeError(f"Failed to parse {filename!r}")
 
 
 def get_shape(item: Iterable) -> Tuple[int]:
@@ -402,7 +414,7 @@ def array_to_index(ar: np.ndarray) -> pd.Index:
                      {:d}-dimensional array'.format(ar.dim))
 
 
-def get_example_xyz(name: str = 'Cd68Se55_26COO_MD_trajec.xyz') -> str:
+def get_example_xyz(name: Union[str, PathLike] = 'Cd68Se55_26COO_MD_trajec.xyz') -> str:
     """Return the path + name of the example multi-xyz file."""
     err = "'FOX.get_example_xyz()' has been deprecated in favour of 'FOX.example_xyz'"
     warnings.warn(err, FutureWarning)
@@ -489,7 +501,7 @@ def get_func_name(item: Callable) -> str:
         item_name = item.__name__
         item_class = item.__class__.__name__
         item_module = item.__class__.__module__.split('.')[0]
-    return '{}.{}.{}'.format(item_module, item_class, item_name)
+    return f'{item_module}.{item_class}.{item_name}'
 
 
 def get_class_name(item: Callable) -> str:
@@ -524,10 +536,11 @@ def get_class_name(item: Callable) -> str:
     item_module = item.__module__.split('.')[0]
     if item_module == 'scm':
         item_module == item.__module__.split('.')[1]
-    return '{}.{}'.format(item_module, item_class)
+    return f'{item_module}.{item_class}'
 
 
-def slice_str(str_: str, intervals: List[Optional[int]], strip_spaces: bool = True) -> list:
+def slice_str(str_: str, intervals: List[Optional[int]],
+              strip_spaces: bool = True) -> List[str]:
     """Slice a string, **str_**, at intervals specified in **intervals**.
 
     Examples
@@ -564,65 +577,39 @@ def slice_str(str_: str, intervals: List[Optional[int]], strip_spaces: bool = Tr
     return [str_[i:j] for i, j in zip(iter1, iter2)]
 
 
-def get_atom_count(iterable: pd.MultiIndex,
-                   mol: Union[pd.Series, 'FOX.MultiMolecule']) -> pd.Series:
-    """Count the occurences of each atom/atom-pair (from **iterable**) in **mol**.
-
-    Duplicate values are removed if when evaluating atom pairs when atom-pairs consist of
-    identical atom types (*e.g.* ``"Cd Cd"``).
-
-    Examples
-    --------
-    .. code:: python
-
-        >>> Cd_count = len(mol.atoms['Cd'])
-        >>> print(Cd_count)
-        50
-
-        >>> Se_count = len(mol.atoms['Se'])
-        >>> print(Se_count)
-        25
-
-        >>> iterable = ['Cd', 'Cd Se', 'Cd Cd']
-        >>> at_count = get_atom_count(get_atom_count)
-        >>> print(at_count)
-        [50, 1250, 1225]
+def get_atom_count(iterable: Iterable[Sequence[KT]],
+                   count: Mapping[KT, int]) -> List[Optional[int]]:
+    """Count the occurences of each atom/atom-pair (from **iterable**) in as defined by **count**.
 
     Parameters
     ----------
-    iterable : |Iterable|_ [|Sequence|_ [str]]
-        A nested iterable with :math:`n` atoms and/or atom pairs.
-        Atom pairs are to-be provided as space seperated strings (*e.g.* ``"Cd Cd"``).
+    iterable : :class:`~collections.abc.Iterable` [:class:`~collections.abc.Sequence` [:class:`str`]], shape :math:`(n, m)`
+        An iterable consisting of atom-lists.
 
-    mol : |FOX.MultiMolecule|_
-        A :class:`.MultiMolecule` instance.
+    count : :class:`~collections.abc.Mapping` [:class:`str`, :class:`int`]
+        A dict which maps atoms to atom counts.
 
     Returns
     -------
-    :math:`n` |list|_ [|int|_]:
+    :class:`list` [:class:`int`, optional], shape :math:`(n,)`
         A list of atom(-pair) counts.
+        A particular value is replace with ``None`` if a :exc:`KeyError` is encountered.
 
-    """
-    if isinstance(mol, pd.Series):
-        at_list = pd.Series(mol.index, index=mol)
-    else:
-        at_list = mol.atoms
-
-    def _get_atom_count(at):
-        atoms = at.split()
+    """  # noqa: E501
+    def _get_atom_count(tup: Sequence[KT]) -> Optional[int]:
         try:
-            if len(atoms) == 2 and atoms[0] == atoms[1]:
-                at1, _ = [len(at_list[i]) for i in atoms]
-                return (at1**2 - at1) // 2
-            elif len(atoms) == 2:
-                return np.product([len(at_list[i]) for i in atoms])
-            else:
-                return len(at_list[at])
+            if len(tup) == 2 and tup[0] == tup[1]:
+                int1 = count[tup[0]]
+                return (int1**2 - int1) // 2
+            elif len(tup) == 2:
+                return np.product([count[i] for i in tup])
+            elif len(tup) == 1:
+                return count[tup[0]]
+            return None
         except KeyError:
-            return -1
+            return None
 
-    ret = pd.Series({(i, at): _get_atom_count(at) for i, at in iterable}, dtype=int, name='count')
-    return ret[ret >= 0]
+    return [_get_atom_count(tup) for tup in iterable]
 
 
 def get_nested_element(iterable: Iterable) -> Any:
@@ -649,89 +636,44 @@ def get_nested_element(iterable: Iterable) -> Any:
             return ret
 
 
-def str_to_callable(string: str) -> Callable:
-    """Create a callable object from a string.
-
-    Accepts string-representations of functions, classes and methods, returning the respective
-    callable.
-
-    Examples
-    --------
-    An example with a builtin function:
-
-    .. code:: python
-
-        >>> callable_ = str_to_callable('len')
-        >>> print(callable_)
-        <function len(obj, /)>
-
-        >>> out = callable_([True, True, True])
-        >>> print(out)
-        3
-
-    An example with a third-party function from NumPy:
-
-    .. code:: python
-
-        >>> callable_ = str_to_callable('numpy.add')
-        >>> print(callable_)
-        <ufunc 'add'>
-
-        >>> out = callable_(10, 5)
-        >>> print(out)
-        15
-
-    Another example with a third-party method from the :class:`.MultiMolecule` class in Auto-FOX:
-
-    .. code:: python
-
-        >>> from FOX import get_example_xyz
-
-        >>> callable_ = str_to_callable('FOX.MultiMolecule.from_xyz')
-        >>> print(callable_)
-        <bound method MultiMolecule.from_xyz of <class 'FOX.classes.multi_mol.MultiMolecule'>>
-
-        >>> out = callable_(get_example_xyz())
-        >>> print(type(out))
-        <class 'FOX.classes.multi_mol.MultiMolecule'>
-
+def get_importable(string: str, validate: Optional[Callable[[T], bool]] = None) -> T:
+    """Import an importable object.
 
     Parameters
     ----------
     string : str
-        A string represnting a callable object.
-        The path to the callable should be included in the string (see examples).
+        A string representing an importable object.
+        Note that the string *must* contain the object's module.
+
+    validate : :class:`~Collections.abc.Callable`, optional
+        A callable for validating the imported object.
+        Will raise an :exc:`AssertionError` if its output evaluates to ``False``.
 
     Returns
     -------
-    |Callable|_:
-        A callable object (*e.g.* function, class or method).
+    :data:`~typing.Any`
+        The import object
 
     """
-    if '.' not in string:  # Builtin function or class
-        return eval(string)
+    try:
+        head, *tail = string.split('.')
+    except ValueError as ex:
+        raise ValueError("No module has been specified in the "
+                         f"passed 'string' ({string!r})") from ex
 
-    elif string.count('.') == 1:
-        try:  # Builtin method
-            return eval(string)
-        except NameError:  # Non-builtin function or class
-            package, func = string.split('.')
-            exec(f'from {package} import {func}')
-            return eval(func)
+    ret: T = importlib.import_module(head)  # type: ignore
+    for name in tail:
+        ret = getattr(ret, name)
 
-    else:
-        try:  # Non-builtin function or class
-            package, func = string.rsplit('.', 1)
-            exec(f'from {package} import {func}')
-            return eval(func)
-        except ImportError:  # Non-builtin method
-            package, class_, method = string.rsplit('.', 2)
-            exec(f'from {package} import {class_}')
-            return eval('.'.join([class_, method]))
+    if validate is not None:
+        msg = f'Passing {reprlib.repr(ret)} to {validate!r} failed to return True'
+        assert validate(ret), msg
+
+    return ret
 
 
-def group_by_values(iterable: Iterable[Tuple[Any, Hashable]], mapping_type: Type[Mapping] = dict
-                    ) -> Mapping[Hashable, List[Any]]:
+def group_by_values(iterable: Iterable[Tuple[VT, KT]],
+                    mapping_type: Type[Mapping] = dict) -> Mapping[KT, List[VT]]:
     """Take an iterable, yielding 2-tuples, and group all first elements by the second.
 
     Exameple
@@ -766,13 +708,13 @@ def group_by_values(iterable: Iterable[Tuple[Any, Hashable]], mapping_type: Type
 
     """
     if issubclass(mapping_type, abc.MutableMapping):
-        ret = mapping_type()
+        ret: MutableMapping[KT, List[VT]] = mapping_type()
         mutable = True
     else:
         ret = {}
         mutable = False
 
-    list_append: Dict[Hashable, list.append] = {}
+    list_append: Dict[Hashable, Callable[[VT], None]] = {}
     for value, key in iterable:
         try:
             list_append[key](value)
@@ -783,7 +725,8 @@ def group_by_values(iterable: Iterable[Tuple[Any, Hashable]], mapping_type: Type
     return ret if mutable else mapping_type(ret)
 
 
-def read_rtf_file(filename: str) -> Optional[Tuple[Sequence[str], Sequence[float]]]:
+def read_rtf_file(filename: Union[AnyStr, PathLike]
+                  ) -> Optional[Tuple[Sequence[str], Sequence[float]]]:
     """Return a 2-tuple with all atom types and charges."""
     def _parse_item(item: str) -> Tuple[str, float]:
         item_list = item.split()
@@ -847,3 +790,43 @@ def fill_diagonal_blocks(a: np.ndarray, i: int, j: int, val: float = np.nan) -> 
         a[..., i0:i0+i, j0:j0+j] = val
         i0 += i
         j0 += j
+
+
+def split_dict(dct: MutableMapping[KT, VT], keep_keys: Iterable[KT]) -> Dict[KT, VT]:
+    """Pop all items from **dct** which are not in **keep_keys** and use them to construct a new dictionary.
+
+    Note that, by popping its keys, the passed **dct** will also be modified inplace.
+
+    Examples
+    --------
+    .. code:: python
+
+        >>> from FOX.functions.utils import split_dict
+
+        >>> dict1 = {1: 'a', 2: 'b', 3: 'c', 4: 'd'}
+        >>> dict2 = split_dict(dict1, keep_keys=[1, 2])
+
+        >>> print(dict1)
+        {1: 'a', 2: 'b'}
+
+        >>> print(dict2)
+        {3: 'c', 4: 'd'}
+
+    Parameters
+    ----------
+    dct : :class:`~collections.abc.MutableMapping`
+        A mutable mapping.
+    keep_keys : :class:`~collections.abc.Iterable`
+        An iterable with keys that should remain in **dct**.
+
+    Returns
+    -------
+    :class:`dict`
+        A new dictionaries with all key/value pairs from **dct** not specified in **keep_keys**.
+
+    """  # noqa
+    # The ordering of dict elements is preserved in this manner,
+    # as opposed to the use of set.difference()
+    difference = [k for k in dct if k not in keep_keys]
+
+    return {k: dct.pop(k) for k in difference}

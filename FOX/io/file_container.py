@@ -24,11 +24,14 @@ import io
 import abc
 import functools
 from codecs import iterdecode, encode
-from typing import (Dict, Optional, Any, Iterable, Iterator, Union, AnyStr, Callable, Any)
-from contextlib import AbstractContextManager
+from typing import (Dict, Optional, Any, Iterable, Iterator, Union,
+                    AnyStr, Callable, ContextManager, TypeVar)
 from collections.abc import Container
 
 __all__ = ['AbstractFileContainer']
+
+T = TypeVar('T')
+CT = TypeVar('CT', bound=Callable)
 
 
 class AbstractFileContainer(abc.ABC, Container):
@@ -280,7 +283,7 @@ class AbstractFileContainer(abc.ABC, Container):
         raise NotImplementedError('Trying to call an abstract method')
 
     @classmethod
-    def inherit_annotations(cls) -> type:
+    def inherit_annotations(cls) -> Callable[[CT], CT]:
         """A decorator for inheriting annotations and docstrings.
 
         Can be applied to methods of :class:`AbstractFileContainer` subclasses to automatically
@@ -303,7 +306,7 @@ class AbstractFileContainer(abc.ABC, Container):
             True
 
         """
-        def decorator(sub_attr: type) -> type:
+        def decorator(sub_attr: CT) -> CT:
             super_attr = getattr(cls, sub_attr.__name__)
             sub_cls_name = sub_attr.__qualname__.split('.')[0]
 
@@ -321,7 +324,7 @@ class AbstractFileContainer(abc.ABC, Container):
         return decorator
 
 
-class NullContext(AbstractContextManager):
+class NullContext(ContextManager[T]):
     """Context manager that does no additional processing.
 
     Used as a stand-in for a normal context manager, when a particular
@@ -333,10 +336,10 @@ class NullContext(AbstractContextManager):
 
     """
 
-    def __init__(self, enter_result: Any, *args: Any, **kwargs: Any) -> None:
+    def __init__(self, enter_result: T, *args: Any, **kwargs: Any) -> None:
         self.enter_result = enter_result
 
-    def __enter__(self) -> Any:
+    def __enter__(self) -> T:
         return self.enter_result
 
     def __exit__(self, exc_type, exc_value, traceback) -> None:

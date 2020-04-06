@@ -1,16 +1,20 @@
 """
-FOX.armc_functions.monte_carlo_test
-===================================
+FOX.armc.monte_carlo_test
+=========================
 
 Various functions/methods for the testing of :class:`.MonteCarlo` class.
 
 """
 
 import os
-from typing import List, Optional, Iterable
+from typing import List, Optional, Iterable, TYPE_CHECKING
 
-from FOX import MultiMolecule
-from FOX.io.read_xyz import XYZError
+from ..io.read_xyz import XYZError
+
+if TYPE_CHECKING:
+    from ..classes import MultiMolecule
+else:
+    from ..type_alias import MultiMolecule
 
 
 def _md_preopt(self) -> List[Optional[MultiMolecule]]:

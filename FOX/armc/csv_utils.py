@@ -1,12 +1,12 @@
 """
-FOX.armc_functions.csv_utils
-============================
+FOX.armc.csv_utils
+==================
 
 A module for exporting ARMC result to .csv files.
 
 Index
 -----
-.. currentmodule:: FOX.armc_functions.csv_utils
+.. currentmodule:: FOX.armc.csv_utils
 .. autosummary::
     dset_to_csv
 

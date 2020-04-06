@@ -26,9 +26,7 @@ from .io import (
 )
 
 from .classes import (
-    FrozenSettings,
-    MultiMolecule,
-    ARMC, run_armc,
+    MultiMolecule
 )
 
 from .ff import (
@@ -53,9 +51,7 @@ __all__ = [
     'PRMContainer',
     'create_hdf5', 'create_xyz_hdf5', 'to_hdf5', 'from_hdf5',
 
-    'FrozenSettings',
     'MultiMolecule',
-    'ARMC', 'run_armc',
 
     'estimate_lj', 'get_free_energy',
     'get_non_bonded',

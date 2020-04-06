@@ -95,29 +95,23 @@ API
 .. autofunction:: extract_ligand
 
 """
+
 import math
 import warnings
 from os import PathLike
-from sys import version_info
 from types import MappingProxyType
 from typing import (Union, Iterable, Optional, TypeVar, Callable, Mapping, Type, Iterator,
-                    Hashable, Any, Tuple, MutableMapping, AnyStr, List, SupportsFloat)
+                    Hashable, Any, Tuple, MutableMapping, AnyStr, List)
 from itertools import chain
 from collections import abc
 
 import numpy as np
 from scm.plams import Molecule, Atom, Bond, MoleculeError, PT
 
-from FOX import PSFContainer, assert_error
+from FOX import PSFContainer, assert_error, group_by_values
 from FOX.io.read_psf import overlay_rtf_file, overlay_str_file
-from FOX.functions.utils import group_by_values
 from FOX.functions.molecule_utils import fix_bond_orders
-from FOX.armc_functions.sanitization import _assign_residues
-
-if version_info.minor < 7:
-    from collections import OrderedDict
-else:  # Dictionaries are ordered starting from python 3.7
-    OrderedDict = dict
+from FOX.armc.sanitization import _assign_residues
 
 try:
     from rdkit import Chem
@@ -496,7 +490,7 @@ def _get_rddict(ligands: Iterable[Union[str, Molecule, Mol]]) -> MutableMapping[
         tmp_dct[rdmol] = len(rdmol.GetAtoms())
 
     v_old = 0
-    rdmol_dict = OrderedDict()
+    rdmol_dict = {}
     for k, v in _items_sorted(tmp_dct):
         rdmol_dict[k] = v - v_old
         v_old = v
@@ -603,7 +597,7 @@ def set_integer_bonds(self):
 
     # Mark all non-integer bonds; floats which can be represented exactly
     # by an integer (e.g. 1.0 and 2.0) are herein treated as integers
-    bond_dict = OrderedDict()  # An improvised OrderedSet (as it does not exist)
+    bond_dict = {}  # An improvised OrderedSet (as it does not exist)
     for bond in self.bonds:
         if hasattr(bond.order, 'is_integer') and not bond.order.is_integer():
             bond._visited = False

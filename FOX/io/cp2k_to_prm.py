@@ -87,11 +87,7 @@ from typing import (Optional, Iterable, Callable, FrozenSet, TypeVar, Tuple,
 from collections import abc
 
 from ..typed_mapping import TypedMapping
-
-try:
-    from typing import TypedDict
-except ImportError:  # TypedDict was added in Python 3.8
-    TypedDict = None
+from ..type_hints import TypedDict
 
 __all__ = ['PRMMapping', 'CP2K_TO_PRM']
 
@@ -196,19 +192,17 @@ class PRMMapping(TypedMapping):
         return tuple(value)
 
 
-if TypedDict is not None:
-    class _PRMMapping(TypedDict):
-        name: str
-        columns: Tuple[str, ...]
-        key_path: Tuple[str, ...]
-        key: Tuple[str, ...]
-        unit: Tuple[str, ...]
-        default_unit: Tuple[Optional[str], ...]
-        post_process: Tuple[Optional[PostProcess], ...]
+class _PRMMapping(TypedDict):
+    name: str
+    columns: Tuple[str, ...]
+    key_path: Tuple[str, ...]
+    key: Tuple[str, ...]
+    unit: Tuple[str, ...]
+    default_unit: Tuple[Optional[str], ...]
+    post_process: Tuple[Optional[PostProcess], ...]
 
-    PRMMappingType = Union[PRMMapping, _PRMMapping]
-else:
-    PRMMappingType = PRMMapping
+
+PRMMappingType = Union[PRMMapping, _PRMMapping]
 
 
 def sigma_to_r2(sigma: float) -> float:
