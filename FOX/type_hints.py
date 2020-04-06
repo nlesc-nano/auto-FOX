@@ -43,54 +43,32 @@ Scalar = Union[np.generic, int, float, bool]
 ScalarType = Union[Type[np.generic], Type[int], Type[float], Type[bool]]
 
 _DtypeLike = Union[None, str, ScalarType, np.dtype]
-_DT_co1 = TypeVar('_DT_co1', bound=_DtypeLike, covariant=True)
-
-_KT_co = TypeVar('_KT_co', bound=Hashable, covariant=True)
-_VT_co = TypeVar('_VT_co', covariant=True)
-_ST = TypeVar('_ST', bound=Scalar)
-_ST_co = TypeVar('_ST_co', bound=Scalar, covariant=True)
 
 
 @runtime_checkable
-class SupportsDtype(Protocol[_DT_co1]):
+class SupportsDtype(Protocol):
     """An ABC with one abstract attribute :attr:`dtype`."""
 
     __slots__: Tuple[str, ...] = ()
 
     @property
     @abstractmethod
-    def dtype(self) -> _DT_co1:
+    def dtype(self) -> _DtypeLike:
         pass
 
 
 #: Annotation for numpy datatype-like objects.
 DtypeLike = Union[_DtypeLike, SupportsDtype]
-_DT_co2 = TypeVar('_DT_co2', bound=DtypeLike, covariant=True)
-
-
-class NDArray(np.ndarray, Sequence[_ST], Generic[_ST]):
-    """A (barebones) generic version of :class:`numpy.ndarray`."""
-
-    def __array__(self, dtype: DtypeLike = None) -> NDArray[_ST]:
-        pass
 
 
 @runtime_checkable
-class SupportsArray(Protocol[_ST_co]):
+class SupportsArray(Protocol):
     """An ABC with one abstract method :attr:`__array__`."""
 
     __slots__: Tuple[str, ...] = ()
 
-    @overload
     @abstractmethod
-    def __array__(self, dtype: _ST) -> NDArray[_ST]: ...
-
-    @overload
-    @abstractmethod
-    def __array__(self, dtype: DtypeLike) -> NDArray[_ST]: ...
-
-    @abstractmethod
-    def __array__(self, dtype=None):
+    def __array__(self, dtype: DtypeLike = None) -> np.ndarray:
         pass
 
 
@@ -101,7 +79,10 @@ ArrayLike = Union[Sequence, SupportsArray]
 ArrayLikeOrScalar = Union[ArrayLike, Scalar]
 
 #: Annotation for arrays or numerical scalars.
-ArrayOrScalar = Union[np.ndarray, NDFrame, Scalar]
+Array = Union[np.ndarray, NDFrame]
+
+#: Annotation for arrays or numerical scalars.
+ArrayOrScalar = Union[Array, Scalar]
 
 
 __doc__ = __doc__.format(

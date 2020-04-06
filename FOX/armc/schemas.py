@@ -33,7 +33,7 @@ from .monte_carlo import MonteCarloABC
 from .package_manager import PackageManager, PackageManagerABC
 from .phi_updater import PhiUpdater, PhiUpdaterABC
 from .param_mapping import ParamMapping, ParamMappingABC
-from ..type_hints import SupportsArray, TypedDict, NDArray
+from ..type_hints import SupportsArray, TypedDict
 from ..classes import MultiMolecule
 from ..functions.utils import _get_move_range
 from ..schema_utils import (Default, Formatter, supports_float, supports_int,
@@ -453,7 +453,7 @@ class ParamDict(TypedDict):
     type: Type[ParamMappingABC]
     func: Callable[[float, float], float]
     kwargs: Mapping[str, Any]
-    move_range: NDArray[float]
+    move_range: np.ndarray
 
 
 #: Schema for validating the main input blocks.
