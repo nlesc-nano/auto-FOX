@@ -62,7 +62,7 @@ def get_net_charge(param: pd.Series, count: pd.Series,
     return ret.sum()
 
 
-def update_charge(atom: str, value: float, param: pd.Series, count: pd.Series,
+def update_charge(atom: Hashable, value: float, param: pd.Series, count: pd.Series,
                   constrain_dict: Optional[ConstrainDict] = None,
                   prm_min: Optional[Iterable[float]] = None,
                   prm_max: Optional[Iterable[float]] = None,
@@ -122,8 +122,8 @@ def update_charge(atom: str, value: float, param: pd.Series, count: pd.Series,
             return ex
 
 
-def constrained_update(at1: str, param: pd.Series,
-                       constrain_dict: Optional[ConstrainDict] = None) -> List[str]:
+def constrained_update(at1: Hashable, param: pd.Series,
+                       constrain_dict: Optional[ConstrainDict] = None) -> List[Hashable]:
     """Perform a constrained update of atomic charges.
 
     Performs an inplace update of the ``"param"`` column in **df**.
@@ -166,7 +166,7 @@ def constrained_update(at1: str, param: pd.Series,
 def unconstrained_update(net_charge: float, param: pd.Series, count: pd.Series,
                          prm_min: Optional[Iterable[float]] = None,
                          prm_max: Optional[Iterable[float]] = None,
-                         exclude: Optional[Container[str]] = None) -> None:
+                         exclude: Optional[Container[Hashable]] = None) -> None:
     """Perform an unconstrained update of atomic charges."""
     if exclude is None:
         include = pd.Series(np.ones_like(param, dtype=bool), index=param.index)

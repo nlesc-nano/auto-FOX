@@ -1,17 +1,19 @@
 import textwrap
 from abc import ABC, abstractmethod
 from types import MappingProxyType
-from typing import (Any, TypeVar, Optional, Hashable, Tuple, Mapping, Iterable, ClassVar, Union,
-                    Iterator, KeysView, ItemsView, ValuesView, overload, Callable, FrozenSet, Dict)
 from logging import Logger
 from functools import wraps, partial
+from collections import abc
+from typing import (Any, TypeVar, Optional, Hashable, Tuple, Mapping, Iterable, ClassVar, Union,
+                    Iterator, KeysView, ItemsView, ValuesView, overload, Callable, FrozenSet, Dict,
+                    MutableMapping)
 
 import numpy as np
 import pandas as pd
 from assertionlib.dataclass import AbstractDataClass
 from assertionlib.ndrepr import aNDRepr
 
-from ..type_hints import Literal, TypedDict, NDArray
+from ..type_hints import Literal, TypedDict
 from ..functions.charge_utils import update_charge, get_net_charge, ChargeError
 
 __all__ = ['ParamMapping']
@@ -22,7 +24,7 @@ T = TypeVar('T')
 # MultiIndex keys
 _KT1 = TypeVar('_KT1', bound=Hashable)
 _KT2 = TypeVar('_KT2', bound=Hashable)
-_KT3 = TypeVar('_KT2', bound=Hashable)
+_KT3 = TypeVar('_KT3', bound=Hashable)
 
 # All dict keys in ParamMappingABC
 ValidKeys = Literal['param', 'param_old', 'min', 'max', 'constraints', 'count']
@@ -38,15 +40,23 @@ Tup3 = Tuple[_KT1, _KT2, _KT3]
 
 
 class _InputMapping(TypedDict):
-    # Variables
-    param: pd.Series
-    param_old: pd.Series
+    param: Union[pd.Series, MutableMapping[str, pd.Series]]
 
 
 class InputMapping(_InputMapping, total=False):
     """A :class:`~typing.TypedDict` representing the :class:`ParamMappingABC` **df** parameter."""  # noqa
 
-    # Constants
+    min: pd.Series
+    max: pd.Series
+    constraints: pd.Series
+    count: pd.Series
+
+
+class Data(TypedDict):
+    """A :class:`~typing.TypedDict` representing :attr:`ParamMappingABC._data`."""
+
+    param: Dict[Hashable, pd.Series]
+    param_old: Dict[Hashable, pd.Series]
     min: pd.Series
     max: pd.Series
     constraints: pd.Series
@@ -64,11 +74,12 @@ class ParamMappingABC(AbstractDataClass, ABC, Mapping[ValidKeys, pd.Series]):
     * :meth:`clip_move` clip the move.
     * :meth:`apply_constraints` apply further constraints to the move.
 
-    Note that  :meth:`__call__` /  :meth:`move` will internally call all other three methods.
+    Note that  :meth:`__call__` will internally call all other three methods.
 
     Examples
     --------
     .. code:: python
+
         >>> import pandas as pd
 
         >>> df = pd.DataFrame(..., index=pd.MultiIndex(...))
@@ -114,11 +125,10 @@ class ParamMappingABC(AbstractDataClass, ABC, Mapping[ValidKeys, pd.Series]):
 
     _net_charge: Optional[float]
     _move_range: np.ndarray
-    __data: Mapping[ValidKeys, pd.Series]
+    __data: Data
 
     #: Fill values for when optional keys are absent.
     FILL_VALUE: ClassVar[Mapping[ValidKeys, Any]] = MappingProxyType({
-        'param_old': np.nan,
         'min': -np.inf,
         'max': np.inf,
         'constraints': None,  # Dict[str, functools.partial]
@@ -173,7 +183,7 @@ class ParamMappingABC(AbstractDataClass, ABC, Mapping[ValidKeys, pd.Series]):
     # Properties
 
     @property
-    def move_range(self) -> NDArray[float]:
+    def move_range(self) -> np.ndarray:
         return self._move_range
 
     @move_range.setter
@@ -185,7 +195,7 @@ class ParamMappingABC(AbstractDataClass, ABC, Mapping[ValidKeys, pd.Series]):
         self._move_range = np.fromiter(value, count=count, dtype=float)
 
     @property
-    def _data(self) -> Dict[ValidKeys, pd.Series]:
+    def _data(self) -> Data:
         return self.__data
 
     @_data.setter
@@ -194,31 +204,41 @@ class ParamMappingABC(AbstractDataClass, ABC, Mapping[ValidKeys, pd.Series]):
 
         # Check that the 'param' key is present
         try:
-            param = dct['param']
+            _param = dct['param']
         except KeyError as ex:
-            raise KeyError("The {'param'!r} key is absent from the passed mapping") from ex
+            raise KeyError(f"The {'param'!r} key is absent from the passed mapping") from ex
+        else:
+            if isinstance(_param, pd.Series):
+                dct['param'] = param = {0: _param}
+            elif isinstance(_param, abc.MutableMapping):
+                param = dict(_param)
+            else:
+                raise TypeError(f"the 'param' value expected a Series or dict of Series; "
+                                f"observed type: {_param.__class__.__name__!r}")
 
         # Check that it has a 3-level MultiIndex
         n_level = 3
-        if not isinstance(param.index, pd.MultiIndex):
-            raise TypeError(f"Series.index expected a {n_level}-level MultiIndex; "
-                            f"observed type: {param.index.__class__.__name!r}")
-        elif len(param.index.levels) != n_level:
-            raise ValueError(f"Series.index expected a {n_level}-level MultiIndex; "
-                             f"observed number levels: {len(param.index.levels)}")
+        for prm in param.values():
+            if not isinstance(prm.index, pd.MultiIndex):
+                raise TypeError(f"Series.index expected a {n_level}-level MultiIndex; "
+                                f"observed type: {prm.index.__class__.__name!r}")
+            elif len(prm.index.levels) != n_level:
+                raise ValueError(f"Series.index expected a {n_level}-level MultiIndex; "
+                                 f"observed number levels: {len(prm.index.levels)}")
 
         # Fill in the defaults
         for name, fill_value in self.FILL_VALUE.items():
             if name in dct:
                 continue
             dtype = type(fill_value) if fill_value is not None else object
-            dct[name] = pd.Series(fill_value, index=param.index, name=name, dtype=dtype)
+            dct[name] = pd.Series(fill_value, index=prm.index, name=name, dtype=dtype)
 
-        if 'charge' in dct['param']:
-            self._net_charge = get_net_charge(dct['param']['charge'], dct['count']['charge'])
+        if 'charge' in prm:
+            self._net_charge = get_net_charge(prm['charge'], dct['count']['charge'])
         else:
             self._net_charge = None
 
+        dct['param_old'] = {k: pd.Series(np.nan, index=v.index, name=v.name) for k, v in param.items()}
         self.__data = dct
 
     # Magic methods and Mapping implementation
@@ -288,7 +308,8 @@ class ParamMappingABC(AbstractDataClass, ABC, Mapping[ValidKeys, pd.Series]):
 
     # The actual meat of the class
 
-    def __call__(self, logger: Optional[Logger] = None) -> Union[ChargeError, Tup3]:
+    def __call__(self, logger: Optional[Logger] = None,
+                 param_idx: Hashable = 0) -> Union[Exception, Tup3]:
         """Update a random parameter in **self.param** by a random value from **self.move.range**.
 
         Performs in inplace update of the ``'param'`` column in **self.param**.
@@ -301,6 +322,11 @@ class ParamMappingABC(AbstractDataClass, ABC, Mapping[ValidKeys, pd.Series]):
         logger : :class:`logging.Logger`, optional
             A logger for reporting the updated value.
 
+        param_idx : :class:`int`, optional
+            The index of the parameter.
+            Only relevant when multiple parameter sets have to be stored
+            (see :class:`MultiParamMaping`).
+
         Returns
         -------
         :class:`tuple` [:class:`~Collections.abc.Hashable`, :class:`~Collections.abc.Hashable`]
@@ -308,7 +334,7 @@ class ParamMappingABC(AbstractDataClass, ABC, Mapping[ValidKeys, pd.Series]):
 
         """
         # Prepare arguments a move
-        idx, x1, x2 = self.identify_move()
+        idx, x1, x2 = self.identify_move(param_idx)
         _value = self.func(x1, x2)
         value = self.clip_move(idx, _value)
 
@@ -318,16 +344,21 @@ class ParamMappingABC(AbstractDataClass, ABC, Mapping[ValidKeys, pd.Series]):
             logger.info(f"Moving {prm_type} ({atoms}): {x1:.4f} -> {value:.4f}")
 
         constraints = self['constraints'][idx]
-        ex = self.apply_constraints(idx, value, constraints)
+        ex = self.apply_constraints(idx, value, param_idx, constraints)
         if ex is not None:
             return ex
 
-        self['param'][idx] = value
+        self['param'][param_idx][idx] = value
         return idx
 
     @abstractmethod
-    def identify_move(self) -> Tuple[Tup3, float, float]:
+    def identify_move(self, param: Hashable) -> Tuple[Tup3, float, float]:
         """Identify the to-be moved parameter and the size of the move.
+
+        Parameters
+        ----------
+        param : :class:`~collections.abc.Hashable`
+            The name of the parameter-containg column.
 
         Returns
         -------
@@ -356,7 +387,8 @@ class ParamMappingABC(AbstractDataClass, ABC, Mapping[ValidKeys, pd.Series]):
         """  # noqa
         return value
 
-    def apply_constraints(self, idx: Tup3, value: float, constraints: ConstrainDict) -> None:
+    def apply_constraints(self, idx: Tup3, value: float, param: Hashable,
+                          constraints: ConstrainDict) -> Optional[Exception]:
         """An optional function for applying further constraints based on **idx** and **value**.
 
         Should perform an inplace update of this instance.
@@ -368,6 +400,9 @@ class ParamMappingABC(AbstractDataClass, ABC, Mapping[ValidKeys, pd.Series]):
 
         value : :class:`float`
             The value of the moved parameter.
+
+        param : :class:`~collections.abc.Hashable`
+            The name of the parameter-containg column.
 
         idx : :class:`~collections.abc.Mapping`
             A Mapping with the to-be applied constraints per atom (pair).
@@ -397,8 +432,13 @@ class ParamMapping(ParamMappingABC):
     def __init__(self, data, move_range=MOVE_RANGE, func=np.multiply, **kwargs):
         super().__init__(data, move_range, func=func, **kwargs)
 
-    def identify_move(self) -> Tuple[Tup3, float, float]:
+    def identify_move(self, param_idx: Hashable) -> Tuple[Tup3, float, float]:
         """Identify and return a random parameter and move size.
+
+        Parameters
+        ----------
+        param_idx : :class:`~collections.abc.Hashable`
+            The name of the parameter-containg column.
 
         Returns
         -------
@@ -407,7 +447,7 @@ class ParamMapping(ParamMappingABC):
 
         """  # noqa
         # Define a random parameter
-        random_prm = self['param'].sample()
+        random_prm = self['param'][param_idx].sample()
         idx, x1 = next(random_prm.items())
 
         # Define a random move size
@@ -435,7 +475,7 @@ class ParamMapping(ParamMappingABC):
         prm_max = self['max'][idx]
         return np.clip(value, prm_min, prm_max)
 
-    def apply_constraints(self, idx: Tup3, value: float,
+    def apply_constraints(self, idx: Tup3, value: float, param_idx: Hashable,
                           constraints: ConstrainDict) -> Optional[ChargeError]:
         """Apply further constraints based on **idx** and **value**.
 
@@ -449,6 +489,9 @@ class ParamMapping(ParamMappingABC):
         value : :class:`float`
             The value of the moved parameter.
 
+        param_idx : :class:`~collections.abc.Hashable`
+            The name of the parameter-containg column.
+
         constraints : :class:`~collections.abc.Mapping`
             A Mapping with the to-be applied constraints per atom (pair).
 
@@ -457,7 +500,7 @@ class ParamMapping(ParamMappingABC):
         charge = self._net_charge if prm_type in self.CHARGE_LIKE else None
 
         constraints_ = None if pd.isnull(constraints) else constraints
-        return update_charge(idx[1:], value, self['param'].loc[key],
+        return update_charge(idx[1:], value, self['param'][param_idx].loc[key],
                              count=self['count'].loc[key],
                              prm_min=self['min'].loc[key],
                              prm_max=self['max'].loc[key],
