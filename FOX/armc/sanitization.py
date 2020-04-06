@@ -55,7 +55,6 @@ class RunDict(TypedDict, total=False):
     path: Union[str, os.PathLike]
     folder: Union[str, os.PathLike]
     logfile: Union[str, os.PathLike]
-    restart: bool
     psf: Union[None, List[PSFContainer]]
     guess: Optional[Mapping[str, Mapping]]
 

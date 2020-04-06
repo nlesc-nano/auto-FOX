@@ -30,7 +30,9 @@ import argparse
 from os.path import isfile, join
 from typing import Optional
 
-from .armc import ARMC, run_armc
+import yaml
+
+from .armc import dict_to_armc, run_armc
 from .armc.csv_utils import dset_to_csv
 from .armc.guess import guess_param
 from .armc.plotting import plot_pes_descriptors, plot_param, plot_dset
@@ -47,8 +49,6 @@ except ImportError:
     H5PY_ERROR = ("Use of the FOX.{} function requires the 'h5py' package."
                   "\n'h5py' can be installed via anaconda with the following command:"
                   "\n\tconda install --name FOX -y -c conda-forge h5py")
-
-__all__ = []
 
 
 def main_armc(args: Optional[list] = None) -> None:
@@ -77,7 +77,9 @@ def main_armc(args: Optional[list] = None) -> None:
     if not isfile(filename):
         raise FileNotFoundError("[Errno 2] No such file: '{}'".format(filename))
 
-    armc, kwargs = ARMC.from_yaml(filename)
+    with open(filename, 'r') as f:
+        dct = yaml.load(f.read(), Loader=yaml.FullLoader)
+    armc, kwargs = dict_to_armc(dct)
     run_armc(armc, restart=restart, **kwargs)
 
 
