@@ -22,7 +22,7 @@ API
 
 from typing import (
     Generic, TypeVar, Tuple, Dict, Mapping, Iterable, List, Sequence, overload, Optional,
-    TYPE_CHECKING
+    Any, TYPE_CHECKING
 )
 
 import numpy as np
@@ -49,6 +49,24 @@ MolIter = Iterable[MultiMolecule]
 
 
 class ARMCPT(ARMC, Generic[KT, VT]):
+
+    acceptance_shift: float
+
+    def __init__(self, acceptance_shift: float = np.inf, **kwargs: Any) -> None:
+        r"""Initialize an :class:`ARMCPT` instance.
+
+        Parameters
+        ----------
+        acceptance_shift : :class:`float`
+            Bla bla.
+        \**kwargs : :data:`~typing.Any`
+            Further keyword arguments for the :class:`ARMC` and
+            :class:`MonteCarloABC` superclasses.
+
+        """
+        super().__init__(**kwargs)
+        self.acceptance_shift = acceptance_shift
+
     def acceptance(self) -> np.ndarray:
         """Create an empty 2D boolean array for holding the acceptance."""
         shape = (self.sub_iter_len, len(self.phi.phi))
@@ -119,9 +137,8 @@ class ARMCPT(ARMC, Generic[KT, VT]):
         self._do_inner5(mol_list, accept, aux_new, pes_new, kappa, omega)
 
         # Step 6: Allow for swapping between parameter sets
-        key_main, *key_other = key_new
-        key_new_swap = self._do_inner6(key_main, key_other)
-        return key_new_swap
+        self._do_inner6(key_new)
+        return key_new
 
     def _do_inner3(self, pes_new: PesMapping,
                    key_old: Sequence[KT]) -> Tuple[np.ndarray, np.ndarray]:
@@ -163,16 +180,61 @@ class ARMCPT(ARMC, Generic[KT, VT]):
 
         return ret
 
-    def _do_inner6(self, key_main: KT, key_other: Sequence[KT]) -> List[KT]:
-        """Allow for swapping between parameter sets."""
-        err_main = self[key_main]
-        err_other = np.array([self[k] for k in key_other])
-        swap = self.swap_parameters(err_main, err_other)
+    def _do_inner6(self, acceptance: np.ndarray) -> None:
+        r"""Swap the :math:`\phi` and move range of two between forcefield parameter sets.
 
-        if swap is None:
-            return key_other
-        pass
+        The two main parameters are the acceptance rate
+        :math:`\boldsymbol{\alpha} \in \mathbb{R}^{(n,)}` and target acceptance rate
+        :math:`\boldsymbol{\alpha^{t}} \in \mathbb{R}^{(n,)}`,
+        both vector's elements being the :math:`[0,1]` interval.
 
-    @staticmethod
-    def swap_parameters(err_main: np.ndarray, err_other: np.ndarray) -> Optional[Tuple[int, int]]:
-        pass
+        The (weighted) probability distribution :math:`\boldsymbol{p} \in \mathbb{R}^{(n,)}` is
+        consequently used for identifying which two forcefield parameter sets
+        are swapped.
+
+        .. math::
+
+            \hat{\boldsymbol{p}} = |\boldsymbol{\alpha} - \boldsymbol{\alpha^{t}}|^{-1}
+
+            \boldsymbol{p} = \frac{\hat{\boldsymbol{p}}}{\sum^n_{i} {\hat{\boldsymbol{p}}}_{i}}
+
+        Parameters
+        ----------
+        acceptance : :class:`numpy.ndarray` [:class:`bool`], shape :math:`(n, m)`
+            A 2D boolean array with acceptance rates over
+            the course of the last super-iteration.
+
+        """
+        _p = acceptance.mean(axis=-1) - self.phi.a_target
+        if 0 in _p:
+            p = np.zeros_like(_p, dtype=float)
+            p[_p == 0] = 1
+        else:
+            p = _p**-1
+        p /= p.sum()  # normalize
+
+        idx_range = np.arange(len(acceptance))
+        idx1 = np.random.choice(idx_range, p=p)
+        idx2 = np.random.choice(idx_range, p=p)
+
+        if idx1 != idx2:
+            self.swap_phi(idx1, idx2)
+
+    def swap_phi(self, idx1: int, idx2: int) -> None:
+        """Swap the array-elements **idx1** and **idx2** of four :class:`ARMCPT` attributes.
+
+        Affects the following attributes:
+
+        * :attr:`ARMCPT.phi.phi<FOX.armc.PhiUpdater.phi>`
+        * :attr:`ARMCPT.phi.a_target<FOX.armc.PhiUpdater.a_target>`
+        * :attr:`ARMCPT.phi.gamma<FOX.armc.PhiUpdater.gamma>`
+        * :attr:`ARMCPT.param.move_range<FOX.armc.ParamMapping.move_range>`
+
+        """
+        i = [idx1, idx2]
+        j = [idx2, idx1]
+
+        self.phi.phi[i] = self.phi.phi[j]
+        self.phi.a_target[i] = self.phi.a_target[j]
+        self.phi.gamma[i] = self.phi.gamma[j]
+        self.param.move_range[i] = self.param.move_range[j]
