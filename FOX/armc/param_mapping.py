@@ -6,14 +6,14 @@ from functools import wraps, partial
 from collections import abc
 from typing import (Any, TypeVar, Optional, Hashable, Tuple, Mapping, Iterable, ClassVar, Union,
                     Iterator, KeysView, ItemsView, ValuesView, overload, Callable, FrozenSet, Dict,
-                    MutableMapping)
+                    MutableMapping, Sequence)
 
 import numpy as np
 import pandas as pd
 from assertionlib.dataclass import AbstractDataClass
 from assertionlib.ndrepr import aNDRepr
 
-from ..type_hints import Literal, TypedDict
+from ..type_hints import Literal, TypedDict, Scalar, SupportsArray
 from ..functions.charge_utils import update_charge, get_net_charge, ChargeError
 
 __all__ = ['ParamMapping']
@@ -42,7 +42,7 @@ Tup3 = Tuple[_KT1, _KT2, _KT3]
 
 
 class _InputMapping(TypedDict):
-    param: Union[pd.Series, Mapping[str, pd.Series]]
+    param: Union[pd.Series, pd.DataFrame, Mapping[str, pd.Series]]
 
 
 class InputMapping(_InputMapping, total=False):
@@ -57,15 +57,15 @@ class InputMapping(_InputMapping, total=False):
 class Data(TypedDict):
     """A :class:`~typing.TypedDict` representing :attr:`ParamMappingABC._data`."""
 
-    param: Dict[Hashable, pd.Series]
-    param_old: Dict[Hashable, pd.Series]
+    param: pd.DataFrame
+    param_old: pd.DataFrame
     min: pd.Series
     max: pd.Series
     constraints: pd.Series
     count: pd.Series
 
 
-def _parse_param(dct: MutableMapping[str, Any]) -> Dict[Hashable, pd.Series]:
+def _parse_param(dct: MutableMapping[str, Any]) -> pd.DataFrame:
     # Check that the 'param' key is present
     try:
         _param = dct['param']
@@ -73,29 +73,29 @@ def _parse_param(dct: MutableMapping[str, Any]) -> Dict[Hashable, pd.Series]:
         raise KeyError(f"The {'param'!r} key is absent from the passed mapping") from ex
 
     # Cast the data into the correct shape
-    param: Dict[Hashable, pd.Series]
     if isinstance(_param, pd.Series):
-        dct['param'] = param = {0: _param}
+        dct['param'] = param = _param.to_frame(name=0)
+    elif isinstance(_param, pd.DataFrame):
+        param = _param
     else:
         try:
-            param = dict(_param)
+            dct['param'] = param = pd.DataFrame(_param)
         except TypeError as ex:
-            raise TypeError(f"the 'param' value expected a Series or dict of Series; "
+            raise TypeError(f"the 'param' value expected a Series, DataFrame or dict of Series; "
                             f"observed type: {_param.__class__.__name__!r}") from ex
 
     # Check that it has a 3-level MultiIndex
     n_level = 3
-    for prm in param.values():
-        if not isinstance(prm.index, pd.MultiIndex):
-            raise TypeError(f"Series.index expected a {n_level}-level MultiIndex; "
-                            f"observed type: {prm.index.__class__.__name!r}")
-        elif len(prm.index.levels) != n_level:
-            raise ValueError(f"Series.index expected a {n_level}-level MultiIndex; "
-                             f"observed number levels: {len(prm.index.levels)}")
+    if not isinstance(param.index, pd.MultiIndex):
+        raise TypeError(f"Series.index expected a {n_level}-level MultiIndex; "
+                        f"observed type: {param.index.__class__.__name!r}")
+    elif len(param.index.levels) != n_level:
+        raise ValueError(f"Series.index expected a {n_level}-level MultiIndex; "
+                         f"observed number levels: {len(param.index.levels)}")
     return param
 
 
-_ParamMappingABC = Mapping[ValidKeys, Union[Dict[Hashable, pd.Series], pd.Series]]
+_ParamMappingABC = Mapping[ValidKeys, Union[pd.DataFrame, pd.Series]]
 
 
 class ParamMappingABC(AbstractDataClass, ABC, _ParamMappingABC):
@@ -211,11 +211,9 @@ class ParamMappingABC(AbstractDataClass, ABC, _ParamMappingABC):
 
         """  # noqa
         super().__init__()
+        self._data: Data = data  # type: ignore
         self.move_range = move_range  # type: ignore
         self.func: Callable[[float, float], float] = wraps(func)(partial(func, **kwargs))
-        self._data = data  # type: ignore
-        self._data: Data
-        self.__data: Data
 
     # Properties
 
@@ -224,12 +222,23 @@ class ParamMappingABC(AbstractDataClass, ABC, _ParamMappingABC):
         return self._move_range
 
     @move_range.setter
-    def move_range(self, value: Iterable[float]) -> None:
-        try:
-            count = len(value)  # type: ignore
-        except TypeError:
-            count = -1
-        self._move_range = np.fromiter(value, count=count, dtype=float)
+    def move_range(self, value: Union[Scalar, Sequence[Scalar], SupportsArray]) -> None:
+        _ar = np.array(value, dtype=float, ndmin=1, copy=False)
+        reps = len(self._data['param'].columns)
+
+        if _ar.ndim == 2:
+            if len(_ar) != reps:
+                raise ValueError(f"Expected 'move_range' length: {reps}; "
+                                 f"observed length: {len(_ar)}")
+            ar = _ar
+        elif _ar.ndim == 1:
+            ar = np.tile(_ar, reps)
+            ar.shape = reps, -1
+        else:
+            raise ValueError("'move_range' expected a 1D or 2D array; "
+                             f"observed dimensionality: {_ar.ndim}")
+        self._move_range = ar
+
 
     @property
     def _data(self) -> Data:
@@ -241,7 +250,7 @@ class ParamMappingABC(AbstractDataClass, ABC, _ParamMappingABC):
 
         # Check that the 'param' key is present
         param = _parse_param(dct)
-        prm = next(iter(param.values()))
+        _, prm = next(iter(param.items()))
 
         # Fill in the defaults
         for name, fill_value in self.FILL_VALUE.items():
@@ -257,8 +266,9 @@ class ParamMappingABC(AbstractDataClass, ABC, _ParamMappingABC):
             self._net_charge = None
 
         # Construct a dictionary to contain the old parameter
-        dct['param_old'] = {k: pd.Series(np.nan, index=v.index, name=v.name) for k, v in param.items()}  # noqa: E501
-        self.__data = dct
+        dct['param_old'] = param_old = param.copy()
+        param_old[:] = np.nan
+        self.__data: Data = dct
 
     # Magic methods and Mapping implementation
 
@@ -278,10 +288,7 @@ class ParamMappingABC(AbstractDataClass, ABC, _ParamMappingABC):
         ret &= self.keys() == value.keys()
         iterator = ((v, value[k]) for k, v in self.items())
         for v1, v2 in iterator:
-            if isinstance(v, dict):
-                ret &= np.all(_v1 == _v2 for _v1, _v2 in zip(v1.values(), v2.values()))
-            else:
-                ret &= np.all(v1 == v2)
+            ret &= np.all(v1 == v2)
         return ret
 
     def __repr__(self) -> str:
@@ -293,7 +300,7 @@ class ParamMappingABC(AbstractDataClass, ABC, _ParamMappingABC):
     @overload
     def __getitem__(self, key: SeriesKeys) -> pd.Series: ...
     @overload  # noqa: E301
-    def __getitem__(self, key: DictSeriesKeys) -> Dict[Hashable, pd.Series]: ...
+    def __getitem__(self, key: DictSeriesKeys) -> pd.DataFrame: ...
     @overload  # noqa: E301
     def __getitem__(self, key: Any) -> Any: ...
     def __getitem__(self, key):  # noqa: E301
@@ -320,16 +327,16 @@ class ParamMappingABC(AbstractDataClass, ABC, _ParamMappingABC):
         """Return a set-like object providing a view of this instance's keys."""
         return self._data.keys()
 
-    def items(self) -> ItemsView[ValidKeys, pd.Series]:
+    def items(self) -> ItemsView[ValidKeys, Union[pd.DataFrame, pd.Series]]:
         """Return a set-like object providing a view of this instance's key/value pairs."""
         return self._data.items()
 
-    def values(self) -> ValuesView[pd.Series]:
+    def values(self) -> ValuesView[Union[pd.DataFrame, pd.Series]]:
         """Return an object providing a view of this instance's values."""
         return self._data.values()
 
     @overload  # type: ignore
-    def get(self, key: ValidKeys, default: T) -> pd.Series: ...
+    def get(self, key: ValidKeys, default: T) -> Union[pd.DataFrame, pd.Series]: ...
 
     @overload
     def get(self, key: Hashable, default: T) -> T: ...
@@ -341,7 +348,7 @@ class ParamMappingABC(AbstractDataClass, ABC, _ParamMappingABC):
     # The actual meat of the class
 
     def __call__(self, logger: Optional[Logger] = None,
-                 param_idx: Hashable = 0) -> Union[Exception, Tup3]:
+                 param_idx: int = 0) -> Union[Exception, Tup3]:
         """Update a random parameter in **self.param** by a random value from **self.move.range**.
 
         Performs in inplace update of the ``'param'`` column in **self.param**.
@@ -380,11 +387,11 @@ class ParamMappingABC(AbstractDataClass, ABC, _ParamMappingABC):
         if ex is not None:
             return ex
 
-        self['param'][param_idx][idx] = value
+        self['param'].loc[idx, param_idx] = value
         return idx
 
     @abstractmethod
-    def identify_move(self, param: Hashable) -> Tuple[Tup3, float, float]:
+    def identify_move(self, param: int) -> Tuple[Tup3, float, float]:
         """Identify the to-be moved parameter and the size of the move.
 
         Parameters
@@ -419,7 +426,7 @@ class ParamMappingABC(AbstractDataClass, ABC, _ParamMappingABC):
         """  # noqa
         return value
 
-    def apply_constraints(self, idx: Tup3, value: float, param: Hashable,
+    def apply_constraints(self, idx: Tup3, value: float, param: int,
                           constraints: ConstrainDict) -> Optional[Exception]:
         """An optional function for applying further constraints based on **idx** and **value**.
 
@@ -443,13 +450,13 @@ class ParamMappingABC(AbstractDataClass, ABC, _ParamMappingABC):
         pass
 
 
-MOVE_RANGE = np.array([
+MOVE_RANGE = np.array([[
     0.900, 0.905, 0.910, 0.915, 0.920, 0.925, 0.930, 0.935, 0.940,
     0.945, 0.950, 0.955, 0.960, 0.965, 0.970, 0.975, 0.980, 0.985,
     0.990, 0.995, 1.005, 1.010, 1.015, 1.020, 1.025, 1.030, 1.035,
     1.040, 1.045, 1.050, 1.055, 1.060, 1.065, 1.070, 1.075, 1.080,
     1.085, 1.090, 1.095, 1.100
-], dtype=float)
+]], dtype=float)
 MOVE_RANGE.setflags(write=False)
 
 
@@ -464,7 +471,7 @@ class ParamMapping(ParamMappingABC):
     def __init__(self, data, move_range=MOVE_RANGE, func=np.multiply, **kwargs):
         super().__init__(data, move_range, func=func, **kwargs)
 
-    def identify_move(self, param_idx: Hashable) -> Tuple[Tup3, float, float]:
+    def identify_move(self, param_idx: int) -> Tuple[Tup3, float, float]:
         """Identify and return a random parameter and move size.
 
         Parameters
@@ -483,7 +490,7 @@ class ParamMapping(ParamMappingABC):
         idx, x1 = next(random_prm.items())
 
         # Define a random move size
-        x2 = np.random.choice(self.move_range, 1)[0]
+        x2 = np.random.choice(self.move_range[param_idx], 1)[0]
         return idx, x1, x2
 
     def clip_move(self, idx: Tup3, value: float) -> float:
@@ -507,7 +514,7 @@ class ParamMapping(ParamMappingABC):
         prm_max = self['max'][idx]
         return np.clip(value, prm_min, prm_max)
 
-    def apply_constraints(self, idx: Tup3, value: float, param_idx: Hashable,
+    def apply_constraints(self, idx: Tup3, value: float, param_idx: int,
                           constraints: ConstrainDict) -> Optional[ChargeError]:
         """Apply further constraints based on **idx** and **value**.
 
@@ -532,7 +539,7 @@ class ParamMapping(ParamMappingABC):
         charge = self._net_charge if prm_type in self.CHARGE_LIKE else None
 
         constraints_ = None if pd.isnull(constraints) else constraints
-        return update_charge(idx[1:], value, self['param'][param_idx].loc[key],
+        return update_charge(idx[1:], value, self['param'].loc[key, param_idx],
                              count=self['count'].loc[key],
                              prm_min=self['min'].loc[key],
                              prm_max=self['max'].loc[key],

@@ -27,13 +27,13 @@ PARAM = ParamMapping(_DF)
 
 def test_mapping():
     """Test the :class:`~collections.abc.Mapping` implementation of :class:`ParamMapping`."""
-    validate_mapping(PARAM, key_type=str, value_type=pd.Series)
+    validate_mapping(PARAM, key_type=str, value_type=(dict, pd.Series))
 
 
 def test_call():
     """Test :meth:`ParamMapping.__call__`."""
     param = PARAM.copy(deep=True)
-    ref = sum(param['param'].loc['charge'] * param['count'].loc['charge'])
+    ref = sum(param['param'][0].loc['charge'] * param['count'].loc['charge'])
 
     for i in range(1000):
         ex = param()
@@ -42,17 +42,17 @@ def test_call():
             warning.__cause__ = ex
             warnings.warn(warning)
 
-        value = sum(param['param'].loc['charge'] * param['count'].loc['charge'])
+        value = sum(param['param'][0].loc['charge'] * param['count'].loc['charge'])
         assertion.isclose(value, ref, abs_tol=0.001)
 
         try:
-            assert (param['param'] <= param['max']).all()
+            assert (param['param'][0] <= param['max']).all()
         except AssertionError as ex:
             msg = f"iteration{i}\n{pd.DataFrame({'param': param['param'], 'max': param['max']})}"
             raise AssertionError(msg).with_traceback(ex.__tarceback__)
 
         try:
-            assert (param['param'] >= param['min']).all()
+            assert (param['param'][0] >= param['min']).all()
         except AssertionError as ex:
             msg = f"iteration{i}\n{pd.DataFrame({'param': param['param'], 'min': param['min']})}"
             raise AssertionError(msg).with_traceback(ex.__tarceback__)

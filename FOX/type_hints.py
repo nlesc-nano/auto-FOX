@@ -20,7 +20,7 @@ from __future__ import annotations
 
 import sys
 from abc import abstractmethod
-from typing import Sequence, TypeVar, Union, Type, Generic, Hashable, Tuple, overload
+from typing import Sequence, Union, Type, Generic, Hashable, Tuple, overload
 
 import numpy as np
 from pandas.core.generic import NDFrame
@@ -31,9 +31,8 @@ else:
     from typing import Protocol, runtime_checkable, Literal, TypedDict
 
 __all__ = [
-    'Scalar', 'ScalarType', 'ArrayLike',
-    'ArrayLikeOrScalar', 'ArrayOrScalar',
-    'Literal', 'NDArray', 'TypedDict'
+    'Scalar', 'ScalarType', 'ArrayLike', 'ArrayLikeOrScalar', 'ArrayOrScalar',
+    'Literal', 'TypedDict'
 ]
 
 #: Annotation for numerical scalars.
@@ -73,12 +72,12 @@ class SupportsArray(Protocol):
 
 
 #: Annotation for array-like objects.
-ArrayLike = Union[Sequence, SupportsArray]
+ArrayLike = Union[Sequence[Scalar], SupportsArray]
 
 #: Annotation for array-like objects or numerical scalar.
 ArrayLikeOrScalar = Union[ArrayLike, Scalar]
 
-#: Annotation for arrays or numerical scalars.
+#: Annotation for arrays.
 Array = Union[np.ndarray, NDFrame]
 
 #: Annotation for arrays or numerical scalars.

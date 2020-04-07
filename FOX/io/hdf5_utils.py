@@ -112,11 +112,11 @@ def create_hdf5(filename: Union[AnyStr, PathLike], armc: ARMC) -> None:
 
     # Store the *index*, *column* and *name* attributes of dataframes/series in the hdf5 file
     kappa = armc.iter_len // armc.sub_iter_len
-    idx = armc.param['param'].index.append(pd.MultiIndex.from_tuples([('', 'phi', '')]))
+    idx = armc.param['param'][0].index.append(pd.MultiIndex.from_tuples([('', 'phi', '')]))
     aux_error_idx = list(armc.pes.keys())
 
     pd_dict = {
-        'param': armc.param['param'],
+        'param': armc.param['param'][0],
         'phi': pd.Series(np.nan, index=np.arange(kappa), name='phi'),
         'aux_error': pd.Series(np.nan, index=aux_error_idx, name='aux_error'),
         'aux_error_mod': pd.Series(np.nan, index=idx, name='aux_error_mod')
@@ -253,11 +253,11 @@ def _get_kwarg_dict(armc: ARMC) -> Settings:
     shape = armc.iter_len // armc.sub_iter_len, armc.sub_iter_len
 
     ret = Settings()
-    ret.phi.shape = (shape[0], )
+    ret.phi.shape = (shape[0], ) + armc.phi.phi.shape
     ret.phi.dtype = float
     ret.phi.fillvalue = np.nan
 
-    ret.param.shape = shape + (len(armc.param['param']), )
+    ret.param.shape = shape + armc.param['param'].T.shape
     ret.param.dtype = float
     ret.param.fillvalue = np.nan
 
@@ -482,9 +482,8 @@ def from_hdf5(filename: Union[AnyStr, PathLike],
         try:
             ret = {key: _get_dset(f, key)[:i+1] for key in datasets_}
         except KeyError as ex:
-            err = "No dataset '{}' in '{}'. The following datasets are available: {}"
-            arg = str(ex).split("'")[1], str(filename), list(f.keys())
-            raise KeyError(err.format(*arg)) from ex
+            raise KeyError(f"No dataset {ex} in {filename!r}. The following datasets are "
+                           f"available: {list(f.keys())!r}") from ex
 
     # Return a DataFrame/Series or dictionary of DataFrames/Series
     if len(ret) == 1:

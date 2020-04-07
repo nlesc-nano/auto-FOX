@@ -16,10 +16,14 @@ API
 
 """
 
+from __future__ import annotations
+
 import inspect
 import warnings
 from types import FunctionType
-from typing import TypeVar, SupportsFloat, SupportsInt, Any, Callable, Union, Tuple, overload
+from typing import (
+    TypeVar, SupportsFloat, SupportsInt, Any, Callable, Union, Tuple, overload, Generic
+)
 
 from .type_hints import Literal
 from .functions.utils import get_importable
@@ -57,7 +61,7 @@ def supports_int(value):  # noqa: E302
         return False
 
 
-class Default:
+class Default(Generic[T]):
     """A validation class akin to the likes of :class:`schemas.Use`.
 
     Upon executing :meth:`Default.validate` returns the stored :attr:`~Default.value`.
@@ -94,10 +98,10 @@ class Default:
 
     """
 
-    value: Any
+    value: Union[T, Callable[[], T]]
     call: bool
 
-    def __init__(self, value: Union[Any, Callable[[], Any]], call: bool = True) -> None:
+    def __init__(self, value: Union[T, Callable[[], T]], call: bool = True) -> None:
         """Initialize an instance."""
         self.value = value
         self.call = call
@@ -106,7 +110,7 @@ class Default:
         """Implement :code:`str(self)` and :code:`repr(self)`."""
         return f'{self.__class__.__name__}({self.value!r}, call={self.call!r})'
 
-    def validate(self, data: Any) -> Union[Any, Callable[[], Any]]:
+    def validate(self, data: Any) -> Union[T, Callable[[], T]]:
         """Validate the passed **data**."""
         if self.call and callable(self.value):
             return self.value()

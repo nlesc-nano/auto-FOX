@@ -31,9 +31,9 @@ def test_create_hdf5():
     ref_dict.aux_error.dtype = np.float
     ref_dict.aux_error_mod.shape = 500, 100, 15
     ref_dict.aux_error_mod.dtype = np.float
-    ref_dict.param.shape = 500, 100, 14
+    ref_dict.param.shape = 500, 100, 1, 14
     ref_dict.param.dtype = np.float
-    ref_dict.phi.shape = (500, )
+    ref_dict.phi.shape = 500, 1
     ref_dict.phi.dtype = np.float
     ref_dict['rdf.0'].shape = 500, 100, 241, 6
     ref_dict['rdf.0'].dtype = np.float
@@ -44,7 +44,7 @@ def test_create_hdf5():
         create_hdf5(hdf5_file, armc)
         with h5py.File(hdf5_file, 'r') as f:
             for key, value in f.items():
-                assertion.shape_eq(value, ref_dict[key])
+                assertion.shape_eq(value, ref_dict[key].shape)
                 assertion.isinstance(value[:].item(0), ref_dict[key].dtype)
     finally:
         remove(hdf5_file) if isfile(hdf5_file) else None
@@ -61,10 +61,10 @@ def test_to_hdf5():
     omega = 15
     hdf5_dict = {
         'xyz': [FOX.MultiMolecule.from_xyz(FOX.example_xyz)],
-        'phi': 5.0,
-        'param': np.arange(14, dtype=float),
+        'phi': np.array([5.0]),
+        'param': np.array([np.arange(14, dtype=float)]),
         'acceptance': True,
-        'aux_error': np.array([2.0], ndmin=1),
+        'aux_error': np.array([2.0]),
     }
     hdf5_dict['rdf.0'] = hdf5_dict['xyz'][0].init_rdf(atom_subset=['Cd', 'Se', 'O']).values
     hdf5_dict['aux_error_mod'] = np.append(hdf5_dict['param'], hdf5_dict['phi'])
@@ -107,10 +107,10 @@ def test_from_hdf5():
     omega = 0
     hdf5_dict = {
         'xyz': [FOX.MultiMolecule.from_xyz(FOX.example_xyz)],
-        'phi': 5.0,
-        'param': np.arange(14, dtype=float),
+        'phi': np.array([5.0]),
+        'param': np.array([np.arange(14, dtype=float)]),
         'acceptance': True,
-        'aux_error': np.array([2.0], ndmin=1),
+        'aux_error': np.array([2.0]),
     }
     hdf5_dict['rdf.0'] = hdf5_dict['xyz'][0].init_rdf(atom_subset=['Cd', 'Se', 'O']).values
     hdf5_dict['aux_error_mod'] = np.append(hdf5_dict['param'], hdf5_dict['phi'])

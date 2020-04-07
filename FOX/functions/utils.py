@@ -10,7 +10,7 @@ from collections import abc
 from pkg_resources import resource_filename
 from typing import (
     Iterable, Tuple, Callable, Hashable, Sequence, Optional, List, Any, TypeVar, Dict,
-    Type, Mapping, Union, MutableMapping, TYPE_CHECKING, AnyStr, Iterable
+    Type, Mapping, Union, MutableMapping, TYPE_CHECKING, AnyStr, Container
 )
 
 import yaml
@@ -19,14 +19,14 @@ import pandas as pd
 
 from scm.plams import Settings, add_to_class
 
-from ..type_hints import Scalar
+from ..type_hints import Scalar, SupportsArray
 
 if TYPE_CHECKING:
     from ..classes import MultiMolecule
 else:
     MultiMolecule = 'FOX.classes.multi_Mol.MultiMolecule'
 
-__all__ = ['get_template', 'template_to_df', 'get_example_xyz']
+__all__ = ['get_template', 'template_to_df', 'get_example_xyz', 'as_nd_array']
 
 KT = TypeVar('KT', bound=Hashable)
 VT = TypeVar('VT')
@@ -794,7 +794,7 @@ def fill_diagonal_blocks(a: np.ndarray, i: int, j: int, val: float = np.nan) -> 
         j0 += j
 
 
-def split_dict(dct: MutableMapping[KT, VT], keep_keys: Iterable[KT]) -> Dict[KT, VT]:
+def split_dict(dct: MutableMapping[KT, VT], keep_keys: Container[KT]) -> Dict[KT, VT]:
     """Pop all items from **dct** which are not in **keep_keys** and use them to construct a new dictionary.
 
     Note that, by popping its keys, the passed **dct** will also be modified inplace.
@@ -834,7 +834,7 @@ def split_dict(dct: MutableMapping[KT, VT], keep_keys: Iterable[KT]) -> Dict[KT,
     return {k: dct.pop(k) for k in difference}
 
 
-def as_1d_array(value: Union[Scalar, Iterable[Scalar]],
+def as_nd_array(value: Union[Scalar, Iterable[Scalar], SupportsArray],
                 dtype: Union[type, np.dtype], ndmin: int = 1) -> np.ndarray:
     """Convert **value**, a scalar or iterable of scalars, into an array."""
     try:
