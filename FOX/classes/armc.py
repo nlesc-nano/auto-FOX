@@ -461,7 +461,7 @@ class ARMC(MonteCarlo):
         generator = (norm_mean(k, v) for k, v in pes_dict.items())
         ret = np.fromiter(generator, dtype=float, count=len(pes_dict))
         ret.shape = length, -1
-        return ret.T
+        return ret
 
     def update_phi(self, acceptance: np.ndarray) -> None:
         r"""Update the variable :math:`\phi`.
