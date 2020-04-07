@@ -25,14 +25,14 @@ import os
 import io
 from typing import (
     Tuple, TYPE_CHECKING, Any, Optional, Iterable, Mapping, Union, AnyStr,
-    TypeVar, Generic, overload
+    TypeVar, Generic, overload, Dict, List
 )
 
 import numpy as np
 
 from .monte_carlo import MonteCarloABC
 from .armc_to_yaml import to_yaml
-from ..type_hints import ArrayLikeOrScalar, Literal
+from ..type_hints import ArrayLikeOrScalar, ArrayOrScalar, Literal
 from ..io.hdf5_utils import (
     create_hdf5, to_hdf5, create_xyz_hdf5, _get_filename_xyz, hdf5_clear_status
 )
@@ -47,6 +47,12 @@ __all__ = ['ARMC']
 
 KT = TypeVar('KT', bound=Tuple[float, ...])
 VT = TypeVar('VT', bound=np.ndarray)
+
+PesDict = Dict[str, ArrayOrScalar]
+PesMapping = Mapping[str, ArrayOrScalar]
+
+MolList = List[MultiMolecule]
+MolIter = Iterable[MultiMolecule]
 
 
 class ARMC(MonteCarloABC, Generic[KT, VT]):
@@ -175,43 +181,71 @@ class ARMC(MonteCarloABC, Generic[KT, VT]):
 
         """
         # Step 1: Perform a random move
-        key_new = self.move()
-        if isinstance(key_new, Exception):
-            self.logger.warning("{ex}; recalculating move")
-            return self.do_inner(kappa, omega, acceptance, key_old)
-        elif key_new in self:
-            self.logger.info("Move has already been visited; recalculating move")
-            return self.do_inner(kappa, omega, acceptance, key_old)
+        _key_new = self._do_inner1(key_old)
 
-        # Step 2: Check if the move has been performed already; calculate PES descriptors if not
-        pes_new, mol_list = self.get_pes_descriptors(key_new)
+        # Step 2: Calculate PES descriptors
+        pes_new, mol_list = self._do_inner2(_key_new)
 
         # Step 3: Evaluate the auxiliary error; accept if the new parameter set lowers the error
-        aux_new = self.get_aux_error(pes_new)
-        aux_old = self[key_old]
-        error_change = (aux_new - aux_old).sum()
+        error_change, aux_new = self._do_inner3(pes_new, _key_new)
         accept = error_change < 0
 
         # Step 4: Update the auxiliary error history, apply phi & update job settings
         acceptance[omega] = accept
-        if accept:
-            self.logger.info(f"Accepting move {(kappa, omega)}; total error change / error: "
-                             f"{round(error_change, 4)} / {round(aux_new.sum(), 4)}\n")
-            self[key_new] = self.phi(aux_new)
-            self.param['param_old'][:] = self.param['param']
-
-        else:
-            self.logger.info(f"Rejecting move {(kappa, omega)}; total error change / error: "
-                             f"{round(error_change, 4)} / {round(aux_new.sum(), 4)}\n")
-            self[key_new] = aux_new
-            self[key_old] = self.apply_phi(aux_old)
-            key_new = key_old
+        key_new = self._do_inner4(accept, error_change, aux_new,
+                                  _key_new, key_old, kappa, omega)
 
         # Step 5: Export the results to HDF5
+        self._do_inner5(mol_list, accept, aux_new, pes_new, kappa, omega)
+        return key_new
+
+    def _do_inner1(self, key_old: KT) -> KT:
+        """Perform a random move."""
+        key_new = self.move()
+        if isinstance(key_new, Exception):
+            self.logger.warning("{ex}; recalculating move")
+            return self._do_inner1(key_old)
+        elif key_new in self:
+            self.logger.info("Move has already been visited; recalculating move")
+            return self._do_inner1(key_old)
+        return key_new
+
+    def _do_inner2(self, key_new: KT) -> Tuple[PesDict, Optional[MolList]]:
+        """Calculate PES-descriptors."""
+        return self.get_pes_descriptors(key_new)
+
+    def _do_inner3(self, pes_new: PesDict, key_old: KT) -> Tuple[float, np.ndarray]:
+        """Evaluate the auxiliary error; accept if the new parameter set lowers the error."""
+        aux_new = self.get_aux_error(pes_new)
+        aux_old = self[key_old]
+        error_change = (aux_new - aux_old).sum()
+        return error_change, aux_new
+
+    def _do_inner4(self, accept: bool, error_change: float, aux_new: np.ndarray,
+                   key_new: KT, key_old: KT,
+                   kappa: int, omega: int) -> KT:
+        """Update the auxiliary error history, apply phi & update job settings."""
+        err_round = round(error_change, 4)
+        aux_round = round(aux_new.sum(), 4)
+        epilog = f'total error change / error: {err_round} / {aux_round}\n'
+
+        if accept:
+            self.logger.info(f"Accepting move {(kappa, omega)}; {epilog}")
+            self[key_new] = self.phi(aux_new)
+            self.param['param_old'][:] = self.param['param']
+            return key_new
+        else:
+            self.logger.info(f"Rejecting move {(kappa, omega)}; {epilog}")
+            self[key_new] = aux_new
+            self[key_old] = self.apply_phi(self[key_old])
+            return key_old
+
+    def _do_inner5(self, mol_list: Optional[MolIter], accept: bool, aux_new: np.ndarray,
+                   pes_new: PesDict, kappa: int, omega: int) -> None:
+        """Export the results to HDF5."""
         self.to_hdf5(mol_list, accept, aux_new, pes_new, kappa, omega)
         if not accept:
             self.param['param'][0][:] = self.param['param_old']
-        return key_new
 
     def apply_phi(self, value: ArrayLikeOrScalar) -> VT:
         """Apply :attr:`phi` to **value**."""
@@ -241,9 +275,9 @@ class ARMC(MonteCarloABC, Generic[KT, VT]):
         self.param['param_old'][:] = self.param['param']
         return key
 
-    def to_hdf5(self, mol_list: Optional[Iterable[MultiMolecule]],
+    def to_hdf5(self, mol_list: Optional[MolIter],
                 accept: bool, aux_new: np.ndarray,
-                pes_new: Mapping[str, np.ndarray],
+                pes_new: PesMapping,
                 kappa: int, omega: int) -> None:
         r"""Construct a dictionary with the **hdf5_kwarg** and pass it to :func:`.to_hdf5`.
 
@@ -288,7 +322,7 @@ class ARMC(MonteCarloABC, Generic[KT, VT]):
 
         to_hdf5(self.hdf5_file, hdf5_kwarg, kappa, omega)
 
-    def get_aux_error(self, pes_dict: Mapping[str, ArrayLikeOrScalar]) -> VT:
+    def get_aux_error(self, pes_dict: PesMapping) -> VT:
         r"""Return the auxiliary error :math:`\Delta \varepsilon_{QM-MM}`.
 
         The auxiliary error is constructed using the PES descriptors in **values**
@@ -339,12 +373,10 @@ class ARMC(MonteCarloABC, Generic[KT, VT]):
         # Check that both .hdf5 files can be opened; clear their status if not
         closed = hdf5_clear_status(xyz)
         if not closed:
-            self.logger.warning(f"Unable to open ...{os.sep}{os.path.basename(xyz)}, "
-                                "file status was forcibly reset")
+            self.logger.warning(f"Unable to open {xyz!r}, file status was forcibly reset")
         closed = hdf5_clear_status(self.hdf5_file)
         if not closed:
-            self.logger.warning(f"Unable to open ...{os.sep}{os.path.basename(self.hdf5_file)}, "
-                                "file status was forcibly reset")
+            self.logger.warning(f"Unable to open {self.hdf5_file!r}, file status was forcibly reset")
 
         # Finish the current set of sub-iterations
         j += 1
