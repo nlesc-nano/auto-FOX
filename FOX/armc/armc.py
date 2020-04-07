@@ -23,7 +23,10 @@ from __future__ import annotations
 
 import os
 import io
-from typing import Tuple, TYPE_CHECKING, Any, Optional, Iterable, Mapping, Union, AnyStr, TypeVar
+from typing import (
+    Tuple, TYPE_CHECKING, Any, Optional, Iterable, Mapping, Union, AnyStr,
+    TypeVar, Generic, overload
+)
 
 import numpy as np
 
@@ -43,9 +46,10 @@ else:
 __all__ = ['ARMC']
 
 KT = TypeVar('KT', bound=Tuple[float, ...])
+VT = TypeVar('VT', bound=np.ndarray)
 
 
-class ARMC(MonteCarloABC):
+class ARMC(MonteCarloABC, Generic[KT, VT]):
     r"""The Addaptive Rate Monte Carlo class (:class:`.ARMC`).
 
     A subclass of :class:`MonteCarloABC`.
@@ -119,20 +123,24 @@ class ARMC(MonteCarloABC):
         """
         to_yaml(self, filename, logfile, path, folder)
 
-    def __call__(self, start: int = 0, key_new: Optional[KT] = None) -> None:
+    @overload  # type: ignore
+    def __call__(self, start: None = ..., key_new: None = ...) -> None: ...
+    @overload  # noqa: E301
+    def __call__(self, start: int = ..., key_new: KT = ...) -> None: ...
+    def __call__(self, start=None, key_new=None):  # noqa: E301
         """Initialize the Addaptive Rate Monte Carlo procedure."""
-        if start == 0:
+        if start is None:
             create_hdf5(self.hdf5_file, self)  # Construct the HDF5 file
 
             key_new = self._get_first_key()  # Initialize the first MD calculation
             if np.inf in self[key_new]:
                 raise RuntimeError('One or more jobs crashed in the first ARMC iteration; '
                                    'manual inspection of the cp2k output is recomended')
-            if not self.keep_files:
+            elif not self.keep_files:
                 self.clear_jobs()
 
         elif key_new is None:
-            raise TypeError("'key_new' cannot be 'None' if 'start' is larger than 0")
+            raise TypeError("'key_new' cannot be None if 'start' is None")
 
         # Start the main loop
         for kappa in range(start, self.super_iter_len):
@@ -168,11 +176,11 @@ class ARMC(MonteCarloABC):
         """
         # Step 1: Perform a random move
         key_new = self.move()
-        if key_new in self:
-            self.logger.info("Move has already been visited; recalculating move")
-            return self.do_inner(kappa, omega, acceptance, key_old)
-        elif isinstance(key_new, Exception):
+        if isinstance(key_new, Exception):
             self.logger.warning("{ex}; recalculating move")
+            return self.do_inner(kappa, omega, acceptance, key_old)
+        elif key_new in self:
+            self.logger.info("Move has already been visited; recalculating move")
             return self.do_inner(kappa, omega, acceptance, key_old)
 
         # Step 2: Check if the move has been performed already; calculate PES descriptors if not
@@ -205,15 +213,20 @@ class ARMC(MonteCarloABC):
             self.param['param'][0][:] = self.param['param_old']
         return key_new
 
-    def apply_phi(self, value: ArrayLikeOrScalar) -> np.ndarray:
+    def apply_phi(self, value: ArrayLikeOrScalar) -> VT:
         """Apply :attr:`phi` to **value**."""
         return self.phi(value)
 
-    def _get_first_key(self) -> KT:
+    def _get_first_key(self, idx: int = 0) -> KT:
         """Create a the ``history_dict`` variable and its first key.
 
         The to-be returned key servers as the starting argument for :meth:`.do_inner`,
         the latter method relying on both producing and requiring a key as argument.
+
+        Parameters
+        ----------
+        idx : :class:`int`
+            The column key for :attr:`param_mapping["param"]<ARMC.param_mapping.>`.
 
         Returns
         -------
@@ -221,7 +234,7 @@ class ARMC(MonteCarloABC):
             A tuple of Numpy arrays.
 
         """
-        key: KT = tuple(self.param['param'].values)  # type: ignore
+        key: KT = tuple(self.param['param'][idx].values)
         pes, _ = self.get_pes_descriptors(key, get_first_key=True)
 
         self[key] = self.get_aux_error(pes)
@@ -275,7 +288,7 @@ class ARMC(MonteCarloABC):
 
         to_hdf5(self.hdf5_file, hdf5_kwarg, kappa, omega)
 
-    def get_aux_error(self, pes_dict: Mapping[str, ArrayLikeOrScalar]) -> np.ndarray:
+    def get_aux_error(self, pes_dict: Mapping[str, ArrayLikeOrScalar]) -> VT:
         r"""Return the auxiliary error :math:`\Delta \varepsilon_{QM-MM}`.
 
         The auxiliary error is constructed using the PES descriptors in **values**

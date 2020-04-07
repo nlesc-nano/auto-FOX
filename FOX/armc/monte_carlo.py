@@ -282,7 +282,7 @@ class MonteCarloABC(AbstractDataClass, ABC, Mapping[KT, VT], Generic[KT, VT]):
         """
         return self.package_manager(logger=self.logger)
 
-    def move(self) -> Union[Exception, KT]:
+    def move(self, idx: int = 0) -> Union[Exception, KT]:
         """Update a random parameter in **self.param** by a random value from **self.move.range**.
 
         Performs in inplace update of the ``'param'`` column in **self.param**.
@@ -319,6 +319,11 @@ class MonteCarloABC(AbstractDataClass, ABC, Mapping[KT, VT], Generic[KT, VT]):
                      Cs Cs    0.101097
             Name: param, dtype: float64
 
+        Parameters
+        ----------
+        idx : :class:`int`
+            The column key for :attr:`param_mapping["param"]<MonteCarloABC.param_mapping.>`.
+
         Returns
         -------
         |tuple|_ [|float|_]:
@@ -332,7 +337,7 @@ class MonteCarloABC(AbstractDataClass, ABC, Mapping[KT, VT], Generic[KT, VT]):
         else:
             key, prm_name, _ = ret
 
-        prm_update = self.param['param'][0].loc[(key, prm_name)].to_frame().T
+        prm_update = self.param['param'][idx].loc[(key, prm_name)].to_frame().T
         prm_update.index = [prm_name]
         iterator = (job['settings'] for job in chain.from_iterable(self.package_manager.values()))
 
@@ -340,7 +345,7 @@ class MonteCarloABC(AbstractDataClass, ABC, Mapping[KT, VT], Generic[KT, VT]):
         for settings in iterator:
             settings[key].update(prm_update)
 
-        return tuple(self.param['param'].values)  # type: ignore
+        return tuple(self.param['param'][idx].values)
 
     def get_pes_descriptors(self, key: KT, get_first_key: bool = False,
                             ) -> Tuple[Dict[str, ArrayOrScalar], Optional[List[MultiMolecule]]]:
