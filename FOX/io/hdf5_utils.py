@@ -42,6 +42,7 @@ API
 
 """
 
+import warnings
 import subprocess
 from os import remove, PathLike
 from time import sleep
@@ -335,7 +336,10 @@ def hdf5_availability(filename: Union[AnyStr, PathLike], timeout: float = 5.0,
             with h5py.File(filename, 'r+', libver='latest'):
                 return  # the .hdf5 file can safely be opened
         except OSError as ex:  # the .hdf5 file cannot be safely opened yet
-            print((warning).format(filename, timeout))
+            warning_ = ResourceWarning(warning.format(filename, timeout))
+            warning_.__cause__ = ex
+            warnings.warn(warning_)
+
             error = ex
             sleep(timeout)
         i -= 1
@@ -373,13 +377,21 @@ def to_hdf5(filename: Union[AnyStr, PathLike], dset_dict: Dict[str, np.ndarray],
     with h5py.File(filename, 'r+', libver='latest') as f:
         f.attrs['super-iteration'] = kappa
         f.attrs['sub-iteration'] = omega
-        for key, value in dset_dict.items():
-            if key == 'xyz':
-                continue
-            elif key == 'phi':
-                f[key][kappa] = value
-            else:
-                f[key][kappa, omega] = value
+        try:
+            for key, value in dset_dict.items():
+                if key == 'xyz':
+                    continue
+                elif key == 'phi':
+                    f[key][kappa] = value
+                else:
+                    f[key][kappa, omega] = value
+
+        except Exception as ex:
+            cls = type(ex)
+            try:
+                raise cls(f"dataset {key!r}: {ex}").with_traceback(ex.__traceback__)
+            except UnboundLocalError:
+                raise ex
 
     # Update the second hdf5 file with Cartesian coordinates
     filename_xyz = _get_filename_xyz(filename)
