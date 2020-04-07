@@ -347,7 +347,7 @@ class MonteCarloABC(AbstractDataClass, ABC, Mapping[KT, VT], Generic[KT, VT]):
 
         return tuple(self.param['param'][idx].values)
 
-    def get_pes_descriptors(self, key: KT, get_first_key: bool = False,
+    def get_pes_descriptors(self, get_first_key: bool = False,
                             ) -> Tuple[Dict[str, ArrayOrScalar], Optional[List[MultiMolecule]]]:
         """Check if a **key** is already present in **history_dict**.
 
@@ -358,9 +358,6 @@ class MonteCarloABC(AbstractDataClass, ABC, Mapping[KT, VT], Generic[KT, VT]):
 
         Parameters
         ----------
-        key : :class:`tuple` [:class:`float`, ...]
-            A key in **history_dict**.
-
         get_first_key : :class:`bool`
             Keep both the files and the job_cache if this is the first ARMC iteration.
             Usefull for manual inspection in case cp2k hard-crashes at this point.

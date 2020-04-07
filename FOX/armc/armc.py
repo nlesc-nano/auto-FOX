@@ -88,6 +88,10 @@ class ARMC(MonteCarloABC, Generic[KT, VT]):
         """Get :attr:`ARMC.iter_len` ``//`` :attr:`ARMC.sub_iter_len`."""
         return self.iter_len // self.sub_iter_len
 
+    def acceptance(self) -> np.ndarray:
+        """Create an empty 1D boolean array for holding the acceptance."""
+        return np.zeros(self.sub_iter_len, dtype=bool)
+
     def __init__(self, phi: PhiUpdater,
                  iter_len: int = 50000,
                  sub_iter_len: int = 100,
@@ -135,6 +139,23 @@ class ARMC(MonteCarloABC, Generic[KT, VT]):
     def __call__(self, start: int = ..., key_new: KT = ...) -> None: ...
     def __call__(self, start=None, key_new=None):  # noqa: E301
         """Initialize the Addaptive Rate Monte Carlo procedure."""
+        key_new = self._parse_call(start, key_new)
+
+        # Start the main loop
+        for kappa in range(start, self.super_iter_len):
+            acceptance = self.acceptance()
+            create_xyz_hdf5(self.hdf5_file, self.molecule, iter_len=self.sub_iter_len)
+
+            for omega in range(self.sub_iter_len):
+                key_new = self.do_inner(kappa, omega, acceptance, key_new)
+            self.apply_phi(acceptance)
+
+    @overload  # type: ignore
+    def _parse_call(self, start: None = ..., key_new: None = ...) -> KT: ...
+    @overload  # noqa: E301
+    def _parse_call(self, start: int = ..., key_new: KT = ...) -> KT: ...
+    def _parse_call(self, start=None, key_new=None):  # noqa: E301
+        """Parse the arguments of :meth:`__call__` and prepare the first key."""
         if start is None:
             create_hdf5(self.hdf5_file, self)  # Construct the HDF5 file
 
@@ -147,15 +168,7 @@ class ARMC(MonteCarloABC, Generic[KT, VT]):
 
         elif key_new is None:
             raise TypeError("'key_new' cannot be None if 'start' is None")
-
-        # Start the main loop
-        for kappa in range(start, self.super_iter_len):
-            acceptance = np.zeros(self.sub_iter_len, dtype=bool)
-            create_xyz_hdf5(self.hdf5_file, self.molecule, iter_len=self.sub_iter_len)
-
-            for omega in range(self.sub_iter_len):
-                key_new = self.do_inner(kappa, omega, acceptance, key_new)
-            self.apply_phi(acceptance)
+        return key_new
 
     def do_inner(self, kappa: int, omega: int, acceptance: np.ndarray, key_old: KT) -> KT:
         r"""Run the inner loop of the :meth:`ARMC.__call__` method.
@@ -184,7 +197,7 @@ class ARMC(MonteCarloABC, Generic[KT, VT]):
         _key_new = self._do_inner1(key_old)
 
         # Step 2: Calculate PES descriptors
-        pes_new, mol_list = self._do_inner2(_key_new)
+        pes_new, mol_list = self._do_inner2()
 
         # Step 3: Evaluate the auxiliary error; accept if the new parameter set lowers the error
         error_change, aux_new = self._do_inner3(pes_new, _key_new)
@@ -199,9 +212,9 @@ class ARMC(MonteCarloABC, Generic[KT, VT]):
         self._do_inner5(mol_list, accept, aux_new, pes_new, kappa, omega)
         return key_new
 
-    def _do_inner1(self, key_old: KT) -> KT:
+    def _do_inner1(self, key_old: KT, idx: int = 0) -> KT:
         """Perform a random move."""
-        key_new = self.move()
+        key_new = self.move(idx=idx)
         if isinstance(key_new, Exception):
             self.logger.warning("{ex}; recalculating move")
             return self._do_inner1(key_old)
@@ -210,11 +223,11 @@ class ARMC(MonteCarloABC, Generic[KT, VT]):
             return self._do_inner1(key_old)
         return key_new
 
-    def _do_inner2(self, key_new: KT) -> Tuple[PesDict, Optional[MolList]]:
+    def _do_inner2(self) -> Tuple[PesDict, Optional[MolList]]:
         """Calculate PES-descriptors."""
-        return self.get_pes_descriptors(key_new)
+        return self.get_pes_descriptors()
 
-    def _do_inner3(self, pes_new: PesDict, key_old: KT) -> Tuple[float, np.ndarray]:
+    def _do_inner3(self, pes_new: PesMapping, key_old: KT) -> Tuple[float, np.ndarray]:
         """Evaluate the auxiliary error; accept if the new parameter set lowers the error."""
         aux_new = self.get_aux_error(pes_new)
         aux_old = self[key_old]
@@ -241,11 +254,12 @@ class ARMC(MonteCarloABC, Generic[KT, VT]):
             return key_old
 
     def _do_inner5(self, mol_list: Optional[MolIter], accept: bool, aux_new: np.ndarray,
-                   pes_new: PesDict, kappa: int, omega: int) -> None:
+                   pes_new: PesMapping, kappa: int, omega: int) -> None:
         """Export the results to HDF5."""
         self.to_hdf5(mol_list, accept, aux_new, pes_new, kappa, omega)
-        if not accept:
-            self.param['param'][0][:] = self.param['param_old']
+
+        not_accept = ~np.array(accept, ndmin=1, dtype=bool, copy=False)
+        self.param['param'].loc[:, not_accept] = self.param['param_old'].loc[:, not_accept]
 
     def apply_phi(self, value: ArrayLikeOrScalar) -> VT:
         """Apply :attr:`phi` to **value**."""
@@ -269,10 +283,10 @@ class ARMC(MonteCarloABC, Generic[KT, VT]):
 
         """
         key: KT = tuple(self.param['param'][idx].values)
-        pes, _ = self.get_pes_descriptors(key, get_first_key=True)
+        pes, _ = self.get_pes_descriptors(get_first_key=True)
 
         self[key] = self.get_aux_error(pes)
-        self.param['param_old'][:] = self.param['param']
+        self.param['param_old'][idx] = self.param['param'][idx]
         return key
 
     def to_hdf5(self, mol_list: Optional[MolIter],
