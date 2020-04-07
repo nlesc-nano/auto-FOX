@@ -30,6 +30,7 @@ API
 
 """
 
+import warnings
 import subprocess
 from os import remove, PathLike
 from time import sleep
@@ -68,7 +69,6 @@ if TYPE_CHECKING:
         from ..type_alias import File
 else:
     from ..type_alias import File, NDFrame, MultiMolecule, ARMC
-
 
 """################################### Creating .hdf5 files ####################################"""
 
@@ -329,17 +329,20 @@ def hdf5_availability(filename: Union[AnyStr, PathLike], timeout: float = 5.0,
         Raised if **max_attempts** is exceded.
 
     """
-    warning = "WARNING: '{}' is currently unavailable; repeating attempt in {:.0f} seconds"
+    warning = "WARNING: {!r} is currently unavailable; repeating attempt in {:.0f} seconds"
     i = max_attempts if max_attempts is not None else np.inf
     if i <= 0:
-        raise ValueError(f"'max_attempts' must be larger then 0; observed value: {max_attempts!r}")
+        raise ValueError(f"'max_attempts' must be larger than 0; observed value: {max_attempts!r}")
 
     while i:
         try:
             with h5py.File(filename, 'r+', libver='latest'):
                 return  # the .hdf5 file can safely be opened
         except OSError as ex:  # the .hdf5 file cannot be safely opened yet
-            print((warning).format(filename, timeout))
+            warning_ = RuntimeWarning(warning.format(filename, timeout))
+            warning_.__cause__ = ex
+            warnings.warn(warning_)
+
             error = ex
             sleep(timeout)
         i -= 1
@@ -377,13 +380,17 @@ def to_hdf5(filename: Union[AnyStr, PathLike], dset_dict: Mapping[str, np.ndarra
     with h5py.File(filename, 'r+', libver='latest') as f:
         f.attrs['super-iteration'] = kappa
         f.attrs['sub-iteration'] = omega
-        for key, value in dset_dict.items():
-            if key == 'xyz':
-                continue
-            elif key == 'phi':
-                f[key][kappa] = value
-            else:
-                f[key][kappa, omega] = value
+        try:
+            for key, value in dset_dict.items():
+                if key == 'xyz':
+                    continue
+                elif key == 'phi':
+                    f[key][kappa] = value
+                else:
+                    f[key][kappa, omega] = value
+        except Exception as ex:
+            cls = type(ex)
+            raise cls(f"dataset {key!r}: {ex}") from ex
 
     # Update the second hdf5 file with Cartesian coordinates
     filename_xyz = _get_filename_xyz(filename)
