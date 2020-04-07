@@ -278,7 +278,7 @@ class ARMC(MonteCarloABC, Generic[KT, VT]):
 
         hdf5_kwarg = {
             'param': self.param['param'],
-            'xyz': mol_list if not None else np.nan,
+            'xyz': mol_list,
             'phi': phi,
             'acceptance': accept,
             'aux_error': aux_new,

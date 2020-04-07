@@ -675,7 +675,7 @@ def get_importable(string: str, validate: Optional[Callable[[T], bool]] = None) 
 
 
 def group_by_values(iterable: Iterable[Tuple[VT, KT]],
-                    mapping_type: Type[Mapping] = dict) -> Mapping[KT, List[VT]]:
+                    mapping_type: Type[Mapping] = dict) -> Dict[KT, List[VT]]:
     """Take an iterable, yielding 2-tuples, and group all first elements by the second.
 
     Exameple
@@ -709,13 +709,7 @@ def group_by_values(iterable: Iterable[Tuple[VT, KT]],
         A grouped dictionary.
 
     """
-    if issubclass(mapping_type, abc.MutableMapping):
-        ret: MutableMapping[KT, List[VT]] = mapping_type()
-        mutable = True
-    else:
-        ret = {}
-        mutable = False
-
+    ret = {}
     list_append: Dict[Hashable, Callable[[VT], None]] = {}
     for value, key in iterable:
         try:
@@ -724,7 +718,7 @@ def group_by_values(iterable: Iterable[Tuple[VT, KT]],
             ret[key] = [value]
             list_append[key] = ret[key].append
 
-    return ret if mutable else mapping_type(ret)
+    return ret if mapping_type is dict else mapping_type(ret)
 
 
 def read_rtf_file(filename: Union[AnyStr, PathLike]
