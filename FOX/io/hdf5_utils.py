@@ -35,9 +35,8 @@ import subprocess
 from os import remove, PathLike
 from time import sleep
 from os.path import isfile
-from collections import abc
 from typing import (Dict, Iterable, Optional, Union, Hashable, List, Tuple,
-                    AnyStr, TYPE_CHECKING, Mapping, Iterator, Any)
+                    AnyStr, TYPE_CHECKING, Mapping, Any)
 
 import h5py
 import numpy as np
@@ -207,7 +206,6 @@ def _get_kwarg_dict(armc: ARMC) -> Settings:
 
     Examples
     --------
-
     The output has the following general structure:
 
     .. code:: python
@@ -279,7 +277,7 @@ def hdf5_clear_status(filename: Union[AnyStr, PathLike]) -> bool:
         with h5py.File(filename, 'r+', libver='latest'):
             return True
     except OSError:
-        subprocess.run(['h5clear', '-s', 'repr(filename)'])
+        subprocess.run(['h5clear', '-s', repr(filename)])
         return False
 
 
@@ -379,7 +377,7 @@ def to_hdf5(filename: Union[AnyStr, PathLike], dset_dict: Mapping[str, np.ndarra
 
 
 def _xyz_to_hdf5(filename: Union[AnyStr, PathLike], omega: int,
-                 mol_list: Union[Iterable[MultiMolecule], Iterable[float], float]) -> None:
+                 mol_list: Optional[Iterable[MultiMolecule]]) -> None:
     r"""Export **mol** to the hdf5 file **filename**.
 
     Parameters
@@ -398,29 +396,20 @@ def _xyz_to_hdf5(filename: Union[AnyStr, PathLike], omega: int,
     hdf5_availability(filename)
 
     with h5py.File(filename, 'r+', libver='latest') as f:
-        if not isinstance(mol_list, abc.Iterable):  # Check if mol_list is a scalar (np.nan)
-            i = 0
-            while True:
-                try:
-                    f[f'xyz.{i}'][omega] = mol_list if mol_list is not None else np.nan
-                    i += 1
-                except KeyError:
-                    return None
+        if mol_list is None:
+            for k in f.keys():
+                f[k] = np.nan
+            return
 
-        enumerator: Iterator[Tuple[int, Union[MultiMolecule, float]]] = enumerate(mol_list)
-        for i, mol in enumerator:
-            dset = f[f'xyz.{i}']
-            if not isinstance(mol, abc.Iterable):  # Check if mol is a scalar (np.nan)
-                dset[omega] = mol if mol is not None else np.nan
-                continue
-
-            if len(mol) <= dset.shape[1]:
-                dset[omega, 0:len(mol)] = mol
+        iterator = ((f[f'xyz.{i}'], mol) for i, mol in enumerate(mol_list))
+        for dset, mol in iterator:
+            i = len(mol)
+            if i <= dset.shape[1]:
+                dset[omega, :i] = mol
             else:  # Resize and try again
-                dset.resize(len(mol), axis=1)
+                dset.resize(i, axis=1)
                 dset[omega] = mol
-
-    return None
+        return
 
 
 """#################################### Reading .hdf5 files ####################################"""
@@ -545,7 +534,7 @@ def _get_xyz_dset(f: File) -> Tuple[np.ndarray, Dict[str, List[int]]]:
     # Extract the Cartesian coordinates; sort in chronological order
     i = f.attrs['sub-iteration']
     j = f[key].shape[0] - i
-    ret = np.empty_like(f[key])
+    ret: np.ndarray = np.empty_like(f[key])
     ret[:j] = f[key][i:]
     ret[j:] = f[key][:i]
     return ret, idx_dict
