@@ -34,6 +34,7 @@ TYPE_ALIAS: Mapping[str, str] = MappingProxyType({
     'ParamMapping': 'FOX.armc.param_mapping.ParamMapping',
 
     'KFReader': 'scm.plams.tools.kftools.KFReader',
+    'Job': 'scm.plams.core.basejob.Job',
     'SingleJob': 'scm.plams.core.basejob.SingleJob',
     'Settings': 'scm.plams.core.settings.Settings',
     'Molecule': 'scm.plams.mol.molecule.Molecule',

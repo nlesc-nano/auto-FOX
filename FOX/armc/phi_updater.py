@@ -21,7 +21,7 @@ API
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from typing import Callable, Any, Optional, Union, Iterable
+from typing import Callable, Any, Optional, Union, Iterable, cast
 from logging import Logger
 from functools import partial, wraps
 
@@ -29,13 +29,15 @@ import numpy as np
 
 from assertionlib.dataclass import AbstractDataClass
 
-from ..type_hints import ArrayLike, ArrayLikeOrScalar, ArrayOrScalar, Scalar
+from ..type_hints import ArrayLike, ArrayLikeOrScalar, ArrayOrScalar, Scalar, DtypeLike
 from ..functions.utils import as_nd_array
 
 __all__ = ['PhiUpdater']
 
 _PhiFunc = Callable[..., np.ndarray]
 PhiFunc = Callable[[np.ndarray, ArrayOrScalar], np.ndarray]
+
+IterOrArrayLike = Union[Scalar, Iterable[Scalar], ArrayLike]
 
 
 class PhiUpdaterABC(AbstractDataClass, ABC):
@@ -73,13 +75,55 @@ class PhiUpdaterABC(AbstractDataClass, ABC):
 
     """
 
-    phi: np.ndarray
-    gamma: np.ndarray
-    a_target: np.ndarray
+    _phi: np.ndarray
+    _gamma: np.ndarray
+    _a_target: np.ndarray
 
-    def __init__(self, phi: Union[Scalar, Iterable[Scalar], ArrayLike],
-                 gamma: Union[Scalar, Iterable[Scalar], ArrayLike],
-                 a_target: Union[Scalar, Iterable[Scalar], ArrayLike],
+    @property
+    def phi(self) -> np.ndarray:
+        """Get or set :attr:`phi`.
+
+        Get wil simply return :attr:`phi` while set will cast the supplied value
+        into an array and then assign it to :attr:`phi`.
+
+        """
+        return self._phi
+
+    @phi.setter
+    def phi(self, value: IterOrArrayLike) -> None:
+        self._phi = as_nd_array(value, dtype=float, ndmin=1)
+
+    @property
+    def gamma(self) -> np.ndarray:
+        """Get or set :attr:`gamma`.
+
+        Get wil simply return :attr:`gamma` while set will cast the supplied value
+        into an array and then assign it to :attr:`gamma`.
+
+        """
+        return self._gamma
+
+    @gamma.setter
+    def gamma(self, value: IterOrArrayLike) -> None:
+        self._gamma = as_nd_array(value, dtype=float, ndmin=1)
+
+    @property
+    def a_target(self) -> np.ndarray:
+        """Get or set :attr:`a_target`.
+
+        Get wil simply return :attr:`a_target` while set will cast the supplied value
+        into an array and then assign it to :attr:`a_target`.
+
+        """
+        return self._phi
+
+    @a_target.setter
+    def a_target(self, value: IterOrArrayLike) -> None:
+        self._a_target = as_nd_array(value, dtype=float, ndmin=1)
+
+    def __init__(self, phi: IterOrArrayLike,
+                 gamma: IterOrArrayLike,
+                 a_target: IterOrArrayLike,
                  func: _PhiFunc, **kwargs: Any) -> None:
         r"""Initialize an :class:`AbstractPhiUpdater` instance.
 
@@ -109,13 +153,12 @@ class PhiUpdaterABC(AbstractDataClass, ABC):
         """
         super().__init__()
 
-        array = partial(as_nd_array, dtype=float, ndmin=1)
-        self.phi = array(phi)
-        self.gamma = array(gamma)
-        self.a_target = array(a_target)
-        self._validate_shape()
-
+        self.phi = cast(np.ndarray, phi)
+        self.gamma = cast(np.ndarray, gamma)
+        self.a_target = cast(np.ndarray, a_target)
         self.func: PhiFunc = wraps(func)(partial(func, **kwargs))
+
+        self._validate_shape()
 
     def _validate_shape(self):
         """Ensure that :attr:`phi`, :attr:`gamma` and :attr:`a_target` all have the same shape."""
@@ -133,8 +176,7 @@ class PhiUpdaterABC(AbstractDataClass, ABC):
         else:
             return np.all(v1 == v2)
 
-    def __call__(self, value: ArrayLikeOrScalar,
-                 dtype: Union[type, np.dtype] = float) -> np.ndarray:
+    def __call__(self, value: ArrayLikeOrScalar, dtype: DtypeLike = float) -> np.ndarray:
         """Pass **value** and :attr:`phi` to :attr:`func`.
 
         Parameters
@@ -196,8 +238,8 @@ class PhiUpdater(PhiUpdaterABC):
             A logger for reporting the updated value.
 
         """
-        mean_acceptance = np.mean(acceptance, axis=0)
-        sign = np.sign(self.a_target - mean_acceptance)
+        mean_acceptance: np.ndarray = np.mean(acceptance, axis=0)
+        sign: np.ndarray = np.sign(self.a_target - mean_acceptance)
 
         phi = self.phi * self.gamma**sign
         if logger is not None:

@@ -25,7 +25,7 @@ import os
 import io
 from typing import (
     Tuple, TYPE_CHECKING, Any, Optional, Iterable, Mapping, Union, AnyStr,
-    TypeVar, Generic, overload, Dict, List
+    overload, Dict, List
 )
 
 import numpy as np
@@ -45,9 +45,6 @@ else:
 
 __all__ = ['ARMC']
 
-KT = TypeVar('KT', bound=Tuple[float, ...])
-VT = TypeVar('VT', bound=np.ndarray)
-
 PesDict = Dict[str, ArrayOrScalar]
 PesMapping = Mapping[str, ArrayOrScalar]
 
@@ -55,7 +52,7 @@ MolList = List[MultiMolecule]
 MolIter = Iterable[MultiMolecule]
 
 
-class ARMC(MonteCarloABC, Generic[KT, VT]):
+class ARMC(MonteCarloABC):
     r"""The Addaptive Rate Monte Carlo class (:class:`.ARMC`).
 
     A subclass of :class:`MonteCarloABC`.
@@ -136,10 +133,10 @@ class ARMC(MonteCarloABC, Generic[KT, VT]):
         """
         to_yaml(self, filename, logfile, path, folder)
 
-    @overload  # type: ignore
+    @overload
     def __call__(self, start: None = ..., key_new: None = ...) -> None: ...
     @overload  # noqa: E301
-    def __call__(self, start: int = ..., key_new: KT = ...) -> None: ...
+    def __call__(self, start: int = ..., key_new: Tuple[float, ...] = ...) -> None: ...
     def __call__(self, start=None, key_new=None):  # noqa: E301
         """Initialize the Addaptive Rate Monte Carlo procedure."""
         key_new = self._parse_call(start, key_new)
@@ -154,9 +151,9 @@ class ARMC(MonteCarloABC, Generic[KT, VT]):
             self.apply_phi(acceptance)
 
     @overload  # type: ignore
-    def _parse_call(self, start: None = ..., key_new: None = ...) -> KT: ...
+    def _parse_call(self, start: None = ..., key_new: None = ...) -> Tuple[float, ...]: ...
     @overload  # noqa: E301
-    def _parse_call(self, start: int = ..., key_new: KT = ...) -> KT: ...
+    def _parse_call(self, start: int = ..., key_new: Tuple[float, ...] = ...) -> Tuple[float, ...]: ...
     def _parse_call(self, start=None, key_new=None):  # noqa: E301
         """Parse the arguments of :meth:`__call__` and prepare the first key."""
         if start is None:
@@ -173,7 +170,7 @@ class ARMC(MonteCarloABC, Generic[KT, VT]):
             raise TypeError("'key_new' cannot be None if 'start' is None")
         return key_new
 
-    def do_inner(self, kappa: int, omega: int, acceptance: np.ndarray, key_old: KT) -> KT:
+    def do_inner(self, kappa: int, omega: int, acceptance: np.ndarray, key_old: Tuple[float, ...]) -> Tuple[float, ...]:
         r"""Run the inner loop of the :meth:`ARMC.__call__` method.
 
         Parameters
@@ -215,7 +212,7 @@ class ARMC(MonteCarloABC, Generic[KT, VT]):
         self._do_inner5(mol_list, accept, aux_new, pes_new, kappa, omega)
         return key_new
 
-    def _do_inner1(self, key_old: KT, idx: int = 0) -> KT:
+    def _do_inner1(self, key_old: Tuple[float, ...], idx: int = 0) -> Tuple[float, ...]:
         """Perform a random move."""
         key_new = self.move(idx=idx)
         if isinstance(key_new, Exception):
@@ -230,7 +227,7 @@ class ARMC(MonteCarloABC, Generic[KT, VT]):
         """Calculate PES-descriptors."""
         return self.get_pes_descriptors()
 
-    def _do_inner3(self, pes_new: PesMapping, key_old: KT) -> Tuple[float, np.ndarray]:
+    def _do_inner3(self, pes_new: PesMapping, key_old: Tuple[float, ...]) -> Tuple[float, np.ndarray]:
         """Evaluate the auxiliary error; accept if the new parameter set lowers the error."""
         aux_new = self.get_aux_error(pes_new)
         aux_old = self[key_old]
@@ -238,8 +235,8 @@ class ARMC(MonteCarloABC, Generic[KT, VT]):
         return error_change, aux_new
 
     def _do_inner4(self, accept: bool, error_change: float, aux_new: np.ndarray,
-                   key_new: KT, key_old: KT,
-                   kappa: int, omega: int) -> KT:
+                   key_new: Tuple[float, ...], key_old: Tuple[float, ...],
+                   kappa: int, omega: int) -> Tuple[float, ...]:
         """Update the auxiliary error history, apply phi & update job settings."""
         err_round = round(error_change, 4)
         aux_round = round(aux_new.sum(), 4)
@@ -264,11 +261,11 @@ class ARMC(MonteCarloABC, Generic[KT, VT]):
         not_accept = ~np.array(accept, ndmin=1, dtype=bool, copy=False)
         self.param['param'].loc[:, not_accept] = self.param['param_old'].loc[:, not_accept]
 
-    def apply_phi(self, value: ArrayLikeOrScalar) -> VT:
+    def apply_phi(self, value: ArrayLikeOrScalar) -> np.ndarray:
         """Apply :attr:`phi` to **value**."""
         return self.phi(value)
 
-    def _get_first_key(self, idx: int = 0) -> KT:
+    def _get_first_key(self, idx: int = 0) -> Tuple[float, ...]:
         """Create a the ``history_dict`` variable and its first key.
 
         The to-be returned key servers as the starting argument for :meth:`.do_inner`,
@@ -285,7 +282,7 @@ class ARMC(MonteCarloABC, Generic[KT, VT]):
             A tuple of Numpy arrays.
 
         """
-        key: KT = tuple(self.param['param'][idx].values)
+        key: Tuple[float, ...] = tuple(self.param['param'][idx].values)
         pes, _ = self.get_pes_descriptors(get_first_key=True)
 
         self[key] = self.get_aux_error(pes)
@@ -339,7 +336,7 @@ class ARMC(MonteCarloABC, Generic[KT, VT]):
 
         to_hdf5(self.hdf5_file, hdf5_kwarg, kappa, omega)
 
-    def get_aux_error(self, pes_dict: PesMapping) -> VT:
+    def get_aux_error(self, pes_dict: PesMapping) -> np.ndarray:
         r"""Return the auxiliary error :math:`\Delta \varepsilon_{QM-MM}`.
 
         The auxiliary error is constructed using the PES descriptors in **values**
@@ -405,7 +402,7 @@ class ARMC(MonteCarloABC, Generic[KT, VT]):
         # And continue
         self(start=i, key_new=key)
 
-    def _restart_from_hdf5(self) -> Tuple[int, int, KT, np.ndarray]:
+    def _restart_from_hdf5(self) -> Tuple[int, int, Tuple[float, ...], np.ndarray]:
         """Read and process the .hdf5 file for :meth:`ARMC.restart`."""
         import h5py
 
@@ -424,11 +421,11 @@ class ARMC(MonteCarloABC, Generic[KT, VT]):
             acceptance = f['acceptance'][i]
 
             # Find the last error which is not np.nan
-            final_key: KT = self._find_restart_key(f, i)
+            final_key: Tuple[float, ...] = self._find_restart_key(f, i)
         return i, j, final_key, acceptance
 
     @staticmethod
-    def _find_restart_key(f: Mapping[str, np.ndarray], i: int) -> KT:
+    def _find_restart_key(f: Mapping[str, np.ndarray], i: int) -> Tuple[float, ...]:
         """Construct a key for the parameter which is not ``nan``."""
         while i >= 0:
             aux_error = f['aux_error'][i]

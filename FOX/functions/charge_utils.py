@@ -3,8 +3,8 @@
 import functools
 from types import MappingProxyType
 from typing import (
-    Hashable, Optional, Collection, Mapping, Container, List, Dict, Union, Iterable, Tuple, Any,
-    SupportsFloat, Generator, Iterator
+    Hashable, Optional, Collection, Mapping, Container, Dict, Union, Iterable, Tuple, Any,
+    SupportsFloat, Generator, Iterator, Set
 )
 
 import numpy as np
@@ -12,23 +12,23 @@ import pandas as pd
 
 __all__ = ['update_charge']
 
-ConstrainDict = Mapping[str, functools.partial]
+ConstrainDict = Mapping[Hashable, functools.partial]
 
 
 class ChargeError(ValueError):
     """A :exc:`ValueError` subclass for charge-related errors."""
 
-    reference: float
-    value: float
-    tol: Hashable
+    reference: Optional[float]
+    value: Optional[float]
+    tol: float
 
     def __init__(self, *args: Any, reference: Optional[SupportsFloat] = None,
                  value: Optional[SupportsFloat] = None,
                  tol: SupportsFloat = 0.001) -> None:
         """Initialize an instance."""
         super().__init__(*args)
-        self.reference = float(reference)
-        self.value = float(value)
+        self.reference = float(reference) if reference is not None else None
+        self.value = float(value) if value is not None else None
         self.tol = float(tol)
 
 
@@ -120,10 +120,11 @@ def update_charge(atom: Hashable, value: float, param: pd.Series, count: pd.Seri
         except ChargeError as ex:
             param[:] = param_backup
             return ex
+    return None
 
 
 def constrained_update(at1: Hashable, param: pd.Series,
-                       constrain_dict: Optional[ConstrainDict] = None) -> List[Hashable]:
+                       constrain_dict: Optional[ConstrainDict] = None) -> Set[Hashable]:
     """Perform a constrained update of atomic charges.
 
     Performs an inplace update of the ``"param"`` column in **df**.
@@ -146,7 +147,7 @@ def constrained_update(at1: Hashable, param: pd.Series,
 
     """
     charge = param[at1]
-    exclude = [at1]
+    exclude = {at1}
     if constrain_dict is None:
         return exclude
 
@@ -159,7 +160,6 @@ def constrained_update(at1: Hashable, param: pd.Series,
 
         # Update the charges
         param[at2] = func2(func1(charge))
-
     return exclude
 
 

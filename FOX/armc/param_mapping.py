@@ -1,20 +1,22 @@
-import textwrap
 from abc import ABC, abstractmethod
 from types import MappingProxyType
 from logging import Logger
 from functools import wraps, partial
-from collections import abc
 from typing import (Any, TypeVar, Optional, Hashable, Tuple, Mapping, Iterable, ClassVar, Union,
-                    Iterator, KeysView, ItemsView, ValuesView, overload, Callable, FrozenSet, Dict,
-                    MutableMapping, Sequence)
+                    Iterator, KeysView, ItemsView, ValuesView, overload, Callable, FrozenSet, cast,
+                    MutableMapping, Sequence, TYPE_CHECKING)
 
 import numpy as np
 import pandas as pd
 from assertionlib.dataclass import AbstractDataClass
-from assertionlib.ndrepr import aNDRepr
 
 from ..type_hints import Literal, TypedDict, Scalar, SupportsArray
 from ..functions.charge_utils import update_charge, get_net_charge, ChargeError
+
+if TYPE_CHECKING:
+    from pandas.core.generic import NDFrame
+else:
+    from ..type_alias import NDFrame
 
 __all__ = ['ParamMapping']
 
@@ -28,7 +30,7 @@ _KT3 = TypeVar('_KT3', bound=Hashable)
 
 # All dict keys in ParamMappingABC
 SeriesKeys = Literal['min', 'max', 'constraints', 'count']
-DictSeriesKeys = Literal['param', 'param_old']
+DFKeys = Literal['param', 'param_old']
 ValidKeys = Literal['param', 'param_old', 'min', 'max', 'constraints', 'count']
 
 # A function for moving parameters
@@ -40,9 +42,15 @@ ConstrainDict = Mapping[_KT2, partial]
 # MultiIndex keys as a 2-tuple
 Tup3 = Tuple[_KT1, _KT2, _KT3]
 
+# A Mapping representing the conent of ParamMappingABC
+_ParamMappingABC = Mapping[ValidKeys, NDFrame]
+
+_KeysView = KeysView[ValidKeys]
+_ItemsView = ItemsView[ValidKeys, NDFrame]
+
 
 class _InputMapping(TypedDict):
-    param: Union[pd.Series, pd.DataFrame, Mapping[str, pd.Series]]
+    param: Union[NDFrame, Mapping[str, pd.Series]]
 
 
 class InputMapping(_InputMapping, total=False):
@@ -93,9 +101,6 @@ def _parse_param(dct: MutableMapping[str, Any]) -> pd.DataFrame:
         raise ValueError(f"Series.index expected a {n_level}-level MultiIndex; "
                          f"observed number levels: {len(param.index.levels)}")
     return param
-
-
-_ParamMappingABC = Mapping[ValidKeys, Union[pd.DataFrame, pd.Series]]
 
 
 class ParamMappingABC(AbstractDataClass, ABC, _ParamMappingABC):
@@ -213,8 +218,8 @@ class ParamMappingABC(AbstractDataClass, ABC, _ParamMappingABC):
 
         """  # noqa
         super().__init__()
-        self._data: Data = data  # type: ignore
-        self.move_range = move_range  # type: ignore
+        self._data = cast(Data, data)
+        self.move_range = cast(np.ndarray, move_range)
         self.func: Callable[[float, float], float] = wraps(func)(partial(func, **kwargs))
 
     # Properties
@@ -243,7 +248,7 @@ class ParamMappingABC(AbstractDataClass, ABC, _ParamMappingABC):
         else:
             raise ValueError("'move_range' expected a 1D or 2D array; "
                              f"observed dimensionality: {_ar.ndim}")
-        self._move_range = ar
+        self._move_range: np.ndarray = ar
 
     @property
     def _data(self) -> Data:
@@ -273,7 +278,7 @@ class ParamMappingABC(AbstractDataClass, ABC, _ParamMappingABC):
         # Construct a dictionary to contain the old parameter
         dct['param_old'] = param_old = param.copy()
         param_old[:] = np.nan
-        self.__data: Data = dct
+        self.__data = cast(Data, dct)
 
     # Magic methods and Mapping implementation
 
@@ -303,7 +308,7 @@ class ParamMappingABC(AbstractDataClass, ABC, _ParamMappingABC):
     @overload
     def __getitem__(self, key: SeriesKeys) -> pd.Series: ...
     @overload  # noqa: E301
-    def __getitem__(self, key: DictSeriesKeys) -> pd.DataFrame: ...
+    def __getitem__(self, key: DFKeys) -> pd.DataFrame: ...
     @overload  # noqa: E301
     def __getitem__(self, key: Any) -> Any: ...
     def __getitem__(self, key):  # noqa: E301
@@ -312,7 +317,7 @@ class ParamMappingABC(AbstractDataClass, ABC, _ParamMappingABC):
 
     def __iter__(self) -> Iterator[ValidKeys]:
         """Implement :code:`iter(self)`."""
-        return iter(self._data)
+        return cast(Iterator[ValidKeys], iter(self._data))
 
     def __len__(self) -> int:
         """Implement :code:`len(self)`."""
@@ -326,25 +331,23 @@ class ParamMappingABC(AbstractDataClass, ABC, _ParamMappingABC):
         """Implement :code:`key in self`."""
         return key in self._data
 
-    def keys(self) -> KeysView[ValidKeys]:
+    def keys(self) -> _KeysView:
         """Return a set-like object providing a view of this instance's keys."""
-        return self._data.keys()
+        return cast(_KeysView, self._data.keys())
 
-    def items(self) -> ItemsView[ValidKeys, Union[pd.DataFrame, pd.Series]]:
+    def items(self) -> _ItemsView:
         """Return a set-like object providing a view of this instance's key/value pairs."""
-        return self._data.items()
+        return cast(_ItemsView, self._data.items())
 
-    def values(self) -> ValuesView[Union[pd.DataFrame, pd.Series]]:
+    def values(self) -> ValuesView[NDFrame]:
         """Return an object providing a view of this instance's values."""
         return self._data.values()
 
     @overload  # type: ignore
-    def get(self, key: ValidKeys, default: T) -> Union[pd.DataFrame, pd.Series]: ...
-
-    @overload
+    def get(self, key: ValidKeys, default: T) -> NDFrame: ...
+    @overload  # noqa: E301
     def get(self, key: Hashable, default: T) -> T: ...
-
-    def get(self, key, default=None):
+    def get(self, key, default=None):  # noqa: E301
         """Return the value for **key** if it's available; return **default** otherwise."""
         return self._data.get(key, default)
 
@@ -385,7 +388,7 @@ class ParamMappingABC(AbstractDataClass, ABC, _ParamMappingABC):
             _, prm_type, atoms = idx
             logger.info(f"Moving {prm_type} ({atoms}): {x1:.4f} -> {value:.4f}")
 
-        constraints = self['constraints'][idx]
+        constraints: ConstrainDict = self['constraints'][idx]
         ex = self.apply_constraints(idx, value, param_idx, constraints)
         if ex is not None:
             return ex
@@ -489,11 +492,11 @@ class ParamMapping(ParamMappingABC):
 
         """  # noqa
         # Define a random parameter
-        random_prm = self['param'][param_idx].sample()
-        idx, x1 = next(random_prm.items())
+        random_prm: pd.Series = self['param'][param_idx].sample()
+        idx, x1 = next(random_prm.items())  # type: Tup3, float
 
         # Define a random move size
-        x2 = np.random.choice(self.move_range[param_idx], 1)[0]
+        x2: float = np.random.choice(self.move_range[param_idx], 1)[0]
         return idx, x1, x2
 
     def clip_move(self, idx: Tup3, value: float) -> float:
@@ -513,8 +516,8 @@ class ParamMapping(ParamMappingABC):
             The newly clipped value of the moved parameter.
 
         """  # noqa
-        prm_min = self['min'][idx]
-        prm_max = self['max'][idx]
+        prm_min: float = self['min'][idx]
+        prm_max: float = self['max'][idx]
         return np.clip(value, prm_min, prm_max)
 
     def apply_constraints(self, idx: Tup3, value: float, param_idx: int,

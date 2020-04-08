@@ -7,8 +7,10 @@ from abc import ABC, abstractmethod
 from logging import Logger
 from itertools import chain, zip_longest
 from collections import abc
-from typing import (Mapping, TypeVar, Hashable, Any, KeysView, ItemsView, ValuesView, Iterator,
-                    Union, Dict, List, Optional, Tuple, Iterable, Sequence, TYPE_CHECKING)
+from typing import (
+    Mapping, TypeVar, Hashable, Any, KeysView, ItemsView, ValuesView, Iterator,
+    Union, Dict, List, Optional, Tuple, Iterable, Sequence, cast, TYPE_CHECKING
+)
 
 import numpy as np
 import pandas as pd
@@ -24,10 +26,11 @@ from ..type_hints import TypedDict
 from ..io.read_xyz import XYZError
 
 if TYPE_CHECKING:
+    from scm.plams.core.basejob import Job
     from qmflows.packages import Result, Package
     from noodles.interface import PromisedObject
 else:
-    from ..type_alias import PromisedObject, Result, Package
+    from ..type_alias import PromisedObject, Result, Package, Job
 
 __all__ = ['PackageManager']
 
@@ -44,15 +47,16 @@ T = TypeVar('T')
 
 MolLike = Iterable[Tuple[float, float, float]]
 
+#: The internal dictionary contained within :class:`PackageManagerABC`.
+Data = Dict[str, Tuple[JobMapping, ...]]
+
 DataMap = Mapping[str, Iterable[JobMapping]]
 DataIter = Iterable[Tuple[str, Iterable[JobMapping]]]
-DictLike = Union[Mapping[Hashable, Iterable],
-                 Iterable[Tuple[Hashable, Iterable]]]
 
 
 class PackageManagerABC(ABC, Mapping[str, Tuple[JobMapping, ...]]):
 
-    __data: Dict[str, Tuple[JobMapping, ...]]
+    __data: Data
 
     def __init__(self, data: Union[DataMap, DataIter]) -> None:
         """Initialize an instance.
@@ -74,12 +78,12 @@ class PackageManagerABC(ABC, Mapping[str, Tuple[JobMapping, ...]]):
 
         """  # noqa
         super().__init__()
-        self._data = data
+        self._data = cast(Data, data)
 
     # Attributes and properties
 
     @property
-    def _data(self) -> Dict[str, Tuple[JobMapping, ...]]:
+    def _data(self) -> Data:
         """A (private) property containing this instance's underlying :class:`dict`.
 
         The getter will simply return the attribute's value.
@@ -223,7 +227,7 @@ class PackageManager(PackageManagerABC):
 
         # Transform all forcefield parameter blocks into DataFrames
         job_iterator = (job['settings'] for job in chain.from_iterable(self.values()))
-        for settings in job_iterator:
+        for settings in job_iterator:  # type: QmSettings
             prm_to_df(settings)
 
     def __call__(self, logger: Optional[Logger] = None,
@@ -249,14 +253,14 @@ class PackageManager(PackageManagerABC):
         jobs_iter = iter(self.items())
         assemble_job = self.assemble_job
 
-        name, jobs = next(jobs_iter)
-        promised_jobs = [assemble_job(j, name=name) for j in jobs]
-        for name, jobs in jobs_iter:
-            promised_jobs = [assemble_job(*args, name=name) for
-                             args in zip(jobs, promised_jobs)]
+        _name, _jobs = next(jobs_iter)
+        promised_jobs: List[PromisedObject] = [assemble_job(j, name=_name) for j in _jobs]
 
-        results = run_parallel(gather(*promised_jobs),
-                               n_threads=n_processes)
+        for name, jobs in jobs_iter:
+            promised_jobs = [assemble_job(j, p_j, name=name) for
+                             j, p_j in zip(jobs, promised_jobs)]
+
+        results: List[Result] = run_parallel(gather(*promised_jobs), n_threads=n_processes)
         return self._extract_mol(results, logger)
 
     @staticmethod
@@ -264,14 +268,15 @@ class PackageManager(PackageManagerABC):
     def assemble_job(job: JobMapping, old_results: Optional[Result] = None,
                      name: Optional[str] = None) -> PromisedObject:
         """Create a :class:`PromisedObject` from a qmflow :class:`Package` instance."""
-        kwargs = job.copy()
+        kwargs: JobMapping = job.copy()
 
         if old_results is not None:
-            mol = old_results.geometry
+            mol: Molecule = old_results.geometry
         else:
             mol = kwargs['molecule']
 
-        job_name = name if name is not None else ''
+        job_name: str = name if name is not None else ''
+        obj_type: Package
         obj_type = kwargs.pop('type')  # type: ignore
         return obj_type(mol=mol, job_name=job_name, **kwargs)
 
@@ -279,9 +284,9 @@ class PackageManager(PackageManagerABC):
     def clear_jobs() -> None:
         """Delete all jobs."""
         job_manager: JobManager = config.default_jobmanager
-        workdir = job_manager.workdir
+        workdir: Union[str, os.PathLike] = job_manager.workdir
 
-        for job in job_manager.jobs:
+        for job in job_manager.jobs:  # type: Job
             name = os.path.join(workdir, job.name)
             try:
                 shutil.rmtree(name)  # type: ignore
@@ -318,16 +323,18 @@ class PackageManager(PackageManagerABC):
     @staticmethod
     def _extract_mol(results: Iterable[Result], logger: Logger) -> Optional[List[MultiMolecule]]:
         """Create a list of MultiMolecule from the passed **results**."""
-        ret = []
+        ret: List[MultiMolecule] = []
         for result in results:
             try:  # Construct and return a MultiMolecule object
                 path = get_xyz_path(result.archive['work_dir'])
                 mol = MultiMolecule.from_xyz(path)
                 mol.round(3, inplace=True)
                 ret.append(mol)
+
             except XYZError:  # The .xyz file is unreadable for some reason
-                logger.warning(f"Failed to parse ...{os.sep}{os.path.basename(path)}")
+                logger.warning(f"Failed to parse {path!r}")
                 return None
+
             except Exception as ex:
                 logger.warning(ex)
                 return None

@@ -20,7 +20,7 @@ from __future__ import annotations
 
 import sys
 from abc import abstractmethod
-from typing import Sequence, Union, Type, Tuple
+from typing import Sequence, Union, Type, Tuple, Any, List, Text, Dict
 
 import numpy as np
 from pandas.core.generic import NDFrame
@@ -41,23 +41,57 @@ Scalar = Union[np.generic, int, float, bool, complex]
 #: Annotation for numerical scalar types.
 ScalarType = Union[Type[np.generic], Type[int], Type[float], Type[bool], Type[complex]]
 
-_DtypeLike = Union[None, str, ScalarType, np.dtype]
+# ``_DtypeLikeNested`` and ``DtypeLike`` taken from numpy-stubs.
+# Reference: https://github.com/numpy/numpy-stubs
+
+_DtypeLikeNested = Any  # TODO: wait for support for recursive types
 
 
-@runtime_checkable
-class SupportsDtype(Protocol):
-    """An ABC with one abstract attribute :attr:`dtype`."""
-
-    __slots__: Tuple[str, ...] = ()
-
-    @property
-    @abstractmethod
-    def dtype(self) -> _DtypeLike:
-        pass
+class DtypeDict(TypedDict):
+    names: Sequence[str]
+    formats: Sequence[_DtypeLikeNested]
+    offsets: Sequence[int]
+    titles: Sequence[Union[bytes, Text, None]]
+    itemsize: int
 
 
-#: Annotation for numpy datatype-like objects.
-DtypeLike = Union[_DtypeLike, SupportsDtype]
+# Anything that can be coerced into numpy.dtype.
+# Reference: https://docs.scipy.org/doc/numpy/reference/arrays.dtypes.html
+DtypeLike = Union[
+    np.dtype,
+
+    # default data type (float64)
+    None,
+
+    # array-scalar types and generic types
+    ScalarType,  # TODO: enumerate these when we add type hints for numpy scalars
+
+    # TODO: add a protocol for anything with a dtype attribute
+    # character codes, type strings or comma-separated fields, e.g., 'float64'
+    str,
+
+    # (flexible_dtype, itemsize)
+    Tuple[_DtypeLikeNested, int],
+
+    # (fixed_dtype, shape)
+    Tuple[_DtypeLikeNested, Union[int, Sequence[int]]],
+
+    # [(field_name, field_dtype, field_shape), ...]
+    #
+    # The type here is quite broad because NumPy accepts quite a wide
+    # range of inputs inside the list; see the tests for some
+    # examples.
+    List[Tuple[str, _DtypeLikeNested, Union[int, Sequence[int]]]],
+
+    # {'names': ..., 'formats': ..., 'offsets': ..., 'titles': ..., 'itemsize': ...}
+    DtypeDict,
+
+    # {'field1': ..., 'field2': ..., ...}
+    Dict[str, Tuple[_DtypeLikeNested, int]],
+
+    # (base_dtype, new_dtype)
+    Tuple[_DtypeLikeNested, _DtypeLikeNested],
+]
 
 
 @runtime_checkable

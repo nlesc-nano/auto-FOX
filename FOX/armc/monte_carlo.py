@@ -28,7 +28,7 @@ from itertools import repeat, cycle, chain
 from collections import abc
 from typing import (
     Tuple, List, Dict, Optional, Union, Iterable, Hashable, Iterator, Any, Mapping, Callable,
-    KeysView, ValuesView, ItemsView, Sequence, TypeVar, overload, TYPE_CHECKING, AnyStr, Generic
+    KeysView, ValuesView, ItemsView, Sequence, TypeVar, overload, TYPE_CHECKING, AnyStr, cast
 )
 
 import numpy as np
@@ -46,15 +46,13 @@ else:
 
 __all__ = ['MonteCarloABC']
 
-KT = TypeVar('KT', bound=Tuple[float, ...])
-VT = TypeVar('VT', bound=np.ndarray)
 T = TypeVar('T')
 
 PostProcess = Callable[[Optional[Iterable[MultiMolecule]], Optional['MonteCarloABC']], None]
 GetPesDescriptor = Callable[[MultiMolecule], ArrayOrScalar]
 
 
-class MonteCarloABC(AbstractDataClass, ABC, Mapping[KT, VT], Generic[KT, VT]):
+class MonteCarloABC(AbstractDataClass, ABC, Mapping[Tuple[float, ...], np.ndarray]):
     r"""The base :class:`.MonteCarlo` class."""
 
     param: ParamMapping
@@ -65,7 +63,7 @@ class MonteCarloABC(AbstractDataClass, ABC, Mapping[KT, VT], Generic[KT, VT]):
     _molecule: Tuple[MultiMolecule, ...]
     _logger: Logger
     _pes_post_process: Tuple[PostProcess, ...]
-    _data: Dict[KT, VT]
+    _data: Dict[Tuple[float, ...], np.ndarray]
 
     @property
     def molecule(self) -> Tuple[MultiMolecule, ...]:
@@ -104,7 +102,7 @@ class MonteCarloABC(AbstractDataClass, ABC, Mapping[KT, VT], Generic[KT, VT]):
                  package_manager: PackageManager,
                  param: ParamMapping,
                  keep_files: bool = False,
-                 hdf5_file: Union[str, bytes, PathLike] = 'armc.hdf5',
+                 hdf5_file: Union[str, PathLike] = 'armc.hdf5',
                  logger: Optional[Logger] = None,
                  pes_post_process: Optional[Iterable[PostProcess]] = None) -> None:
         """Initialize a :class:`MonteCarlo` instance."""
@@ -113,16 +111,16 @@ class MonteCarloABC(AbstractDataClass, ABC, Mapping[KT, VT], Generic[KT, VT]):
         self.param = param
 
         # Settings for running the actual MD calculations
-        self.molecule = molecule
+        self.molecule = cast(Tuple[MultiMolecule, ...], molecule)
         self.package_manager = package_manager
         self.keep_files = keep_files
-        self.pes_post_process = pes_post_process
+        self.pes_post_process = cast(Tuple[PostProcess, ...], pes_post_process)
 
         # HDF5 settings
         self.hdf5_file = hdf5_file
 
         # Logging settings
-        self.logger = logger
+        self.logger = cast(Logger, logger)
 
         # Internally set attributes
         self.pes = {}
@@ -150,15 +148,15 @@ class MonteCarloABC(AbstractDataClass, ABC, Mapping[KT, VT], Generic[KT, VT]):
 
     # Implementation of the Mapping protocol
 
-    def __setitem__(self, key: KT, value: VT) -> None:
+    def __setitem__(self, key: Tuple[float, ...], value: np.ndarray) -> None:
         """Implement :code:`self[key] = value`."""
         self._data[key] = value
 
-    def __getitem__(self, key: KT) -> VT:
+    def __getitem__(self, key: Tuple[float, ...]) -> np.ndarray:
         """Implement :code:`self[key]`."""
         return self._data[key]
 
-    def __iter__(self) -> Iterator[KT]:
+    def __iter__(self) -> Iterator[Tuple[float, ...]]:
         """Implement :code:`iter(self)`."""
         return iter(self._data)
 
@@ -170,19 +168,19 @@ class MonteCarloABC(AbstractDataClass, ABC, Mapping[KT, VT], Generic[KT, VT]):
         """Implement :code:`key in self`."""
         return key in self._data
 
-    def keys(self) -> KeysView[KT]:
+    def keys(self) -> KeysView[Tuple[float, ...]]:
         """Return a set-like object providing a view of this instance's keys."""
         return self._data.keys()
 
-    def items(self) -> ItemsView[KT, VT]:
+    def items(self) -> ItemsView[Tuple[float, ...], np.ndarray]:
         """Return a set-like object providing a view of this instance's key/value pairs."""
         return self._data.items()
 
-    def values(self) -> ValuesView[VT]:
+    def values(self) -> ValuesView[np.ndarray]:
         """Return an object providing a view of this instance's values."""
         return self._data.values()
 
-    def get(self, key: Hashable, default: T = None) -> Union[VT, T]:
+    def get(self, key: Hashable, default: T = None) -> Union[np.ndarray, T]:
         """Return the value for **key** if it's available; return **default** otherwise."""
         return self._data.get(key, default)
 
@@ -191,12 +189,10 @@ class MonteCarloABC(AbstractDataClass, ABC, Mapping[KT, VT], Generic[KT, VT]):
     @overload
     def add_pes_evaluator(self, name: str, func: GetPesDescriptor, args: Sequence,
                           kwargs: Mapping[str, Any]) -> None: ...
-
-    @overload
+    @overload  # noqa: E301
     def add_pes_evaluator(self, name: str, func: GetPesDescriptor, args: Sequence,
                           kwargs: Iterable[Mapping[str, Any]]) -> None: ...
-
-    def add_pes_evaluator(self, name, func, args=(), kwargs=MappingProxyType({})) -> None:
+    def add_pes_evaluator(self, name, func, args=(), kwargs=MappingProxyType({})) -> None:  # noqa: E301
         r"""Add a callable to this instance for constructing PES-descriptors.
 
         Examples
@@ -235,12 +231,12 @@ class MonteCarloABC(AbstractDataClass, ABC, Mapping[KT, VT], Generic[KT, VT]):
             molecule in :attr:`MonteCarlo.molecule`.
 
         """
-        mol_list = [m.copy() for m in self.molecule]
+        mol_list = cast(List[MultiMolecule], [m.copy() for m in self.molecule])
         for f in self.pes_post_process:
             f(mol_list, self)
 
         if not isinstance(kwargs, abc.Mapping):
-            iterator = zip(mol_list, kwargs)
+            iterator: Iterator[Tuple[MultiMolecule, Mapping[str, Any]]] = zip(mol_list, kwargs)
         else:
             iterator = zip(mol_list, repeat(kwargs, len(self.molecule)))
 
@@ -282,7 +278,7 @@ class MonteCarloABC(AbstractDataClass, ABC, Mapping[KT, VT], Generic[KT, VT]):
         """
         return self.package_manager(logger=self.logger)
 
-    def move(self, idx: int = 0) -> Union[Exception, KT]:
+    def move(self, idx: int = 0) -> Union[Exception, Tuple[float, ...]]:
         """Update a random parameter in **self.param** by a random value from **self.move.range**.
 
         Performs in inplace update of the ``'param'`` column in **self.param**.
@@ -345,7 +341,7 @@ class MonteCarloABC(AbstractDataClass, ABC, Mapping[KT, VT], Generic[KT, VT]):
         for settings in iterator:
             settings[key].update(prm_update)
 
-        return tuple(self.param['param'][idx].values)
+        return cast(Tuple[float, ...], tuple(self.param['param'][idx].values))
 
     def get_pes_descriptors(self, get_first_key: bool = False,
                             ) -> Tuple[Dict[str, ArrayOrScalar], Optional[List[MultiMolecule]]]:
