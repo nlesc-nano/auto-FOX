@@ -117,6 +117,9 @@ class ARMC(MonteCarloABC, Generic[KT, VT]):
 
         # Settings specific to addaptive rate Monte Carlo (ARMC)
         self.phi = phi
+        if len(phi.phi) != len(self.param_mapping.move_range):
+            raise ValueError("'phi.phi' and 'param_mapping.move_range' "
+                             "should be of the same length")
         self.iter_len = iter_len
         self.sub_iter_len = sub_iter_len
 
@@ -373,7 +376,7 @@ class ARMC(MonteCarloABC, Generic[KT, VT]):
         generator = (norm_mean(k, v) for k, v in pes_dict.items())
         ret = np.fromiter(generator, dtype=float, count=len(pes_dict))
         ret.shape = length, -1
-        return ret.T
+        return ret
 
     def restart(self) -> None:
         r"""Restart a previously started Addaptive Rate Monte Carlo procedure."""
@@ -385,11 +388,11 @@ class ARMC(MonteCarloABC, Generic[KT, VT]):
             create_xyz_hdf5(self.hdf5_file, self.molecule, iter_len=self.sub_iter_len)
 
         # Check that both .hdf5 files can be opened; clear their status if not
-        closed = hdf5_clear_status(xyz)
-        if not closed:
+        closed1 = hdf5_clear_status(xyz)
+        if not closed1:
             self.logger.warning(f"Unable to open {xyz!r}, file status was forcibly reset")
-        closed = hdf5_clear_status(self.hdf5_file)
-        if not closed:
+        closed2 = hdf5_clear_status(self.hdf5_file)
+        if not closed2:
             self.logger.warning(f"Unable to open {self.hdf5_file!r}, file status was forcibly reset")
 
         # Finish the current set of sub-iterations

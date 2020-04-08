@@ -77,44 +77,59 @@ class PhiUpdaterABC(AbstractDataClass, ABC):
     gamma: np.ndarray
     a_target: np.ndarray
 
-    def __init__(self, phi: Union[Scalar, Iterable[Scalar]],
-                 gamma: Union[Scalar, Iterable[Scalar]],
-                 a_target: Union[Scalar, Iterable[Scalar]],
+    def __init__(self, phi: Union[Scalar, Iterable[Scalar], ArrayLike],
+                 gamma: Union[Scalar, Iterable[Scalar], ArrayLike],
+                 a_target: Union[Scalar, Iterable[Scalar], ArrayLike],
                  func: _PhiFunc, **kwargs: Any) -> None:
         r"""Initialize an :class:`AbstractPhiUpdater` instance.
 
         Parameters
         ----------
-        phi
+        phi : array-like [:class:`float`]
             The variable :math:`\phi`.
             See :attr:`AbstractPhiUpdater.phi`.
-        gamma
+
+        gamma : array-like [:class:`float`]
             The constant :math:`\gamma`.
             See :attr:`AbstractPhiUpdater.gamma`.
-        a_target
+
+        a_target : array-like [:class:`float`]
             The target acceptance rate :math:`\alpha_{t}`.
             See :attr:`AbstractPhiUpdater.a_target`.
+
         func : :data:`~typing.Callable`
             The callable used for applying :math:`\phi` to the auxiliary error.
             The callable should take an array-like object and float as argument
             and return a numpy array.
             See :attr:`AbstractPhiUpdater.func`.
+
         \**kwargs : :data:`~typing.Any`
             Further keyword arguments **func**
 
         """
         super().__init__()
-        self.phi: np.ndarray = as_nd_array(phi, dtype=float, ndmin=1)
-        self.gamma: np.ndarray = as_nd_array(gamma, dtype=float, ndmin=1)
-        self.a_target: np.ndarray = as_nd_array(a_target, dtype=float, ndmin=1)
+
+        array = partial(as_nd_array, dtype=float, ndmin=1)
+        self.phi = array(phi)
+        self.gamma = array(gamma)
+        self.a_target = array(a_target)
+        self._validate_shape()
+
         self.func: PhiFunc = wraps(func)(partial(func, **kwargs))
+
+    def _validate_shape(self):
+        """Ensure that :attr:`phi`, :attr:`gamma` and :attr:`a_target` all have the same shape."""
+        names = ('phi', 'gamma', 'a_target')
+        shape_set = {getattr(self, name).shape for name in names}
+        if len(shape_set) != 1:
+            raise ValueError("'phi', 'gamma', 'a_target' should all be of the same shape")
 
     @staticmethod
     @AbstractDataClass.inherit_annotations()
     def _eq(v1, v2):
         if isinstance(v1, partial):
             names = ("func", "args", "keywords")
-            return all([getattr(v1, n) == getattr(v2, n) for n in names])
+            return all([getattr(v1, n) == getattr(v2, n, None) for n in names])
         else:
             return np.all(v1 == v2)
 
@@ -145,6 +160,7 @@ class PhiUpdaterABC(AbstractDataClass, ABC):
         ----------
         acceptance : array-like [:class:`bool`]
             An array-like object consisting of booleans.
+
         \**kwargs : :data:`~typing.Any`
             Further keyword arguments which can be customized in the methods of subclasses.
 
@@ -175,6 +191,7 @@ class PhiUpdater(PhiUpdaterABC):
         ----------
         acceptance : array-like [:class:`bool`]
             An array-like object consisting of booleans.
+
         logger : :class:`logging.Logger`, optional
             A logger for reporting the updated value.
 

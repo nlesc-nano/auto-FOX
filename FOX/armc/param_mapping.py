@@ -170,6 +170,8 @@ class ParamMappingABC(AbstractDataClass, ABC, _ParamMappingABC):
         'count': -1
     })
 
+    _PRIVATE_ATTR = frozenset({'_net_charge'})
+
     def __init__(self, data: Union[InputMapping, pd.DataFrame],  # type: ignore
                  move_range: Iterable[float],
                  func: MoveFunc, **kwargs: Any) -> None:
@@ -224,21 +226,24 @@ class ParamMappingABC(AbstractDataClass, ABC, _ParamMappingABC):
     @move_range.setter
     def move_range(self, value: Union[Scalar, Sequence[Scalar], SupportsArray]) -> None:
         _ar = np.array(value, dtype=float, ndmin=1, copy=False)
-        reps = len(self._data['param'].columns)
+        prm_len = len(self._data['param'].columns)
 
         if _ar.ndim == 2:
-            if len(_ar) != reps:
-                raise ValueError(f"Expected 'move_range' length: {reps}; "
-                                 f"observed length: {len(_ar)}")
+            if len(_ar) != prm_len:
+                if prm_len == 1:
+                    for i in range(1, len(_ar)):
+                        self['param'][i] = self['param'][0].copy()
+                else:
+                    raise ValueError(f"Expected 'move_range' length: {prm_len}; "
+                                     f"observed length: {len(_ar)}")
             ar = _ar
         elif _ar.ndim == 1:
-            ar = np.tile(_ar, reps)
-            ar.shape = reps, -1
+            ar = np.tile(_ar, prm_len)
+            ar.shape = prm_len, -1
         else:
             raise ValueError("'move_range' expected a 1D or 2D array; "
                              f"observed dimensionality: {_ar.ndim}")
         self._move_range = ar
-
 
     @property
     def _data(self) -> Data:
@@ -291,11 +296,9 @@ class ParamMappingABC(AbstractDataClass, ABC, _ParamMappingABC):
             ret &= np.all(v1 == v2)
         return ret
 
-    def __repr__(self) -> str:
-        indent = 4 * ' '
-        data = repr(pd.DataFrame(self._data))
-        data += f',\nfunc       = {repr(self.func)},\nmove_range = {aNDRepr.repr(self.move_range)}'
-        return f'{self.__class__.__name__}(\n{textwrap.indent(data, indent)}\n)'
+    @AbstractDataClass.inherit_annotations()
+    def _str_iterator(self):
+        return ((k.strip('_'), v) for k, v in super()._str_iterator())
 
     @overload
     def __getitem__(self, key: SeriesKeys) -> pd.Series: ...

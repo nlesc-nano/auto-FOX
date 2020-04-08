@@ -21,7 +21,7 @@ API
 """
 
 from typing import (
-    Generic, TypeVar, Tuple, Dict, Mapping, Iterable, List, Sequence, overload, Optional,
+    Generic, TypeVar, Tuple, Dict, Mapping, Iterable, List, Sequence, overload,
     Any, TYPE_CHECKING
 )
 
@@ -50,8 +50,6 @@ MolIter = Iterable[MultiMolecule]
 
 class ARMCPT(ARMC, Generic[KT, VT]):
 
-    acceptance_shift: float
-
     def __init__(self, acceptance_shift: float = np.inf, **kwargs: Any) -> None:
         r"""Initialize an :class:`ARMCPT` instance.
 
@@ -65,7 +63,9 @@ class ARMCPT(ARMC, Generic[KT, VT]):
 
         """
         super().__init__(**kwargs)
-        self.acceptance_shift = acceptance_shift
+        if len(self.phi.phi) <= 1:
+            raise ValueError("{self.__class__.__name__!r} requires 'phi.phi' to "
+                             "contain more than 1 element")
 
     def acceptance(self) -> np.ndarray:
         """Create an empty 2D boolean array for holding the acceptance."""
@@ -93,6 +93,24 @@ class ARMCPT(ARMC, Generic[KT, VT]):
         else:
             return list(key_new)
         return key_new
+
+    @overload  # type: ignore
+    def __call__(self, start: None = ..., key_new: None = ...) -> None: ...
+    @overload  # noqa: E301
+    def __call__(self, start: int = ..., key_new: KT = ...) -> None: ...
+    def __call__(self, start=None, key_new=None):  # noqa: E301
+        """Initialize the Addaptive Rate Monte Carlo procedure."""
+        key_new = self._parse_call(start, key_new)
+
+        # Start the main loop
+        for kappa in range(start, self.super_iter_len):
+            acceptance = self.acceptance()
+            create_xyz_hdf5(self.hdf5_file, self.molecule, iter_len=self.sub_iter_len)
+
+            for omega in range(self.sub_iter_len):
+                key_new = self.do_inner(kappa, omega, acceptance, key_new)
+            self.apply_phi(acceptance)
+            self.swap_phi(acceptance)
 
     def do_inner(self, kappa: int, omega: int, acceptance: np.ndarray,
                  key_old: Sequence[KT]) -> List[KT]:
@@ -137,11 +155,11 @@ class ARMCPT(ARMC, Generic[KT, VT]):
         self._do_inner5(mol_list, accept, aux_new, pes_new, kappa, omega)
 
         # Step 6: Allow for swapping between parameter sets
-        self._do_inner6(key_new)
+        self._do_inner6(acceptance)
         return key_new
 
     def _do_inner3(self, pes_new: PesMapping,
-                   key_old: Sequence[KT]) -> Tuple[np.ndarray, np.ndarray]:
+                   key_old: Iterable[KT]) -> Tuple[np.ndarray, np.ndarray]:
         """Evaluate the auxiliary error; accept if the new parameter set lowers the error."""
         error_change = []
         aux_new = []
@@ -155,19 +173,20 @@ class ARMCPT(ARMC, Generic[KT, VT]):
             aux_new.append(_aux_new)
         return np.array(aux_new), np.array(aux_new)
 
-    def _do_inner4(self, accept: np.ndarray, error_change: np.ndarray, aux_new: np.ndarray,
-                   key_new: Sequence[KT], key_old: Sequence[KT],
+    def _do_inner4(self, accept: Iterable[bool], error_change: Iterable[bool],
+                   aux_new: Iterable[np.ndarray],
+                   key_new: Iterable[KT], key_old: Iterable[KT],
                    kappa: int, omega: int) -> List[KT]:
         """Update the auxiliary error history, apply phi & update job settings."""
         ret = []
 
-        enumerator = enumerate(zip(key_new, key_old, error_change, aux_new))
-        for i, (k_new, k_old, err_change, _aux_new) in enumerator:
+        enumerator = enumerate(zip(key_new, key_old, accept, error_change, aux_new))
+        for i, (k_new, k_old, acc, err_change, _aux_new) in enumerator:
             err_round = round(err_change, 4)
             aux_round = round(_aux_new.sum(), 4)
             epilog = f'total error change / error: {err_round} / {aux_round}\n'
 
-            if accept:
+            if acc:
                 self.logger.info(f"Accepting move {(kappa, omega)}; {epilog}")
                 self[k_new] = self.phi(_aux_new)
                 self.param['param_old'][i] = self.param['param'][i]
@@ -180,7 +199,7 @@ class ARMCPT(ARMC, Generic[KT, VT]):
 
         return ret
 
-    def _do_inner6(self, acceptance: np.ndarray) -> None:
+    def swap_phi(self, acceptance: np.ndarray) -> None:
         r"""Swap the :math:`\phi` and move range of two between forcefield parameter sets.
 
         The two main parameters are the acceptance rate
@@ -218,9 +237,9 @@ class ARMCPT(ARMC, Generic[KT, VT]):
         idx2 = np.random.choice(idx_range, p=p)
 
         if idx1 != idx2:
-            self.swap_phi(idx1, idx2)
+            self._swap_phi(idx1, idx2)
 
-    def swap_phi(self, idx1: int, idx2: int) -> None:
+    def _swap_phi(self, idx1: int, idx2: int) -> None:
         """Swap the array-elements **idx1** and **idx2** of four :class:`ARMCPT` attributes.
 
         Affects the following attributes:
