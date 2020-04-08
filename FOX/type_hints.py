@@ -20,7 +20,7 @@ from __future__ import annotations
 
 import sys
 from abc import abstractmethod
-from typing import Sequence, Union, Type, Generic, Hashable, Tuple, overload
+from typing import Sequence, Union, Type, Tuple
 
 import numpy as np
 from pandas.core.generic import NDFrame
@@ -72,7 +72,7 @@ class SupportsArray(Protocol):
 
 
 #: Annotation for array-like objects.
-ArrayLike = Union[np.ndarray, NDFrame, Sequence[Scalar], SupportsArray]
+ArrayLike = Union[Sequence[Scalar], SupportsArray]
 
 #: Annotation for array-like objects or numerical scalar.
 ArrayLikeOrScalar = Union[ArrayLike, Scalar]
