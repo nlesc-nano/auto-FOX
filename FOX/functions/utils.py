@@ -19,7 +19,7 @@ import pandas as pd
 
 from scm.plams import Settings, add_to_class
 
-from ..type_hints import Scalar, SupportsArray
+from ..type_hints import Scalar, SupportsArray, DtypeLike
 
 if TYPE_CHECKING:
     from ..classes import MultiMolecule
@@ -423,8 +423,10 @@ def get_example_xyz(name: Union[str, PathLike] = 'Cd68Se55_26COO_MD_trajec.xyz')
     return resource_filename('FOX', join('data', name))
 
 
-def _get_move_range(start: float = 0.005, stop: float = 0.1,
-                    step: float = 0.005) -> np.ndarray:
+def _get_move_range(start: float = 0.005,
+                    stop: float = 0.1,
+                    step: float = 0.005,
+                    ratio: Optional[Iterable[float]] = None) -> np.ndarray:
     """Generate an with array of all allowed moves.
 
     The move range spans a range of 1.0 +- **stop** and moves are thus intended to
@@ -434,37 +436,65 @@ def _get_move_range(start: float = 0.005, stop: float = 0.1,
     --------
     .. code:: python
 
-        >>> move_range = _get_move_range(start=0.005, stop=0.1, step=0.005)
-        >>> print(move_range)
-        [0.9   0.905 0.91  0.915 0.92  0.925 0.93  0.935 0.94  0.945
-         0.95  0.955 0.96  0.965 0.97  0.975 0.98  0.985 0.99  0.995
-         1.005 1.01  1.015 1.02  1.025 1.03  1.035 1.04  1.045 1.05
-         1.055 1.06  1.065 1.07  1.075 1.08  1.085 1.09  1.095 1.1  ]
+        >>> move_range1 = _get_move_range(start=0.005, stop=0.020,
+        ...                               step=0.005, ratio=None)
+        >>> print(move_range1)
+        [0.98  0.985 0.99  0.995 1.    1.005 1.01  1.015 1.02 ]
+
+        >>> move_range2 = _get_move_range(start=0.005, stop=0.020,
+        ...                               step=0.005, ratio=[1, 2, 4, 8])
+        >>> print(move_range2)
+        [[0.98  0.985 0.99  0.995 1.    1.005 1.01  1.015 1.02 ]
+         [0.96  0.97  0.98  0.99  1.    1.01  1.02  1.03  1.04 ]
+         [0.92  0.94  0.96  0.98  1.    1.02  1.04  1.06  1.08 ]
+         [0.84  0.88  0.92  0.96  1.    1.04  1.08  1.12  1.16 ]]
 
     Parameters
     ----------
-    start : float
+    start : :class:`float`
         Start of the interval.
         The interval includes this value.
 
-    stop : float
+    stop : :class:`float`
         End of the interval.
         The interval includes this value.
 
-    step : float
+    step : :class:`float`
         Spacing between values.
+
+    ratio : :class:`~collections.abc.Iterable` [:class:`float`], optional
+        If an iterable of length :math:`n` is provided here then the returned array is tiled
+        and scaled with the elements of **ratio** using the standard NumPy broadcasting rules.
 
     Returns
     -------
-    |np.ndarray|_ [|np.int64|_]:
-        An array with allowed moves.
+    :class:`numpy.ndarray` [:class:`float`]
+        An array (1D if ``ratio=None``; 2D otherwise) with allowed moves.
+
+    Raises
+    ------
+    :exc:`ValueError`
+        Raised if one or more elements in the to-be returned array are smaller than 0.
 
     """
     rng_range1 = np.arange(1 + start, 1 + stop, step, dtype=float)
     rng_range2 = np.arange(1 - stop, 1 - start + step, step, dtype=float)
     ret = np.concatenate((rng_range1, rng_range2))
     ret.sort()
-    return ret
+
+    if ratio is None:
+        if (ret < 0).any():
+            raise ValueError("The returned array cannot contain elements smaller than 0; "
+                             f"smallest osberved value: {ret.min()}")
+        return ret
+
+    ratio_ar = np.fromiter(ratio, dtype=float)
+    ret -= 1
+    ret_ = ret[None, ...] * ratio_ar[..., None] + 1
+    if (ret_ < 0).any():
+        raise ValueError("The returned array cannot contain elements smaller than 0; "
+                         f"smallest osberved value: {ret_.min()}")
+    return ret_
 
 
 def get_func_name(item: Callable) -> str:
@@ -828,11 +858,12 @@ def split_dict(dct: MutableMapping[KT, VT], keep_keys: Container[KT]) -> Dict[KT
     return {k: dct.pop(k) for k in difference}
 
 
-def as_nd_array(value: Union[Scalar, Iterable[Scalar], SupportsArray],
-                dtype: Union[type, np.dtype], ndmin: int = 1) -> np.ndarray:
+def as_nd_array(value: Union[Scalar, Iterable[Scalar], SupportsArray], dtype: DtypeLike,
+                ndmin: int = 1,
+                copy: bool = False) -> np.ndarray:
     """Convert **value**, a scalar or iterable of scalars, into an array."""
     try:
-        return np.array(value, dtype=dtype, ndmin=ndmin, copy=False)
+        return np.array(value, dtype=dtype, ndmin=ndmin, copy=copy)
 
     except TypeError as ex:
         if not isinstance(value, abc.Iterable):
