@@ -22,8 +22,10 @@ import inspect
 import warnings
 from types import FunctionType
 from typing import (
-    TypeVar, SupportsFloat, SupportsInt, Any, Callable, Union, Tuple, overload, Generic
+    TypeVar, SupportsFloat, Any, Callable, Union, Tuple, overload, Generic
 )
+
+import numpy as np
 
 from .type_hints import Literal
 from .functions.utils import get_importable
@@ -41,21 +43,21 @@ def supports_float(value: Any) -> bool: ...
 def supports_float(value):  # noqa: E302
     """Check if a float-like object has been passed (:data:`~typing.SupportsFloat`)."""
     try:
-        value.__float__()
+        float(value)
         return True
     except Exception:
         return False
 
 
 @overload
-def supports_int(value: SupportsInt) -> Literal[True]: ...
+def supports_int(value: Union[int, np.integer]) -> Literal[True]: ...
 @overload  # noqa: E302
 def supports_int(value: Any) -> bool: ...
 def supports_int(value):  # noqa: E302
     """Check if an int-like object has been passed (:data:`~typing.SupportsInt`)."""
     # floats that can be exactly represented by an integer are also fine
     try:
-        value.__int__()
+        int(value)
         return float(value).is_integer()
     except Exception:
         return False
@@ -98,10 +100,10 @@ class Default(Generic[T]):
 
     """
 
-    value: Union[T, Callable[[], T]]
+    value: T
     call: bool
 
-    def __init__(self, value: Union[T, Callable[[], T]], call: bool = True) -> None:
+    def __init__(self, value: T, call: bool = True) -> None:
         """Initialize an instance."""
         self.value = value
         self.call = call
@@ -110,7 +112,7 @@ class Default(Generic[T]):
         """Implement :code:`str(self)` and :code:`repr(self)`."""
         return f'{self.__class__.__name__}({self.value!r}, call={self.call!r})'
 
-    def validate(self, data: Any) -> Union[T, Callable[[], T]]:
+    def validate(self, data: Any) -> T:
         """Validate the passed **data**."""
         if self.call and callable(self.value):
             return self.value()
