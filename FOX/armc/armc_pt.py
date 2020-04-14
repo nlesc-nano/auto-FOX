@@ -28,7 +28,7 @@ import numpy as np
 
 from .armc import ARMC
 from ..type_hints import ArrayOrScalar
-from ..io.hdf5_utils import create_hdf5
+from ..io.hdf5_utils import create_hdf5, create_xyz_hdf5
 
 if TYPE_CHECKING:
     from ..classes import MultiMolecule
@@ -101,9 +101,10 @@ class ARMCPT(ARMC):
     def __call__(self, start=None, key_new=None):  # noqa: E301
         """Initialize the Addaptive Rate Monte Carlo procedure."""
         key_new = self._parse_call(start, key_new)
+        start_ = start if start is not None else 0
 
         # Start the main loop
-        for kappa in range(start, self.super_iter_len):
+        for kappa in range(start_, self.super_iter_len):
             acceptance = self.acceptance()
             create_xyz_hdf5(self.hdf5_file, self.molecule, iter_len=self.sub_iter_len)
 
@@ -194,7 +195,7 @@ class ARMCPT(ARMC):
             else:
                 self.logger.info(f"Rejecting move {(kappa, omega)}; {epilog}")
                 self[k_new] = _aux_new
-                self[k_old] = self.apply_phi(self[key_old])
+                self[k_old] = self.apply_phi(self[k_old])
                 ret.append(k_old)
 
         return ret

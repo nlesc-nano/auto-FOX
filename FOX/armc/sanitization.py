@@ -9,6 +9,7 @@ A module for parsing and sanitizing ARMC settings.
 import os
 import copy
 from pathlib import Path
+from itertools import cycle, islice
 from collections import abc
 from typing import (
     Union, Iterable, Tuple, Optional, Mapping, Any, MutableMapping, Hashable,
@@ -46,6 +47,7 @@ else:
 
 __all__ = ['dict_to_armc']
 
+T = TypeVar('T')
 KT = TypeVar('KT', bound=Hashable)
 MT = TypeVar('MT', bound=Mapping[Any, Any])
 
@@ -94,7 +96,7 @@ def dict_to_armc(input_dict: MainMapping) -> Tuple[MonteCarloABC, RunDict]:
     if psf_list is not None:
         mc.pes_post_process = [AtomsFromPSF.from_psf(*psf_list)]
         workdir = Path(run_kwargs['path']) / run_kwargs['folder']
-        _update_psf_settings(package.values(), workdir)
+        _update_psf_settings(package.values(), phi.phi, workdir)
 
     # Add PES evaluators
     pes = get_pes(dct['pes'])
@@ -282,11 +284,22 @@ def _generate_psf(file_list: Iterable[Union[str, os.PathLike]],
     return ret
 
 
-def _update_psf_settings(job_lists: Iterable[Iterable[dict]],
+def _psf_idx_iterator(job_list: Iterable[T], phi: Iterable) -> Generator[Tuple[int, T], None, None]:
+    job_iterator = iter(job_list)
+    for i, job in enumerate(job_iterator):
+        yield i, job
+
+        phi_iterator = islice(phi, 1)
+        for _, job in zip(phi_iterator, job_iterator):
+            yield i, job
+
+
+def _update_psf_settings(job_lists: Iterable[Iterable[dict]], phi: Iterable,
                          workdir: Union[str, os.PathLike]) -> None:
     """Set the .psf path in all job settings."""
     for job_list in job_lists:
-        for i, job in enumerate(job_list):
+        iterator = _psf_idx_iterator(job_list, phi)
+        for i, job in iterator:
             job['settings'].psf = os.path.join(workdir, f'mol.{i}.psf')
 
 

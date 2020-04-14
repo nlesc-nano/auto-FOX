@@ -144,9 +144,10 @@ class ARMC(MonteCarloABC):
     def __call__(self, start=None, key_new=None):  # noqa: E301
         """Initialize the Addaptive Rate Monte Carlo procedure."""
         key_new = self._parse_call(start, key_new)
+        start_ = start if start is not None else 0
 
         # Start the main loop
-        for kappa in range(start, self.super_iter_len):
+        for kappa in range(start_, self.super_iter_len):
             acceptance = self.acceptance()
             create_xyz_hdf5(self.hdf5_file, self.molecule, iter_len=self.sub_iter_len)
 
