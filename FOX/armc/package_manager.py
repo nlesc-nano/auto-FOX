@@ -8,13 +8,13 @@ from logging import Logger
 from itertools import chain, zip_longest
 from collections import abc
 from typing import (
-    Mapping, TypeVar, Hashable, Any, KeysView, ItemsView, ValuesView, Iterator,
+    Mapping, TypeVar, Hashable, Any, KeysView, ItemsView, ValuesView, Iterator, overload,
     Union, Dict, List, Optional, Tuple, Iterable, Sequence, cast, TYPE_CHECKING
 )
 
 import numpy as np
 import pandas as pd
-from scm.plams import config, Molecule, JobManager
+from scm.plams import config, Molecule, JobManager  # type: ignore
 from qmflows import Settings as QmSettings
 from qmflows.cp2k_utils import prm_to_df
 from noodles import gather, schedule, has_scheduled_methods, run_parallel
@@ -47,14 +47,16 @@ T = TypeVar('T')
 
 MolLike = Iterable[Tuple[float, float, float]]
 
+Value = Tuple[JobMapping, ...]
+
 #: The internal dictionary contained within :class:`PackageManagerABC`.
-Data = Dict[str, Tuple[JobMapping, ...]]
+Data = Dict[str, Value]
 
 DataMap = Mapping[str, Iterable[JobMapping]]
 DataIter = Iterable[Tuple[str, Iterable[JobMapping]]]
 
 
-class PackageManagerABC(ABC, Mapping[str, Tuple[JobMapping, ...]]):
+class PackageManagerABC(ABC, Mapping[str, Value]):
 
     __data: Data
 
@@ -147,7 +149,7 @@ class PackageManagerABC(ABC, Mapping[str, Tuple[JobMapping, ...]]):
 
     # Mapping implementation
 
-    def __getitem__(self, key: str) -> Tuple[JobMapping, ...]:
+    def __getitem__(self, key: str) -> Value:
         """Implement :code:`self[key]`."""
         return self._data[key]
 
@@ -167,15 +169,19 @@ class PackageManagerABC(ABC, Mapping[str, Tuple[JobMapping, ...]]):
         """Return a set-like object providing a view of this instance's keys."""
         return self._data.keys()
 
-    def items(self) -> ItemsView[str, Tuple[JobMapping, ...]]:
+    def items(self) -> ItemsView[str, Value]:
         """Return a set-like object providing a view of this instance's key/value pairs."""
         return self._data.items()
 
-    def values(self) -> ValuesView[Tuple[JobMapping, ...]]:
+    def values(self) -> ValuesView[Value]:
         """Return an object providing a view of this instance's values."""
         return self._data.values()
 
-    def get(self, key: Hashable, default: T = None) -> Union[Tuple[JobMapping, ...], T]:
+    @overload
+    def get(self, key: Hashable) -> Optional[Value]: ...
+    @overload
+    def get(self, key: Hashable, default: T) -> Union[Value, T]: ...
+    def get(self, key, default=None):
         """Return the value for **key** if it's available; return **default** otherwise."""
         return self._data.get(key, default)  # type: ignore
 
@@ -222,12 +228,12 @@ class PackageManagerABC(ABC, Mapping[str, Tuple[JobMapping, ...]]):
 @has_scheduled_methods
 class PackageManager(PackageManagerABC):
 
-    def __init__(self, data):
+    def __init__(self, data: Union[DataMap, DataIter]) -> None:
         super().__init__(data)
 
         # Transform all forcefield parameter blocks into DataFrames
         job_iterator = (job['settings'] for job in chain.from_iterable(self.values()))
-        for settings in job_iterator:  # type: QmSettings
+        for settings in job_iterator:  # Type: QmSettings
             prm_to_df(settings)
 
     def __call__(self, logger: Optional[Logger] = None,
@@ -251,13 +257,12 @@ class PackageManager(PackageManagerABC):
             logger = DummyLogger()
 
         jobs_iter = iter(self.items())
-        assemble_job = self.assemble_job
 
         _name, _jobs = next(jobs_iter)
-        promised_jobs: List[PromisedObject] = [assemble_job(j, name=_name) for j in _jobs]
+        promised_jobs: List[PromisedObject] = [self.assemble_job(j, name=_name) for j in _jobs]
 
         for name, jobs in jobs_iter:
-            promised_jobs = [assemble_job(j, p_j, name=name) for
+            promised_jobs = [self.assemble_job(j, p_j, name=name) for
                              j, p_j in zip(jobs, promised_jobs)]
 
         results: List[Result] = run_parallel(gather(*promised_jobs), n_threads=n_processes)
@@ -276,8 +281,7 @@ class PackageManager(PackageManagerABC):
             mol = kwargs['molecule']
 
         job_name: str = name if name is not None else ''
-        obj_type: Package
-        obj_type = kwargs.pop('type')  # type: ignore
+        obj_type: Package = kwargs.pop('type')  # type: ignore
         return obj_type(mol=mol, job_name=job_name, **kwargs)
 
     @staticmethod
@@ -289,8 +293,8 @@ class PackageManager(PackageManagerABC):
         for job in job_manager.jobs:  # type: Job
             name = os.path.join(workdir, job.name)
             try:
-                shutil.rmtree(name)  # type: ignore
-            except (TypeError, FileNotFoundError):
+                shutil.rmtree(name)
+            except FileNotFoundError:
                 pass
 
         job_manager.jobs = []
@@ -326,7 +330,7 @@ class PackageManager(PackageManagerABC):
         ret: List[MultiMolecule] = []
         for result in results:
             try:  # Construct and return a MultiMolecule object
-                path = get_xyz_path(result.archive['work_dir'])
+                path: str = get_xyz_path(result.archive['work_dir'])  # type: ignore
                 mol = MultiMolecule.from_xyz(path)
                 mol.round(3, inplace=True)
                 ret.append(mol)

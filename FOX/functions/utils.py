@@ -859,8 +859,7 @@ def split_dict(dct: MutableMapping[KT, VT], keep_keys: Container[KT]) -> Dict[KT
 
 
 def as_nd_array(value: Union[Scalar, Iterable[Scalar], SupportsArray], dtype: DtypeLike,
-                ndmin: int = 1,
-                copy: bool = False) -> np.ndarray:
+                ndmin: int = 1, copy: bool = False) -> np.ndarray:
     """Convert **value**, a scalar or iterable of scalars, into an array."""
     try:
         return np.array(value, dtype=dtype, ndmin=ndmin, copy=copy)

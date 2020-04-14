@@ -43,16 +43,16 @@ PesMapping = Mapping[str, ArrayOrScalar]
 MolList = List[MultiMolecule]
 MolIter = Iterable[MultiMolecule]
 
+Key = Tuple[float, ...]
+
 
 class ARMCPT(ARMC):
 
-    def __init__(self, acceptance_shift: float = np.inf, **kwargs: Any) -> None:
+    def __init__(self, **kwargs: Any) -> None:
         r"""Initialize an :class:`ARMCPT` instance.
 
         Parameters
         ----------
-        acceptance_shift : :class:`float`
-            Bla bla.
         \**kwargs : :data:`~typing.Any`
             Further keyword arguments for the :class:`ARMC` and
             :class:`MonteCarloABC` superclasses.
@@ -68,10 +68,12 @@ class ARMCPT(ARMC):
         shape = (self.sub_iter_len, len(self.phi.phi))
         return np.zeros(shape, dtype=bool)
 
-    @overload  # type: ignore
-    def _parse_call(self, start: None = ..., key_new: None = ...) -> List[Tuple[float, ...]]: ...
-    @overload  # noqa: E301
-    def _parse_call(self, start: int = ..., key_new: Iterable[Tuple[float, ...]] = ...) -> List[Tuple[float, ...]]: ...
+    @overload
+    def _parse_call(self) -> List[Key]: ...
+    @overload
+    def _parse_call(self, start: None, key_new: None) -> List[Key]: ...
+    @overload
+    def _parse_call(self, start: int, key_new: Iterable[Key]) -> List[Key]: ...
     def _parse_call(self, start=None, key_new=None):  # noqa: E301
         """Parse the arguments of :meth:`__call__` and prepare the first key."""
         if start is None:
@@ -90,10 +92,12 @@ class ARMCPT(ARMC):
             return list(key_new)
         return key_new
 
-    @overload  # type: ignore
-    def __call__(self, start: None = ..., key_new: None = ...) -> None: ...
-    @overload  # noqa: E301
-    def __call__(self, start: int = ..., key_new: Tuple[float, ...] = ...) -> None: ...
+    @overload
+    def __call__(self) -> None: ...
+    @overload
+    def __call__(self, start: None, key_new: None) -> None: ...
+    @overload
+    def __call__(self, start: int, key_new: Key) -> None: ...
     def __call__(self, start=None, key_new=None):  # noqa: E301
         """Initialize the Addaptive Rate Monte Carlo procedure."""
         key_new = self._parse_call(start, key_new)
@@ -109,7 +113,7 @@ class ARMCPT(ARMC):
             self.swap_phi(acceptance)
 
     def do_inner(self, kappa: int, omega: int, acceptance: np.ndarray,
-                 key_old: Sequence[Tuple[float, ...]]) -> List[Tuple[float, ...]]:
+                 key_old: Sequence[Key]) -> List[Key]:
         r"""Run the inner loop of the :meth:`ARMC.__call__` method.
 
         Parameters
@@ -155,7 +159,7 @@ class ARMCPT(ARMC):
         return key_new
 
     def _do_inner3(self, pes_new: PesMapping,
-                   key_old: Iterable[Tuple[float, ...]]) -> Tuple[np.ndarray, np.ndarray]:
+                   key_old: Iterable[Key]) -> Tuple[np.ndarray, np.ndarray]:
         """Evaluate the auxiliary error; accept if the new parameter set lowers the error."""
         error_change = []
         aux_new = []
@@ -171,8 +175,8 @@ class ARMCPT(ARMC):
 
     def _do_inner4(self, accept: Iterable[bool], error_change: Iterable[bool],
                    aux_new: Iterable[np.ndarray],
-                   key_new: Iterable[Tuple[float, ...]], key_old: Iterable[Tuple[float, ...]],
-                   kappa: int, omega: int) -> List[Tuple[float, ...]]:
+                   key_new: Iterable[Key], key_old: Iterable[Key],
+                   kappa: int, omega: int) -> List[Key]:
         """Update the auxiliary error history, apply phi & update job settings."""
         ret = []
 

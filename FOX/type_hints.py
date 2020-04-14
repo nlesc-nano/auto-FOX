@@ -20,7 +20,7 @@ from __future__ import annotations
 
 import sys
 from abc import abstractmethod
-from typing import Sequence, Union, Type, Tuple, Any, List, Text, Dict
+from typing import Sequence, Union, Type, Tuple, Any, List, Dict, Iterable
 
 import numpy as np
 from pandas.core.generic import NDFrame
@@ -48,10 +48,12 @@ _DtypeLikeNested = Any  # TODO: wait for support for recursive types
 
 
 class DtypeDict(TypedDict):
+    """A :class:`~typing.TypedDict` representing one of the :class:`numpy.dtype` inputs."""
+
     names: Sequence[str]
     formats: Sequence[_DtypeLikeNested]
     offsets: Sequence[int]
-    titles: Sequence[Union[bytes, Text, None]]
+    titles: Sequence[Union[bytes, str, None]]
     itemsize: int
 
 
@@ -98,7 +100,7 @@ DtypeLike = Union[
 class SupportsArray(Protocol):
     """An ABC with one abstract method :meth:`__array__`."""
 
-    __slots__: Tuple[str, ...] = ()
+    __slots__: Union[str, Iterable[str]] = ()
 
     @abstractmethod
     def __array__(self, dtype: DtypeLike = None) -> np.ndarray:
@@ -106,7 +108,7 @@ class SupportsArray(Protocol):
 
 
 #: Annotation for array-like objects.
-ArrayLike = Union[Sequence[Scalar], SupportsArray]
+ArrayLike = Union[Sequence[Scalar], SupportsArray, np.ndarray]
 
 #: Annotation for array-like objects or numerical scalar.
 ArrayLikeOrScalar = Union[ArrayLike, Scalar]

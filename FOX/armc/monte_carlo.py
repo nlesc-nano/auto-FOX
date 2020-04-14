@@ -50,9 +50,10 @@ T = TypeVar('T')
 
 PostProcess = Callable[[Optional[Iterable[MultiMolecule]], Optional['MonteCarloABC']], None]
 GetPesDescriptor = Callable[[MultiMolecule], ArrayOrScalar]
+Key = Tuple[float, ...]
 
 
-class MonteCarloABC(AbstractDataClass, ABC, Mapping[Tuple[float, ...], np.ndarray]):
+class MonteCarloABC(AbstractDataClass, ABC, Mapping[Key, np.ndarray]):
     r"""The base :class:`.MonteCarlo` class."""
 
     param: ParamMapping
@@ -63,7 +64,7 @@ class MonteCarloABC(AbstractDataClass, ABC, Mapping[Tuple[float, ...], np.ndarra
     _molecule: Tuple[MultiMolecule, ...]
     _logger: Logger
     _pes_post_process: Tuple[PostProcess, ...]
-    _data: Dict[Tuple[float, ...], np.ndarray]
+    _data: Dict[Key, np.ndarray]
 
     @property
     def molecule(self) -> Tuple[MultiMolecule, ...]:
@@ -148,15 +149,15 @@ class MonteCarloABC(AbstractDataClass, ABC, Mapping[Tuple[float, ...], np.ndarra
 
     # Implementation of the Mapping protocol
 
-    def __setitem__(self, key: Tuple[float, ...], value: np.ndarray) -> None:
+    def __setitem__(self, key: Key, value: np.ndarray) -> None:
         """Implement :code:`self[key] = value`."""
         self._data[key] = value
 
-    def __getitem__(self, key: Tuple[float, ...]) -> np.ndarray:
+    def __getitem__(self, key: Key) -> np.ndarray:
         """Implement :code:`self[key]`."""
         return self._data[key]
 
-    def __iter__(self) -> Iterator[Tuple[float, ...]]:
+    def __iter__(self) -> Iterator[Key]:
         """Implement :code:`iter(self)`."""
         return iter(self._data)
 
@@ -168,11 +169,11 @@ class MonteCarloABC(AbstractDataClass, ABC, Mapping[Tuple[float, ...], np.ndarra
         """Implement :code:`key in self`."""
         return key in self._data
 
-    def keys(self) -> KeysView[Tuple[float, ...]]:
+    def keys(self) -> KeysView[Key]:
         """Return a set-like object providing a view of this instance's keys."""
         return self._data.keys()
 
-    def items(self) -> ItemsView[Tuple[float, ...], np.ndarray]:
+    def items(self) -> ItemsView[Key, np.ndarray]:
         """Return a set-like object providing a view of this instance's key/value pairs."""
         return self._data.items()
 
@@ -180,7 +181,11 @@ class MonteCarloABC(AbstractDataClass, ABC, Mapping[Tuple[float, ...], np.ndarra
         """Return an object providing a view of this instance's values."""
         return self._data.values()
 
-    def get(self, key: Hashable, default: T = None) -> Union[np.ndarray, T]:
+    @overload
+    def get(self, key: Hashable) -> Optional[np.ndarray]: ...
+    @overload
+    def get(self, key: Hashable, default: T) -> Union[np.ndarray, T]: ...
+    def get(self, key, default=None):  # noqa: E301
         """Return the value for **key** if it's available; return **default** otherwise."""
         return self._data.get(key, default)
 
@@ -278,7 +283,7 @@ class MonteCarloABC(AbstractDataClass, ABC, Mapping[Tuple[float, ...], np.ndarra
         """
         return self.package_manager(logger=self.logger)
 
-    def move(self, idx: int = 0) -> Union[Exception, Tuple[float, ...]]:
+    def move(self, idx: int = 0) -> Union[Exception, Key]:
         """Update a random parameter in **self.param** by a random value from **self.move.range**.
 
         Performs in inplace update of the ``'param'`` column in **self.param**.
@@ -341,7 +346,7 @@ class MonteCarloABC(AbstractDataClass, ABC, Mapping[Tuple[float, ...], np.ndarra
         for settings in iterator:
             settings[key].update(prm_update)
 
-        return cast(Tuple[float, ...], tuple(self.param['param'][idx].values))
+        return cast(Key, tuple(self.param['param'][idx].values))
 
     def get_pes_descriptors(self, get_first_key: bool = False,
                             ) -> Tuple[Dict[str, ArrayOrScalar], Optional[List[MultiMolecule]]]:

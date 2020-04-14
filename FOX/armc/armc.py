@@ -51,6 +51,8 @@ PesMapping = Mapping[str, ArrayOrScalar]
 MolList = List[MultiMolecule]
 MolIter = Iterable[MultiMolecule]
 
+Key = Tuple[float, ...]
+
 
 class ARMC(MonteCarloABC):
     r"""The Addaptive Rate Monte Carlo class (:class:`.ARMC`).
@@ -134,9 +136,11 @@ class ARMC(MonteCarloABC):
         to_yaml(self, filename, logfile, path, folder)
 
     @overload
-    def __call__(self, start: None = ..., key_new: None = ...) -> None: ...
-    @overload  # noqa: E301
-    def __call__(self, start: int = ..., key_new: Tuple[float, ...] = ...) -> None: ...
+    def __call__(self) -> None: ...
+    @overload
+    def __call__(self, start: None, key_new: None) -> None: ...
+    @overload
+    def __call__(self, start: int, key_new: Key) -> None: ...
     def __call__(self, start=None, key_new=None):  # noqa: E301
         """Initialize the Addaptive Rate Monte Carlo procedure."""
         key_new = self._parse_call(start, key_new)
@@ -150,10 +154,12 @@ class ARMC(MonteCarloABC):
                 key_new = self.do_inner(kappa, omega, acceptance, key_new)
             self.apply_phi(acceptance)
 
-    @overload  # type: ignore
-    def _parse_call(self, start: None = ..., key_new: None = ...) -> Tuple[float, ...]: ...
-    @overload  # noqa: E301
-    def _parse_call(self, start: int = ..., key_new: Tuple[float, ...] = ...) -> Tuple[float, ...]: ...
+    @overload
+    def _parse_call(self) -> Key: ...
+    @overload
+    def _parse_call(self, start: None, key_new: None) -> Key: ...
+    @overload
+    def _parse_call(self, start: int, key_new: Key) -> Key: ...
     def _parse_call(self, start=None, key_new=None):  # noqa: E301
         """Parse the arguments of :meth:`__call__` and prepare the first key."""
         if start is None:
@@ -170,7 +176,7 @@ class ARMC(MonteCarloABC):
             raise TypeError("'key_new' cannot be None if 'start' is None")
         return key_new
 
-    def do_inner(self, kappa: int, omega: int, acceptance: np.ndarray, key_old: Tuple[float, ...]) -> Tuple[float, ...]:
+    def do_inner(self, kappa: int, omega: int, acceptance: np.ndarray, key_old: Key) -> Key:
         r"""Run the inner loop of the :meth:`ARMC.__call__` method.
 
         Parameters
@@ -212,7 +218,7 @@ class ARMC(MonteCarloABC):
         self._do_inner5(mol_list, accept, aux_new, pes_new, kappa, omega)
         return key_new
 
-    def _do_inner1(self, key_old: Tuple[float, ...], idx: int = 0) -> Tuple[float, ...]:
+    def _do_inner1(self, key_old: Key, idx: int = 0) -> Key:
         """Perform a random move."""
         key_new = self.move(idx=idx)
         if isinstance(key_new, Exception):
@@ -227,7 +233,7 @@ class ARMC(MonteCarloABC):
         """Calculate PES-descriptors."""
         return self.get_pes_descriptors()
 
-    def _do_inner3(self, pes_new: PesMapping, key_old: Tuple[float, ...]) -> Tuple[float, np.ndarray]:
+    def _do_inner3(self, pes_new: PesMapping, key_old: Key) -> Tuple[float, np.ndarray]:
         """Evaluate the auxiliary error; accept if the new parameter set lowers the error."""
         aux_new = self.get_aux_error(pes_new)
         aux_old = self[key_old]
@@ -235,8 +241,8 @@ class ARMC(MonteCarloABC):
         return error_change, aux_new
 
     def _do_inner4(self, accept: bool, error_change: float, aux_new: np.ndarray,
-                   key_new: Tuple[float, ...], key_old: Tuple[float, ...],
-                   kappa: int, omega: int) -> Tuple[float, ...]:
+                   key_new: Key, key_old: Key,
+                   kappa: int, omega: int) -> Key:
         """Update the auxiliary error history, apply phi & update job settings."""
         err_round = round(error_change, 4)
         aux_round = round(aux_new.sum(), 4)
@@ -265,7 +271,7 @@ class ARMC(MonteCarloABC):
         """Apply :attr:`phi` to **value**."""
         return self.phi(value)
 
-    def _get_first_key(self, idx: int = 0) -> Tuple[float, ...]:
+    def _get_first_key(self, idx: int = 0) -> Key:
         """Create a the ``history_dict`` variable and its first key.
 
         The to-be returned key servers as the starting argument for :meth:`.do_inner`,
@@ -282,7 +288,7 @@ class ARMC(MonteCarloABC):
             A tuple of Numpy arrays.
 
         """
-        key: Tuple[float, ...] = tuple(self.param['param'][idx].values)
+        key: Key = tuple(self.param['param'][idx].values)
         pes, _ = self.get_pes_descriptors(get_first_key=True)
 
         self[key] = self.get_aux_error(pes)
@@ -362,10 +368,10 @@ class ARMC(MonteCarloABC):
 
         """
         def norm_mean(key: str, mm_pes: ArrayLikeOrScalar) -> float:
-            qm_pes = self.pes[key].ref
+            qm_pes = self.pes[key].ref  # type: ignore
             QM = np.asarray(qm_pes, dtype=float)
             MM = np.asarray(mm_pes, dtype=float)
-            ret = (QM - MM)**2
+            ret: np.ndarray = (QM - MM)**2
             return ret.sum() / QM.sum()
 
         length = 1 + max(int(k.rsplit('.')[-1]) for k in pes_dict.keys())
@@ -402,7 +408,7 @@ class ARMC(MonteCarloABC):
         # And continue
         self(start=i, key_new=key)
 
-    def _restart_from_hdf5(self) -> Tuple[int, int, Tuple[float, ...], np.ndarray]:
+    def _restart_from_hdf5(self) -> Tuple[int, int, Key, np.ndarray]:
         """Read and process the .hdf5 file for :meth:`ARMC.restart`."""
         import h5py
 
@@ -421,19 +427,19 @@ class ARMC(MonteCarloABC):
             acceptance = f['acceptance'][i]
 
             # Find the last error which is not np.nan
-            final_key: Tuple[float, ...] = self._find_restart_key(f, i)
+            final_key: Key = self._find_restart_key(f, i)
         return i, j, final_key, acceptance
 
     @staticmethod
-    def _find_restart_key(f: Mapping[str, np.ndarray], i: int) -> Tuple[float, ...]:
+    def _find_restart_key(f: Mapping[str, np.ndarray], i: int) -> Key:
         """Construct a key for the parameter which is not ``nan``."""
         while i >= 0:
-            aux_error = f['aux_error'][i]
-            param_old = f['param'][i]
-            aux_nan = np.isnan(aux_error).any(axis=(1, 2))
+            aux_error: np.ndarray = f['aux_error'][i]
+            param_old: np.ndarray = f['param'][i]
+            aux_nan: np.ndarray = np.isnan(aux_error).any(axis=(1, 2))
 
             try:  # Its no longer np.nan
-                return tuple(param_old[~aux_nan][-1])  # type: ignore
+                return tuple(param_old[~aux_nan][-1])
             except IndexError:
                 i -= 1
         else:

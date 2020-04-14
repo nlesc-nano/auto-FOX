@@ -175,9 +175,9 @@ class ParamMappingABC(AbstractDataClass, ABC, _ParamMappingABC):
         'count': -1
     })
 
-    _PRIVATE_ATTR = frozenset({'_net_charge'})
+    _PRIVATE_ATTR = frozenset({'_net_charge'})  # type: ignore
 
-    def __init__(self, data: Union[InputMapping, pd.DataFrame],  # type: ignore
+    def __init__(self, data: Union[InputMapping, pd.DataFrame],
                  move_range: Iterable[float],
                  func: MoveFunc, **kwargs: Any) -> None:
         r"""Initialize an :class:`ParamMappingABC` instance.
@@ -289,13 +289,13 @@ class ParamMappingABC(AbstractDataClass, ABC, _ParamMappingABC):
 
         ret = True
         ret &= np.all(self.move_range == value.move_range)
-        ret &= self._net_charge == value._net_charge
+        ret &= cast(bool, self._net_charge == value._net_charge)
 
         names = ("func", "args", "keywords")
         v1, v2 = self.func, value.func
         ret &= all([getattr(v1, n, np.nan) == getattr(v2, n, np.nan) for n in names])
 
-        ret &= self.keys() == value.keys()
+        ret &= cast(bool, self.keys() == value.keys())
         iterator = ((v, value[k]) for k, v in self.items())
         for v1, v2 in iterator:
             ret &= np.all(v1 == v2)
@@ -343,10 +343,14 @@ class ParamMappingABC(AbstractDataClass, ABC, _ParamMappingABC):
         """Return an object providing a view of this instance's values."""
         return self._data.values()
 
-    @overload  # type: ignore
-    def get(self, key: ValidKeys, default: T) -> NDFrame: ...
-    @overload  # noqa: E301
-    def get(self, key: Hashable, default: T) -> T: ...
+    @overload
+    def get(self, key: ValidKeys) -> NDFrame: ...
+    @overload
+    def get(self, key: ValidKeys, default: Any) -> NDFrame: ...
+    @overload
+    def get(self, key: Hashable) -> Optional[NDFrame]: ...
+    @overload
+    def get(self, key: Hashable, default: T) -> Union[NDFrame, T]: ...
     def get(self, key, default=None):  # noqa: E301
         """Return the value for **key** if it's available; return **default** otherwise."""
         return self._data.get(key, default)
@@ -493,7 +497,7 @@ class ParamMapping(ParamMappingABC):
         """  # noqa
         # Define a random parameter
         random_prm: pd.Series = self['param'][param_idx].sample()
-        idx, x1 = next(random_prm.items())  # type: Tup3, float
+        idx, x1 = next(random_prm.items())  # Type: Tup3, float
 
         # Define a random move size
         x2: float = np.random.choice(self.move_range[param_idx], 1)[0]
