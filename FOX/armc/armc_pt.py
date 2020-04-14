@@ -110,7 +110,7 @@ class ARMCPT(ARMC):
 
             for omega in range(self.sub_iter_len):
                 key_new = self.do_inner(kappa, omega, acceptance, key_new)
-            self.apply_phi(acceptance)
+            self.phi.update(acceptance)
             self.swap_phi(acceptance)
 
     def do_inner(self, kappa: int, omega: int, acceptance: np.ndarray,
@@ -142,9 +142,10 @@ class ARMCPT(ARMC):
 
         # Step 2: Calculate PES descriptors
         pes_new, mol_list = self._do_inner2()
+        import pdb; pdb.set_trace()
 
         # Step 3: Evaluate the auxiliary error; accept if the new parameter set lowers the error
-        error_change, aux_new = self._do_inner3(pes_new, _key_new)
+        error_change, aux_new = self._do_inner3(pes_new, key_old)
         accept: np.ndarray = error_change < 0
 
         # Step 4: Update the auxiliary error history, apply phi & update job settings
@@ -189,7 +190,7 @@ class ARMCPT(ARMC):
 
             if acc:
                 self.logger.info(f"Accepting move {(kappa, omega)}; {epilog}")
-                self[k_new] = self.phi(_aux_new)
+                self[k_new] = self.apply_phi(_aux_new)
                 self.param['param_old'][i] = self.param['param'][i]
                 ret.append(k_new)
             else:

@@ -153,7 +153,7 @@ class ARMC(MonteCarloABC):
 
             for omega in range(self.sub_iter_len):
                 key_new = self.do_inner(kappa, omega, acceptance, key_new)
-            self.apply_phi(acceptance)
+            self.phi.update(acceptance)
 
     @overload
     def _parse_call(self) -> Key: ...
@@ -207,7 +207,7 @@ class ARMC(MonteCarloABC):
         pes_new, mol_list = self._do_inner2()
 
         # Step 3: Evaluate the auxiliary error; accept if the new parameter set lowers the error
-        error_change, aux_new = self._do_inner3(pes_new, _key_new)
+        error_change, aux_new = self._do_inner3(pes_new, key_old)
         accept = error_change < 0
 
         # Step 4: Update the auxiliary error history, apply phi & update job settings
@@ -251,7 +251,7 @@ class ARMC(MonteCarloABC):
 
         if accept:
             self.logger.info(f"Accepting move {(kappa, omega)}; {epilog}")
-            self[key_new] = self.phi(aux_new)
+            self[key_new] = self.apply_phi(aux_new)
             self.param['param_old'][:] = self.param['param']
             return key_new
         else:
