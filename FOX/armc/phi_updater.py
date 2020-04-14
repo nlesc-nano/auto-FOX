@@ -176,6 +176,11 @@ class PhiUpdaterABC(AbstractDataClass, ABC):
         else:
             return np.all(v1 == v2)
 
+    @AbstractDataClass.inherit_annotations()
+    def _str_iterator(self):
+        ret = ((k.strip('_'), v) for k, v in self._iter_attrs() if k not in self._PRIVATE_ATTR)
+        return sorted(ret)
+
     def __call__(self, value: ArrayLikeOrScalar, dtype: DtypeLike = float) -> np.ndarray:
         """Pass **value** and :attr:`phi` to :attr:`func`.
 

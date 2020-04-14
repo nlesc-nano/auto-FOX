@@ -105,8 +105,12 @@ class MonteCarloABC(AbstractDataClass, ABC, Mapping[Key, np.ndarray]):
                  keep_files: bool = False,
                  hdf5_file: Union[str, PathLike] = 'armc.hdf5',
                  logger: Optional[Logger] = None,
-                 pes_post_process: Optional[Iterable[PostProcess]] = None) -> None:
+                 pes_post_process: Optional[Iterable[PostProcess]] = None,
+                 **kwargs: Any) -> None:
         """Initialize a :class:`MonteCarlo` instance."""
+        if kwargs:
+            name = next(iter(kwargs))
+            raise TypeError(f"Unexpected argument {name!r}")
         super().__init__()
 
         self.param = param

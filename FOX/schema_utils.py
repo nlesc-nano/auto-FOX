@@ -122,22 +122,22 @@ class Default(Generic[T]):
 
 class Formatter(str):
 
-    msg: str
+    _msg: str
 
     def __init__(self, msg: str):
         """Initialize an instance."""
-        self.msg = msg
+        self._msg = msg
 
     def __repr__(self) -> str:
         """Implement :code:`str(self)` and :code:`repr(self)`."""
-        return f'{self.__class__.__name__}(msg={self.msg!r})'
+        return f'{self.__class__.__name__}(msg={self._msg!r})'
 
     def format(self, obj: Any) -> str:  # type: ignore
-        """Return a formatted version of :attr:`Formatter.msg`."""
-        name = self.msg.split("'", maxsplit=2)[1]
+        """Return a formatted version of :attr:`Formatter._msg`."""
+        name = self._msg.split("'", maxsplit=2)[1]
         name_ = name or 'value'
         try:
-            return self.msg.format(name=name_, value=obj, type=obj.__class__.__name__)
+            return self._msg.format(name=name_, value=obj, type=obj.__class__.__name__)
         except Exception as ex:
             err = RuntimeWarning(ex)
             err.__cause__ = ex

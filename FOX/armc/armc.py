@@ -116,7 +116,7 @@ class ARMC(MonteCarloABC):
 
         # Settings specific to addaptive rate Monte Carlo (ARMC)
         self.phi = phi
-        if len(phi.phi) != len(self.param_mapping.move_range):
+        if len(phi.phi) != len(self.param.move_range):
             raise ValueError("'phi.phi' and 'param_mapping.move_range' "
                              "should be of the same length")
         self.iter_len = iter_len

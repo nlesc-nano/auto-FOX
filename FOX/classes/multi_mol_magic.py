@@ -26,7 +26,9 @@ import textwrap
 import itertools
 import warnings
 from types import MappingProxyType
-from typing import Dict, Optional, List, Any, Callable, Union, Mapping, Iterable, NoReturn, TypeVar
+from typing import (
+    Dict, Optional, List, Any, Callable, Union, Mapping, Iterable, NoReturn, TypeVar, cast
+)
 
 import numpy as np
 

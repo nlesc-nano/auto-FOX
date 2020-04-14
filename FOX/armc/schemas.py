@@ -17,7 +17,8 @@ API
 """
 
 import os
-from functools import partial, wraps
+from os.path import abspath
+from functools import partial
 from collections import abc
 from typing import (
     Any, SupportsInt, Type, Mapping, Collection, Sequence,
@@ -27,8 +28,7 @@ from typing import (
 import numpy as np
 from schema import And, Or, Schema, Use, Optional as Optional_
 
-from scm.plams import Settings as QmSettings
-from qmflows import cp2k_mm
+from qmflows import cp2k_mm, Settings as QmSettings
 from qmflows.packages import Package
 
 from .armc import ARMC
@@ -50,7 +50,7 @@ __all__ = [
 
 T = TypeVar('T')
 
-EPILOG = '.\n\n{name}: {type} = {value!r:100}'
+EPILOG = '.\n\n{name}: {type} = {value!r:.100}'
 
 # Create a number of callables which take a single parameter is argument
 # This ensures they can be used with :class:`schema.Use`.
@@ -110,8 +110,9 @@ phi_schema = Schema({
 
     Optional_('a_target', default=A_TARGET.copy): Or(
         And(None, Default(A_TARGET.copy)),
-        And(lambda n: (0 < array(n) <= 1).all(), Use(array)),
-        error=Formatter(f"'phi.a_target' expected a float in the (0, 1] interval{EPILOG}")
+        And(lambda n: (0 < array(n)).all() & (1 >= array(n)).all(), Use(array)),
+        error=Formatter("'phi.a_target' expected a float or sequence of floats "
+                        f"in the (0, 1] interval{EPILOG}")
     ),
 
     Optional_('func', default=lambda: np.add): Or(
@@ -241,25 +242,28 @@ class MCDict(TypedDict):
 psf_schema = Schema({
     Optional_('str_file', default=None): Or(
         None,
-        And(str, Use(lambda n: (n,))),
-        And(os.PathLike, Use(lambda n: (n,))),
-        And(abc.Sequence, lambda n: all(isinstance(i, (os.PathLike, str)) for i in n), Use(tuple)),
+        And(str, Use(lambda n: (abspath(n),))),
+        And(os.PathLike, Use(lambda n: (abspath(n),))),
+        And(abc.Sequence, lambda n: all(isinstance(i, (os.PathLike, str)) for i in n),
+            Use(lambda n: tuple(abspath(i) for i in n))),
         error=Formatter(f"'psf.str_file' expected None or one or more path-like objects{EPILOG}")
     ),
 
     Optional_('rtf_file', default=None): Or(
         None,
-        And(str, Use(lambda n: (n,))),
-        And(os.PathLike, Use(lambda n: (n,))),
-        And(abc.Sequence, lambda n: all(isinstance(i, (os.PathLike, str)) for i in n), Use(tuple)),
+        And(str, Use(lambda n: (abspath(n),))),
+        And(os.PathLike, Use(lambda n: (abspath(n),))),
+        And(abc.Sequence, lambda n: all(isinstance(i, (os.PathLike, str)) for i in n),
+            Use(lambda n: tuple(abspath(i) for i in n))),
         error=Formatter(f"'psf.rtf_file' expected None or one or more path-like objects{EPILOG}")
     ),
 
     Optional_('psf_file', default=None): Or(
         None,
-        And(str, Use(lambda n: (n,))),
-        And(os.PathLike, Use(lambda n: (n,))),
-        And(abc.Sequence, lambda n: all(isinstance(i, (os.PathLike, str)) for i in n), Use(tuple)),
+        And(str, Use(lambda n: (abspath(n),))),
+        And(os.PathLike, Use(lambda n: (abspath(n),))),
+        And(abc.Sequence, lambda n: all(isinstance(i, (os.PathLike, str)) for i in n),
+            Use(lambda n: tuple(abspath(i) for i in n))),
         error=Formatter(f"'psf.psf_file' expected None or one or more path-like objects{EPILOG}")
     ),
 

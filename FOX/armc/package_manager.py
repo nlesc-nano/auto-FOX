@@ -35,7 +35,7 @@ else:
 __all__ = ['PackageManager']
 
 
-class JobMapping(TypedDict):
+class PkgDict(TypedDict):
     """A :class:`~typing.TypedDict` representing a single job recipe."""
 
     type: Package
@@ -47,20 +47,20 @@ T = TypeVar('T')
 
 MolLike = Iterable[Tuple[float, float, float]]
 
-Value = Tuple[JobMapping, ...]
+Value = Tuple[PkgDict, ...]
 
 #: The internal dictionary contained within :class:`PackageManagerABC`.
 Data = Dict[str, Value]
 
-DataMap = Mapping[str, Iterable[JobMapping]]
-DataIter = Iterable[Tuple[str, Iterable[JobMapping]]]
+DataMap = Mapping[str, Iterable[PkgDict]]
+DataIter = Iterable[Tuple[str, Iterable[PkgDict]]]
 
 
 class PackageManagerABC(ABC, Mapping[str, Value]):
 
     __data: Data
 
-    def __init__(self, data: Union[DataMap, DataIter]) -> None:
+    def __init__(self, data: Union[DataMap, DataIter], **kwargs: Any) -> None:
         """Initialize an instance.
 
         Parameters
@@ -79,7 +79,11 @@ class PackageManagerABC(ABC, Mapping[str, Value]):
             Evaluate the RMSD of a geometry optimization.
 
         """  # noqa
+        if kwargs:
+            name = next(iter(kwargs))
+            raise TypeError(f"Unexpected argument {name!r}")
         super().__init__()
+
         self._data = cast(Data, data)
 
     # Attributes and properties
@@ -117,7 +121,7 @@ class PackageManagerABC(ABC, Mapping[str, Value]):
         if type(self) is not type(value):
             return False
 
-        iterator: Iterator[Tuple[JobMapping, JobMapping]]
+        iterator: Iterator[Tuple[PkgDict, PkgDict]]
         iterator = chain.from_iterable(zip_longest(v, value[k]) for k, v in self.items())
         ret = True
 
@@ -140,12 +144,12 @@ class PackageManagerABC(ABC, Mapping[str, Value]):
         for k, v in self.items():
             end = '}, ...)' if len(v) > 1 else '},)'
             data += (
-                repr(k) +
+                f',\n{k!r}' +
                 ': ({' +
                 ', '.join(f'{_k!r}: {_v.__class__.__name__}(...)' for _k, _v in v[0].items()) +
                 end
             )
-        return f'{self.__class__.__name__}(' + '{\n' + textwrap.indent(data, 4 * ' ') + '\n})'
+        return f'{self.__class__.__name__}(' + '{\n' + textwrap.indent(data[2:], 4 * ' ') + '\n})'
 
     # Mapping implementation
 
@@ -210,8 +214,8 @@ class PackageManagerABC(ABC, Mapping[str, Value]):
 
     @staticmethod
     @abstractmethod
-    def assemble_job(job: JobMapping, **kwargs: Any) -> Any:
-        """Assemble a :class:`JobMapping` into an actual job."""
+    def assemble_job(job: PkgDict, **kwargs: Any) -> Any:
+        """Assemble a :class:`PkgDict` into an actual job."""
         raise NotImplementedError('Trying to call an abstract method')
 
     @abstractmethod
@@ -270,10 +274,10 @@ class PackageManager(PackageManagerABC):
 
     @staticmethod
     @schedule
-    def assemble_job(job: JobMapping, old_results: Optional[Result] = None,
+    def assemble_job(job: PkgDict, old_results: Optional[Result] = None,
                      name: Optional[str] = None) -> PromisedObject:
         """Create a :class:`PromisedObject` from a qmflow :class:`Package` instance."""
-        kwargs: JobMapping = job.copy()
+        kwargs: PkgDict = job.copy()
 
         if old_results is not None:
             mol: Molecule = old_results.geometry

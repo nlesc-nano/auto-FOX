@@ -12,7 +12,7 @@ from pathlib import Path
 from collections import abc
 from typing import (
     Union, Iterable, Tuple, Optional, Mapping, Any, MutableMapping, Hashable,
-    Dict, TYPE_CHECKING, Generator, List, Collection, TypeVar, overload
+    Dict, TYPE_CHECKING, Generator, List, Collection, TypeVar, overload, cast
 )
 
 import numpy as np
@@ -36,12 +36,13 @@ from ..functions.utils import get_atom_count, split_dict
 from ..functions.charge_utils import assign_constraints
 
 if TYPE_CHECKING:
-    from .package_manager import PackageManager
+    from .package_manager import PackageManager, PkgDict
     from .param_mapping import ParamMapping
     from .phi_updater import PhiUpdater
     from .monte_carlo import MonteCarloABC
 else:
     from ..type_alias import PackageManager, ParamMapping, PhiUpdater, MonteCarloABC
+    from builtins import dict as PkgDict
 
 __all__ = ['dict_to_armc']
 
@@ -55,7 +56,7 @@ class RunDict(TypedDict, total=False):
     path: Union[str, os.PathLike]
     folder: Union[str, os.PathLike]
     logfile: Union[str, os.PathLike]
-    psf: Union[None, List[PSFContainer]]
+    psf: Optional[List[PSFContainer]]
     guess: Optional[Mapping[str, Mapping]]
 
 
@@ -77,7 +78,7 @@ def dict_to_armc(input_dict: MainMapping) -> Tuple[MonteCarloABC, RunDict]:
 
     # Construct an ARMC instance
     phi = get_phi(dct['phi'])
-    package, mol_list = get_package(dct['job'])
+    package, mol_list = get_package(dct['job'], phi.phi)
     param, _param, _param_frozen = get_param(dct['param'])
     mc, run_kwargs = get_armc(dct['monte_carlo'], package, param, phi, mol_list)
 
@@ -87,7 +88,8 @@ def dict_to_armc(input_dict: MainMapping) -> Tuple[MonteCarloABC, RunDict]:
     package.update_settings(list(prm_iter(_param)), new_keys=True)
 
     # Handle psf stuff
-    run_kwargs['psf'] = psf_list = get_psf(dct['psf'], mol_list)
+    psf_list: Optional[List[PSFContainer]] = get_psf(dct['psf'], mol_list)
+    run_kwargs['psf'] = psf_list
     update_count(param, psf=psf_list, mol=mol_list)
     if psf_list is not None:
         mc.pes_post_process = [AtomsFromPSF.from_psf(*psf_list)]
@@ -117,7 +119,7 @@ def get_phi(dct: PhiMapping) -> PhiUpdater:
     return phi_type(**phi_dict, **kwargs)
 
 
-def get_package(dct: JobMapping) -> Tuple[PackageManager, Tuple[MultiMolecule, ...]]:
+def get_package(dct: JobMapping, phi: Iterable) -> Tuple[PackageManager, Tuple[MultiMolecule, ...]]:
     """Construct a :class:`PackageManager` instance from **dct**.
 
     Returns
@@ -131,16 +133,17 @@ def get_package(dct: JobMapping) -> Tuple[PackageManager, Tuple[MultiMolecule, .
     job_dict = validate_job(dct)
     mol_list = [mol.as_Molecule(mol_subset=0)[0] for mol in job_dict['molecule']]
 
-    data: Dict[str, List[Dict[str, Any]]] = {}
+    data: Dict[str, List[PkgDict]] = {}
     for k, v in _sub_pkg_dict.items():
         data[k] = []
-        for mol in mol_list:
-            kwargs = validate_sub_job(v)
-            kwargs['molecule'] = mol.copy()
+        for _ in phi:
+            for mol in mol_list:
+                kwargs = validate_sub_job(v)
+                kwargs['molecule'] = mol.copy()
 
-            pkg_name = kwargs['type'].pkg_name
-            kwargs['settings'].specific[pkg_name].soft_update(kwargs.pop('template'))
-            data[k].append(kwargs)
+                pkg_name = kwargs['type'].pkg_name
+                kwargs['settings'].specific[pkg_name].soft_update(kwargs.pop('template'))
+                data[k].append(kwargs)
 
     pkg_type = job_dict['type']
     return pkg_type(data), job_dict['molecule']
@@ -208,7 +211,7 @@ def get_armc(dct: MCMapping,
 
     mc_type = mc_dict.pop('type')  # type: ignore
     return mc_type(phi=phi, param=param, package_manager=package_manager,
-                   molecule=mol, **mc_dict), kwargs
+                   molecule=mol, **mc_dict), cast(RunDict, kwargs)
 
 
 def get_psf(dct: PSFMapping, mol_list: Iterable[MultiMolecule]
