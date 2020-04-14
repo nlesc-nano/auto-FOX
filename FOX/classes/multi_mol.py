@@ -1637,6 +1637,7 @@ class MultiMolecule(_MultiMolecule):
         del_atom = np.ones(self.shape[1], dtype=bool)
         del_atom[at_subset] = False
         mol = self.delete_atoms(del_atom)[m_subset]
+
         atom_pairs = mol.get_pair_dict(atom_subset or sorted(mol.atoms, key=str), r=3)
         for k, v in atom_pairs.items():
             v_new = []
