@@ -26,7 +26,7 @@ import textwrap
 import itertools
 import warnings
 from types import MappingProxyType
-from typing import Dict, Optional, List, Any, Callable, Union, Mapping, Iterable, NoReturn
+from typing import Dict, Optional, List, Any, Callable, Union, Mapping, Iterable, NoReturn, TypeVar
 
 import numpy as np
 
@@ -35,6 +35,9 @@ from assertionlib.ndrepr import NDRepr
 from assertionlib.dataclass import AbstractDataClass
 
 __all__: List[str] = []
+
+MT = TypeVar('MT', bound='_MultiMolecule')
+IdxDict = Dict[str, List[int]]
 
 _PROP_MAPPING: Mapping[str, Callable[[Atom], Any]] = MappingProxyType({
     'symbol': lambda x: x,
@@ -97,7 +100,7 @@ class LocGetter(AbstractDataClass):
     __slots__ = frozenset({'mol'})
 
     @property
-    def atoms(self) -> Dict[str, List[int]]: return self.mol.atoms
+    def atoms(self) -> IdxDict: return self.mol.atoms
 
     def __init__(self, mol: _MultiMolecule) -> None:
         super().__init__()
@@ -175,21 +178,26 @@ class _MultiMolecule(np.ndarray):
 
     """
 
-    def __new__(cls, coords: np.ndarray,
-                atoms: Optional[Dict[str, List[int]]] = None,
+    _atoms: IdxDict
+    _bonds: np.ndarray
+    _ndrepr: NDRepr
+    properties: Settings
+
+    def __new__(cls: Type[MT], coords: np.ndarray,
+                atoms: Optional[IdxDict] = None,
                 bonds: Optional[np.ndarray] = None,
-                properties: Optional[Dict[str, Any]] = None) -> _MultiMolecule:
+                properties: Optional[Dict[str, Any]] = None) -> MT:
         """Create and return a new object."""
         obj = np.array(coords, dtype=float, ndmin=3, copy=False).view(cls)
 
         # Set attributes
-        obj.atoms = atoms
-        obj.bonds = bonds
-        obj.properties = properties
+        obj.atoms = cast(IdxDict, atoms)
+        obj.bonds = cast(np.ndarray, bonds)
+        obj.properties = cast(Settings, properties)
         obj._ndrepr = NDRepr()
         return obj
 
-    def __array_finalize__(self, obj: '_MultiMolecule') -> None:
+    def __array_finalize__(self, obj: _MultiMolecule) -> None:
         """Finalize the array creation."""
         if obj is None:
             return
@@ -207,11 +215,11 @@ class _MultiMolecule(np.ndarray):
     loc.__doc__ = LocGetter.__doc__
 
     @property
-    def atoms(self) -> Dict[str, List[int]]:
+    def atoms(self) -> IdxDict:
         return self._atoms
 
     @atoms.setter
-    def atoms(self, value: Optional[Mapping]) -> None:
+    def atoms(self, value: Optional[Mapping[str, List[int]]]) -> None:
         self._atoms = {} if value is None else dict(value)
 
     @property
@@ -243,7 +251,7 @@ class _MultiMolecule(np.ndarray):
     """###############################  PLAMS-based properties  ################################"""
 
     @property
-    def atom12(self) -> _MultiMolecule:
+    def atom12(self) -> np.ndarray:
         """Get or set the indices of the atoms for all bonds in :attr:`.MultiMolecule.bonds` as 2D array."""  # noqa
         return self._bonds[:, 0:2]
 
@@ -279,7 +287,7 @@ class _MultiMolecule(np.ndarray):
         self._bonds[:, 2] = value * 10
 
     @property
-    def x(self) -> _MultiMolecule:
+    def x(self: MT) -> MT:
         """Get or set the x coordinates for all atoms in instance as 2D array."""
         return self[:, :, 0]
 
@@ -288,7 +296,7 @@ class _MultiMolecule(np.ndarray):
         self[:, :, 0] = value
 
     @property
-    def y(self) -> _MultiMolecule:
+    def y(self: MT) -> MT:
         """Get or set the y coordinates for all atoms in this instance as 2D array."""
         return self[:, :, 1]
 
@@ -297,7 +305,7 @@ class _MultiMolecule(np.ndarray):
         self[:, :, 1] = value
 
     @property
-    def z(self) -> '_MultiMolecule':
+    def z(self: MT) -> MT:
         """Get or set the z coordinates for all atoms in this instance as 2D array."""
         return self[:, :, 2]
 
@@ -367,7 +375,7 @@ class _MultiMolecule(np.ndarray):
 
     """##################################  Magic methods  #################################### """
 
-    def copy(self, order: str = 'C', deep: bool = True) -> _MultiMolecule:
+    def copy(self: MT, order: str = 'C', deep: bool = True) -> MT:
         """Create a copy of this instance.
 
         .. _np.ndarray.copy: https://docs.scipy.org/doc/numpy/reference/generated/numpy.ndarray.copy.html  # noqa
@@ -398,11 +406,11 @@ class _MultiMolecule(np.ndarray):
             setattr(ret, key, value)
         return ret
 
-    def __copy__(self) -> _MultiMolecule:
+    def __copy__(self: MT) -> MT:
         """Create copy of this instance."""
         return self.copy(order='K', deep=False)
 
-    def __deepcopy__(self, memo: Optional[Dict[int, Any]] = None) -> _MultiMolecule:
+    def __deepcopy__(self: MT, memo: Optional[Dict[int, Any]] = None) -> MT:
         """Create a deep copy of this instance."""
         return self.copy(order='K', deep=True)
 
