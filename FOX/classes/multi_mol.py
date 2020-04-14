@@ -1609,8 +1609,10 @@ class MultiMolecule(_MultiMolecule):
         at_subset = self._get_atom_subset(atom_subset, as_array=True)
 
         # Slice this MultiMolecule instance based on **atom_subset** and **mol_subset**
-        del_atom = np.arange(0, self.shape[1])[~at_subset]
+        del_atom = np.ones(self.shape[1], dtype=bool)
+        del_atom[at_subset] = False
         mol = self.delete_atoms(del_atom)[m_subset]
+
         atom_pairs = mol.get_pair_dict(atom_subset or sorted(mol.atoms, key=str), r=3)
         for k, v in atom_pairs.items():
             v_new = []
