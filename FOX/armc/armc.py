@@ -223,7 +223,7 @@ class ARMC(MonteCarloABC):
         """Perform a random move."""
         key_new = self.move(idx=idx)
         if isinstance(key_new, Exception):
-            self.logger.warning("{ex}; recalculating move")
+            self.logger.warning(f"{key_new}; recalculating move")
             return self._do_inner1(key_old)
         elif key_new in self:
             self.logger.info("Move has already been visited; recalculating move")
@@ -343,7 +343,8 @@ class ARMC(MonteCarloABC):
 
         to_hdf5(self.hdf5_file, hdf5_kwarg, kappa, omega)
 
-    def get_aux_error(self, pes_dict: PesMapping) -> np.ndarray:
+    def get_aux_error(self, pes_dict: PesMapping,
+                      shape: Optional[Tuple[int, ...]] = None) -> np.ndarray:
         r"""Return the auxiliary error :math:`\Delta \varepsilon_{QM-MM}`.
 
         The auxiliary error is constructed using the PES descriptors in **values**
@@ -375,11 +376,14 @@ class ARMC(MonteCarloABC):
             ret: np.ndarray = (QM - MM)**2
             return ret.sum() / QM.sum()
 
-        length = 1 + max(int(k.rsplit('.')[-1]) for k in pes_dict.keys())
+        if shape is None:
+            shape_ = 1 + max(int(k.rsplit('.')[-1]) for k in pes_dict.keys()), -1
+        else:
+            shape_ = shape
 
         generator = (norm_mean(k, v) for k, v in pes_dict.items())
         ret = np.fromiter(generator, dtype=float, count=len(pes_dict))
-        ret.shape = length, -1
+        ret.shape = shape_
         return ret
 
     def restart(self) -> None:

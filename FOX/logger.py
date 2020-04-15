@@ -18,13 +18,13 @@ API
 
 import os
 import logging
-from logging import Logger
+from logging import Logger, StreamHandler
 from functools import wraps
 from typing import Optional, Type, Any, Callable, Union
 
 from scm.plams import config
 
-__all__ = ['DummyLogger', 'get_logger', 'Plams2Logger', 'wrap_plams_logger']
+__all__ = ['DEFAULT_LOGGER', 'DummyLogger', 'get_logger', 'Plams2Logger', 'wrap_plams_logger']
 
 
 def _pass(*args: Any, **kwargs: Any) -> None:
@@ -102,7 +102,7 @@ def get_logger(name: str,
     handler_type : :class:`type` [:class:`logging.Handler`]
         The type of logging Handler assigned to the to-ber returned logger.
         Note that certain handler types require additional positional arguments,
-        *e.g.* the ``filename`` argument of :class:`FileHandler<logging.FileHandler>`.
+        *e.g.* the ``filename`` argument of :class:`~logging.FileHandler`.
 
     level : :class:`int`
         The level of logging.
@@ -119,7 +119,7 @@ def get_logger(name: str,
 
     \**kwargs : :data:`Any<typing.Any>`
         Further keyword arguments specific to the provided **handler_type**.
-        The relevant arguments for :class:`FileHandler<logging.FileHandler>` are
+        The relevant arguments for :class:`~logging.FileHandler` are
         ``filename`` (positional), ``mode``, ``encoding`` and ``delay``.
 
     Returns
@@ -212,3 +212,7 @@ class Plams2Logger:
     def flush(self) -> None:
         """Dummy method for ensuring this instances' compatibility as a pseudo-filelike object."""
         return None
+
+
+#: The default :class:`~logging.Logger` used by :class:`~FOX.armc.MonteCarloABC`.
+DEFAULT_LOGGER = get_logger('FOX', handler_type=StreamHandler)

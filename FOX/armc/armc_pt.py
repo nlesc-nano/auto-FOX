@@ -62,6 +62,10 @@ class ARMCPT(ARMC):
         if len(self.phi.phi) <= 1:
             raise ValueError("{self.__class__.__name__!r} requires 'phi.phi' to "
                              "contain more than 1 element")
+        elif len(self.phi.phi) != len(self.param.move_range):
+            raise ValueError
+        elif len(self._molecule) > 1:
+            raise NotImplementedError
 
     def acceptance(self) -> np.ndarray:
         """Create an empty 2D boolean array for holding the acceptance."""
@@ -142,7 +146,6 @@ class ARMCPT(ARMC):
 
         # Step 2: Calculate PES descriptors
         pes_new, mol_list = self._do_inner2()
-        import pdb; pdb.set_trace()
 
         # Step 3: Evaluate the auxiliary error; accept if the new parameter set lowers the error
         error_change, aux_new = self._do_inner3(pes_new, key_old)
@@ -168,12 +171,15 @@ class ARMCPT(ARMC):
 
         for i, key in enumerate(key_old):
             _pes_new = {k: v for k, v in pes_new.items() if k.endswith(str(i))}
-            _aux_new = self.get_aux_error(_pes_new)
+            _aux_new = self.get_aux_error(_pes_new, shape=(len(_pes_new),))
             _aux_old = self[key]
 
             error_change.append((_aux_new - _aux_old).sum())
             aux_new.append(_aux_new)
-        return np.array(aux_new), np.array(aux_new)
+
+        r1 = np.array(aux_new)
+        r2 = np.array(error_change)
+        return r1, r2
 
     def _do_inner4(self, accept: Iterable[bool], error_change: Iterable[bool],
                    aux_new: Iterable[np.ndarray],

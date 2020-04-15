@@ -1,6 +1,7 @@
 import os
 from typing import Union, TYPE_CHECKING, Optional, Iterable, Mapping
 from pathlib import Path
+from logging import StreamHandler
 from contextlib import redirect_stdout
 
 from scm.plams import config
@@ -45,7 +46,8 @@ def run_armc(armc: ARMC,
         config.default_jobmanager.settings.hashing = None
 
         # Create the logger
-        armc.logger = wrap_plams_logger(logfile, armc.__class__.__name__)
+        armc.logger = wrap_plams_logger(logfile, f'{armc.__class__.__name__}{id(armc)}')
+        armc.logger.addHandler(StreamHandler())
         writer = Plams2Logger(armc.logger,
                               lambda n: 'STARTED' in n,
                               lambda n: 'Renaming' in n,

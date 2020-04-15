@@ -21,7 +21,7 @@ API
 
 from os import PathLike
 from functools import wraps, partial
-from logging import Logger, StreamHandler
+from logging import Logger
 from abc import ABC, abstractmethod
 from types import MappingProxyType
 from itertools import repeat, cycle, chain
@@ -34,7 +34,7 @@ from typing import (
 import numpy as np
 from assertionlib.dataclass import AbstractDataClass
 
-from ..logger import get_logger
+from ..logger import DEFAULT_LOGGER
 from ..type_hints import ArrayOrScalar
 
 if TYPE_CHECKING:
@@ -85,7 +85,7 @@ class MonteCarloABC(AbstractDataClass, ABC, Mapping[Key, np.ndarray]):
         if value is not None:
             self._logger = value
         else:
-            self._logger = get_logger(self.__class__.__name__, handler_type=StreamHandler)
+            self._logger = DEFAULT_LOGGER
 
     @property
     def pes_post_process(self) -> Tuple[PostProcess, ...]:
@@ -240,14 +240,14 @@ class MonteCarloABC(AbstractDataClass, ABC, Mapping[Key, np.ndarray]):
             molecule in :attr:`MonteCarlo.molecule`.
 
         """
-        mol_list = cast(List[MultiMolecule], [m.copy() for m in self.molecule])
+        mol_list = [m.copy() for _ in self.param.move_range for m in self.molecule]
         for f in self.pes_post_process:
             f(mol_list, self)
 
         if not isinstance(kwargs, abc.Mapping):
             iterator: Iterator[Tuple[MultiMolecule, Mapping[str, Any]]] = zip(mol_list, kwargs)
         else:
-            iterator = zip(mol_list, repeat(kwargs, len(self.molecule)))
+            iterator = zip(mol_list, repeat(kwargs, len(mol_list)))
 
         for i, (mol, kwarg) in enumerate(iterator):
             func = wraps(func)(partial(func, *args, **kwarg))
