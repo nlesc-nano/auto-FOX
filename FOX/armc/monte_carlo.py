@@ -287,7 +287,7 @@ class MonteCarloABC(AbstractDataClass, ABC, Mapping[Key, np.ndarray]):
         """
         return self.package_manager(logger=self.logger)
 
-    def move(self, idx: int = 0) -> Union[Exception, Key]:
+    def move(self, idx: Optional[int] = None) -> Union[Exception, Key]:
         """Update a random parameter in **self.param** by a random value from **self.move.range**.
 
         Performs in inplace update of the ``'param'`` column in **self.param**.
@@ -299,7 +299,7 @@ class MonteCarloABC(AbstractDataClass, ABC, Mapping[Key, np.ndarray]):
         --------
         .. code:: python
 
-            >>> print(armc.mover['param'])
+            >>> print(armc.param['param'])
             charge   Br      -0.731687
                      Cs       0.731687
             epsilon  Br Br    1.045000
@@ -326,7 +326,7 @@ class MonteCarloABC(AbstractDataClass, ABC, Mapping[Key, np.ndarray]):
 
         Parameters
         ----------
-        idx : :class:`int`
+        idx : :class:`int`, optional
             The column key for :attr:`param_mapping["param"]<MonteCarloABC.param_mapping.>`.
 
         Returns
@@ -335,22 +335,27 @@ class MonteCarloABC(AbstractDataClass, ABC, Mapping[Key, np.ndarray]):
             A tuple with the (new) values in the ``'param'`` column of **self.param**.
 
         """
+        idx_: int = idx or 0
+
         # Perform the move
-        ret = self.param(logger=self.logger)
+        ret = self.param(logger=self.logger, param_idx=idx_)
         if isinstance(ret, Exception):
             return ret
         else:
             key, prm_name, _ = ret
 
-        prm_update = self.param['param'][idx].loc[(key, prm_name)].to_frame().T
+        prm_update = self.param['param'][idx_].loc[(key, prm_name)].to_frame().T
         prm_update.index = [prm_name]
-        iterator = (job['settings'] for job in chain.from_iterable(self.package_manager.values()))
+        if idx is None:
+            iterator = (job['settings'] for job in chain.from_iterable(self.package_manager.values()))
+        else:
+            iterator = (job_tup[idx_]['settings'] for job_tup in self.package_manager.values())
 
         # Update the job settings
         for settings in iterator:
             settings[key].update(prm_update)
 
-        return cast(Key, tuple(self.param['param'][idx].values))
+        return cast(Key, tuple(self.param['param'][idx_].values))
 
     def get_pes_descriptors(self, get_first_key: bool = False,
                             ) -> Tuple[Dict[str, ArrayOrScalar], Optional[List[MultiMolecule]]]:

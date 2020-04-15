@@ -222,12 +222,15 @@ class ARMC(MonteCarloABC):
     def _do_inner1(self, key_old: Key, idx: int = 0) -> Key:
         """Perform a random move."""
         key_new = self.move(idx=idx)
+
         if isinstance(key_new, Exception):
             self.logger.warning(f"{key_new}; recalculating move")
             return self._do_inner1(key_old)
+
         elif key_new in self:
             self.logger.info("Move has already been visited; recalculating move")
             return self._do_inner1(key_old)
+
         return key_new
 
     def _do_inner2(self) -> Tuple[PesDict, Optional[MolList]]:
@@ -329,7 +332,12 @@ class ARMC(MonteCarloABC):
 
         """
         phi = self.phi.phi
-        param_key: Literal['param', 'param_old'] = 'param' if accept else 'param_old'
+        if isinstance(accept, bool):
+            param_key: Literal['param', 'param_old'] = 'param' if accept else 'param_old'
+            aux_error_mod = np.append(self.param[param_key].values, phi)
+        else:
+            _aux_error_mod = [self.param['param' if acc else 'param_old'][i].values for i, acc in enumerate(accept)]
+            aux_error_mod = np.append(_aux_error_mod, phi)
 
         hdf5_kwarg = {
             'param': self.param['param'],
@@ -337,14 +345,13 @@ class ARMC(MonteCarloABC):
             'phi': phi,
             'acceptance': accept,
             'aux_error': aux_new,
-            'aux_error_mod': np.append(self.param[param_key].values, phi)
+            'aux_error_mod': aux_error_mod
         }
         hdf5_kwarg.update(pes_new)
 
         to_hdf5(self.hdf5_file, hdf5_kwarg, kappa, omega)
 
-    def get_aux_error(self, pes_dict: PesMapping,
-                      shape: Optional[Tuple[int, ...]] = None) -> np.ndarray:
+    def get_aux_error(self, pes_dict: PesMapping) -> np.ndarray:
         r"""Return the auxiliary error :math:`\Delta \varepsilon_{QM-MM}`.
 
         The auxiliary error is constructed using the PES descriptors in **values**
@@ -376,14 +383,11 @@ class ARMC(MonteCarloABC):
             ret: np.ndarray = (QM - MM)**2
             return ret.sum() / QM.sum()
 
-        if shape is None:
-            shape_ = 1 + max(int(k.rsplit('.')[-1]) for k in pes_dict.keys()), -1
-        else:
-            shape_ = shape
+        length = 1 + max(int(k.rsplit('.')[-1]) for k in pes_dict.keys())
 
         generator = (norm_mean(k, v) for k, v in pes_dict.items())
         ret = np.fromiter(generator, dtype=float, count=len(pes_dict))
-        ret.shape = shape_
+        ret.shape = length, -1
         return ret
 
     def restart(self) -> None:

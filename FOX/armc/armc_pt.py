@@ -62,8 +62,6 @@ class ARMCPT(ARMC):
         if len(self.phi.phi) <= 1:
             raise ValueError("{self.__class__.__name__!r} requires 'phi.phi' to "
                              "contain more than 1 element")
-        elif len(self.phi.phi) != len(self.param.move_range):
-            raise ValueError
         elif len(self._molecule) > 1:
             raise NotImplementedError
 
@@ -80,21 +78,13 @@ class ARMCPT(ARMC):
     def _parse_call(self, start: int, key_new: Iterable[Key]) -> List[Key]: ...
     def _parse_call(self, start=None, key_new=None):  # noqa: E301
         """Parse the arguments of :meth:`__call__` and prepare the first key."""
-        if start is None:
-            create_hdf5(self.hdf5_file, self)  # Construct the HDF5 file
-
-            key_new = [self._get_first_key(i) for i in self.param['param'].columns]
-            if np.inf in np.array([self[k] for k in key_new]):
-                raise RuntimeError('One or more jobs crashed in the first ARMC iteration; '
-                                   'manual inspection of the cp2k output is recomended')
-            elif not self.keep_files:
-                self.clear_jobs()
-
-        elif key_new is None:
-            raise TypeError("'key_new' cannot be None if 'start' is None")
+        ret = super()._parse_call(start, key_new)
+        if start is key_new is None:
+            self[ret] = self[ret][0]
+            i = len(self.param['param'].columns)
+            return i * [ret]
         else:
-            return list(key_new)
-        return key_new
+            return list(ret)
 
     @overload
     def __call__(self) -> None: ...
@@ -166,20 +156,10 @@ class ARMCPT(ARMC):
     def _do_inner3(self, pes_new: PesMapping,
                    key_old: Iterable[Key]) -> Tuple[np.ndarray, np.ndarray]:
         """Evaluate the auxiliary error; accept if the new parameter set lowers the error."""
-        error_change = []
-        aux_new = []
-
-        for i, key in enumerate(key_old):
-            _pes_new = {k: v for k, v in pes_new.items() if k.endswith(str(i))}
-            _aux_new = self.get_aux_error(_pes_new, shape=(len(_pes_new),))
-            _aux_old = self[key]
-
-            error_change.append((_aux_new - _aux_old).sum())
-            aux_new.append(_aux_new)
-
-        r1 = np.array(aux_new)
-        r2 = np.array(error_change)
-        return r1, r2
+        aux_new = self.get_aux_error(pes_new)
+        aux_old = np.array([self[k] for k in key_old])
+        error_change = (aux_new - aux_old).sum(axis=-1)
+        return error_change, aux_new
 
     def _do_inner4(self, accept: Iterable[bool], error_change: Iterable[bool],
                    aux_new: Iterable[np.ndarray],
@@ -187,7 +167,6 @@ class ARMCPT(ARMC):
                    kappa: int, omega: int) -> List[Key]:
         """Update the auxiliary error history, apply phi & update job settings."""
         ret = []
-
         enumerator = enumerate(zip(key_new, key_old, accept, error_change, aux_new))
         for i, (k_new, k_old, acc, err_change, _aux_new) in enumerator:
             err_round = round(err_change, 4)

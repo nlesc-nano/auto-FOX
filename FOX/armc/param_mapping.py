@@ -238,6 +238,7 @@ class ParamMappingABC(AbstractDataClass, ABC, _ParamMappingABC):
                 if prm_len == 1:
                     for i in range(1, len(_ar)):
                         self['param'][i] = self['param'][0].copy()
+                        self['param_old'][i] = self['param_old'][0].copy()
                 else:
                     raise ValueError(f"Expected 'move_range' length: {prm_len}; "
                                      f"observed length: {len(_ar)}")
