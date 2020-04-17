@@ -24,9 +24,7 @@ __all__ = ['ParamMapping']
 T = TypeVar('T')
 
 # MultiIndex keys
-_KT1 = TypeVar('_KT1', bound=Hashable)
-_KT2 = TypeVar('_KT2', bound=Hashable)
-_KT3 = TypeVar('_KT3', bound=Hashable)
+Tup3 = Tuple[Hashable, Hashable, Hashable]
 
 # All dict keys in ParamMappingABC
 SeriesKeys = Literal['min', 'max', 'constraints', 'count']
@@ -37,10 +35,7 @@ ValidKeys = Literal['param', 'param_old', 'min', 'max', 'constraints', 'count']
 MoveFunc = Callable[[float, float], float]
 
 # A dictionary of constraints
-ConstrainDict = Mapping[_KT2, partial]
-
-# MultiIndex keys as a 2-tuple
-Tup3 = Tuple[_KT1, _KT2, _KT3]
+ConstrainDict = Mapping[Hashable, partial]
 
 # A Mapping representing the conent of ParamMappingABC
 _ParamMappingABC = Mapping[ValidKeys, NDFrame]
@@ -308,9 +303,9 @@ class ParamMappingABC(AbstractDataClass, ABC, _ParamMappingABC):
 
     @overload
     def __getitem__(self, key: SeriesKeys) -> pd.Series: ...
-    @overload  # noqa: E301
+    @overload
     def __getitem__(self, key: DFKeys) -> pd.DataFrame: ...
-    @overload  # noqa: E301
+    @overload
     def __getitem__(self, key: Any) -> Any: ...
     def __getitem__(self, key):  # noqa: E301
         """Implement :code:`self[key]`."""
@@ -326,7 +321,7 @@ class ParamMappingABC(AbstractDataClass, ABC, _ParamMappingABC):
 
     @overload
     def __contains__(self, key: ValidKeys) -> Literal[True]: ...
-    @overload  # noqa: E301
+    @overload
     def __contains__(self, key: Any) -> bool: ...
     def __contains__(self, key):  # noqa: E301
         """Implement :code:`key in self`."""
