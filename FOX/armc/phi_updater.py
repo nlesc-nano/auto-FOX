@@ -143,8 +143,6 @@ class PhiUpdaterABC(AbstractDataClass, ABC, Sized):
         _gamma = as_nd_array(gamma, dtype=float, ndmin=1, copy=True)
         _gamma.setflags(write=False)
         self._gamma = _gamma
-        reveal_type(_gamma)
-        reveal_type(self._gamma)
 
         # Assign a_target as a read-only array
         _a_target = as_nd_array(a_target, dtype=float, ndmin=1, copy=True)
