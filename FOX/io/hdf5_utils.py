@@ -115,7 +115,9 @@ def create_hdf5(filename: Union[AnyStr, PathLike], armc: ARMC) -> None:
 
 
 def create_xyz_hdf5(filename: Union[AnyStr, PathLike],
-                    mol_list: Iterable[MultiMolecule], iter_len: int) -> None:
+                    mol_list: Iterable[MultiMolecule],
+                    iter_len: int,
+                    phi: Iterable) -> None:
     """Create the ``"xyz"`` datasets for :func:`create_hdf5` in the hdf5 file ``filename+".xyz"``.
 
     The ``"xyz"`` dataset is to contain Cartesian coordinates collected over the course of the
@@ -144,7 +146,8 @@ def create_xyz_hdf5(filename: Union[AnyStr, PathLike],
     with h5py.File(filename_xyz, 'w-', libver='latest') as f:
         f.attrs['__version__'] = np.fromiter(__version__.split('.'), count=3, dtype=int)
 
-        for i, mol in enumerate(mol_list):
+        iterator = (mol for mol in mol_list for _ in phi)
+        for i, mol in enumerate(iterator):
             key = f'xyz.{i}'
             f.create_dataset(
                 name=key,
@@ -235,15 +238,15 @@ def _get_kwarg_dict(armc: ARMC) -> Settings:
     shape = armc.iter_len // armc.sub_iter_len, armc.sub_iter_len
 
     ret = Settings()
-    ret.phi.shape = (shape[0], ) + armc.phi.phi.shape
+    ret.phi.shape = (shape[0], ) + armc.phi.shape
     ret.phi.dtype = float
     ret.phi.fillvalue = np.nan
 
-    ret.param.shape = shape + armc.param['param'].T.shape
+    ret.param.shape = shape + armc.param['param'].shape
     ret.param.dtype = float
     ret.param.fillvalue = np.nan
 
-    ret.acceptance.shape = shape
+    ret.acceptance.shape = shape + armc.phi.shape
     ret.acceptance.dtype = bool
 
     ret.aux_error.shape = shape + (len(armc.molecule), len(armc.pes) // len(armc.molecule))

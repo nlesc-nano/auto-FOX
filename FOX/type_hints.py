@@ -16,11 +16,9 @@ API
 
 """
 
-from __future__ import annotations
-
 import sys
 from abc import abstractmethod
-from typing import Sequence, Union, Type, Tuple, Any, List, Dict, Iterable
+from typing import Sequence, Union, Type, Tuple, List, Dict, Iterable
 
 import numpy as np
 from pandas.core.generic import NDFrame
@@ -36,26 +34,16 @@ __all__ = [
 ]
 
 #: Annotation for numerical scalars.
-Scalar = Union[np.generic, int, float, bool, complex]
+Scalar = Union[np.number, np.bool_, int, float, bool, complex]
 
 #: Annotation for numerical scalar types.
-ScalarType = Union[Type[np.generic], Type[int], Type[float], Type[bool], Type[complex]]
+ScalarType = Type[Scalar]
 
 # ``_DtypeLikeNested`` and ``DtypeLike`` taken from numpy-stubs.
 # Reference: https://github.com/numpy/numpy-stubs
 
-_DtypeLikeNested = Any  # TODO: wait for support for recursive types
-
-
-class DtypeDict(TypedDict):
-    """A :class:`~typing.TypedDict` representing one of the :class:`numpy.dtype` inputs."""
-
-    names: Sequence[str]
-    formats: Sequence[_DtypeLikeNested]
-    offsets: Sequence[int]
-    titles: Sequence[Union[bytes, str, None]]
-    itemsize: int
-
+# TODO: wait for support for recursive types
+_DtypeLikeNested = Union[np.dtype, str, None, ScalarType]
 
 # Anything that can be coerced into numpy.dtype.
 # Reference: https://docs.scipy.org/doc/numpy/reference/arrays.dtypes.html
@@ -85,8 +73,19 @@ DtypeLike = Union[
     # examples.
     List[Tuple[str, _DtypeLikeNested, Union[int, Sequence[int]]]],
 
-    # {'names': ..., 'formats': ..., 'offsets': ..., 'titles': ..., 'itemsize': ...}
-    DtypeDict,
+    # {'names': ..., 'formats': ..., 'offsets': ..., 'titles': ...,
+    #  'itemsize': ...}
+    # TODO: use TypedDict when/if it's officially supported
+    Dict[
+        str,
+        Union[
+            Sequence[str],  # names
+            Sequence[_DtypeLikeNested],  # formats
+            Sequence[int],  # offsets
+            Sequence[Union[bytes, str, None]],  # titles
+            int,  # itemsize
+        ],
+    ],
 
     # {'field1': ..., 'field2': ..., ...}
     Dict[str, Tuple[_DtypeLikeNested, int]],

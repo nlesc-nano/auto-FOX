@@ -338,6 +338,7 @@ class ARMC(MonteCarloABC):
         else:
             _aux_error_mod = [self.param['param' if acc else 'param_old'][i].values for i, acc in enumerate(accept)]
             aux_error_mod = np.append(_aux_error_mod, phi)
+            aux_error_mod.shape = len(self.phi), -1
 
         hdf5_kwarg = {
             'param': self.param['param'],

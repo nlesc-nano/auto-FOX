@@ -100,7 +100,8 @@ class ARMCPT(ARMC):
         # Start the main loop
         for kappa in range(start_, self.super_iter_len):
             acceptance = self.acceptance()
-            create_xyz_hdf5(self.hdf5_file, self.molecule, iter_len=self.sub_iter_len)
+            create_xyz_hdf5(self.hdf5_file, self.molecule,
+                            iter_len=self.sub_iter_len, phi=self.phi.phi)
 
             for omega in range(self.sub_iter_len):
                 key_new = self.do_inner(kappa, omega, acceptance, key_new)
@@ -147,10 +148,7 @@ class ARMCPT(ARMC):
                                   _key_new, key_old, kappa, omega)
 
         # Step 5: Export the results to HDF5
-        self._do_inner5(mol_list, accept, aux_new, pes_new, kappa, omega)
-
-        # Step 6: Allow for swapping between parameter sets
-        self._do_inner6(acceptance)
+        self._do_inner5(mol_list, accept, aux_new.T, pes_new, kappa, omega)
         return key_new
 
     def _do_inner3(self, pes_new: PesMapping,
@@ -171,7 +169,8 @@ class ARMCPT(ARMC):
         for i, (k_new, k_old, acc, err_change, _aux_new) in enumerator:
             err_round = round(err_change, 4)
             aux_round = round(_aux_new.sum(), 4)
-            epilog = f'total error change / error: {err_round} / {aux_round}\n'
+            newline = '\n' if i == len(self.phi) - 1 else ''
+            epilog = f'total error change / error: {err_round} / {aux_round}{newline}'
 
             if acc:
                 self.logger.info(f"Accepting move {(kappa, omega)}; {epilog}")

@@ -9,19 +9,15 @@ Index
 .. currentmodule:: FOX.armc.phi_updater
 .. autosummary::
     PhiUpdater
-    MultiPhiUpdater
 
 API
 ---
 .. autoclass:: PhiUpdater
-.. autoclass:: MultiPhiUpdater
 
 """
 
-from __future__ import annotations
-
 from abc import ABC, abstractmethod
-from typing import Callable, Any, Optional, Union, Iterable, cast
+from typing import Callable, Any, Optional, Union, Iterable, cast, Sized, Tuple
 from logging import Logger
 from functools import partial, wraps
 
@@ -29,18 +25,18 @@ import numpy as np
 
 from assertionlib.dataclass import AbstractDataClass
 
-from ..type_hints import ArrayLike, ArrayLikeOrScalar, ArrayOrScalar, Scalar, DtypeLike
+from ..type_hints import ArrayLike, ArrayLikeOrScalar, Scalar, DtypeLike
 from ..functions.utils import as_nd_array
 
 __all__ = ['PhiUpdater']
 
 _PhiFunc = Callable[..., np.ndarray]
-PhiFunc = Callable[[np.ndarray, ArrayOrScalar], np.ndarray]
+PhiFunc = Callable[[ArrayLikeOrScalar, np.ndarray], np.ndarray]
 
 IterOrArrayLike = Union[Scalar, Iterable[Scalar], ArrayLike]
 
 
-class PhiUpdaterABC(AbstractDataClass, ABC):
+class PhiUpdaterABC(AbstractDataClass, ABC, Sized):
     r"""A class for applying and updating :math:`\phi`.
 
     Has two main methods:
@@ -62,22 +58,18 @@ class PhiUpdaterABC(AbstractDataClass, ABC):
 
     Attributes
     ----------
-    phi
+    phi : :class:`numpy.ndarray`
         The variable :math:`\phi`.
-    gamma
+    gamma : :class:`numpy.ndarray`
         The constant :math:`\gamma`.
-    a_target
+    a_target : :class:`numpy.ndarray`
         The target acceptance rate :math:`\alpha_{t}`.
-    func : :data:`~typing.Callable`
+    func : :class:`Callable[[array-like, ndarray], ndarray]<collections.abc.Callable>`
         The callable used for applying :math:`\phi` to the auxiliary error.
-        The callable should take an array-like object and float as argument
-        and return a numpy array.
+        The callable should take an array-like object and a :class:`numpy.ndarray`
+        as arguments and return a new array.
 
     """
-
-    _phi: np.ndarray
-    _gamma: np.ndarray
-    _a_target: np.ndarray
 
     @property
     def phi(self) -> np.ndarray:
@@ -95,31 +87,20 @@ class PhiUpdaterABC(AbstractDataClass, ABC):
 
     @property
     def gamma(self) -> np.ndarray:
-        """Get or set :attr:`gamma`.
-
-        Get wil simply return :attr:`gamma` while set will cast the supplied value
-        into an array and then assign it to :attr:`gamma`.
-
-        """
-        return self._gamma
-
-    @gamma.setter
-    def gamma(self, value: IterOrArrayLike) -> None:
-        self._gamma = as_nd_array(value, dtype=float, ndmin=1)
+        """Get the read-only attribute :attr:`gamma`."""
+        return self._gamma  # type: ignore
 
     @property
     def a_target(self) -> np.ndarray:
-        """Get or set :attr:`a_target`.
+        """Get the read-only attribute :attr:`a_target`."""
+        return self._a_target  # type: ignore
 
-        Get wil simply return :attr:`a_target` while set will cast the supplied value
-        into an array and then assign it to :attr:`a_target`.
+    @property
+    def func(self) -> PhiFunc:
+        """Get the read-only attribute :attr:`func`."""
+        return self._func  # type: ignore
 
-        """
-        return self._phi
-
-    @a_target.setter
-    def a_target(self, value: IterOrArrayLike) -> None:
-        self._a_target = as_nd_array(value, dtype=float, ndmin=1)
+    _PRIVATE_ATTR = frozenset({'__name__', '__qualname__'})  # type: ignore
 
     def __init__(self, phi: IterOrArrayLike,
                  gamma: IterOrArrayLike,
@@ -141,24 +122,37 @@ class PhiUpdaterABC(AbstractDataClass, ABC):
             The target acceptance rate :math:`\alpha_{t}`.
             See :attr:`AbstractPhiUpdater.a_target`.
 
-        func : :data:`~typing.Callable`
+        func : :class:`Callable[[array-like, ndarray, **kwargs], ndarray]<collections.abc.Callable>`
             The callable used for applying :math:`\phi` to the auxiliary error.
-            The callable should take an array-like object and float as argument
-            and return a numpy array.
+            The callable should take an array-like object and a :class:`numpy.ndarray`
+            as arguments and return a new array.
             See :attr:`AbstractPhiUpdater.func`.
 
         \**kwargs : :data:`~typing.Any`
-            Further keyword arguments **func**
+            Further keyword arguments for **func**
 
         """
         super().__init__()
+        cls = type(self)
+        self.__name__: str = cls.__name__
+        self.__qualname__: str = cls.__qualname__
 
         self.phi = cast(np.ndarray, phi)
-        self.gamma = cast(np.ndarray, gamma)
-        self.a_target = cast(np.ndarray, a_target)
-        self.func: PhiFunc = wraps(func)(partial(func, **kwargs))
+
+        # Assign gamma as a read-only array
+        _gamma = as_nd_array(gamma, dtype=float, ndmin=1, copy=True)
+        _gamma.setflags(write=False)
+        self._gamma = _gamma
+        reveal_type(_gamma)
+        reveal_type(self._gamma)
+
+        # Assign a_target as a read-only array
+        _a_target = as_nd_array(a_target, dtype=float, ndmin=1, copy=True)
+        _a_target.setflags(write=False)
+        self._a_target = _a_target
 
         self._validate_shape()
+        self._func = wraps(func)(partial(func, **kwargs))
 
     def _validate_shape(self):
         """Ensure that :attr:`phi`, :attr:`gamma` and :attr:`a_target` all have the same shape."""
@@ -172,7 +166,7 @@ class PhiUpdaterABC(AbstractDataClass, ABC):
     def _eq(v1, v2):
         if isinstance(v1, partial):
             names = ("func", "args", "keywords")
-            return all([getattr(v1, n) == getattr(v2, n, None) for n in names])
+            return all([np.all(getattr(v1, n) == getattr(v2, n, None)) for n in names])
         else:
             return np.all(v1 == v2)
 
@@ -180,6 +174,22 @@ class PhiUpdaterABC(AbstractDataClass, ABC):
     def _str_iterator(self):
         ret = ((k.strip('_'), v) for k, v in self._iter_attrs() if k not in self._PRIVATE_ATTR)
         return sorted(ret)
+
+    @property
+    def shape(self) -> Tuple[int, ...]:
+        """Return the :attr:`~numpy.ndarray.shape` of :attr:`phi`.
+
+        Note that :attr:`phi`, :attr:`gamma` and :attr:`a_target` all have the same shape.
+        """
+        return self.phi.shape
+
+    def __len__(self) -> int:
+        """Implement :code:`len(self)`.
+
+        Note that :attr:`phi`, :attr:`gamma` and :attr:`a_target` are all of the same length.
+        Serves as a wrapper around the :meth:`~numpy.ndarray.__len__` method of :attr:`phi`.
+        """
+        return len(self.phi)
 
     def __call__(self, value: ArrayLikeOrScalar, dtype: DtypeLike = float) -> np.ndarray:
         """Pass **value** and :attr:`phi` to :attr:`func`.
@@ -244,10 +254,13 @@ class PhiUpdater(PhiUpdaterABC):
 
         """
         mean_acceptance: np.ndarray = np.mean(acceptance, axis=0)
-        sign: np.ndarray = np.sign(self.a_target - mean_acceptance)
+        sign = cast(np.ndarray, np.sign(self.a_target - mean_acceptance))
 
         phi = self.phi * self.gamma**sign
-        if logger is not None:
+        if phi.shape != self.shape:
+            raise ValueError(f"Incorrect new 'phi' shape ({phi.shape!r}); "
+                             f"expected shape: {self.shape!r}")
+        elif logger is not None:
             logger.info(f"Updating phi: {self.phi} -> {phi}")
         self.phi = phi
 
