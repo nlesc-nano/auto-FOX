@@ -450,11 +450,11 @@ class ARMC(MonteCarlo):
             An array with :math:`m*n` auxilary errors
 
         """
-        def norm_mean(key: str, mm_pes: np.ndarray) -> float:
-            qm_pes = self.pes[key].ref
-            QM, MM = np.asarray(qm_pes, dtype=float), np.asarray(mm_pes, dtype=float)
-            ret = (QM - MM)**2
-            return ret.sum() / QM.sum()
+        def norm_mean(key: str, mm: np.ndarray) -> float:
+            qm = self.pes[key].ref  # qm and mm should be array-like
+            delta = np.abs(qm - mm)**2
+            ret = delta.sum() / np.abs(qm).sum()
+            return np.asarray(ret, dtype=float).sum()
 
         length = 1 + max(int(k.rsplit('.')[-1]) for k in pes_dict.keys())
 
