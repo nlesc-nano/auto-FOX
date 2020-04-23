@@ -1,0 +1,3 @@
+#!/bin/sh
+
+cp2k.ssmp -i md.027.in -o md.027.out

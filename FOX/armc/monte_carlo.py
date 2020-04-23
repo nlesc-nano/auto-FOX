@@ -61,10 +61,6 @@ class MonteCarloABC(AbstractDataClass, ABC, Mapping[Key, np.ndarray]):
     keep_files: bool
     hdf5_file: Union[str, PathLike]
     pes: Dict[str, GetPesDescriptor]
-    _molecule: Tuple[MultiMolecule, ...]
-    _logger: Logger
-    _pes_post_process: Tuple[PostProcess, ...]
-    _data: Dict[Key, np.ndarray]
 
     @property
     def molecule(self) -> Tuple[MultiMolecule, ...]:
@@ -129,7 +125,7 @@ class MonteCarloABC(AbstractDataClass, ABC, Mapping[Key, np.ndarray]):
 
         # Internally set attributes
         self.pes = {}
-        self._data = {}
+        self._data: Dict[Key, np.ndarray] = {}
 
     @AbstractDataClass.inherit_annotations()
     def _str_iterator(self):
