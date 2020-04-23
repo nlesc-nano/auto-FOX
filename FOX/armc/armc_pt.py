@@ -170,17 +170,17 @@ class ARMCPT(ARMC):
             err_round = round(err_change, 4)
             aux_round = round(_aux_new.sum(), 4)
             newline = '\n' if i == len(self.phi) - 1 else ''
-            epilog = f'total error change / error: {err_round} / {aux_round}{newline}'
+            epilog = f'error_change = {err_round}; error = {aux_round}{newline}'
 
             if acc:
-                self.logger.info(f"Accepting move {(kappa, omega)}; {epilog}")
-                self[k_new] = self.apply_phi(_aux_new)
+                self.logger.info(f"Accepting move {(kappa, omega)}: {epilog}")
+                self[k_new] = self.apply_phi(_aux_new, idx=i)
                 self.param['param_old'][i] = self.param['param'][i]
                 ret.append(k_new)
             else:
-                self.logger.info(f"Rejecting move {(kappa, omega)}; {epilog}")
+                self.logger.info(f"Rejecting move {(kappa, omega)}: {epilog}")
                 self[k_new] = _aux_new
-                self[k_old] = self.apply_phi(self[k_old])
+                self[k_old] = self.apply_phi(self[k_old], idx=i)
                 ret.append(k_old)
 
         return ret
@@ -210,20 +210,23 @@ class ARMCPT(ARMC):
             the course of the last super-iteration.
 
         """
-        _p = acceptance.mean(axis=-1) - self.phi.a_target
+        _p = acceptance.mean(axis=0) - self.phi.a_target
         if 0 in _p:
-            p = np.zeros_like(_p, dtype=float)
-            p[_p == 0] = 1
+            p = np.zeros_like(_p, dtype=bool)
+            p[_p == 0] = True
         else:
             p = _p**-1
         p /= p.sum()  # normalize
 
-        idx_range = np.arange(len(acceptance))
+        idx_range = np.arange(len(p))
         idx1 = np.random.choice(idx_range, p=p)
         idx2 = np.random.choice(idx_range, p=p)
 
         if idx1 != idx2:
+            self.logger.info(f"Swapping parameter sets {idx1} and {idx2}")
             self._swap_phi(idx1, idx2)
+        else:
+            self.logger.info("Preserving all parameter sets")
 
     def _swap_phi(self, idx1: int, idx2: int) -> None:
         """Swap the array-elements **idx1** and **idx2** of four :class:`ARMCPT` attributes.

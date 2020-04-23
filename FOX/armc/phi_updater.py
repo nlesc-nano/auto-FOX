@@ -25,7 +25,7 @@ import numpy as np
 
 from assertionlib.dataclass import AbstractDataClass
 
-from ..type_hints import ArrayLike, ArrayLikeOrScalar, Scalar, DtypeLike
+from ..type_hints import ArrayLike, ArrayLikeOrScalar, Scalar, DtypeLike, SupportsIndex
 from ..functions.utils import as_nd_array
 
 __all__ = ['PhiUpdater']
@@ -138,16 +138,8 @@ class PhiUpdaterABC(AbstractDataClass, ABC, Sized):
         self.__qualname__: str = cls.__qualname__
 
         self.phi = cast(np.ndarray, phi)
-
-        # Assign gamma as a read-only array
-        _gamma = as_nd_array(gamma, dtype=float, ndmin=1, copy=True)
-        _gamma.setflags(write=False)
-        self._gamma = _gamma
-
-        # Assign a_target as a read-only array
-        _a_target = as_nd_array(a_target, dtype=float, ndmin=1, copy=True)
-        _a_target.setflags(write=False)
-        self._a_target = _a_target
+        self._gamma = as_nd_array(gamma, dtype=float, ndmin=1, copy=True)
+        self._a_target = as_nd_array(a_target, dtype=float, ndmin=1, copy=True)
 
         self._validate_shape()
         self._func = wraps(func)(partial(func, **kwargs))
@@ -189,7 +181,9 @@ class PhiUpdaterABC(AbstractDataClass, ABC, Sized):
         """
         return len(self.phi)
 
-    def __call__(self, value: ArrayLikeOrScalar, dtype: DtypeLike = float) -> np.ndarray:
+    def __call__(self, value: ArrayLikeOrScalar, *,
+                 idx: Union[SupportsIndex] = None,
+                 dtype: DtypeLike = float) -> np.ndarray:
         """Pass **value** and :attr:`phi` to :attr:`func`.
 
         Parameters
@@ -197,15 +191,24 @@ class PhiUpdaterABC(AbstractDataClass, ABC, Sized):
         value : array-like or scalar
             A array-like object or a scalar.
 
+        idx : :class:`int`, optional
+            If not :data:`None`, apply :attr:`func` to **value** using :attr:`phi[idx]<phi>`.
+
+        dtype : data-type, optional
+            The desired data-type for the output array.
+
         Returns
         -------
-        :class:`numpy.ndarray` or scalar
-            An array or a scalar.
+        :class:`numpy.ndarray`
+            An array.
 
         """
         phi = self.phi
         ar = np.asarray(value, dtype=float)
-        return self.func(ar, phi)
+        if idx is None:
+            return self.func(ar, phi)
+        else:
+            return self.func(ar, phi[idx])
 
     @abstractmethod
     def update(self, acceptance: ArrayLike, **kwargs: Any) -> None:
@@ -229,7 +232,7 @@ class PhiUpdater(PhiUpdaterABC):
     def __init__(self, phi=1.0, gamma=2.0, a_target=0.25, func=np.add, **kwargs) -> None:
         super().__init__(phi, gamma, a_target, func, **kwargs)
 
-    def update(self, acceptance: ArrayLike, logger: Optional[Logger] = None) -> None:
+    def update(self, acceptance: ArrayLike, *, logger: Optional[Logger] = None) -> None:
         r"""Update the variable :math:`\phi`.
 
         :math:`\phi` is updated based on the target accepatance rate, :math:`\alpha_{t}`, and the

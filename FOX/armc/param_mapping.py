@@ -272,8 +272,7 @@ class ParamMappingABC(AbstractDataClass, ABC, _ParamMappingABC):
             self._net_charge = None
 
         # Construct a dictionary to contain the old parameter
-        dct['param_old'] = param_old = param.copy()
-        param_old[:] = np.nan
+        dct['param_old'] = param.copy()
         self.__data = cast(Data, dct)
 
     # Magic methods and Mapping implementation

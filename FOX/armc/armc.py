@@ -24,7 +24,7 @@ from __future__ import annotations
 import os
 import io
 from typing import (
-    Tuple, TYPE_CHECKING, Any, Optional, Iterable, Mapping, Union, AnyStr,
+    Tuple, TYPE_CHECKING, Any, Optional, Iterable, Mapping, Union, AnyStr, Callable,
     overload, Dict, List
 )
 
@@ -224,11 +224,11 @@ class ARMC(MonteCarloABC):
         key_new = self.move(idx=idx)
 
         if isinstance(key_new, Exception):
-            self.logger.warning(f"{key_new}; recalculating move")
+            self.logger.warning(f"Recalculating move; {key_new}")
             return self._do_inner1(key_old)
 
         elif key_new in self:
-            self.logger.info("Move has already been visited; recalculating move")
+            self.logger.info("Recalculating move; move has already been visited")
             return self._do_inner1(key_old)
 
         return key_new
@@ -250,15 +250,15 @@ class ARMC(MonteCarloABC):
         """Update the auxiliary error history, apply phi & update job settings."""
         err_round = round(error_change, 4)
         aux_round = round(aux_new.sum(), 4)
-        epilog = f'total error change / error: {err_round} / {aux_round}\n'
+        epilog = f'error_change = {err_round}; error = {aux_round}\n'
 
         if accept:
-            self.logger.info(f"Accepting move {(kappa, omega)}; {epilog}")
+            self.logger.info(f"Accepting move {(kappa, omega)}: {epilog}")
             self[key_new] = self.apply_phi(aux_new)
             self.param['param_old'][:] = self.param['param']
             return key_new
         else:
-            self.logger.info(f"Rejecting move {(kappa, omega)}; {epilog}")
+            self.logger.info(f"Rejecting move {(kappa, omega)}: {epilog}")
             self[key_new] = aux_new
             self[key_old] = self.apply_phi(self[key_old])
             return key_old
@@ -271,9 +271,10 @@ class ARMC(MonteCarloABC):
         not_accept = ~np.array(accept, ndmin=1, dtype=bool, copy=False)
         self.param['param'].loc[:, not_accept] = self.param['param_old'].loc[:, not_accept]
 
-    def apply_phi(self, value: ArrayLikeOrScalar) -> np.ndarray:
+    @property
+    def apply_phi(self) -> Callable[..., np.ndarray]:
         """Apply :attr:`phi` to **value**."""
-        return self.phi(value)
+        return self.phi
 
     def _get_first_key(self, idx: int = 0) -> Key:
         """Create a the ``history_dict`` variable and its first key.
