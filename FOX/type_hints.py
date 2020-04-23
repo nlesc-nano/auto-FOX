@@ -23,10 +23,19 @@ from typing import Sequence, Union, Type, Tuple, List, Dict, Iterable
 import numpy as np
 from pandas.core.generic import NDFrame
 
-if sys.version_info < (3, 8):
-    from typing_extensions import Protocol, runtime_checkable, Literal, TypedDict
+if sys.version_info >= (3, 8):
+    from typing import Protocol, runtime_checkable, Literal, TypedDict, SupportsIndex
 else:
-    from typing import Protocol, runtime_checkable, Literal, TypedDict
+    from typing_extensions import Protocol, runtime_checkable, Literal, TypedDict
+
+    @runtime_checkable
+    class SupportsIndex(Protocol):
+        """An :class:`~abc.ABC` with one abstract method :meth:`__index__`."""
+        __slots__ = ()
+
+        @abstractmethod
+        def __index__(self) -> int:
+            pass
 
 __all__ = [
     'Scalar', 'ScalarType', 'ArrayLike', 'ArrayLikeOrScalar', 'ArrayOrScalar',

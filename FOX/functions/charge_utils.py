@@ -20,16 +20,16 @@ class ChargeError(ValueError):
 
     reference: Optional[float]
     value: Optional[float]
-    tol: float
+    tol: Optional[float]
 
     def __init__(self, *args: Any, reference: Optional[SupportsFloat] = None,
                  value: Optional[SupportsFloat] = None,
-                 tol: SupportsFloat = 0.001) -> None:
+                 tol: Optional[SupportsFloat] = 0.001) -> None:
         """Initialize an instance."""
         super().__init__(*args)
         self.reference = float(reference) if reference is not None else None
         self.value = float(value) if value is not None else None
-        self.tol = float(tol)
+        self.tol = float(tol) if tol is not None else None
 
 
 def get_net_charge(param: pd.Series, count: pd.Series,
@@ -204,7 +204,8 @@ def unconstrained_update(net_charge: float, param: pd.Series, count: pd.Series,
     # Check if the net charge is actually conserved
     net_charge_new = get_net_charge(param, count)
     if abs(net_charge - net_charge_new) > 0.001:
-        msg = f"Failed to conserve the net charge ({net_charge:.4f}): {net_charge_new:.4f}"
+        msg = ("Failed to conserve the net charge: "
+               f"ref = {net_charge:.4f}); {net_charge_new:.4f} != ref")
         raise ChargeError(msg, reference=net_charge, value=net_charge_new, tol=0.001)
 
 
