@@ -391,7 +391,7 @@ class MonteCarloABC(AbstractDataClass, ABC, Mapping[Key, np.ndarray]):
             iterator = zip(self.pes.items(), cycle(mol_list))
             ret = {k: func(mol) for (k, func), mol in iterator}
 
-        if not (get_first_key and self.keep_files):
+        if not (get_first_key or self.keep_files):
             self.clear_jobs()
 
         return ret, mol_list
