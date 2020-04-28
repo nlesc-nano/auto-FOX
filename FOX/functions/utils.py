@@ -26,7 +26,7 @@ if TYPE_CHECKING:
 else:
     MultiMolecule = 'FOX.classes.multi_Mol.MultiMolecule'
 
-__all__ = ['template_to_df', 'get_example_xyz', 'as_nd_array']
+__all__ = ['get_example_xyz', 'as_nd_array']
 
 KT = TypeVar('KT', bound=Hashable)
 VT = TypeVar('VT')
@@ -126,33 +126,6 @@ def assert_error(error_msg: Optional[str] = None) -> Callable:
     def decorator(func):
         return type_dict[func.__class__.__name__](func, error_msg)
     return decorator
-
-
-def template_to_df(name: str, path: Optional[str] = None) -> pd.DataFrame:
-    """Grab a .yaml template and turn it into a pandas dataframe.
-
-    Parameters
-    ----------
-    name : str
-        The name of the template file.
-
-    path : str
-        The path where **name** is located.
-        Will default to the :mod:`FOX.data` directory if ``None*``.
-
-    Returns
-    -------
-    |pd.DataFrame|_:
-        A dataframe as constructed from the template file.
-
-    """
-    template_dict = get_template(name, path=path, as_settings=False)
-    try:
-        return pd.DataFrame(template_dict).T
-    except ValueError:
-        idx = list(template_dict.keys())
-        values = list(template_dict.values())
-        return pd.DataFrame(values, index=idx, columns=['charge'])
 
 
 def serialize_array(array: np.ndarray, items_per_row: int = 4) -> str:
