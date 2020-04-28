@@ -26,7 +26,7 @@ if TYPE_CHECKING:
 else:
     MultiMolecule = 'FOX.classes.multi_Mol.MultiMolecule'
 
-__all__ = ['get_template', 'template_to_df', 'get_example_xyz', 'as_nd_array']
+__all__ = ['template_to_df', 'get_example_xyz', 'as_nd_array']
 
 KT = TypeVar('KT', bound=Hashable)
 VT = TypeVar('VT')
@@ -126,41 +126,6 @@ def assert_error(error_msg: Optional[str] = None) -> Callable:
     def decorator(func):
         return type_dict[func.__class__.__name__](func, error_msg)
     return decorator
-
-
-def get_template(name: str,
-                 path: Optional[str] = None,
-                 as_settings: bool = True) -> dict:
-    """Grab a .yaml template and turn it into a Settings object.
-
-    Parameters
-    ----------
-    name : str
-        The name of the template file.
-
-    path : str
-        The path where **name** is located.
-        Will default to the :mod:`FOX.data` directory if *None*.
-
-    as_settings : bool
-        If ``False``, return a dictionary rather than a settings object.
-
-    Returns
-    -------
-    |plams.Settings|_ or |dict|_:
-        A settings object or dictionary as constructed from the template file.
-
-    """
-    if path is None:
-        if not isfile(name):
-            path = resource_filename('FOX', join('data', name))
-    else:
-        path = join(path, name)
-
-    with open(path, 'r') as f:
-        if as_settings:
-            return Settings(yaml.load(f, Loader=yaml.FullLoader))
-        return yaml.load(f, Loader=yaml.FullLoader)
 
 
 def template_to_df(name: str, path: Optional[str] = None) -> pd.DataFrame:

@@ -9,7 +9,7 @@ from scm.plams import Settings
 from assertionlib import assertion
 
 from FOX.functions.utils import (
-    assert_error, get_template, template_to_df, serialize_array, read_str_file, get_shape,
+    assert_error, template_to_df, serialize_array, read_str_file, get_shape,
     dict_to_pandas
 )
 
@@ -24,16 +24,6 @@ def test_assert_error():
         pass
 
     assertion.assert_(test_func, exception=ModuleNotFoundError)
-
-
-def test_get_template():
-    """Test :func:`FOX.functions.utils.get_template`,"""
-    s = get_template(name='md_cp2k_template.yaml')
-    assertion.isinstance(s, Settings)
-
-    dict_ = get_template(name='md_cp2k_template.yaml', as_settings=False)
-    assertion.isinstance(dict_, Settings, invert=True)
-    assertion.isinstance(dict_, dict)
 
 
 def test_template_to_df():
