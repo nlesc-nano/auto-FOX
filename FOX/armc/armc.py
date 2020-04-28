@@ -23,6 +23,7 @@ from __future__ import annotations
 
 import os
 import io
+from collections import abc
 from typing import (
     Tuple, TYPE_CHECKING, Any, Optional, Iterable, Mapping, Union, AnyStr, Callable,
     overload, Dict, List
@@ -149,7 +150,9 @@ class ARMC(MonteCarloABC):
         # Start the main loop
         for kappa in range(start_, self.super_iter_len):
             acceptance = self.acceptance()
-            create_xyz_hdf5(self.hdf5_file, self.molecule, iter_len=self.sub_iter_len)
+            create_xyz_hdf5(self.hdf5_file, self.molecule,
+                            iter_len=self.sub_iter_len,
+                            phi=self.phi.phi)
 
             for omega in range(self.sub_iter_len):
                 key_new = self.do_inner(kappa, omega, acceptance, key_new)
@@ -333,7 +336,7 @@ class ARMC(MonteCarloABC):
 
         """
         phi = self.phi.phi
-        if isinstance(accept, bool):
+        if not isinstance(accept, abc.Iterable):
             param_key: Literal['param', 'param_old'] = 'param' if accept else 'param_old'
             aux_error_mod = np.append(self.param[param_key].values, phi)
         else:
@@ -343,7 +346,7 @@ class ARMC(MonteCarloABC):
             aux_error_mod.shape = len(self.phi), -1
 
         hdf5_kwarg = {
-            'param': self.param['param'],
+            'param': self.param['param'].T,
             'xyz': mol_list,
             'phi': phi,
             'acceptance': accept,

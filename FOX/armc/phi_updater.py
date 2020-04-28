@@ -169,6 +169,7 @@ class PhiUpdaterABC(AbstractDataClass, ABC, Sized):
     def shape(self) -> Tuple[int, ...]:
         """Return the :attr:`~numpy.ndarray.shape` of :attr:`phi`.
 
+        Serves as a wrapper around the :attr:`~numpy.ndarray.shape` attribute of :attr:`phi`.
         Note that :attr:`phi`, :attr:`gamma` and :attr:`a_target` all have the same shape.
         """
         return self.phi.shape
@@ -176,8 +177,8 @@ class PhiUpdaterABC(AbstractDataClass, ABC, Sized):
     def __len__(self) -> int:
         """Implement :code:`len(self)`.
 
-        Note that :attr:`phi`, :attr:`gamma` and :attr:`a_target` are all of the same length.
         Serves as a wrapper around the :meth:`~numpy.ndarray.__len__` method of :attr:`phi`.
+        Note that :attr:`phi`, :attr:`gamma` and :attr:`a_target` are all of the same length.
         """
         return len(self.phi)
 

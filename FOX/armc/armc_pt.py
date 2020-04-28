@@ -185,7 +185,7 @@ class ARMCPT(ARMC):
 
         return ret
 
-    def swap_phi(self, acceptance: np.ndarray) -> None:
+    def swap_phi(self, acceptance: np.ndarray, weighted: bool = False) -> None:
         r"""Swap the :math:`\phi` and move range of two between forcefield parameter sets.
 
         The two main parameters are the acceptance rate
@@ -210,12 +210,15 @@ class ARMCPT(ARMC):
             the course of the last super-iteration.
 
         """
-        _p = acceptance.mean(axis=0) - self.phi.a_target
-        if 0 in _p:
-            p = np.zeros_like(_p, dtype=bool)
-            p[_p == 0] = True
+        if weighted:
+            _p = acceptance.mean(axis=0) - self.phi.a_target
+            if 0 in _p:
+                p = np.zeros_like(_p)
+                p[_p == 0] = True
+            else:
+                p = _p**-1
         else:
-            p = _p**-1
+            p = np.ones(acceptance.shape[1])
         p /= p.sum()  # normalize
 
         idx_range = np.arange(len(p))
