@@ -325,9 +325,9 @@ class MultiMolecule(_MultiMolecule):
     @overload
     def reset_origin(self, mol_subset: MolSubset = ..., atom_subset: AtomSubset = ...) -> None: ...
     @overload
-    def reset_origin(self, mol_subset: MolSubset = ..., atom_subset: AtomSubset = ..., inplace: Literal[True] = ...) -> None: ...
+    def reset_origin(self, mol_subset: MolSubset = ..., atom_subset: AtomSubset = ..., inplace: Literal[True] = ...) -> None: ...  # noqa: E501
     @overload
-    def reset_origin(self: MT, mol_subset: MolSubset = ..., atom_subset: AtomSubset = ..., inplace: Literal[False] = ...) -> MT: ...
+    def reset_origin(self: MT, mol_subset: MolSubset = ..., atom_subset: AtomSubset = ..., inplace: Literal[False] = ...) -> MT: ...  # noqa: E501
     def reset_origin(self, mol_subset=None, atom_subset=None, inplace=True):
         """Reallign all molecules in this instance.
 
@@ -384,9 +384,9 @@ class MultiMolecule(_MultiMolecule):
     @overload
     def sort(self, sort_by: Union[str, Sequence[int]] = ..., reverse: bool = ...) -> None: ...
     @overload
-    def sort(self, sort_by: Union[str, Sequence[int]] = ..., reverse: bool = ..., inplace: Literal[True] = ...) -> None: ...
+    def sort(self, sort_by: Union[str, Sequence[int]] = ..., reverse: bool = ..., inplace: Literal[True] = ...) -> None: ...  # noqa: E501
     @overload
-    def sort(self: MT, sort_by: Union[str, Sequence[int]] = ..., reverse: bool = ..., inplace: Literal[False] = ...) -> MT: ...
+    def sort(self: MT, sort_by: Union[str, Sequence[int]] = ..., reverse: bool = ..., inplace: Literal[False] = ...) -> MT: ...  # noqa: E501
     def sort(self, sort_by='symbol', reverse=False, inplace=True):
         """Sort the atoms in this instance and **self.atoms**, performing in inplace update.
 
@@ -1730,11 +1730,11 @@ class MultiMolecule(_MultiMolecule):
         return ret
 
     @overload
-    def get_angle_mat(self, mol_subset: MolSubset = ..., atom_subset: Tuple[AtomSubset, AtomSubset, AtomSubset] = ...) -> np.ndarray: ...
+    def get_angle_mat(self, mol_subset: MolSubset = ..., atom_subset: Tuple[AtomSubset, AtomSubset, AtomSubset] = ...) -> np.ndarray: ...  # noqa: E501
     @overload
-    def get_angle_mat(self, mol_subset: MolSubset = ..., atom_subset: Tuple[AtomSubset, AtomSubset, AtomSubset] = ..., get_r_max: Literal[False] = ...) -> np.ndarray: ...
+    def get_angle_mat(self, mol_subset: MolSubset = ..., atom_subset: Tuple[AtomSubset, AtomSubset, AtomSubset] = ..., get_r_max: Literal[False] = ...) -> np.ndarray: ...  # noqa: E501
     @overload
-    def get_angle_mat(self, mol_subset: MolSubset = ..., atom_subset: Tuple[AtomSubset, AtomSubset, AtomSubset] = ..., get_r_max: Literal[True] = ...) -> Tuple[np.ndarray, float]: ...
+    def get_angle_mat(self, mol_subset: MolSubset = ..., atom_subset: Tuple[AtomSubset, AtomSubset, AtomSubset] = ..., get_r_max: Literal[True] = ...) -> Tuple[np.ndarray, float]: ...  # noqa: E501
     def get_angle_mat(self, mol_subset=0, atom_subset=(None, None, None), get_r_max=False):
         """Create and return an angle matrix for all molecules and atoms in this instance.
 
@@ -1791,7 +1791,7 @@ class MultiMolecule(_MultiMolecule):
     @overload
     def _get_atom_subset(self, atom_subset: AtomSubset) -> Union[slice, np.ndarray]: ...
     @overload
-    def _get_atom_subset(self, atom_subset: AtomSubset, as_array: Literal[False]) -> Union[slice, np.ndarray]: ...
+    def _get_atom_subset(self, atom_subset: AtomSubset, as_array: Literal[False]) -> Union[slice, np.ndarray]: ...  # noqa: E501
     @overload
     def _get_atom_subset(self, atom_subset: AtomSubset, as_array: Literal[True]) -> np.ndarray: ...
     def _get_atom_subset(self, atom_subset, as_array=False):
@@ -2019,7 +2019,7 @@ class MultiMolecule(_MultiMolecule):
             determined by their moleculair index.
             Include all :math:`m` molecules in this instance if ``None``.
 
-        """
+        """  # noqa: E501
         self._mol_to_file(filename, 'mol', mol_subset)
 
     def as_xyz(self, filename: Union[str, PathLike],
@@ -2065,11 +2065,11 @@ class MultiMolecule(_MultiMolecule):
                 np.savetxt(file, np.hstack((at, xyz)), header=header.format(i), **kwargs)
 
     @overload
-    def as_mass_weighted(self: MT, mol_subset: MolSubset = ..., atom_subset: AtomSubset = ...) -> MT: ...
+    def as_mass_weighted(self: MT, mol_subset: MolSubset = ..., atom_subset: AtomSubset = ...) -> MT: ...  # noqa: E501
     @overload
-    def as_mass_weighted(self: MT, mol_subset: MolSubset = ..., atom_subset: AtomSubset = ..., inplace: Literal[False] = ...) -> MT: ...
+    def as_mass_weighted(self: MT, mol_subset: MolSubset = ..., atom_subset: AtomSubset = ..., inplace: Literal[False] = ...) -> MT: ...  # noqa: E501
     @overload
-    def as_mass_weighted(self, mol_subset: MolSubset = ..., atom_subset: AtomSubset = ..., inplace: Literal[True] = ...) -> None: ...
+    def as_mass_weighted(self: MT, mol_subset: MolSubset = ..., atom_subset: AtomSubset = ..., inplace: Literal[True] = ...) -> None: ...  # noqa: E501
     def as_mass_weighted(self, mol_subset=None, atom_subset=None, inplace=False):
         """Transform the Cartesian of this instance into mass-weighted Cartesian coordinates.
 

@@ -337,7 +337,8 @@ class ARMC(MonteCarloABC):
             param_key: Literal['param', 'param_old'] = 'param' if accept else 'param_old'
             aux_error_mod = np.append(self.param[param_key].values, phi)
         else:
-            _aux_error_mod = [self.param['param' if acc else 'param_old'][i].values for i, acc in enumerate(accept)]
+            _aux_error_mod = [self.param['param' if acc else 'param_old'][i].values for
+                              i, acc in enumerate(accept)]
             aux_error_mod = np.append(_aux_error_mod, phi)
             aux_error_mod.shape = len(self.phi), -1
 
@@ -407,7 +408,8 @@ class ARMC(MonteCarloABC):
             self.logger.warning(f"Unable to open {xyz!r}, file status was forcibly reset")
         closed2 = hdf5_clear_status(self.hdf5_file)
         if not closed2:
-            self.logger.warning(f"Unable to open {self.hdf5_file!r}, file status was forcibly reset")
+            self.logger.warning(f"Unable to open {self.hdf5_file!r}, "
+                                "file status was forcibly reset")
 
         # Finish the current set of sub-iterations
         j += 1

@@ -27,7 +27,7 @@ PARAM = ParamMapping(_DF)
 
 def test_mapping():
     """Test the :class:`~collections.abc.Mapping` implementation of :class:`ParamMapping`."""
-    validate_mapping(PARAM, key_type=str, value_type=(dict, pd.Series))
+    validate_mapping(PARAM, key_type=str, value_type=(pd.DataFrame, pd.Series))
 
 
 def test_call():

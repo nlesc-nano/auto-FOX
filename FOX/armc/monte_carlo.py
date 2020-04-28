@@ -343,7 +343,8 @@ class MonteCarloABC(AbstractDataClass, ABC, Mapping[Key, np.ndarray]):
         prm_update = self.param['param'][idx_].loc[(key, prm_name)].to_frame().T
         prm_update.index = [prm_name]
         if idx is None:
-            iterator = (job['settings'] for job in chain.from_iterable(self.package_manager.values()))
+            _iterator = chain.from_iterable(self.package_manager.values())
+            iterator = (job['settings'] for job in _iterator)
         else:
             iterator = (job_tup[idx_]['settings'] for job_tup in self.package_manager.values())
 

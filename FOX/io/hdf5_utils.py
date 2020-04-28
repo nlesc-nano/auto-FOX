@@ -117,7 +117,7 @@ def create_hdf5(filename: Union[AnyStr, PathLike], armc: ARMC) -> None:
 def create_xyz_hdf5(filename: Union[AnyStr, PathLike],
                     mol_list: Iterable[MultiMolecule],
                     iter_len: int,
-                    phi: Iterable) -> None:
+                    phi: Iterable[float]) -> None:
     """Create the ``"xyz"`` datasets for :func:`create_hdf5` in the hdf5 file ``filename+".xyz"``.
 
     The ``"xyz"`` dataset is to contain Cartesian coordinates collected over the course of the
@@ -236,13 +236,14 @@ def _get_kwarg_dict(armc: ARMC) -> Settings:
 
     """
     shape = armc.iter_len // armc.sub_iter_len, armc.sub_iter_len
+    param_shape = armc.param['param'].T.shape
 
     ret = Settings()
     ret.phi.shape = (shape[0], ) + armc.phi.shape
     ret.phi.dtype = float
     ret.phi.fillvalue = np.nan
 
-    ret.param.shape = shape + armc.param['param'].shape
+    ret.param.shape = shape + param_shape
     ret.param.dtype = float
     ret.param.fillvalue = np.nan
 
@@ -252,7 +253,7 @@ def _get_kwarg_dict(armc: ARMC) -> Settings:
     ret.aux_error.shape = shape + (len(armc.molecule), len(armc.pes) // len(armc.molecule))
     ret.aux_error.dtype = float
     ret.aux_error.fillvalue = np.nan
-    ret.aux_error_mod.shape = shape + (armc.param['param'].shape[1], 1 + len(armc.param['param']))
+    ret.aux_error_mod.shape = shape + (param_shape[0], 1 + param_shape[1])
     ret.aux_error_mod.dtype = float
     ret.aux_error_mod.fillvalue = np.nan
 
