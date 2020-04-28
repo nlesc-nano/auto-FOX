@@ -3,12 +3,12 @@
 from os import remove
 from os.path import join
 
+import yaml
 import numpy as np
 
 from assertionlib import assertion
 
 from FOX import MultiMolecule, example_xyz
-from FOX.functions.utils import get_template
 
 MOL = MultiMolecule.from_xyz(example_xyz)
 PATH = join('tests', 'test_files')
@@ -237,10 +237,14 @@ def test_get_at_idx():
     rmsf, idx_series, _ = mol.init_shell_search()
     dist = 3.0, 6.5, 10.0
     dist_dict = {'Cd': dist, 'Se': dist, 'O': dist, 'C': dist, 'H': dist}
-    dict_ = mol.get_at_idx(rmsf, idx_series, dist_dict)
-    ref = get_template('idx_series.yaml', path=PATH)
-    for key in dict_:
-        assertion.eq(dict_[key], ref[key])
+
+    dct = mol.get_at_idx(rmsf, idx_series, dist_dict)
+    with open(join(PATH, 'idx_series.yaml'), 'r') as f:
+        ref = yaml.load(f.read(), Loader=yaml.FullLoader)
+
+    for key, value in dct.items():
+        value_ref = ref.get(key)
+        assertion.eq(value, value_ref)
 
 
 def test_as_mass_weighted():

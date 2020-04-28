@@ -2,7 +2,7 @@
 
 import warnings
 from types import MappingProxyType
-from typing import Mapping, Optional, TypeVar, Type, Dict, Callable, Any
+from typing import Mapping, Optional, TypeVar, Type, Dict, Callable, Any, Union, Tuple
 from collections import abc
 
 from assertionlib import assertion
@@ -13,6 +13,9 @@ __all__ = ['validate_mapping']
 
 KT = TypeVar('KT')
 VT = TypeVar('VT')
+
+KType = Union[Type[KT], Tuple[Type[KT], ...]]
+VType = Union[Type[KT], Tuple[Type[KT], ...]]
 
 
 class AssertionWarning(Warning):
@@ -28,7 +31,7 @@ def _val_class(mapping: Mapping) -> None:
     assertion.isinstance(mapping, abc.Mapping)
 
 
-def _val_items(mapping: Mapping, k_type: Type[KT], v_type: Type[VT]) -> None:
+def _val_items(mapping: Mapping, k_type: KType, v_type: VType) -> None:
     """Validate the :meth:`~collections.abc.Mapping.items` method of **mapping**."""
     items = mapping.items()
     assertion.isinstance(items, abc.ItemsView)
@@ -37,7 +40,7 @@ def _val_items(mapping: Mapping, k_type: Type[KT], v_type: Type[VT]) -> None:
         assertion.isinstance(v, v_type)
 
 
-def _val_keys(mapping: Mapping, k_type: Type[KT]) -> None:
+def _val_keys(mapping: Mapping, k_type: KType) -> None:
     """Validate the :meth:`~collections.abc.Mapping.keys` method of **mapping**."""
     keys = mapping.keys()
     assertion.isinstance(keys, abc.KeysView)
@@ -45,7 +48,7 @@ def _val_keys(mapping: Mapping, k_type: Type[KT]) -> None:
         assertion.isinstance(k, k_type)
 
 
-def _val_values(mapping: Mapping, v_type: Type[VT]) -> None:
+def _val_values(mapping: Mapping, v_type: VType) -> None:
     """Validate the :meth:`~collections.abc.Mapping.values` method of **mapping**."""
     values = mapping.values()
     assertion.isinstance(values, abc.ValuesView)
@@ -53,7 +56,7 @@ def _val_values(mapping: Mapping, v_type: Type[VT]) -> None:
         assertion.isinstance(v, v_type)
 
 
-def _val_iter(mapping: Mapping, k_type: Type[KT]) -> None:
+def _val_iter(mapping: Mapping, k_type: KType) -> None:
     """Validate the :meth:`~collections.abc.Mapping.__iter__` method of **mapping**."""
     iterator = iter(mapping)
     assertion.isinstance(iterator, abc.Iterator)
@@ -75,13 +78,13 @@ def _val_contains(mapping: Mapping, key: KT) -> None:
     assertion.is_(contains_False, False)
 
 
-def _val_getitem(mapping: Mapping, key: KT, v_type: Type[VT]) -> None:
+def _val_getitem(mapping: Mapping, key: KT, v_type: VType) -> None:
     """Validate the :meth:`~collections.abc.Mapping.__getitem__` method of **mapping**."""
     v = mapping[key]
     assertion.isinstance(v, v_type)
 
 
-def _val_get(mapping: Mapping, key: KT, v_type: Type[VT]) -> None:
+def _val_get(mapping: Mapping, key: KT, v_type: VType) -> None:
     """Validate the :meth:`~collections.abc.Mapping.get` method of **mapping**."""
     v = mapping.get(key, default=True)
     _v = mapping.get(_Key, default=True)
@@ -118,8 +121,8 @@ def validate(name: Name, mapping: Mapping, *args: Any, **kwargs: Any) -> Optiona
 
 
 def validate_mapping(mapping: Mapping[KT, VT],
-                     key_type: Optional[Type[KT]] = None,
-                     value_type: Optional[Type[VT]] = None) -> None:
+                     key_type: Optional[KType] = None,
+                     value_type: Optional[VType] = None) -> None:
     """Validate an implementation of a :class:`~collections.abc.Mapping` protocol in **mapping**.
 
     Parameters

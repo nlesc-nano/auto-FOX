@@ -6,9 +6,26 @@ All notable changes to this project will be documented in this file.
 This project adheres to `Semantic Versioning <http://semver.org/>`_.
 
 
+0.8.1
+*****
+* WiP: Introduction of the ``ARMCPT`` class.
+
+
 0.8.0
-****************
-* *Placeholder*.
+*****
+* Move all ARMC related modules to the new ``FOX.armc`` module.
+* Switched from ``plams.Job`` to ``qmflows.Package`` runners.
+* Introduced the ``PhiUpdater`` class for handling and updating the ``phi`` parameter.
+* Introduced the ``ParamMapping`` class for handling and updating the forcefield parameters.
+* Introduced the ``PackageManager`` class for handling the and managing the ``qmflows.Package``
+  instances, including the running of jobs.
+* Store the Auto-FOX ``__version__`` in the .hdf5 file.
+* Changed the .yaml input to closer resemble the actual class structure.
+* Overhauled the .yaml input parsing.
+* Bumped the minimum Python version to 3.7.
+* Marked Auto-FOX as a typed package.
+* Added ``qmflows`` and ``noodles`` as new dependencies.
+* Added ``typing_extensions`` as a new dependency for Python < 3.8.
 
 
 0.7.4

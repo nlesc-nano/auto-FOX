@@ -16,8 +16,9 @@ API
 
 """
 
+import os
 from itertools import chain
-from typing import Tuple, Dict, List, TYPE_CHECKING
+from typing import Tuple, Dict, List, Union
 
 import numpy as np
 
@@ -27,8 +28,10 @@ from ..functions.utils import group_by_values
 
 __all__ = ['read_kf']
 
+IdxDict = Dict[str, List[int]]
 
-def read_kf(filename: str) -> Tuple[np.ndarray, Dict[str, List[int]]]:
+
+def read_kf(filename: Union[str, bytes, os.PathLike]) -> Tuple[np.ndarray, IdxDict]:
     """Read a KF binary file containing a potential energy surface.
 
     Returns the following items:
@@ -71,7 +74,7 @@ def read_kf(filename: str) -> Tuple[np.ndarray, Dict[str, List[int]]]:
     return xyz, _get_idx_dict(kf)
 
 
-def _get_idx_dict(kf: KFReader) -> Dict[str, List[int]]:
+def _get_idx_dict(kf: KFReader) -> IdxDict:
     """Extract atomic symbols and matching atomic indices from **kf**.
 
     Parameters

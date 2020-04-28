@@ -3,8 +3,8 @@
 import functools
 from types import MappingProxyType
 from typing import (
-    Hashable, Optional, Collection, Mapping, Container, List, Dict, Union, Iterable, Tuple, Any,
-    SupportsFloat, Generator, Iterator
+    Hashable, Optional, Collection, Mapping, Container, Dict, Union, Iterable, Tuple, Any,
+    SupportsFloat, Generator, Iterator, Set
 )
 
 import numpy as np
@@ -12,24 +12,24 @@ import pandas as pd
 
 __all__ = ['update_charge']
 
-ConstrainDict = Mapping[str, functools.partial]
+ConstrainDict = Mapping[Hashable, functools.partial]
 
 
 class ChargeError(ValueError):
     """A :exc:`ValueError` subclass for charge-related errors."""
 
-    reference: float
-    value: float
-    tol: Hashable
+    reference: Optional[float]
+    value: Optional[float]
+    tol: Optional[float]
 
     def __init__(self, *args: Any, reference: Optional[SupportsFloat] = None,
                  value: Optional[SupportsFloat] = None,
-                 tol: SupportsFloat = 0.001) -> None:
+                 tol: Optional[SupportsFloat] = 0.001) -> None:
         """Initialize an instance."""
         super().__init__(*args)
-        self.reference = float(reference)
-        self.value = float(value)
-        self.tol = float(tol)
+        self.reference = float(reference) if reference is not None else None
+        self.value = float(value) if value is not None else None
+        self.tol = float(tol) if tol is not None else None
 
 
 def get_net_charge(param: pd.Series, count: pd.Series,
@@ -62,7 +62,7 @@ def get_net_charge(param: pd.Series, count: pd.Series,
     return ret.sum()
 
 
-def update_charge(atom: str, value: float, param: pd.Series, count: pd.Series,
+def update_charge(atom: Hashable, value: float, param: pd.Series, count: pd.Series,
                   constrain_dict: Optional[ConstrainDict] = None,
                   prm_min: Optional[Iterable[float]] = None,
                   prm_max: Optional[Iterable[float]] = None,
@@ -120,10 +120,11 @@ def update_charge(atom: str, value: float, param: pd.Series, count: pd.Series,
         except ChargeError as ex:
             param[:] = param_backup
             return ex
+    return None
 
 
-def constrained_update(at1: str, param: pd.Series,
-                       constrain_dict: Optional[ConstrainDict] = None) -> List[str]:
+def constrained_update(at1: Hashable, param: pd.Series,
+                       constrain_dict: Optional[ConstrainDict] = None) -> Set[Hashable]:
     """Perform a constrained update of atomic charges.
 
     Performs an inplace update of the ``"param"`` column in **df**.
@@ -146,7 +147,7 @@ def constrained_update(at1: str, param: pd.Series,
 
     """
     charge = param[at1]
-    exclude = [at1]
+    exclude = {at1}
     if constrain_dict is None:
         return exclude
 
@@ -159,14 +160,13 @@ def constrained_update(at1: str, param: pd.Series,
 
         # Update the charges
         param[at2] = func2(func1(charge))
-
     return exclude
 
 
 def unconstrained_update(net_charge: float, param: pd.Series, count: pd.Series,
                          prm_min: Optional[Iterable[float]] = None,
                          prm_max: Optional[Iterable[float]] = None,
-                         exclude: Optional[Container[str]] = None) -> None:
+                         exclude: Optional[Container[Hashable]] = None) -> None:
     """Perform an unconstrained update of atomic charges."""
     if exclude is None:
         include = pd.Series(np.ones_like(param, dtype=bool), index=param.index)
@@ -204,7 +204,8 @@ def unconstrained_update(net_charge: float, param: pd.Series, count: pd.Series,
     # Check if the net charge is actually conserved
     net_charge_new = get_net_charge(param, count)
     if abs(net_charge - net_charge_new) > 0.001:
-        msg = f"Failed to conserve the net charge ({net_charge:.4f}): {net_charge_new:.4f}"
+        msg = ("Failed to conserve the net charge: "
+               f"ref = {net_charge:.4f}); {net_charge_new:.4f} != ref")
         raise ChargeError(msg, reference=net_charge, value=net_charge_new, tol=0.001)
 
 

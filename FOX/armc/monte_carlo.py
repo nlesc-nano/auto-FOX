@@ -21,20 +21,20 @@ API
 
 from os import PathLike
 from functools import wraps, partial
-from logging import Logger, StreamHandler
+from logging import Logger
 from abc import ABC, abstractmethod
 from types import MappingProxyType
 from itertools import repeat, cycle, chain
 from collections import abc
 from typing import (
     Tuple, List, Dict, Optional, Union, Iterable, Hashable, Iterator, Any, Mapping, Callable,
-    KeysView, ValuesView, ItemsView, Sequence, TypeVar, overload, TYPE_CHECKING, AnyStr
+    KeysView, ValuesView, ItemsView, Sequence, TypeVar, overload, TYPE_CHECKING, AnyStr, cast
 )
 
 import numpy as np
 from assertionlib.dataclass import AbstractDataClass
 
-from ..logger import get_logger
+from ..logger import DEFAULT_LOGGER
 from ..type_hints import ArrayOrScalar
 
 if TYPE_CHECKING:
@@ -46,15 +46,14 @@ else:
 
 __all__ = ['MonteCarloABC']
 
-KT = TypeVar('KT', bound=Tuple[float, ...])
-VT = TypeVar('VT', bound=np.ndarray)
 T = TypeVar('T')
 
 PostProcess = Callable[[Optional[Iterable[MultiMolecule]], Optional['MonteCarloABC']], None]
 GetPesDescriptor = Callable[[MultiMolecule], ArrayOrScalar]
+Key = Tuple[float, ...]
 
 
-class MonteCarloABC(AbstractDataClass, ABC, Mapping[KT, VT]):
+class MonteCarloABC(AbstractDataClass, ABC, Mapping[Key, np.ndarray]):
     r"""The base :class:`.MonteCarlo` class."""
 
     param: ParamMapping
@@ -62,10 +61,6 @@ class MonteCarloABC(AbstractDataClass, ABC, Mapping[KT, VT]):
     keep_files: bool
     hdf5_file: Union[str, PathLike]
     pes: Dict[str, GetPesDescriptor]
-    _molecule: Tuple[MultiMolecule, ...]
-    _logger: Logger
-    _pes_post_process: Tuple[PostProcess, ...]
-    _data: Dict[KT, VT]
 
     @property
     def molecule(self) -> Tuple[MultiMolecule, ...]:
@@ -86,7 +81,7 @@ class MonteCarloABC(AbstractDataClass, ABC, Mapping[KT, VT]):
         if value is not None:
             self._logger = value
         else:
-            self._logger = get_logger(self.__class__.__name__, handler_type=StreamHandler)
+            self._logger = DEFAULT_LOGGER
 
     @property
     def pes_post_process(self) -> Tuple[PostProcess, ...]:
@@ -104,29 +99,33 @@ class MonteCarloABC(AbstractDataClass, ABC, Mapping[KT, VT]):
                  package_manager: PackageManager,
                  param: ParamMapping,
                  keep_files: bool = False,
-                 hdf5_file: Union[str, bytes, PathLike] = 'armc.hdf5',
+                 hdf5_file: Union[str, PathLike] = 'armc.hdf5',
                  logger: Optional[Logger] = None,
-                 pes_post_process: Optional[Iterable[PostProcess]] = None) -> None:
+                 pes_post_process: Optional[Iterable[PostProcess]] = None,
+                 **kwargs: Any) -> None:
         """Initialize a :class:`MonteCarlo` instance."""
+        if kwargs:
+            name = next(iter(kwargs))
+            raise TypeError(f"Unexpected argument {name!r}")
         super().__init__()
 
         self.param = param
 
         # Settings for running the actual MD calculations
-        self.molecule = molecule
+        self.molecule = cast(Tuple[MultiMolecule, ...], molecule)
         self.package_manager = package_manager
         self.keep_files = keep_files
-        self.pes_post_process = pes_post_process
+        self.pes_post_process = cast(Tuple[PostProcess, ...], pes_post_process)
 
         # HDF5 settings
         self.hdf5_file = hdf5_file
 
         # Logging settings
-        self.logger = logger
+        self.logger = cast(Logger, logger)
 
         # Internally set attributes
         self.pes = {}
-        self._data = {}
+        self._data: Dict[Key, np.ndarray] = {}
 
     @AbstractDataClass.inherit_annotations()
     def _str_iterator(self):
@@ -150,15 +149,15 @@ class MonteCarloABC(AbstractDataClass, ABC, Mapping[KT, VT]):
 
     # Implementation of the Mapping protocol
 
-    def __setitem__(self, key: KT, value: VT) -> None:
+    def __setitem__(self, key: Key, value: np.ndarray) -> None:
         """Implement :code:`self[key] = value`."""
         self._data[key] = value
 
-    def __getitem__(self, key: KT) -> VT:
+    def __getitem__(self, key: Key) -> np.ndarray:
         """Implement :code:`self[key]`."""
         return self._data[key]
 
-    def __iter__(self) -> Iterator[KT]:
+    def __iter__(self) -> Iterator[Key]:
         """Implement :code:`iter(self)`."""
         return iter(self._data)
 
@@ -170,19 +169,23 @@ class MonteCarloABC(AbstractDataClass, ABC, Mapping[KT, VT]):
         """Implement :code:`key in self`."""
         return key in self._data
 
-    def keys(self) -> KeysView[KT]:
+    def keys(self) -> KeysView[Key]:
         """Return a set-like object providing a view of this instance's keys."""
         return self._data.keys()
 
-    def items(self) -> ItemsView[KT, VT]:
+    def items(self) -> ItemsView[Key, np.ndarray]:
         """Return a set-like object providing a view of this instance's key/value pairs."""
         return self._data.items()
 
-    def values(self) -> ValuesView[VT]:
+    def values(self) -> ValuesView[np.ndarray]:
         """Return an object providing a view of this instance's values."""
         return self._data.values()
 
-    def get(self, key: Hashable, default: T = None) -> Union[VT, T]:
+    @overload
+    def get(self, key: Hashable) -> Optional[np.ndarray]: ...
+    @overload
+    def get(self, key: Hashable, default: T) -> Union[np.ndarray, T]: ...
+    def get(self, key, default=None):  # noqa: E301
         """Return the value for **key** if it's available; return **default** otherwise."""
         return self._data.get(key, default)
 
@@ -191,12 +194,10 @@ class MonteCarloABC(AbstractDataClass, ABC, Mapping[KT, VT]):
     @overload
     def add_pes_evaluator(self, name: str, func: GetPesDescriptor, args: Sequence,
                           kwargs: Mapping[str, Any]) -> None: ...
-
-    @overload
+    @overload  # noqa: E301
     def add_pes_evaluator(self, name: str, func: GetPesDescriptor, args: Sequence,
                           kwargs: Iterable[Mapping[str, Any]]) -> None: ...
-
-    def add_pes_evaluator(self, name, func, args=(), kwargs=MappingProxyType({})) -> None:
+    def add_pes_evaluator(self, name, func, args=(), kwargs=MappingProxyType({})) -> None:  # noqa: E301
         r"""Add a callable to this instance for constructing PES-descriptors.
 
         Examples
@@ -235,14 +236,14 @@ class MonteCarloABC(AbstractDataClass, ABC, Mapping[KT, VT]):
             molecule in :attr:`MonteCarlo.molecule`.
 
         """
-        mol_list = [m.copy() for m in self.molecule]
+        mol_list = [m.copy() for _ in self.param.move_range for m in self.molecule]
         for f in self.pes_post_process:
             f(mol_list, self)
 
         if not isinstance(kwargs, abc.Mapping):
-            iterator = zip(mol_list, kwargs)
+            iterator: Iterator[Tuple[MultiMolecule, Mapping[str, Any]]] = zip(mol_list, kwargs)
         else:
-            iterator = zip(mol_list, repeat(kwargs, len(self.molecule)))
+            iterator = zip(mol_list, repeat(kwargs, len(mol_list)))
 
         for i, (mol, kwarg) in enumerate(iterator):
             func = wraps(func)(partial(func, *args, **kwarg))
@@ -282,7 +283,7 @@ class MonteCarloABC(AbstractDataClass, ABC, Mapping[KT, VT]):
         """
         return self.package_manager(logger=self.logger)
 
-    def move(self) -> Union[Exception, KT]:
+    def move(self, idx: Optional[int] = None) -> Union[Exception, Key]:
         """Update a random parameter in **self.param** by a random value from **self.move.range**.
 
         Performs in inplace update of the ``'param'`` column in **self.param**.
@@ -294,7 +295,7 @@ class MonteCarloABC(AbstractDataClass, ABC, Mapping[KT, VT]):
         --------
         .. code:: python
 
-            >>> print(armc.mover['param'])
+            >>> print(armc.param['param'])
             charge   Br      -0.731687
                      Cs       0.731687
             epsilon  Br Br    1.045000
@@ -319,30 +320,41 @@ class MonteCarloABC(AbstractDataClass, ABC, Mapping[KT, VT]):
                      Cs Cs    0.101097
             Name: param, dtype: float64
 
+        Parameters
+        ----------
+        idx : :class:`int`, optional
+            The column key for :attr:`param_mapping["param"]<MonteCarloABC.param_mapping.>`.
+
         Returns
         -------
         |tuple|_ [|float|_]:
             A tuple with the (new) values in the ``'param'`` column of **self.param**.
 
         """
+        idx_: int = idx or 0
+
         # Perform the move
-        ret = self.param(logger=self.logger)
+        ret = self.param(logger=self.logger, param_idx=idx_)
         if isinstance(ret, Exception):
             return ret
         else:
             key, prm_name, _ = ret
 
-        prm_update = self.param['param'].loc[(key, prm_name)].to_frame().T
+        prm_update = self.param['param'][idx_].loc[(key, prm_name)].to_frame().T
         prm_update.index = [prm_name]
-        iterator = (job['settings'] for job in chain.from_iterable(self.package_manager.values()))
+        if idx is None:
+            _iterator = chain.from_iterable(self.package_manager.values())
+            iterator = (job['settings'] for job in _iterator)
+        else:
+            iterator = (job_tup[idx_]['settings'] for job_tup in self.package_manager.values())
 
         # Update the job settings
         for settings in iterator:
             settings[key].update(prm_update)
 
-        return tuple(self.param['param'].values)  # type: ignore
+        return cast(Key, tuple(self.param['param'][idx_].values))
 
-    def get_pes_descriptors(self, key: KT, get_first_key: bool = False,
+    def get_pes_descriptors(self, get_first_key: bool = False,
                             ) -> Tuple[Dict[str, ArrayOrScalar], Optional[List[MultiMolecule]]]:
         """Check if a **key** is already present in **history_dict**.
 
@@ -353,9 +365,6 @@ class MonteCarloABC(AbstractDataClass, ABC, Mapping[KT, VT]):
 
         Parameters
         ----------
-        key : :class:`tuple` [:class:`float`, ...]
-            A key in **history_dict**.
-
         get_first_key : :class:`bool`
             Keep both the files and the job_cache if this is the first ARMC iteration.
             Usefull for manual inspection in case cp2k hard-crashes at this point.
@@ -379,7 +388,7 @@ class MonteCarloABC(AbstractDataClass, ABC, Mapping[KT, VT]):
             iterator = zip(self.pes.items(), cycle(mol_list))
             ret = {k: func(mol) for (k, func), mol in iterator}
 
-        if not (get_first_key and self.keep_files):
+        if not (get_first_key or self.keep_files):
             self.clear_jobs()
 
         return ret, mol_list

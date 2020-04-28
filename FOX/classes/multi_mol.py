@@ -21,13 +21,14 @@ API
 
 from __future__ import annotations
 
+import sys
 import copy
 from os import PathLike
 from collections import abc
 from itertools import chain, combinations_with_replacement, zip_longest, islice, repeat
 from typing import (
     Sequence, Optional, Union, List, Hashable, Callable, Iterable, Dict, Tuple, Any, Mapping,
-    AnyStr
+    AnyStr, overload, TypeVar, Type, Container
 )
 
 import numpy as np
@@ -40,6 +41,7 @@ from scipy.spatial.distance import cdist
 from scm.plams import Molecule, Atom, Bond
 
 from .multi_mol_magic import _MultiMolecule
+from ..type_hints import Literal
 from ..io.read_kf import read_kf
 from ..io.read_xyz import read_multi_xyz
 from ..functions.rdf import get_rdf, get_rdf_lowmem, get_rdf_df
@@ -51,10 +53,11 @@ try:
     import dask
     DASK_EX: Optional[Exception] = None
 except Exception as ex:
-    DASK_EX: Optional[Exception] = ex
+    DASK_EX = ex
 
 __all__ = ['MultiMolecule']
 
+MT = TypeVar('MT', bound='MultiMolecule')
 MolSubset = Union[None, slice, int]
 AtomSubset = Union[
     None, slice, range, int, str, Sequence[int], Sequence[str], Sequence[Sequence[int]]
@@ -106,8 +109,13 @@ class MultiMolecule(_MultiMolecule):
         Is devoid of keys by default.
 
     """
-
-    def round(self, decimals: int = 0, inplace: bool = False) -> Optional[MultiMolecule]:
+    @overload
+    def round(self: MT, decimals: int = ...) -> MT: ...
+    @overload
+    def round(self: MT, decimals: int = ..., inplace: Literal[False] = ...) -> MT: ...
+    @overload
+    def round(self, decimals: int = ..., inplace: Literal[True] = ...) -> None: ...
+    def round(self, decimals=0, inplace=False):  # noqa: E301
         """Round the Cartesian coordinates of this instance to a given number of decimals.
 
         Parameters
@@ -127,7 +135,7 @@ class MultiMolecule(_MultiMolecule):
             ret[:] = super().round(decimals)
             return ret
 
-    def delete_atoms(self, atom_subset: AtomSubset) -> MultiMolecule:
+    def delete_atoms(self: MT, atom_subset: AtomSubset) -> MT:
         """Create a copy of this instance with all atoms in **atom_subset** removed.
 
         Parameters
@@ -165,8 +173,7 @@ class MultiMolecule(_MultiMolecule):
         ret.atoms = group_by_values(enumerate(symbols))
         return ret
 
-    def add_atoms(self, coords: np.ndarray, symbols: Union[str, Iterable[str]] = 'Xx'
-                  ) -> MultiMolecule:
+    def add_atoms(self: MT, coords: np.ndarray, symbols: Union[str, Iterable[str]] = 'Xx') -> MT:
         """Create a copy of this instance with all atoms in **atom_subset** appended.
 
         Examples
@@ -217,7 +224,8 @@ class MultiMolecule(_MultiMolecule):
         j = coords_.shape[1]
 
         # Append
-        ret = MultiMolecule(np.hstack([self, coords_]))
+        cls = type(self)
+        ret = cls(np.hstack([self, coords_]))
         ret.__dict__ = copy.deepcopy(self.__dict__)
 
         # Update atomic symbols & indices
@@ -262,10 +270,13 @@ class MultiMolecule(_MultiMolecule):
         idx = self.bonds[:, 0:2].argsort(axis=0)[:, 0]
         self.bonds = self.bonds[idx]
 
-    def random_slice(self, start: int = 0,
-                     stop: Optional[int] = None,
-                     p: float = 0.5,
-                     inplace: bool = False) -> Optional[MultiMolecule]:
+    @overload
+    def random_slice(self: MT, start: int = ..., stop: Optional[int] = ..., p: float = ...) -> MT: ...  # noqa: E501
+    @overload
+    def random_slice(self: MT, start: int = ..., stop: Optional[int] = ..., p: float = ..., inplace: Literal[False] = ...) -> MT: ...  # noqa: E501
+    @overload
+    def random_slice(self, start: int = ..., stop: Optional[int] = ..., p: float = ..., inplace: Literal[True] = ...) -> None: ...  # noqa: E501
+    def random_slice(self, start=0, stop=None, p=0.5, inplace=False):  # noqa: E301
         """Construct a new :class:`MultiMolecule` instance by randomly slicing this instance.
 
         The probability of including a particular element is equivalent to **p**.
@@ -311,9 +322,13 @@ class MultiMolecule(_MultiMolecule):
         else:
             return self[idx].copy()
 
-    def reset_origin(self, mol_subset: MolSubset = None,
-                     atom_subset: AtomSubset = None,
-                     inplace: bool = True) -> Optional[MultiMolecule]:
+    @overload
+    def reset_origin(self, mol_subset: MolSubset = ..., atom_subset: AtomSubset = ...) -> None: ...
+    @overload
+    def reset_origin(self, mol_subset: MolSubset = ..., atom_subset: AtomSubset = ..., inplace: Literal[True] = ...) -> None: ...  # noqa: E501
+    @overload
+    def reset_origin(self: MT, mol_subset: MolSubset = ..., atom_subset: AtomSubset = ..., inplace: Literal[False] = ...) -> MT: ...  # noqa: E501
+    def reset_origin(self, mol_subset=None, atom_subset=None, inplace=True):
         """Reallign all molecules in this instance.
 
         All molecules in this instance are rotating and translating, by performing a partial partial
@@ -366,9 +381,13 @@ class MultiMolecule(_MultiMolecule):
         else:
             return coords @ rotmat
 
-    def sort(self, sort_by: Union[str, Sequence[int]] = 'symbol',
-             reverse: bool = False,
-             inplace: bool = True) -> Optional[MultiMolecule]:
+    @overload
+    def sort(self, sort_by: Union[str, Sequence[int]] = ..., reverse: bool = ...) -> None: ...
+    @overload
+    def sort(self, sort_by: Union[str, Sequence[int]] = ..., reverse: bool = ..., inplace: Literal[True] = ...) -> None: ...  # noqa: E501
+    @overload
+    def sort(self: MT, sort_by: Union[str, Sequence[int]] = ..., reverse: bool = ..., inplace: Literal[False] = ...) -> MT: ...  # noqa: E501
+    def sort(self, sort_by='symbol', reverse=False, inplace=True):
         """Sort the atoms in this instance and **self.atoms**, performing in inplace update.
 
         Parameters
@@ -437,7 +456,13 @@ class MultiMolecule(_MultiMolecule):
         else:
             return mol
 
-    def residue_argsort(self, concatenate: bool = True) -> Union[List[List[int]], np.ndarray]:
+    @overload
+    def residue_argsort(self) -> np.ndarray: ...
+    @overload
+    def residue_argsort(self, concatenate: Literal[True]) -> np.ndarray: ...
+    @overload
+    def residue_argsort(self, concatenate: Literal[False]) -> List[List[int]]: ...
+    def residue_argsort(self, concatenate=True):
         """Return the indices that would sort this instance by residue number.
 
         Residues are defined based on moleculair fragments based on **self.bonds**.
@@ -1125,7 +1150,6 @@ class MultiMolecule(_MultiMolecule):
 
         # Calculate the mean distance (per atom) with respect to the center of mass
         # Conceptually similar an RMSF, the "fluctuation" being with respect to the center of mass
-        dist_mean = []
         mol_cp = self.copy()[i]
         mol_cp -= mol_cp.get_center_of_mass()[:, None, :]
         at_idx, dist_mean = zip(*[_get_mean_dist(mol_cp, at) for at in at_subset])
@@ -1602,17 +1626,18 @@ class MultiMolecule(_MultiMolecule):
 
         """
         # Identify the maximum to-be considered radius
-        if r_max in (np.inf, 'np.inf', 'inf'):
-            r_max = 0.0
-        n = int((1 + r_max / 4.0)**3)
+        r_max_ = 0.0 if float(r_max) == np.inf else r_max
+        n = int((1 + r_max_ / 4.0)**3)
 
         # Identify atom and molecule subsets
         m_subset = self._get_mol_subset(mol_subset)
         at_subset = self._get_atom_subset(atom_subset, as_array=True)
 
         # Slice this MultiMolecule instance based on **atom_subset** and **mol_subset**
-        del_atom = np.arange(0, self.shape[1])[~at_subset]
+        del_atom = np.ones(self.shape[1], dtype=bool)
+        del_atom[at_subset] = False
         mol = self.delete_atoms(del_atom)[m_subset]
+
         atom_pairs = mol.get_pair_dict(atom_subset or sorted(mol.atoms, key=str), r=3)
         for k, v in atom_pairs.items():
             v_new = []
@@ -1624,18 +1649,18 @@ class MultiMolecule(_MultiMolecule):
 
         # Construct the angular distribution function
         # Perform the task in parallel (with dask) if possible
-        if not DASK_EX and r_max:
+        if not DASK_EX and r_max_:
             func = dask.delayed(MultiMolecule._adf_inner_cdktree)
-            jobs = [func(m, n, r_max, atom_pairs.values(), weight) for m in mol]
+            jobs = [func(m, n, r_max_, atom_pairs.values(), weight) for m in mol]
             results = dask.compute(*jobs)
-        elif not DASK_EX and not r_max:
+        elif not DASK_EX and not r_max_:
             func = dask.delayed(MultiMolecule._adf_inner)
             jobs = [func(m, atom_pairs.values(), weight) for m in mol]
             results = dask.compute(*jobs)
-        elif DASK_EX and r_max:
+        elif DASK_EX and r_max_:
             func = MultiMolecule._adf_inner_cdktree
-            results = [func(m, n, r_max, atom_pairs.values(), weight) for m in mol]
-        elif DASK_EX and not r_max:
+            results = [func(m, n, r_max_, atom_pairs.values(), weight) for m in mol]
+        elif DASK_EX and not r_max_:
             func = MultiMolecule._adf_inner
             results = [func(m, atom_pairs.values(), weight) for m in mol]
 
@@ -1646,7 +1671,7 @@ class MultiMolecule(_MultiMolecule):
     @staticmethod
     def _adf_inner_cdktree(m: MultiMolecule, n: int, r_max: float,
                            idx_list: Iterable[Tuple[np.ndarray, np.ndarray, np.ndarray]],
-                           weight: Callable[[np.ndarray], np.ndarray]) -> np.ndarray:
+                           weight: Callable[[np.ndarray], np.ndarray]) -> List[np.ndarray]:
         """Perform the loop of :meth:`.init_adf` with a distance cutoff."""
         # Construct slices and a distance matrix
         tree = cKDTree(m)
@@ -1667,7 +1692,7 @@ class MultiMolecule(_MultiMolecule):
         ang = np.degrees(ang).astype(int)  # Radian (float) to degrees (int)
 
         # Construct and return the ADF
-        ret = []
+        ret: List[np.ndarray] = []
         ret_append = ret.append
         for i, j, k in idx_list:
             ijk = j[:, None, None] & i[idx][..., None] & k[idx][..., None, :]
@@ -1678,7 +1703,7 @@ class MultiMolecule(_MultiMolecule):
     @staticmethod
     def _adf_inner(m: MultiMolecule,
                    idx_list: Iterable[Tuple[np.ndarray, np.ndarray, np.ndarray]],
-                   weight: Callable[[np.ndarray], np.ndarray]) -> np.ndarray:
+                   weight: Callable[[np.ndarray], np.ndarray]) -> List[np.ndarray]:
         """Perform the loop of :meth:`.init_adf` without a distance cutoff."""
         # Construct a distance matrix
         dist = cdist(m, m)
@@ -1696,7 +1721,7 @@ class MultiMolecule(_MultiMolecule):
         ang = np.degrees(ang).astype(int)  # Radian (float) to degrees (int)
 
         # Construct and return the ADF
-        ret = []
+        ret: List[np.ndarray] = []
         ret_append = ret.append
         for i, j, k in idx_list:
             ijk = j[:, None, None] & i[..., None] & k[..., None, :]
@@ -1704,9 +1729,13 @@ class MultiMolecule(_MultiMolecule):
             ret_append(get_adf(ang[ijk], weights=weights))
         return ret
 
-    def get_angle_mat(self, mol_subset: MolSubset = 0,
-                      atom_subset: Tuple[AtomSubset, AtomSubset, AtomSubset] = (None, None, None),
-                      get_r_max: bool = False) -> np.ndarray:
+    @overload
+    def get_angle_mat(self, mol_subset: MolSubset = ..., atom_subset: Tuple[AtomSubset, AtomSubset, AtomSubset] = ...) -> np.ndarray: ...  # noqa: E501
+    @overload
+    def get_angle_mat(self, mol_subset: MolSubset = ..., atom_subset: Tuple[AtomSubset, AtomSubset, AtomSubset] = ..., get_r_max: Literal[False] = ...) -> np.ndarray: ...  # noqa: E501
+    @overload
+    def get_angle_mat(self, mol_subset: MolSubset = ..., atom_subset: Tuple[AtomSubset, AtomSubset, AtomSubset] = ..., get_r_max: Literal[True] = ...) -> Tuple[np.ndarray, float]: ...  # noqa: E501
+    def get_angle_mat(self, mol_subset=0, atom_subset=(None, None, None), get_r_max=False):
         """Create and return an angle matrix for all molecules and atoms in this instance.
 
         Parameters
@@ -1759,8 +1788,13 @@ class MultiMolecule(_MultiMolecule):
                 return np.arccos(np.einsum('ijkl,ijml->ijkm', unit_vec1, unit_vec2)), r_max
             return np.arccos(np.einsum('ijkl,ijml->ijkm', unit_vec1, unit_vec2))
 
-    def _get_atom_subset(self, atom_subset: AtomSubset,
-                         as_array: bool = False) -> Union[slice, np.ndarray]:
+    @overload
+    def _get_atom_subset(self, atom_subset: AtomSubset) -> Union[slice, np.ndarray]: ...
+    @overload
+    def _get_atom_subset(self, atom_subset: AtomSubset, as_array: Literal[False]) -> Union[slice, np.ndarray]: ...  # noqa: E501
+    @overload
+    def _get_atom_subset(self, atom_subset: AtomSubset, as_array: Literal[True]) -> np.ndarray: ...
+    def _get_atom_subset(self, atom_subset, as_array=False):
         """Sanitize the **_get_atom_subset** argument.
 
         Accepts the following objects:
@@ -1885,7 +1919,7 @@ class MultiMolecule(_MultiMolecule):
 
     """#################################  Type conversion  ####################################"""
 
-    def _mol_to_file(self, filename: str,
+    def _mol_to_file(self, filename: Union[str, PathLike],
                      outputformat: Optional[str] = None,
                      mol_subset: Optional[MolSubset] = 0) -> None:
         """Create files using the plams.Molecule.write_ method.
@@ -1909,15 +1943,15 @@ class MultiMolecule(_MultiMolecule):
         """
         m_subset = self._get_mol_subset(mol_subset)
         mol_range = range(m_subset.start or 0, m_subset.stop or len(self), m_subset.step or 1)
-        outputformat = outputformat or filename.rsplit('.', 1)[-1]
+        outputformat = outputformat or str(filename).rsplit('.', 1)[-1]
         plams_mol = self.as_Molecule(mol_subset=0)[0]
 
         if len(mol_range) != 1 or (mol_range.stop - mol_range.start) // mol_range.step != 1:
-            name_list = filename.rsplit('.', 1)
+            name_list = str(filename).rsplit('.', 1)
             name_list.insert(-1, '.{:d}.')
             name = ''.join(name_list)
         else:
-            name = filename
+            name = str(filename)
 
         from_array = plams_mol.from_array
         write = plams_mol.write
@@ -1925,7 +1959,7 @@ class MultiMolecule(_MultiMolecule):
             from_array(self[j])
             write(name.format(i), outputformat=outputformat)
 
-    def as_pdb(self, filename: str,
+    def as_pdb(self, filename: Union[str, PathLike],
                mol_subset: Optional[MolSubset] = 0) -> None:
         """Convert a *MultiMolecule* object into one or more Protein DataBank files (.pdb).
 
@@ -1946,7 +1980,7 @@ class MultiMolecule(_MultiMolecule):
         """
         self._mol_to_file(filename, 'pdb', mol_subset)
 
-    def as_mol2(self, filename: str,
+    def as_mol2(self, filename: Union[str, PathLike],
                 mol_subset: Optional[MolSubset] = 0) -> None:
         """Convert a *MultiMolecule* object into one or more .mol2 files.
 
@@ -1967,7 +2001,7 @@ class MultiMolecule(_MultiMolecule):
         """
         self._mol_to_file(filename, 'mol2', mol_subset)
 
-    def as_mol(self, filename: str,
+    def as_mol(self, filename: Union[str, PathLike],
                mol_subset: Optional[MolSubset] = 0) -> None:
         """Convert a *MultiMolecule* object into one or more .mol files.
 
@@ -1985,10 +2019,10 @@ class MultiMolecule(_MultiMolecule):
             determined by their moleculair index.
             Include all :math:`m` molecules in this instance if ``None``.
 
-        """
+        """  # noqa: E501
         self._mol_to_file(filename, 'mol', mol_subset)
 
-    def as_xyz(self, filename: str,
+    def as_xyz(self, filename: Union[str, PathLike],
                mol_subset: Optional[MolSubset] = None) -> None:
         """Create an .xyz file out of this instance.
 
@@ -2030,9 +2064,13 @@ class MultiMolecule(_MultiMolecule):
             for i, xyz in iterator:
                 np.savetxt(file, np.hstack((at, xyz)), header=header.format(i), **kwargs)
 
-    def as_mass_weighted(self, mol_subset: MolSubset = None,
-                         atom_subset: AtomSubset = None,
-                         inplace: bool = False) -> Optional[MultiMolecule]:
+    @overload
+    def as_mass_weighted(self: MT, mol_subset: MolSubset = ..., atom_subset: AtomSubset = ...) -> MT: ...  # noqa: E501
+    @overload
+    def as_mass_weighted(self: MT, mol_subset: MolSubset = ..., atom_subset: AtomSubset = ..., inplace: Literal[False] = ...) -> MT: ...  # noqa: E501
+    @overload
+    def as_mass_weighted(self: MT, mol_subset: MolSubset = ..., atom_subset: AtomSubset = ..., inplace: Literal[True] = ...) -> None: ...  # noqa: E501
+    def as_mass_weighted(self, mol_subset=None, atom_subset=None, inplace=False):
         """Transform the Cartesian of this instance into mass-weighted Cartesian coordinates.
 
         Parameters
@@ -2155,8 +2193,8 @@ class MultiMolecule(_MultiMolecule):
         return ret
 
     @classmethod
-    def from_Molecule(cls, mol_list: Union[Molecule, Iterable[Molecule]],
-                      subset: Sequence[str] = 'atoms') -> MultiMolecule:
+    def from_Molecule(cls: Type[MT], mol_list: Union[Molecule, Iterable[Molecule]],
+                      subset: Container[str] = frozenset({'atoms'})) -> MT:
         """Construct a :class:`.MultiMolecule` instance from one or more PLAMS molecules.
 
         Parameters
@@ -2181,7 +2219,7 @@ class MultiMolecule(_MultiMolecule):
             mol_list = (mol_list,)
         else:
             plams_mol = mol_list[0]
-        subset = subset or ('atoms', 'bonds', 'properties')
+        subset = subset or {'atoms', 'bonds', 'properties'}
 
         # Convert coordinates
         n_mol = len(mol_list)
@@ -2194,8 +2232,8 @@ class MultiMolecule(_MultiMolecule):
 
         # Convert atoms
         if 'atoms' in subset:
-            iterator = ((i, at.symbol) for i, at in enumerate(plams_mol.atoms))
-            kwargs['atoms'] = group_by_values(iterator)
+            iterator_ = ((i, at.symbol) for i, at in enumerate(plams_mol.atoms))
+            kwargs['atoms'] = group_by_values(iterator_)
 
         # Convert properties
         if 'properties' in subset:
@@ -2211,10 +2249,10 @@ class MultiMolecule(_MultiMolecule):
         return cls(coords, **kwargs)
 
     @classmethod
-    def from_xyz(cls, filename: Union[AnyStr, PathLike],
+    def from_xyz(cls: Type[MT], filename: Union[AnyStr, PathLike],
                  bonds: Optional[np.ndarray] = None,
                  properties: Optional[dict] = None,
-                 read_comment: bool = False) -> MultiMolecule:
+                 read_comment: bool = False) -> MT:
         """Construct a :class:`.MultiMolecule` instance from a (multi) .xyz file.
 
         Comment lines extracted from the .xyz file are stored, as array, under
@@ -2257,9 +2295,9 @@ class MultiMolecule(_MultiMolecule):
         return ret
 
     @classmethod
-    def from_kf(cls, filename: Union[AnyStr, PathLike],
+    def from_kf(cls: Type[MT], filename: Union[str, bytes, PathLike],
                 bonds: Optional[np.ndarray] = None,
-                properties: Optional[dict] = None) -> MultiMolecule:
+                properties: Optional[dict] = None) -> MT:
         """Construct a :class:`.MultiMolecule` instance from a KF binary file.
 
         Parameters

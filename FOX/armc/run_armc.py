@@ -45,7 +45,7 @@ def run_armc(armc: ARMC,
         config.default_jobmanager.settings.hashing = None
 
         # Create the logger
-        armc.logger = wrap_plams_logger(logfile, armc.__class__.__name__)
+        armc.logger = wrap_plams_logger(logfile, f'{armc.__class__.__name__}_{id(armc)}')
         writer = Plams2Logger(armc.logger,
                               lambda n: 'STARTED' in n,
                               lambda n: 'Renaming' in n,

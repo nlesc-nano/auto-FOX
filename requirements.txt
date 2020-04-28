@@ -5,5 +5,5 @@ matplotlib
 numpy
 scipy
 pandas
-AssertionLib
+assertionlib
 plams@git+https://github.com/SCM-NV/PLAMS@master

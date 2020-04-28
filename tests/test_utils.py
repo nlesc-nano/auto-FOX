@@ -9,7 +9,7 @@ from scm.plams import Settings
 from assertionlib import assertion
 
 from FOX.functions.utils import (
-    assert_error, get_template, template_to_df, serialize_array, read_str_file, get_shape,
+    assert_error, serialize_array, read_str_file, get_shape,
     dict_to_pandas
 )
 
@@ -24,35 +24,6 @@ def test_assert_error():
         pass
 
     assertion.assert_(test_func, exception=ModuleNotFoundError)
-
-
-def test_get_template():
-    """Test :func:`FOX.functions.utils.get_template`,"""
-    s = get_template(name='md_cp2k_template.yaml')
-    assertion.isinstance(s, Settings)
-
-    dict_ = get_template(name='md_cp2k_template.yaml', as_settings=False)
-    assertion.isinstance(dict_, Settings, invert=True)
-    assertion.isinstance(dict_, dict)
-
-
-def test_template_to_df():
-    """Test :func:`FOX.functions.utils.template_to_df`,"""
-    df = template_to_df('param.yaml', path=PATH)
-    assertion.isinstance(df, pd.DataFrame)
-
-    idx = np.array(['charge', 'epsilon', 'sigma'], dtype=object)
-    np.testing.assert_array_equal(idx, df.index.values)
-
-    ref = np.array([
-        'CG2O3', 'Cd', 'Cd Cd', 'Cd OG2D2', 'Cd Se', 'OG2D2', 'Se', 'Se OG2D2', 'Se Se'
-    ], dtype=object)
-    ref.sort()
-
-    columns = np.array(df.columns)
-    columns.sort()
-
-    np.testing.assert_array_equal(ref, columns)
 
 
 def test_serialize_array():

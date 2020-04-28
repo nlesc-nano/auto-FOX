@@ -30,50 +30,35 @@ API
 
 """
 
+import warnings
 import subprocess
 from os import remove, PathLike
 from time import sleep
 from os.path import isfile
-from collections import abc
 from typing import (Dict, Iterable, Optional, Union, Hashable, List, Tuple,
-                    AnyStr, TYPE_CHECKING, Mapping, Iterator, Any)
+                    AnyStr, TYPE_CHECKING, Mapping, Any)
 
+import h5py
 import numpy as np
 import pandas as pd
 from scm.plams import Settings
 
 from ..__version__ import __version__
-from ..functions.utils import get_shape, assert_error, array_to_index, group_by_values
-
-try:
-    import h5py
-    __all__ = ['create_hdf5', 'create_xyz_hdf5', 'to_hdf5', 'from_hdf5']
-    H5PY_ERROR: Optional[str] = None
-
-except ImportError:
-    __all__ = []
-    H5PY_ERROR: Optional[str] = (  # type: ignore
-        "Use of the FOX.{} function requires the 'h5py' package."
-        "\n'h5py' can be installed via anaconda with the following command:"
-        "\n\tconda install --name FOX -y -c conda-forge h5py"
-    )
+from ..functions.utils import get_shape, array_to_index, group_by_values
 
 if TYPE_CHECKING:
     from pandas.core.generic import NDFrame
     from ..classes.multi_mol import MultiMolecule
     from ..armc.armc import ARMC
-    if H5PY_ERROR is not None:
-        from h5py import File
-    else:
-        from ..type_alias import File
+    from h5py import File
 else:
     from ..type_alias import File, NDFrame, MultiMolecule, ARMC
 
+__all__ = ['create_hdf5', 'create_xyz_hdf5', 'to_hdf5', 'from_hdf5']
 
 """################################### Creating .hdf5 files ####################################"""
 
 
-@assert_error(H5PY_ERROR)
 def create_hdf5(filename: Union[AnyStr, PathLike], armc: ARMC) -> None:
     r"""Create a hdf5 file to hold all addaptive rate Mone Carlo results (:class:`FOX.ARMC`).
 
@@ -112,11 +97,11 @@ def create_hdf5(filename: Union[AnyStr, PathLike], armc: ARMC) -> None:
 
     # Store the *index*, *column* and *name* attributes of dataframes/series in the hdf5 file
     kappa = armc.iter_len // armc.sub_iter_len
-    idx = armc.param['param'].index.append(pd.MultiIndex.from_tuples([('', 'phi', '')]))
+    idx = armc.param['param'][0].index.append(pd.MultiIndex.from_tuples([('', 'phi', '')]))
     aux_error_idx = list(armc.pes.keys())
 
     pd_dict = {
-        'param': armc.param['param'],
+        'param': armc.param['param'][0],
         'phi': pd.Series(np.nan, index=np.arange(kappa), name='phi'),
         'aux_error': pd.Series(np.nan, index=aux_error_idx, name='aux_error'),
         'aux_error_mod': pd.Series(np.nan, index=idx, name='aux_error_mod')
@@ -129,9 +114,10 @@ def create_hdf5(filename: Union[AnyStr, PathLike], armc: ARMC) -> None:
     index_to_hdf5(filename, pd_dict)
 
 
-@assert_error(H5PY_ERROR)
 def create_xyz_hdf5(filename: Union[AnyStr, PathLike],
-                    mol_list: Iterable[MultiMolecule], iter_len: int) -> None:
+                    mol_list: Iterable[MultiMolecule],
+                    iter_len: int,
+                    phi: Iterable[float]) -> None:
     """Create the ``"xyz"`` datasets for :func:`create_hdf5` in the hdf5 file ``filename+".xyz"``.
 
     The ``"xyz"`` dataset is to contain Cartesian coordinates collected over the course of the
@@ -160,7 +146,8 @@ def create_xyz_hdf5(filename: Union[AnyStr, PathLike],
     with h5py.File(filename_xyz, 'w-', libver='latest') as f:
         f.attrs['__version__'] = np.fromiter(__version__.split('.'), count=3, dtype=int)
 
-        for i, mol in enumerate(mol_list):
+        iterator = (mol for mol in mol_list for _ in phi)
+        for i, mol in enumerate(iterator):
             key = f'xyz.{i}'
             f.create_dataset(
                 name=key,
@@ -174,7 +161,6 @@ def create_xyz_hdf5(filename: Union[AnyStr, PathLike],
             f[key].attrs['bonds'] = mol.bonds
 
 
-@assert_error(H5PY_ERROR)
 def index_to_hdf5(filename: Union[AnyStr, PathLike], pd_dict: Dict[str, NDFrame]) -> None:
     """Store the ``index`` and ``columns`` / ``name`` attributes of **pd_dict** in hdf5 format.
 
@@ -223,7 +209,6 @@ def _get_kwarg_dict(armc: ARMC) -> Settings:
 
     Examples
     --------
-
     The output has the following general structure:
 
     .. code:: python
@@ -251,23 +236,24 @@ def _get_kwarg_dict(armc: ARMC) -> Settings:
 
     """
     shape = armc.iter_len // armc.sub_iter_len, armc.sub_iter_len
+    param_shape = armc.param['param'].T.shape
 
     ret = Settings()
-    ret.phi.shape = (shape[0], )
+    ret.phi.shape = (shape[0], ) + armc.phi.shape
     ret.phi.dtype = float
     ret.phi.fillvalue = np.nan
 
-    ret.param.shape = shape + (len(armc.param['param']), )
+    ret.param.shape = shape + param_shape
     ret.param.dtype = float
     ret.param.fillvalue = np.nan
 
-    ret.acceptance.shape = shape
+    ret.acceptance.shape = shape + armc.phi.shape
     ret.acceptance.dtype = bool
 
     ret.aux_error.shape = shape + (len(armc.molecule), len(armc.pes) // len(armc.molecule))
     ret.aux_error.dtype = float
     ret.aux_error.fillvalue = np.nan
-    ret.aux_error_mod.shape = shape + (1 + len(armc.param['param']), )
+    ret.aux_error_mod.shape = shape + (param_shape[0], 1 + param_shape[1])
     ret.aux_error_mod.dtype = float
     ret.aux_error_mod.fillvalue = np.nan
 
@@ -278,10 +264,10 @@ def _get_kwarg_dict(armc: ARMC) -> Settings:
         ret[key].dtype = float
         ret[key].fillvalue = np.nan
 
-        ret[key + '.ref'].shape = get_shape(ref)
-        ret[key + '.ref'].dtype = float
-        ret[key + '.ref'].data = ref
-        ret[key + '.ref'].fillvalue = np.nan
+        ret[f'{key}.ref'].shape = get_shape(ref)
+        ret[f'{key}.ref'].dtype = float
+        ret[f'{key}.ref'].data = ref
+        ret[f'{key}.ref'].fillvalue = np.nan
 
     return ret
 
@@ -289,18 +275,16 @@ def _get_kwarg_dict(armc: ARMC) -> Settings:
 """################################### Updating .hdf5 files ####################################"""
 
 
-@assert_error(H5PY_ERROR)
 def hdf5_clear_status(filename: Union[AnyStr, PathLike]) -> bool:
     """Run the :code:`h5clear filename` command if **filename** refuses to open."""
     try:
         with h5py.File(filename, 'r+', libver='latest'):
             return True
     except OSError:
-        subprocess.run(['h5clear', '-s', 'repr(filename)'])
+        subprocess.run(['h5clear', '-s', repr(filename)])
         return False
 
 
-@assert_error(H5PY_ERROR)
 def hdf5_availability(filename: Union[AnyStr, PathLike], timeout: float = 5.0,
                       max_attempts: Optional[int] = 10) -> None:
     """Check if a .hdf5 file is opened by another process; return once it is not.
@@ -329,24 +313,26 @@ def hdf5_availability(filename: Union[AnyStr, PathLike], timeout: float = 5.0,
         Raised if **max_attempts** is exceded.
 
     """
-    warning = "WARNING: '{}' is currently unavailable; repeating attempt in {:.0f} seconds"
+    msg = f"{filename!r} is currently unavailable; repeating attempt in {timeout:.0f} seconds"
     i = max_attempts if max_attempts is not None else np.inf
     if i <= 0:
-        raise ValueError(f"'max_attempts' must be larger then 0; observed value: {max_attempts!r}")
+        raise ValueError(f"'max_attempts' must be larger than 0; observed value: {max_attempts!r}")
 
     while i:
         try:
             with h5py.File(filename, 'r+', libver='latest'):
                 return  # the .hdf5 file can safely be opened
         except OSError as ex:  # the .hdf5 file cannot be safely opened yet
-            print((warning).format(filename, timeout))
+            warning = ResourceWarning(msg)
+            warning.__cause__ = ex
+            warnings.warn(warning)
+
             error = ex
             sleep(timeout)
         i -= 1
     raise error
 
 
-@assert_error(H5PY_ERROR)
 def to_hdf5(filename: Union[AnyStr, PathLike], dset_dict: Mapping[str, np.ndarray],
             kappa: int, omega: int) -> None:
     r"""Export results from **dset_dict** to the hdf5 file **filename**.
@@ -378,21 +364,24 @@ def to_hdf5(filename: Union[AnyStr, PathLike], dset_dict: Mapping[str, np.ndarra
         f.attrs['super-iteration'] = kappa
         f.attrs['sub-iteration'] = omega
         for key, value in dset_dict.items():
-            if key == 'xyz':
-                continue
-            elif key == 'phi':
-                f[key][kappa] = value
-            else:
-                f[key][kappa, omega] = value
+            try:
+                if key == 'xyz':
+                    continue
+                elif key == 'phi':
+                    f[key][kappa] = value
+                else:
+                    f[key][kappa, omega] = value
+            except Exception as ex:
+                cls = type(ex)
+                raise cls(f"dataset {key!r}: {ex}") from ex
 
     # Update the second hdf5 file with Cartesian coordinates
     filename_xyz = _get_filename_xyz(filename)
     _xyz_to_hdf5(filename_xyz, omega, dset_dict['xyz'])
 
 
-@assert_error(H5PY_ERROR)
 def _xyz_to_hdf5(filename: Union[AnyStr, PathLike], omega: int,
-                 mol_list: Union[Iterable[MultiMolecule], Iterable[float], float]) -> None:
+                 mol_list: Optional[Iterable[MultiMolecule]]) -> None:
     r"""Export **mol** to the hdf5 file **filename**.
 
     Parameters
@@ -411,29 +400,20 @@ def _xyz_to_hdf5(filename: Union[AnyStr, PathLike], omega: int,
     hdf5_availability(filename)
 
     with h5py.File(filename, 'r+', libver='latest') as f:
-        if not isinstance(mol_list, abc.Iterable):  # Check if mol_list is a scalar (np.nan)
-            i = 0
-            while True:
-                try:
-                    f[f'xyz.{i}'][omega] = mol_list if mol_list is not None else np.nan
-                    i += 1
-                except KeyError:
-                    return None
+        if mol_list is None:
+            for k in f.keys():
+                f[k] = np.nan
+            return
 
-        enumerator: Iterator[Tuple[int, Union[MultiMolecule, float]]] = enumerate(mol_list)
-        for i, mol in enumerator:
-            dset = f[f'xyz.{i}']
-            if not isinstance(mol, abc.Iterable):  # Check if mol is a scalar (np.nan)
-                dset[omega] = mol if mol is not None else np.nan
-                continue
-
-            if len(mol) <= dset.shape[1]:
-                dset[omega, 0:len(mol)] = mol
+        iterator = ((f[f'xyz.{i}'], mol) for i, mol in enumerate(mol_list))
+        for dset, mol in iterator:
+            i = len(mol)
+            if i <= dset.shape[1]:
+                dset[omega, :i] = mol
             else:  # Resize and try again
-                dset.resize(len(mol), axis=1)
+                dset.resize(i, axis=1)
                 dset[omega] = mol
-
-    return None
+        return
 
 
 """#################################### Reading .hdf5 files ####################################"""
@@ -441,7 +421,6 @@ def _xyz_to_hdf5(filename: Union[AnyStr, PathLike], omega: int,
 DataSets = Union[Hashable, Iterable[Hashable]]
 
 
-@assert_error(H5PY_ERROR)
 def from_hdf5(filename: Union[AnyStr, PathLike],
               datasets: Optional[DataSets] = None
               ) -> Union[NDFrame, Dict[Hashable, NDFrame]]:
@@ -482,9 +461,8 @@ def from_hdf5(filename: Union[AnyStr, PathLike],
         try:
             ret = {key: _get_dset(f, key)[:i+1] for key in datasets_}
         except KeyError as ex:
-            err = "No dataset '{}' in '{}'. The following datasets are available: {}"
-            arg = str(ex).split("'")[1], str(filename), list(f.keys())
-            raise KeyError(err.format(*arg)) from ex
+            raise KeyError(f"No dataset {ex} in {filename!r}. The following datasets are "
+                           f"available: {list(f.keys())!r}") from ex
 
     # Return a DataFrame/Series or dictionary of DataFrames/Series
     if len(ret) == 1:
@@ -493,7 +471,6 @@ def from_hdf5(filename: Union[AnyStr, PathLike],
     return ret
 
 
-@assert_error(H5PY_ERROR)
 def _get_dset(f: File, key: Hashable) -> Union[pd.Series, pd.DataFrame, List[pd.DataFrame]]:
     """Take a h5py dataset and convert it into either a Series or DataFrame.
 
@@ -537,7 +514,6 @@ def _get_dset(f: File, key: Hashable) -> Union[pd.Series, pd.DataFrame, List[pd.
     raise ValueError(key, f[key].ndim)
 
 
-@assert_error(H5PY_ERROR)
 def _get_xyz_dset(f: File) -> Tuple[np.ndarray, Dict[str, List[int]]]:
     """Return the ``"xyz"zz dataset from **f**.
 
@@ -562,7 +538,7 @@ def _get_xyz_dset(f: File) -> Tuple[np.ndarray, Dict[str, List[int]]]:
     # Extract the Cartesian coordinates; sort in chronological order
     i = f.attrs['sub-iteration']
     j = f[key].shape[0] - i
-    ret = np.empty_like(f[key])
+    ret: np.ndarray = np.empty_like(f[key])
     ret[:j] = f[key][i:]
     ret[j:] = f[key][:i]
     return ret, idx_dict
@@ -638,7 +614,6 @@ def _attr_to_array(index: Union[str, pd.Index]) -> np.ndarray:
     return ret
 
 
-@assert_error(H5PY_ERROR)
 def dset_to_series(f: File, key: Hashable) -> Union[pd.Series, pd.DataFrame]:
     """Take a h5py dataset and convert it into a Pandas Series (if 1D) or Pandas DataFrame (if 2D).
 
@@ -675,7 +650,6 @@ def dset_to_series(f: File, key: Hashable) -> Union[pd.Series, pd.DataFrame]:
         return df
 
 
-@assert_error(H5PY_ERROR)
 def dset_to_df(f: File, key: Hashable) -> Union[pd.DataFrame, List[pd.DataFrame]]:
     """Take a h5py dataset and create a DataFrame (if 2D) or list of DataFrames (if 3D).
 
@@ -705,7 +679,6 @@ def dset_to_df(f: File, key: Hashable) -> Union[pd.DataFrame, List[pd.DataFrame]
         return [pd.DataFrame(i, index=index, columns=columns) for i in data]
 
 
-@assert_error(H5PY_ERROR)
 def _aux_err_to_df(f: File, key: Hashable) -> Union[pd.DataFrame, List[pd.DataFrame]]:
     """Take a h5py dataset and create a DataFrame (if 2D) or list of DataFrames (if 3D).
 
@@ -735,7 +708,6 @@ def _aux_err_to_df(f: File, key: Hashable) -> Union[pd.DataFrame, List[pd.DataFr
 Tuple3 = Tuple[np.ndarray, Dict[str, List[int]], np.ndarray]
 
 
-@assert_error(H5PY_ERROR)
 def mol_from_hdf5(filename: Union[AnyStr, PathLike],
                   i: int = -1, j: int = 0) -> Tuple3:
     """Read a single dataset from a (multi) .xyz.hdf5 file.

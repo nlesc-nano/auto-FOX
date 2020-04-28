@@ -15,7 +15,7 @@ Index
 
 API
 ---
-.. autoexception::XYZError
+.. autoexception:: XYZError
 .. autofunction:: read_multi_xyz
 .. autofunction:: get_comments
 .. autofunction:: validate_xyz

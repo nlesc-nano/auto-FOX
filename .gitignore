@@ -65,6 +65,7 @@ instance/
 
 # Sphinx documentation
 docs/_build/
+docs_out/
 
 # PyBuilder
 target/
@@ -102,6 +103,12 @@ venv.bak/
 
 # mypy
 .mypy_cache/
+
+# MacOS
 .DS_Store
-docs_out/
+
+# Visual Studio Code
 .vscode/
+
+# PLAMS / QMFlows
+MM_MD_workdir*

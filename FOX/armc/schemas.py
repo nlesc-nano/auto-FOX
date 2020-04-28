@@ -17,15 +17,18 @@ API
 """
 
 import os
+from os.path import abspath
+from functools import partial
 from collections import abc
-from typing import (Any, SupportsInt, SupportsFloat, Type, Mapping, Collection, Sequence,
-                    Callable, Union, Optional, Tuple, FrozenSet, Iterable, Dict, TypeVar)
+from typing import (
+    Any, SupportsInt, Type, Mapping, Collection, Sequence,
+    Callable, Union, Optional, Tuple, FrozenSet, Iterable, Dict, TypeVar
+)
 
 import numpy as np
 from schema import And, Or, Schema, Use, Optional as Optional_
 
-from scm.plams import Settings as QmSettings
-from qmflows import cp2k_mm
+from qmflows import cp2k_mm, Settings as QmSettings
 from qmflows.packages import Package
 
 from .armc import ARMC
@@ -33,11 +36,12 @@ from .monte_carlo import MonteCarloABC
 from .package_manager import PackageManager, PackageManagerABC
 from .phi_updater import PhiUpdater, PhiUpdaterABC
 from .param_mapping import ParamMapping, ParamMappingABC
-from ..type_hints import SupportsArray, TypedDict, NDArray
+from ..type_hints import SupportsArray, Scalar, TypedDict, ArrayLikeOrScalar
 from ..classes import MultiMolecule
-from ..functions.utils import _get_move_range
-from ..schema_utils import (Default, Formatter, supports_float, supports_int,
-                            isinstance_factory, issubclass_factory, import_factory)
+from ..functions.utils import _get_move_range, as_nd_array
+from ..schema_utils import (
+    Default, Formatter, supports_int, isinstance_factory, issubclass_factory, import_factory
+)
 
 __all__ = [
     'validate_phi', 'validate_monte_carlo', 'validate_psf', 'validate_pes',
@@ -46,7 +50,7 @@ __all__ = [
 
 T = TypeVar('T')
 
-EPILOG = '.\n\n{name}: {type} = {value!r:100}'
+EPILOG = '.\n\n{name}: {type} = {value!r:.100}'
 
 # Create a number of callables which take a single parameter is argument
 # This ensures they can be used with :class:`schema.Use`.
@@ -67,6 +71,21 @@ import_mapping = import_factory(validate=mapping_instance)
 
 import_func = import_factory(validate=callable)
 
+array: Callable[[Any], np.ndarray]
+array = partial(as_nd_array, ndmin=1, dtype=float, copy=True)
+
+#: The default value for ``phi.phi```.
+PHI = np.array([1.0])
+PHI.setflags(write=False)
+
+#: The default value for ``phi.gamma```.
+GAMMA = np.array([2.0])
+GAMMA.setflags(write=False)
+
+#: The default value for ``phi.a_target```.
+A_TARGET = np.array([0.25])
+A_TARGET.setflags(write=False)
+
 
 #: Schema for validating the ``"phi"`` block.
 phi_schema = Schema({
@@ -77,22 +96,23 @@ phi_schema = Schema({
         error=Formatter(f"'phi.type' expected a PhiUpdater class; observed value{EPILOG}")
     ),
 
-    Optional_('phi', default=1.0): Or(
-        And(None, Default(1.0)),
-        And(supports_float, Use(float)),
+    Optional_('phi', default=PHI.copy): Or(
+        And(None, Default(PHI.copy)),
+        And(Use(array)),
         error=Formatter(f"'phi.phi' expected a float{EPILOG}")
     ),
 
-    Optional_('gamma', default=2.0): Or(
-        And(None, Default(2.0)),
-        And(supports_float, Use(float)),
+    Optional_('gamma', default=GAMMA.copy): Or(
+        And(None, Default(GAMMA.copy)),
+        And(Use(array)),
         error=Formatter(f"'phi.gamma' expected a float{EPILOG}")
     ),
 
-    Optional_('a_target', default=0.25): Or(
-        And(None, Default(0.25)),
-        And(supports_float, lambda n: 0 < float(n) <= 1, Use(float)),
-        error=Formatter(f"'phi.a_target' expected a float in the (0, 1] interval{EPILOG}")
+    Optional_('a_target', default=A_TARGET.copy): Or(
+        And(None, Default(A_TARGET.copy)),
+        And(lambda n: (0 < array(n)).all() & (1 >= array(n)).all(), Use(array)),
+        error=Formatter("'phi.a_target' expected a float or sequence of floats "
+                        f"in the (0, 1] interval{EPILOG}")
     ),
 
     Optional_('func', default=lambda: np.add): Or(
@@ -110,14 +130,17 @@ phi_schema = Schema({
 }, name='phi_schema', description='Schema for validating the "phi" block.')
 
 
+PhiFunc = Callable[[np.ndarray, ArrayLikeOrScalar], np.ndarray]
+
+
 class PhiMapping(TypedDict, total=False):
     """A :class:`~typing.TypedDict` representing the input of :data:`phi_schema`."""
 
     type: Union[None, str, Type[PhiUpdaterABC]]
-    phi: Optional[SupportsFloat]
-    gamma: Optional[SupportsFloat]
-    a_target: Optional[SupportsFloat]
-    func: Union[None, str, Callable[[float, float], float]]
+    phi: Union[None, Scalar, SupportsArray, Iterable[Scalar]]
+    gamma: Union[None, Scalar, SupportsArray, Iterable[Scalar]]
+    a_target: Union[None, Scalar, SupportsArray, Iterable[Scalar]]
+    func: Union[None, str, PhiFunc]
     kwargs: Optional[Mapping[str, Any]]
 
 
@@ -125,10 +148,10 @@ class PhiDict(TypedDict):
     """A :class:`~typing.TypedDict` representing the output of :data:`phi_schema`."""
 
     type: Type[PhiUpdaterABC]
-    phi: float
-    gamma: float
-    a_target: float
-    func: Callable[[float, float], float]
+    phi: np.ndarray
+    gamma: np.ndarray
+    a_target: np.ndarray
+    func: PhiFunc
     kwargs: Mapping[str, Any]
 
 
@@ -219,25 +242,28 @@ class MCDict(TypedDict):
 psf_schema = Schema({
     Optional_('str_file', default=None): Or(
         None,
-        And(str, Use(lambda n: (n,))),
-        And(os.PathLike, Use(lambda n: (n,))),
-        And(abc.Sequence, lambda n: all(isinstance(i, (os.PathLike, str)) for i in n), Use(tuple)),
+        And(str, Use(lambda n: (abspath(n),))),
+        And(os.PathLike, Use(lambda n: (abspath(n),))),
+        And(abc.Sequence, lambda n: all(isinstance(i, (os.PathLike, str)) for i in n),
+            Use(lambda n: tuple(abspath(i) for i in n))),
         error=Formatter(f"'psf.str_file' expected None or one or more path-like objects{EPILOG}")
     ),
 
     Optional_('rtf_file', default=None): Or(
         None,
-        And(str, Use(lambda n: (n,))),
-        And(os.PathLike, Use(lambda n: (n,))),
-        And(abc.Sequence, lambda n: all(isinstance(i, (os.PathLike, str)) for i in n), Use(tuple)),
+        And(str, Use(lambda n: (abspath(n),))),
+        And(os.PathLike, Use(lambda n: (abspath(n),))),
+        And(abc.Sequence, lambda n: all(isinstance(i, (os.PathLike, str)) for i in n),
+            Use(lambda n: tuple(abspath(i) for i in n))),
         error=Formatter(f"'psf.rtf_file' expected None or one or more path-like objects{EPILOG}")
     ),
 
     Optional_('psf_file', default=None): Or(
         None,
-        And(str, Use(lambda n: (n,))),
-        And(os.PathLike, Use(lambda n: (n,))),
-        And(abc.Sequence, lambda n: all(isinstance(i, (os.PathLike, str)) for i in n), Use(tuple)),
+        And(str, Use(lambda n: (abspath(n),))),
+        And(os.PathLike, Use(lambda n: (abspath(n),))),
+        And(abc.Sequence, lambda n: all(isinstance(i, (os.PathLike, str)) for i in n),
+            Use(lambda n: tuple(abspath(i) for i in n))),
         error=Formatter(f"'psf.psf_file' expected None or one or more path-like objects{EPILOG}")
     ),
 
@@ -418,12 +444,10 @@ param_schema = Schema({
         error=Formatter(f"'param.kwargs' expected a Mapping{EPILOG}")
     ),
 
-    Optional_('move_range', default=lambda: MOVE_DEFAULT.copy()): Or(
+    Optional_('move_range', default=MOVE_DEFAULT.copy): Or(
         And(None, Default(MOVE_DEFAULT.copy)),
-        And(abc.Sequence, Use(lambda n: np.asarray(n, dtype=float))),
-        And(SupportsArray, Use(lambda n: np.asarray(n, dtype=float))),
-        And(abc.Iterable, Use(lambda n: np.fromiter(n, dtype=float))),
-        And(abc.Mapping, lambda n: {'start', 'stop', 'step'}.issuperset(n.keys()),
+        And(Or(abc.Iterable, SupportsArray), Use(array)),
+        And(abc.Mapping, lambda n: {'start', 'stop', 'step', 'ratio'}.issuperset(n.keys()),
             Use(lambda n: _get_move_range(**n))),
         error=Formatter(f"'param.move_range' expected a Mapping or array-like object{EPILOG}")
     )
@@ -444,7 +468,7 @@ class ParamMapping_(TypedDict, total=False):
     type: Union[None, str, Type[ParamMappingABC]]
     func: Union[None, str, Callable[[float, float], float]]
     kwargs: Optional[Mapping[str, Any]]
-    move_range: Union[None, Iterable, SupportsArray, MoveRange]
+    move_range: Union[None, Iterable[Scalar], SupportsArray, MoveRange]
 
 
 class ParamDict(TypedDict):
@@ -453,7 +477,7 @@ class ParamDict(TypedDict):
     type: Type[ParamMappingABC]
     func: Callable[[float, float], float]
     kwargs: Mapping[str, Any]
-    move_range: NDArray[float]
+    move_range: np.ndarray
 
 
 #: Schema for validating the main input blocks.
