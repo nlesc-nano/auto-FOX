@@ -18,6 +18,7 @@ API
 """
 
 import textwrap
+from os import PathLike
 from types import MappingProxyType
 from typing import Union, Iterable, Mapping, Dict, Tuple, Callable, Optional
 from itertools import combinations_with_replacement, chain, product
@@ -31,6 +32,9 @@ from scm.plams import Settings, Units
 from ..io.read_prm import PRMContainer
 from ..io.read_psf import PSFContainer
 from ..functions.utils import read_rtf_file
+
+if hasattr(Settings, 'suppress_missing'):
+    Settings.supress_missing = Settings.suppress_missing
 
 __all__ = ['LJDataFrame']
 
@@ -79,10 +83,10 @@ class LJDataFrame(pd.DataFrame):
         super().__init__(0.0, index=index, columns=['charge', 'epsilon', 'sigma'])
 
         if callable(getattr(data, 'items', None)):
-            columns = set(self.columns)
+            column_set = set(self.columns)
             for k, v in data.items():
-                if k not in columns:
-                    raise KeyError(f"Invalid key {k!r}; allowed keys: {tuple(columns)}")
+                if k not in column_set:
+                    raise KeyError(f"Invalid key {k!r}; allowed keys: {tuple(column_set)}")
                 self[k] = v
 
         elif isinstance(data, abc.Iterable):
@@ -108,7 +112,7 @@ class LJDataFrame(pd.DataFrame):
     #: Map CP2K units to PLAMS units (see :class:`scm.plams.Units`).
     UNIT_MAPPING: Mapping[str, str] = MappingProxyType({'kcalmol': 'kcal/mol', 'kjmol': 'kj/mol'})
 
-    def overlay_cp2k_settings(self: pd.DataFrame, cp2k_settings: Mapping,
+    def overlay_cp2k_settings(self, cp2k_settings: Mapping,
                               psf: Optional[PSFContainer] = None) -> None:
         r"""Overlay **df** with all :math:`q`, :math:`\sigma` and :math:`\varepsilon` values from **cp2k_settings**."""  # noqa
         charge = cp2k_settings['input']['force_eval']['mm']['forcefield']['charge']
@@ -157,7 +161,8 @@ class LJDataFrame(pd.DataFrame):
         for unit, dct in sigma_s.items():
             self.set_sigma_pairs(dct, unit=unit)
 
-    def overlay_prm(self, prm: Union[str, PRMContainer], pairs14: bool = False) -> None:
+    def overlay_prm(self, prm: Union[str, bytes, PathLike, PRMContainer],
+                    pairs14: bool = False) -> None:
         r"""Overlay **df** with all :math:`\sigma` and :math:`\varepsilon` values from **prm**."""
         # In the .prm format nonbonded parameters are stored in columns 2 & 3
         # Explicit 1,4-nonbonded parameters are stored in columns 4 & 5
@@ -170,7 +175,7 @@ class LJDataFrame(pd.DataFrame):
             return None
 
         epsilon = nonbonded[i]
-        sigma = nonbonded[j] * 2  # The .prm format stores sigma / 2, not sigma
+        sigma = nonbonded[j] * 2  # The .prm format stores r_min / 2, not sigma
         sigma /= 2**(1/6)  # Convert r_min to sigma
         self.set_epsilon(epsilon, unit='kcal/mol')
         self.set_sigma(sigma, unit='angstrom')
@@ -188,12 +193,12 @@ class LJDataFrame(pd.DataFrame):
         self.set_epsilon_pairs(epsilon_pair, unit='kcal/mol')
         self.set_sigma_pairs(sigma_pair, unit='angstrom')
 
-    def overlay_rtf(self, rtf: str) -> None:
+    def overlay_rtf(self, rtf: Union[str, bytes, PathLike]) -> None:
         r"""Overlay **df** with all :math:`q` values from **rtf**."""
         charge_dict: Dict[str, float] = dict(zip(*read_rtf_file(rtf)))
         self.set_charge(charge_dict)
 
-    def overlay_psf(self, psf: Union[str, PSFContainer]) -> None:
+    def overlay_psf(self, psf: Union[str, bytes, PathLike, PSFContainer]) -> None:
         r"""Overlay **df** with all :math:`q` values from **psf**."""
         if not isinstance(psf, PSFContainer):
             psf = PSFContainer.read(psf)
