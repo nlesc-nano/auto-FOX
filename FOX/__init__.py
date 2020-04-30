@@ -13,6 +13,8 @@ https://auto-fox.readthedocs.io/en/latest/
 
 from os.path import join
 
+from scm.plams import Settings as _Settings
+
 from .__version__ import __version__
 
 from .functions import (
@@ -41,6 +43,9 @@ from .ff import (
 __author__ = "Bas van Beek"
 __email__ = 'b.f.van.beek@vu.nl'
 __version__ = __version__
+
+if hasattr(_Settings, 'suppress_missing'):
+    _Settings.supress_missing = _Settings.suppress_missing
 
 #: The path+filename of the example multi-xyz file.
 example_xyz: str = join(__path__[0], 'data', 'Cd68Se55_26COO_MD_trajec.xyz')

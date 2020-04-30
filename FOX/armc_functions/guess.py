@@ -155,7 +155,14 @@ def _transform_df(df: pd.DataFrame) -> pd.DataFrame:
 
 def _process_prm(armc: ARMC) -> pd.DataFrame:
     r"""Extract a DataFrame from a .prm file with all :math:`\varepsilon` and :math:`\sigma` values."""  # noqa
-    prm = PRMContainer.read(armc.md_settings[0].input.force_eval.mm.forcefield.parm_file_name)
+    filename = armc.md_settings[0].input.force_eval.mm.forcefield.parm_file_name
+    if not filename:
+        return pd.DataFrame(columns=['epsilon', 'sigma'], index=[[], []])
+
+    prm = PRMContainer.read(filename)
+    if prm.nonbonded is None:
+        return pd.DataFrame(columns=['epsilon', 'sigma'], index=[[], []])
+
     nonbonded = prm.nonbonded[[2, 3]].copy()
     nonbonded.columns = ['epsilon', 'sigma']  # kcal/mol and Angstrom
     nonbonded['sigma'] *= 2 / 2**(1/6)  # Conversion factor between (R / 2) and sigma
