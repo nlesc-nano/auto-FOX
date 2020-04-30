@@ -41,12 +41,12 @@ from scipy.spatial.distance import cdist
 from scm.plams import Molecule, Atom, Bond
 
 from .multi_mol_magic import _MultiMolecule
+from ..utils import group_by_values
 from ..type_hints import Literal
 from ..io.read_kf import read_kf
 from ..io.read_xyz import read_multi_xyz
 from ..functions.rdf import get_rdf, get_rdf_lowmem, get_rdf_df
 from ..functions.adf import get_adf, get_adf_df
-from ..functions.utils import group_by_values
 from ..functions.molecule_utils import fix_bond_orders, separate_mod
 
 try:

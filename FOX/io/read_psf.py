@@ -36,7 +36,7 @@ from scm.plams import Molecule, Atom, Bond
 from assertionlib.dataclass import AbstractDataClass
 
 from .file_container import AbstractFileContainer
-from ..functions.utils import read_str_file, read_rtf_file, group_by_values
+from ..utils import read_str_file, read_rtf_file, group_by_values
 from ..functions.molecule_utils import get_bonds, get_angles, get_dihedrals, get_impropers
 
 try:

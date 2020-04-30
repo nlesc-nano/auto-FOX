@@ -34,10 +34,9 @@ from scipy.spatial import cKDTree
 from scm.plams import Units
 
 from .lj_dataframe import LJDataFrame
-from ..functions.utils import fill_diagonal_blocks
-from ..classes.multi_mol import MultiMolecule
-from ..io.read_psf import PSFContainer
-from ..io.read_prm import PRMContainer
+from ..utils import fill_diagonal_blocks
+from ..classes import MultiMolecule
+from ..io import PSFContainer, PRMContainer
 
 __all__ = ['get_non_bonded', 'get_V', 'MAX_ARRAY_SIZE']
 

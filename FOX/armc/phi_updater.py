@@ -25,8 +25,8 @@ import numpy as np
 
 from assertionlib.dataclass import AbstractDataClass
 
+from ..utils import as_nd_array
 from ..type_hints import ArrayLike, ArrayLikeOrScalar, Scalar, DtypeLike, SupportsIndex
-from ..functions.utils import as_nd_array
 
 __all__ = ['PhiUpdater']
 

@@ -30,7 +30,7 @@ from itertools import islice, chain
 import numpy as np
 
 from ..type_hints import Literal
-from ..functions.utils import group_by_values
+from ..utils import group_by_values
 
 __all__ = ['read_multi_xyz']
 

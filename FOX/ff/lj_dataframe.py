@@ -29,9 +29,8 @@ import pandas as pd
 
 from scm.plams import Settings, Units
 
-from ..io.read_prm import PRMContainer
-from ..io.read_psf import PSFContainer
-from ..functions.utils import read_rtf_file
+from ..utils import read_rtf_file
+from ..io import PRMContainer, PSFContainer
 
 if hasattr(Settings, 'suppress_missing'):
     Settings.supress_missing = Settings.suppress_missing

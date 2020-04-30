@@ -35,9 +35,8 @@ from .lj_calculate import get_V_elstat, get_V_lj, _get_slice_iterator
 from .lj_dataframe import LJDataFrame
 from .bonded_calculate import _dist
 from .degree_of_separation import degree_of_separation
-from ..classes.multi_mol import MultiMolecule
-from ..io.read_psf import PSFContainer
-from ..io.read_prm import PRMContainer
+from ..classes import MultiMolecule
+from ..io import PSFContainer, PRMContainer
 
 __all__ = ['get_intra_non_bonded']
 

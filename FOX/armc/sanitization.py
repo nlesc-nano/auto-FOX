@@ -30,10 +30,10 @@ from .schemas import (
 )
 
 from ..type_hints import Literal, TypedDict
+from ..utils import get_atom_count, split_dict
 from ..io.read_psf import PSFContainer, overlay_str_file, overlay_rtf_file
 from ..classes import MultiMolecule
 from ..functions.molecule_utils import fix_bond_orders, residue_argsort
-from ..functions.utils import get_atom_count, split_dict
 from ..functions.charge_utils import assign_constraints
 
 if TYPE_CHECKING:

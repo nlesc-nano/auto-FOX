@@ -40,7 +40,7 @@ from ..type_hints import ArrayOrScalar
 if TYPE_CHECKING:
     from .package_manager import PackageManager
     from .param_mapping import ParamMapping
-    from ..classes.multi_mol import MultiMolecule
+    from ..classes import MultiMolecule
 else:
     from ..type_alias import PackageManager, ParamMapping, MultiMolecule
 
