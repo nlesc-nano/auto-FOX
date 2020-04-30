@@ -13,9 +13,9 @@ https://auto-fox.readthedocs.io/en/latest/
 
 from os.path import join
 
-from scm.plams import Settings
-if hasattr(Settings, 'suppress_missing'):
-    Settings.supress_missing = Settings.suppress_missing
+from scm.plams import Settings as _Settings
+if hasattr(_Settings, 'suppress_missing'):
+    _Settings.supress_missing = _Settings.suppress_missing
 
 from .__version__ import __version__
 
