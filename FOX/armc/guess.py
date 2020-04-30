@@ -6,16 +6,29 @@ A module with functions for guessing ARMC parameters.
 
 """
 
-import reprlib
-from typing import Union, Iterable, Mapping, Tuple, List, Collection, Optional, Dict, Set, TYPE_CHECKING, Sequence
+from functools import wraps
 from itertools import chain
+from typing import (
+    Union,
+    Type,
+    Callable,
+    TypeVar,
+    Iterable,
+    Mapping,
+    Tuple,
+    Optional,
+    Dict,
+    Set,
+    Sequence,
+    cast,
+    TYPE_CHECKING
+)
 
 import numpy as np  # type: ignore
 import pandas as pd  # type: ignore
 
-from qmflows.cp2k_utils import prm_to_df
-
 from ..type_hints import Literal
+from ..utils import prepend_exception
 from ..io import PSFContainer, PRMContainer
 from ..ff.lj_param import estimate_lj
 from ..ff.lj_uff import UFF_DF
@@ -25,12 +38,13 @@ from ..ff.lj_dataframe import LJDataFrame
 if TYPE_CHECKING:
     from os import PathLike
     from scm.plams import Settings  # type: ignore
-    from .armc import ARMC
     from ..classes import MultiMolecule
 else:
-    from ..type_alias import PathLike, Settings, ARMC, MultiMolecule
+    from ..type_alias import PathLike, Settings, MultiMolecule
 
 __all__ = ['guess_param']
+
+FT = TypeVar('FT', bound=Callable)
 
 Param = Literal['epsilon', 'sigma']
 Mode = Literal[
@@ -48,11 +62,48 @@ ION_SET = frozenset({'ionic_radius', 'ion_radius', 'ionic_radii', 'ion_radii'})
 CRYSTAL_SET = frozenset({'crystal_radius', 'crystal_radii'})
 
 
-def guess_param(mol_list: Sequence[MultiMolecule], settings: Settings,
-                mode: Mode = 'rdf', param: Param = 'epsilon',
+def guess_param(mol_list: Sequence[MultiMolecule], settings: Settings, param: Param,
+                mode: Mode = 'rdf',
                 prm: Union[None, str, bytes, PathLike, PRMContainer] = None,
                 psf_list: Optional[Sequence[Union[str, bytes, PathLike, PSFContainer]]] = None
                 ) -> Dict[Tuple[str, str], float]:
+    """Estimate all missing forcefield parameters.
+
+    Parameters
+    ----------
+    mol_list : :class:`~collections.abc.Sequence` [:class:`~FOX.MultiMolecule`]
+        A sequence of molecules.
+
+    settings : :class:`~scm.plams.core.settings.Settings`
+        The CP2K input settings.
+
+    param : :class:`str`
+        The to-be estimated parameter.
+        Accepted values are ``"epsilon"`` and ``"sigma"``.
+
+    mode : :class:`str`
+        The procedure for estimating the parameters.
+        Accepted values are ``"rdf"``, ``"uff"``, ``"crystal_radius"`` and ``"ion_radius"``.
+
+    prm : path-like_ or :class:`~FOX.PRMContainer`, optional
+        An optional .prm file.
+
+    psf_list : :class:`~collections.abc.Sequence` [path-like_ or :class:`~FOX.PSFContainer`], optional
+        An optional list of .psf files.
+
+    .. _`path-like`: https://docs.python.org/3/glossary.html#term-path-like-object
+
+    Returns
+    -------
+    :class:`dict` [:class:`tuple` [:class:`str`, :class:`str`], :class:`float`]
+        A dictionary with atom-pairs as keys and the estimated parameters as values.
+
+    """  # noqa: E501
+    # Validate param
+    param = param.lower()  # type: ignore
+    if param not in {'epsilon', 'sigma'}:
+        raise ValueError("Invalid 'param' value: {param!r:.100}")
+
     # Construct a set with all valid atoms types
     if psf_list is not None:
         for mol, p in zip(mol_list, psf_list):
@@ -123,6 +174,7 @@ def rdf(series: pd.Series, mol_list: Iterable[MultiMolecule]) -> None:
         series.update(guess[series.name], overwrite=False)
 
 
+@prepend_exception('No reference parameters available for atom type: ', exception=KeyError)
 def _set_radii(series: pd.Series,
                prm_mapping: Mapping[str, float],
                ref_mapping: Mapping[str, float]) -> None:
@@ -134,14 +186,14 @@ def _set_radii(series: pd.Series,
         raise ValueError(f"series.name: {series.name!r:.100}")
 
     for i, j in series.index:  # pd.MultiIndex
-        try:
+        if i in prm_mapping:
             value_i = prm_mapping[i]
-        except KeyError:
+        else:
             value_i = ref_mapping[i]
 
-        try:
+        if j in prm_mapping:
             value_j = prm_mapping[j]
-        except KeyError:
+        else:
             value_j = ref_mapping[j]
 
         series[i, j] = func(value_i, value_j)
