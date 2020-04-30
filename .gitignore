@@ -105,3 +105,4 @@ venv.bak/
 .DS_Store
 docs_out/
 .vscode/
+MM_MD_workdir*/
