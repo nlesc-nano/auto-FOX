@@ -109,6 +109,4 @@ venv.bak/
 
 # Visual Studio Code
 .vscode/
-
-# PLAMS / QMFlows
-MM_MD_workdir*
+MM_MD_workdir*/
