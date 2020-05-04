@@ -11,16 +11,17 @@ from itertools import chain
 from typing import (
     Union,
     Type,
-    Callable,
-    TypeVar,
     Iterable,
     Mapping,
     Tuple,
     Optional,
     Dict,
     Set,
-    Sequence,
+    Any,
+    Container,
+    NoReturn,
     cast,
+    overload,
     TYPE_CHECKING
 )
 
@@ -44,8 +45,6 @@ else:
 
 __all__ = ['guess_param']
 
-FT = TypeVar('FT', bound=Callable)
-
 Param = Literal['epsilon', 'sigma']
 Mode = Literal[
     'ionic_radius',
@@ -62,20 +61,33 @@ ION_SET = frozenset({'ionic_radius', 'ion_radius', 'ionic_radii', 'ion_radii'})
 CRYSTAL_SET = frozenset({'crystal_radius', 'crystal_radii'})
 
 
-def guess_param(mol_list: Sequence[MultiMolecule], settings: Settings, param: Param,
+def guess_param(mol_list: Iterable[MultiMolecule], param: Param,
                 mode: Mode = 'rdf',
+                cp2k_settings: Optional[Mapping] = None,
                 prm: Union[None, str, bytes, PathLike, PRMContainer] = None,
-                psf_list: Optional[Sequence[Union[str, bytes, PathLike, PSFContainer]]] = None
+                psf_list: Optional[Iterable[Union[str, bytes, PathLike, PSFContainer]]] = None
                 ) -> Dict[Tuple[str, str], float]:
     """Estimate all missing forcefield parameters.
 
+    Examples
+    --------
+    .. code:: python
+
+        >>> from FOX import MultiMolecule
+        >>> from FOX.armc import guess_Param
+
+        >>> mol_list = [MultiMolecule(...), ...]
+        >>> prm = str(...)
+        >>> psf_list = [str(...), ...]
+
+        >>> epsilon_dict = guess_Param(mol_list, 'epsilon', prm=prm, psf_list=psf_list)
+        >>> sigma_dict = guess_Param(mol_list, 'sigma', prm=prm, psf_list=psf_list)
+
+
     Parameters
     ----------
-    mol_list : :class:`~collections.abc.Sequence` [:class:`~FOX.MultiMolecule`]
-        A sequence of molecules.
-
-    settings : :class:`~scm.plams.core.settings.Settings`
-        The CP2K input settings.
+    mol_list : :class:`~collections.abc.Iterable` [:class:`~FOX.MultiMolecule`]
+        An iterable of molecules.
 
     param : :class:`str`
         The to-be estimated parameter.
@@ -85,10 +97,13 @@ def guess_param(mol_list: Sequence[MultiMolecule], settings: Settings, param: Pa
         The procedure for estimating the parameters.
         Accepted values are ``"rdf"``, ``"uff"``, ``"crystal_radius"`` and ``"ion_radius"``.
 
+    cp2k_settings : :class:`~collections.abc.Mapping`
+        The CP2K input settings.
+
     prm : path-like_ or :class:`~FOX.PRMContainer`, optional
         An optional .prm file.
 
-    psf_list : :class:`~collections.abc.Sequence` [path-like_ or :class:`~FOX.PSFContainer`], optional
+    psf_list : :class:`~collections.abc.Iterable` [path-like_ or :class:`~FOX.PSFContainer`], optional
         An optional list of .psf files.
 
     .. _`path-like`: https://docs.python.org/3/glossary.html#term-path-like-object
@@ -97,14 +112,15 @@ def guess_param(mol_list: Sequence[MultiMolecule], settings: Settings, param: Pa
     -------
     :class:`dict` [:class:`tuple` [:class:`str`, :class:`str`], :class:`float`]
         A dictionary with atom-pairs as keys and the estimated parameters as values.
+        Units are in kj/mol (``param="epsilon"``) or nm (``param="sigma"``).
 
     """  # noqa: E501
-    # Validate param
-    param = param.lower()  # type: ignore
-    if param not in {'epsilon', 'sigma'}:
-        raise ValueError("Invalid 'param' value: {param!r:.100}")
+    # Validate param and mode
+    param = _validate_arg(param, name='param', ref={'epsilon', 'sigma'})  # type: ignore
+    mode = _validate_arg(mode, name='mode', ref=ION_SET | CRYSTAL_SET)  # type: ignore
 
     # Construct a set with all valid atoms types
+    mol_list = [mol.copy() for mol in mol_list]
     if psf_list is not None:
         for mol, p in zip(mol_list, psf_list):
             psf: PSFContainer = PSFContainer.read(p) if not isinstance(p, PSFContainer) else p
@@ -113,19 +129,51 @@ def guess_param(mol_list: Sequence[MultiMolecule], settings: Settings, param: Pa
 
     # Construct a DataFrame and update it with all available parameters
     df = LJDataFrame(np.nan, index=atoms)
-    df.overlay_cp2k_settings(settings)
+    if cp2k_settings is not None:
+        df.overlay_cp2k_settings(cp2k_settings)
     if prm is not None:
         prm_: PRMContainer = prm if isinstance(prm, PRMContainer) else PRMContainer.read(prm)
         df.overlay_prm(prm_)
-        prm_dict = _process_prm(prm_, param=param)
+        prm_dict = _nb_from_prm(prm_, param=param)
     else:
         prm_dict = {}
 
     # Extract the relevant parameter Series
     _series = df[param]
     series = _series[~_series.isnull()]
+    return _guess_param(series, mode, mol_list=mol_list, prm_dict=prm_dict)  # type: ignore
 
-    mode = mode.lower()  # type: ignore
+
+def _validate_arg(value: str, name: str, ref: Container[str]) -> str:
+    """Check if **value** is in **ref**.
+
+    Returns
+    -------
+    :class:`str`
+        The lowered version of **value**.
+
+    """
+    try:
+        ret = value.lower()
+        assert ret in ref
+    except (TypeError, AttributeError) as ex:
+        raise TypeError(f"Invalid {name!r} type: {value.__class__.__name__!r}") from ex
+    except AssertionError:
+        raise ValueError(f"Invalid {name!r} value: {value!r:.100}") from ex
+    return ret
+
+
+def _guess_param(series: pd.Series, mode: Mode,
+                 mol_list: Iterable[MultiMolecule],
+                 prm_dict: Mapping[str, float]) -> Dict[Tuple[str, str], float]:
+    """Perform the parameter guessing as specified by **mode**
+
+    Returns
+    -------
+    :class:`dict`
+        A dictionary with atom-pairs as keys (2-tuples) and the estimated parameters as values.
+
+    """
     if mode == 'rdf':
         rdf(series, mol_list)
     elif mode == 'uff':
@@ -134,9 +182,6 @@ def guess_param(mol_list: Sequence[MultiMolecule], settings: Settings, param: Pa
         ion_radius(series, prm_dict)
     elif mode in CRYSTAL_SET:
         crystal_radius(series, prm_dict)
-    else:
-        raise ValueError(f"'mode' is of invalid value: {mode!r:.100};\naccepted values: "
-                         "'rdf', 'uff', 'crystal_radius' and 'ion_radius'")
     return series.as_dict()
 
 
@@ -199,7 +244,7 @@ def _set_radii(series: pd.Series,
         series[i, j] = func(value_i, value_j)
 
 
-def _process_prm(prm: PRMContainer, param: Param) -> Dict[str, float]:
+def _nb_from_prm(prm: PRMContainer, param: Param) -> Dict[str, float]:
     r"""Extract a dict from **prm** with all :math:`\varepsilon` or :math:`\sigma` values."""
     if prm.nonbonded is None:
         return {}
