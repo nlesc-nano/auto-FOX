@@ -1396,7 +1396,7 @@ class MultiMolecule(_MultiMolecule):
         value_gen = combinations_with_replacement(value_iter, r)
 
         ret = {}
-        iterator = ((permutations(_k), permutations(_v)) for k, v in zip(key_gen, value_gen))
+        iterator = ((permutations(k), permutations(v)) for k, v in zip(key_gen, value_gen))
         for kv in iterator:
             for k, v in kv:
                 if not (k in ret or k[::-1] in ret):
