@@ -18,7 +18,7 @@ API
 
 import sys
 from abc import abstractmethod
-from typing import Sequence, Union, Type, Tuple, List, Dict, Iterable, TYPE_CHECKING
+from typing import Sequence, Union, Type, Tuple, List, Dict, Iterable, Any, TYPE_CHECKING
 
 import numpy as np
 from pandas.core.generic import NDFrame
