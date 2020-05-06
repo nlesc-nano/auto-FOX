@@ -20,9 +20,12 @@ API
 """
 
 import copy
+import warnings
 from os import PathLike
 from collections import abc
-from itertools import chain, combinations_with_replacement, zip_longest, islice, repeat
+from itertools import (
+    chain, combinations_with_replacement, zip_longest, islice, repeat, permutations
+)
 from typing import (
     Sequence, Optional, Union, List, Hashable, Callable, Iterable, Dict, Tuple, Any, Mapping,
     AnyStr
@@ -49,7 +52,12 @@ try:
     import dask
     DASK_EX: Optional[Exception] = None
 except Exception as ex:
-    DASK_EX: Optional[Exception] = ex
+    DASK_EX = ex
+
+    _warn = ImportWarning(str(ex))
+    _warn.__cause__ = ex
+    warnings.warn(_warn)
+    del _warn
 
 __all__ = ['MultiMolecule']
 
@@ -1386,7 +1394,14 @@ class MultiMolecule(_MultiMolecule):
 
         key_gen = combinations_with_replacement(key_iter, r)
         value_gen = combinations_with_replacement(value_iter, r)
-        return {' '.join(str(i) for i in k): v for k, v in zip(key_gen, value_gen)}
+
+        ret = {}
+        iterator = ((permutations(_k), permutations(_v)) for k, v in zip(key_gen, value_gen))
+        for kv in iterator:
+            for k, v in kv:
+                if not (k in ret or k[::-1] in ret):
+                    ret[k] = v
+        return {' '.join(i for i in k): v for k, v in ret.items()}
 
     """####################################  Power spectrum  ###################################"""
 
