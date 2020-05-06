@@ -27,7 +27,7 @@ import itertools
 import warnings
 from types import MappingProxyType
 from typing import (
-    Dict, Optional, List, Any, Callable, Union, Mapping, Iterable, NoReturn, TypeVar, cast
+    Dict, Optional, List, Any, Callable, Union, Mapping, Iterable, NoReturn, TypeVar, Type, cast
 )
 
 import numpy as np
@@ -119,7 +119,7 @@ class LocGetter(AbstractDataClass):
         try:
             return self.mol[..., idx, :]
         except IndexError as ex:
-            raise ValueError(self._VALUE_ERR.format(self.mol.ndim)).with_traceback(ex.__traceback__)
+            raise ValueError(self._VALUE_ERR.format(self.mol.ndim)) from ex
 
     def __setitem__(self, key: Union[str, Iterable[str]], value: _MultiMolecule) -> None:
         """Set items in :attr:`AtGetter.mol`."""
@@ -127,7 +127,7 @@ class LocGetter(AbstractDataClass):
         try:
             self.mol[..., idx, :] = value
         except IndexError as ex:
-            raise ValueError(self._VALUE_ERR.format(self.mol.ndim)).with_traceback(ex.__traceback__)
+            raise ValueError(self._VALUE_ERR.format(self.mol.ndim)) from ex
 
     def __delitem__(self, key: Union[str, Iterable[str]]) -> NoReturn:
         """Delete items from :attr:`AtGetter.mol`, thus raising a :exc:`ValueError`."""
@@ -156,7 +156,7 @@ class LocGetter(AbstractDataClass):
             key_iterator = iter(key)
         except TypeError as ex:  # **key** is neither a string nor an iterable of strings
             cls_name = key.__class__.__name__
-            raise TypeError(self._TYPE_ERR.format(cls_name)).with_traceback(ex.__traceback__)
+            raise TypeError(self._TYPE_ERR.format(cls_name)) from ex
 
         # Gather all indices and flatten them
         idx: List[int] = []
@@ -183,7 +183,6 @@ class _MultiMolecule(np.ndarray):
     _atoms: IdxDict
     _bonds: np.ndarray
     _ndrepr: NDRepr
-    properties: Settings
 
     def __new__(cls: Type[MT], coords: np.ndarray,
                 atoms: Optional[IdxDict] = None,
