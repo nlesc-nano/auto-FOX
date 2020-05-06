@@ -18,15 +18,24 @@ API
 
 import sys
 from abc import abstractmethod
-from typing import Sequence, Union, Type, Tuple, List, Dict, Iterable, Any, TYPE_CHECKING
+from typing import Sequence, Union, Type, Any, TYPE_CHECKING
 
 import numpy as np
 from pandas.core.generic import NDFrame
 
 if sys.version_info >= (3, 8):
-    from typing import Literal, TypedDict
+    from typing import Literal, TypedDict, SupportsIndex
 else:
-    from typing_extensions import Literal, TypedDict
+    from typing_extensions import Literal, TypedDict, Protocol, runtime_checkable
+
+    @runtime_checkable
+    class SupportsIndex(Protocol):
+        """An ABC with one abstract method __index__."""
+        __slots__ = ()
+
+        @abstractmethod
+        def __index__(self) -> int:
+            pass
 
 if TYPE_CHECKING:
     from numpy import DtypeLike, SupportsArray

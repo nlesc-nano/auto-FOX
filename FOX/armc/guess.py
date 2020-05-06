@@ -28,9 +28,9 @@ from typing import (
 import numpy as np  # type: ignore
 import pandas as pd  # type: ignore
 
-from ..type_hints import Literal
-from ..utils import prepend_exception
 from ..io import PSFContainer, PRMContainer
+from ..utils import prepend_exception
+from ..type_hints import Literal
 from ..ff.lj_param import estimate_lj
 from ..ff.lj_uff import UFF_DF
 from ..ff.shannon_radii import SIGMA_DF
@@ -38,10 +38,9 @@ from ..ff.lj_dataframe import LJDataFrame
 
 if TYPE_CHECKING:
     from os import PathLike
-    from scm.plams import Settings  # type: ignore
     from ..classes import MultiMolecule
 else:
-    from ..type_alias import PathLike, Settings, MultiMolecule
+    from ..type_alias import PathLike, MultiMolecule
 
 __all__ = ['guess_param']
 
@@ -57,8 +56,19 @@ Mode = Literal[
     'crystal_radii'
 ]
 
-ION_SET = frozenset({'ionic_radius', 'ion_radius', 'ionic_radii', 'ion_radii'})
-CRYSTAL_SET = frozenset({'crystal_radius', 'crystal_radii'})
+ION_SET = frozenset({
+    'ionic_radius',
+    'ion_radius',
+    'ionic_radii',
+    'ion_radii'
+})
+
+CRYSTAL_SET = frozenset({
+    'crystal_radius',
+    'crystal_radii'
+})
+
+MODE_SET = frozenset({'rdf', 'uff'}) | ION_SET | CRYSTAL_SET
 
 
 def guess_param(mol_list: Iterable[MultiMolecule], param: Param,
@@ -117,7 +127,7 @@ def guess_param(mol_list: Iterable[MultiMolecule], param: Param,
     """  # noqa: E501
     # Validate param and mode
     param = _validate_arg(param, name='param', ref={'epsilon', 'sigma'})  # type: ignore
-    mode = _validate_arg(mode, name='mode', ref=ION_SET | CRYSTAL_SET)  # type: ignore
+    mode = _validate_arg(mode, name='mode', ref=MODE_SET)  # type: ignore
 
     # Construct a set with all valid atoms types
     mol_list = [mol.copy() for mol in mol_list]
@@ -158,14 +168,14 @@ def _validate_arg(value: str, name: str, ref: Container[str]) -> str:
         assert ret in ref
     except (TypeError, AttributeError) as ex:
         raise TypeError(f"Invalid {name!r} type: {value.__class__.__name__!r}") from ex
-    except AssertionError:
+    except AssertionError as ex:
         raise ValueError(f"Invalid {name!r} value: {value!r:.100}") from ex
     return ret
 
 
 def _guess_param(series: pd.Series, mode: Mode,
                  mol_list: Iterable[MultiMolecule],
-                 prm_dict: Mapping[str, float]) -> Dict[Tuple[str, str], float]:
+                 prm_dict: Mapping[str, float]) -> pd.Series:
     """Perform the parameter guessing as specified by **mode**
 
     Returns
@@ -182,7 +192,7 @@ def _guess_param(series: pd.Series, mode: Mode,
         ion_radius(series, prm_dict)
     elif mode in CRYSTAL_SET:
         crystal_radius(series, prm_dict)
-    return series.as_dict()
+    return series
 
 
 def uff(series: pd.Series, prm_mapping: Mapping[str, float]) -> None:
@@ -216,7 +226,8 @@ def rdf(series: pd.Series, mol_list: Iterable[MultiMolecule]) -> None:
     for rdf in rdf_gen:
         guess = estimate_lj(rdf)
         guess.index = pd.MultiIndex.from_tuples(sorted(i.split()) for i in guess.index)
-        series.update(guess[series.name], overwrite=False)
+        guess.loc[series.index] = np.nan
+        series.update(guess[series.name])
 
 
 @prepend_exception('No reference parameters available for atom type: ', exception=KeyError)
@@ -251,4 +262,4 @@ def _nb_from_prm(prm: PRMContainer, param: Param) -> Dict[str, float]:
     nonbonded = prm.nonbonded[[2, 3]].copy()
     nonbonded.columns = ['epsilon', 'sigma']  # kcal/mol and Angstrom
     nonbonded['sigma'] *= 2 / 2**(1/6)  # Conversion factor between (R / 2) and sigma
-    return nonbonded[param].as_dict()
+    return nonbonded[param].to_dict()

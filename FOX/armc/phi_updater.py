@@ -183,7 +183,7 @@ class PhiUpdaterABC(AbstractDataClass, ABC, Sized):
         return len(self.phi)
 
     def __call__(self, value: ArrayLikeOrScalar, *,
-                 idx: Union[SupportsIndex] = None,
+                 idx: Optional[SupportsIndex] = None,
                  dtype: DtypeLike = float) -> np.ndarray:
         """Pass **value** and :attr:`phi` to :attr:`func`.
 
