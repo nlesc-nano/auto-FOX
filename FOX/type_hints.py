@@ -31,7 +31,7 @@ else:
     @runtime_checkable
     class SupportsIndex(Protocol):
         """An ABC with one abstract method __index__."""
-        __slots__ = ()
+        __slots__ = ()  # type: ignore
 
         @abstractmethod
         def __index__(self) -> int:
