@@ -19,7 +19,7 @@ API
 import logging
 from typing import Optional, Type, Any, Callable
 
-__all__ = ['get_logger', 'Plams2Logger']
+__all__ = ['get_logger', 'Plams2Logger', 'DEFAULT_LOGGER']
 
 
 def get_logger(name: str,
@@ -163,3 +163,7 @@ class Plams2Logger:
     def flush(self) -> None:
         """Dummy method for ensuring this instances' compatibility as a pseudo-filelike object."""
         return None
+
+
+#: The default Auto-FOX :class:`~logging.Logger`.
+DEFAULT_LOGGER = get_logger('FOX', handler_type=logging.StreamHandler)

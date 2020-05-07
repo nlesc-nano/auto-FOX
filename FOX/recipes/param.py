@@ -126,15 +126,17 @@ API
 from typing import Dict, Union, Iterable, Any, FrozenSet, Tuple, Iterator, Hashable, Optional
 from collections import abc
 
+import numpy as np
 import pandas as pd
+from pandas.core.generic import NDFrame
 
 try:
     import matplotlib.pyplot as plt
     PltFigure: Union[type, str] = plt.Figure
     PLT_ERROR: Optional[str] = None
 except ImportError:
-    PltFigure: Union[type, str] = 'matplotlib.pyplot.Figure'
-    PLT_ERROR: Optional[str] = (
+    PltFigure = 'matplotlib.pyplot.Figure'
+    PLT_ERROR = (
         "Use of the FOX.{} function requires the 'matplotlib' package."
         "\n'matplotlib' can be installed via PyPi with the following command:"
         "\n\tpip install matplotlib"
@@ -144,17 +146,17 @@ try:
     import h5py
     H5PY_ERROR: Optional[str] = None
 except ImportError:
-    H5PY_ERROR: Optional[str] = (
+    H5PY_ERROR = (
         "Use of the FOX.{} function requires the 'h5py' package."
         "\n'h5py' can be installed via conda with the following command:"
         "\n\tconda install -n FOX -c conda-forge h5py"
     )
 
 from FOX import from_hdf5, assert_error
+from FOX.logger import DEFAULT_LOGGER as logger
 
 __all__ = ['get_best', 'overlay_descriptor', 'plot_descriptor']
 
-NDFrame: type = pd.DataFrame.__bases__[0]  # Superclass of pd.DataFrame & pd.Series
 PlotAccessor: type = pd.DataFrame.plot  # A class used by Pandas for plotting stuff
 
 
@@ -186,6 +188,7 @@ def get_best(hdf5_file: str, name: str = 'rdf', i: int = 0) -> pd.DataFrame:
     with h5py.File(hdf5_file, 'r', libver='latest') as f:
         if full_name not in f.keys():  # i.e. if **name** does not belong to a PE descriptor
             full_name = name
+        shape = f['aux_error'].shape[:2]
 
     # Load the DataFrames
     if full_name == 'aux_error':
@@ -196,6 +199,8 @@ def get_best(hdf5_file: str, name: str = 'rdf', i: int = 0) -> pd.DataFrame:
 
     # Return the best DataFrame (or Series)
     j: int = aux_error.sum(axis=1, skipna=False).idxmin()
+    logger.debug(f"Optimum ARMC cycle: {np.unravel_index(j, shape)}")
+
     df = prop[j] if not isinstance(prop, NDFrame) else prop.iloc[j]
     if isinstance(df, pd.DataFrame):
         df.columns.name = full_name
@@ -204,6 +209,7 @@ def get_best(hdf5_file: str, name: str = 'rdf', i: int = 0) -> pd.DataFrame:
     return df
 
 
+@assert_error(H5PY_ERROR)
 def overlay_descriptor(hdf5_file: str, name: str = 'rdf', i: int = 0) -> Dict[str, pd.DataFrame]:
     """Return the PES descriptor which yields the lowest error and overlay it with the reference PES descriptor.
 
@@ -227,12 +233,16 @@ def overlay_descriptor(hdf5_file: str, name: str = 'rdf', i: int = 0) -> Dict[st
         Atom pairs, such as ``"Cd Cd"``, are used as keys.
 
     """  # noqa
+    with h5py.File(hdf5_file, 'r', libver='latest') as f:
+        shape = f['aux_error'].shape[:2]
+
     mm_name = f'{name}.{i}'
     qm_name = f'{name}.{i}.ref'
     hdf5_dict = from_hdf5(hdf5_file, ['aux_error', mm_name, qm_name])
     aux_error, mm, qm = hdf5_dict['aux_error'], hdf5_dict[mm_name], hdf5_dict[qm_name]
 
     j: int = aux_error.sum(axis=1, skipna=False).idxmin()
+    logger.debug(f"Optimum ARMC cycle: {np.unravel_index(j, shape)}")
     mm = mm[j]
     qm = qm[0]
 
