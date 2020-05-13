@@ -28,7 +28,7 @@ from typing import (
 import numpy as np
 
 from .type_hints import Literal
-from .functions.utils import get_importable
+from .utils import get_importable
 
 __all__ = ['Default', 'Formatter', 'supports_float', 'supports_int',
            'isinstance_factory', 'issubclass_factory', 'import_factory']

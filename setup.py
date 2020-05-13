@@ -56,7 +56,8 @@ setup(
         'data/*.yaml',
         'armc_functions/*.png',
         'data/*.csv',
-        'py.typed'
+        'py.typed',
+        '*.pyi'
     ]},
     include_package_data=True,
     entry_points={'console_scripts': [

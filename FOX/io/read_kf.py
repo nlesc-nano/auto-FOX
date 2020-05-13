@@ -24,7 +24,7 @@ import numpy as np
 
 from scm.plams import KFReader
 
-from ..functions.utils import group_by_values
+from ..utils import group_by_values
 
 __all__ = ['read_kf']
 

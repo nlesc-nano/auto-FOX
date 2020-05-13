@@ -24,13 +24,13 @@ from typing import Optional, Iterable, Union, Hashable
 
 import pandas as pd
 
+from ..functions import assert_error
 from ..io.hdf5_utils import from_hdf5
-from ..functions.utils import assert_error
 
 try:
     import matplotlib.pyplot as plt
     from matplotlib.pyplot import Figure
-    PLT_ERROR = None
+    PLT_ERROR: Optional[str] = None
 except ImportError:
     from ..type_alias import Figure
     PLT_ERROR = ("Use of the FOX.{} function requires the 'matplotlib' package."

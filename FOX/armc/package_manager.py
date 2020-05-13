@@ -19,7 +19,7 @@ from qmflows import Settings as QmSettings
 from qmflows.cp2k_utils import prm_to_df
 from noodles import gather, schedule, has_scheduled_methods, run_parallel
 
-from ..classes.multi_mol import MultiMolecule
+from ..classes import MultiMolecule
 from ..functions.cp2k_utils import get_xyz_path
 from ..logger import DummyLogger
 from ..type_hints import TypedDict

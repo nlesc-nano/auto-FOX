@@ -17,7 +17,7 @@ from scm.plams import Settings as _Settings
 
 from .__version__ import __version__
 
-from .functions import (
+from .utils import (
     assert_error, get_example_xyz, group_by_values
 )
 

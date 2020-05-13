@@ -25,8 +25,8 @@ import numpy as np
 
 from assertionlib.dataclass import AbstractDataClass
 
+from ..utils import as_nd_array
 from ..type_hints import ArrayLike, ArrayLikeOrScalar, Scalar, DtypeLike, SupportsIndex
-from ..functions.utils import as_nd_array
 
 __all__ = ['PhiUpdater']
 
@@ -183,7 +183,7 @@ class PhiUpdaterABC(AbstractDataClass, ABC, Sized):
         return len(self.phi)
 
     def __call__(self, value: ArrayLikeOrScalar, *,
-                 idx: Union[SupportsIndex] = None,
+                 idx: Optional[SupportsIndex] = None,
                  dtype: DtypeLike = float) -> np.ndarray:
         """Pass **value** and :attr:`phi` to :attr:`func`.
 

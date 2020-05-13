@@ -44,12 +44,12 @@ import pandas as pd
 from scm.plams import Settings
 
 from ..__version__ import __version__
-from ..functions.utils import get_shape, array_to_index, group_by_values
+from ..utils import get_shape, array_to_index, group_by_values
 
 if TYPE_CHECKING:
     from pandas.core.generic import NDFrame
-    from ..classes.multi_mol import MultiMolecule
-    from ..armc.armc import ARMC
+    from ..classes import MultiMolecule
+    from ..armc import ARMC
     from h5py import File
 else:
     from ..type_alias import File, NDFrame, MultiMolecule, ARMC

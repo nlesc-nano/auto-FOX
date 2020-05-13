@@ -18,19 +18,23 @@ API
 """
 
 import textwrap
+from os import PathLike
 from types import MappingProxyType
-from typing import Union, Iterable, Mapping, Dict, Tuple, Callable, Optional
+from typing import Union, Iterable, Mapping, Dict, Tuple, Callable, Optional, MutableMapping, Any
 from itertools import combinations_with_replacement, chain, product
 from collections import abc
 
 import numpy as np
 import pandas as pd
 
+from qmflows.cp2k_utils import prm_to_df
 from scm.plams import Settings, Units
 
-from ..io.read_prm import PRMContainer
-from ..io.read_psf import PSFContainer
-from ..functions.utils import read_rtf_file
+from ..utils import read_rtf_file
+from ..io import PRMContainer, PSFContainer
+
+if hasattr(Settings, 'suppress_missing'):
+    Settings.supress_missing = Settings.suppress_missing
 
 __all__ = ['LJDataFrame']
 
@@ -79,10 +83,10 @@ class LJDataFrame(pd.DataFrame):
         super().__init__(0.0, index=index, columns=['charge', 'epsilon', 'sigma'])
 
         if callable(getattr(data, 'items', None)):
-            columns = set(self.columns)
+            column_set = set(self.columns)
             for k, v in data.items():
-                if k not in columns:
-                    raise KeyError(f"Invalid key {k!r}; allowed keys: {tuple(columns)}")
+                if k not in column_set:
+                    raise KeyError(f"Invalid key {k!r}; allowed keys: {tuple(column_set)}")
                 self[k] = v
 
         elif isinstance(data, abc.Iterable):
@@ -108,7 +112,7 @@ class LJDataFrame(pd.DataFrame):
     #: Map CP2K units to PLAMS units (see :class:`scm.plams.Units`).
     UNIT_MAPPING: Mapping[str, str] = MappingProxyType({'kcalmol': 'kcal/mol', 'kjmol': 'kj/mol'})
 
-    def overlay_cp2k_settings(self: pd.DataFrame, cp2k_settings: Mapping,
+    def overlay_cp2k_settings(self, cp2k_settings: MutableMapping,
                               psf: Optional[PSFContainer] = None) -> None:
         r"""Overlay **df** with all :math:`q`, :math:`\sigma` and :math:`\varepsilon` values from **cp2k_settings**."""  # noqa
         charge = cp2k_settings['input']['force_eval']['mm']['forcefield']['charge']
@@ -120,9 +124,27 @@ class LJDataFrame(pd.DataFrame):
                 if k not in charge_dict:
                     charge_dict[k] = v
 
-        lj = cp2k_settings['input']['force_eval']['mm']['forcefield']['nonbonded']['lennard-jones']  # noqa
         epsilon_s = Settings()
         sigma_s = Settings()
+
+        # Check if the settings are qmflows-style generic settings
+        lj = cp2k_settings.get('lennard-jones') or cp2k_settings.get('lennard_jones')
+        if lj is not None:
+            self._overlay_s_qmflows(cp2k_settings, sigma_s, epsilon_s)
+        else:
+            lj = cp2k_settings['input']['force_eval']['mm']['forcefield']['nonbonded']['lennard-jones']  # noqa
+            self._overlay_s_plams(lj, sigma_s, epsilon_s)
+
+        self.set_charge(charge_dict)
+        for unit, dct in epsilon_s.items():
+            self.set_epsilon_pairs(dct, unit=unit)
+        for unit, dct in sigma_s.items():
+            self.set_sigma_pairs(dct, unit=unit)
+
+    def _overlay_s_plams(self, lj: Iterable[Mapping],
+                         sigma_dict: MutableMapping,
+                         epsilon_dict: MutableMapping) -> None:
+        """Extract PLAMS-style settings from **lj** and put them in **sigma_dict** and **epsilon_dict**."""  # noqa: E501
         for block in lj:
             with Settings.supress_missing():
                 atoms = tuple(block['atoms'].split())
@@ -144,20 +166,41 @@ class LJDataFrame(pd.DataFrame):
             if sigma is not None:
                 unit_sigma = unit_sigma[1:-1]
                 unit_sigma = self.UNIT_MAPPING.get(unit_sigma, unit_sigma)
-                sigma_s[unit_sigma][atoms] = float(sigma)
+                sigma_dict[unit_sigma][atoms] = float(sigma)
 
             if epsilon is not None:
                 unit_eps = unit_eps[1:-1]
                 unit_eps = self.UNIT_MAPPING.get(unit_eps, unit_eps)
-                epsilon_s[unit_eps][atoms] = float(epsilon)
+                epsilon_dict[unit_eps][atoms] = float(epsilon)
 
-        self.set_charge(charge_dict)
-        for unit, dct in epsilon_s.items():
-            self.set_epsilon_pairs(dct, unit=unit)
-        for unit, dct in sigma_s.items():
-            self.set_sigma_pairs(dct, unit=unit)
+    def _overlay_s_qmflows(self, lj: MutableMapping[str, Any],
+                           sigma_dict: MutableMapping,
+                           epsilon_dict: MutableMapping) -> None:
+        """Extract QMFlows-style settings from **lj** and put them in **sigma_dict** and **epsilon_dict**."""  # noqa: E501
+        lj = lj.copy()
+        prm_to_df(lj)
 
-    def overlay_prm(self, prm: Union[str, PRMContainer], pairs14: bool = False) -> None:
+        if 'lennard_jones' in lj:
+            df = lj['lennard_jones']
+        else:
+            df = lj['lennard-jones']
+
+        param_set = set(df.pop('param').values)
+        try:
+            unit_mapping = df.pop('unit')
+        except KeyError:
+            unit_mapping = {'sigma': None, 'epsilon': None}
+        df = df.T
+
+        if 'sigma' in param_set:
+            unit_sigma = unit_mapping['sigma']
+            sigma_dict[unit_sigma] = df.loc['sigma'].as_dict()
+        if 'epsilon' in param_set:
+            unit_eps = unit_mapping['epsilon']
+            epsilon_dict[unit_eps] = df.loc['epsilon'].as_dict()
+
+    def overlay_prm(self, prm: Union[str, bytes, PathLike, PRMContainer],
+                    pairs14: bool = False) -> None:
         r"""Overlay **df** with all :math:`\sigma` and :math:`\varepsilon` values from **prm**."""
         # In the .prm format nonbonded parameters are stored in columns 2 & 3
         # Explicit 1,4-nonbonded parameters are stored in columns 4 & 5
@@ -170,7 +213,7 @@ class LJDataFrame(pd.DataFrame):
             return None
 
         epsilon = nonbonded[i]
-        sigma = nonbonded[j] * 2  # The .prm format stores sigma / 2, not sigma
+        sigma = nonbonded[j] * 2  # The .prm format stores r_min / 2, not sigma
         sigma /= 2**(1/6)  # Convert r_min to sigma
         self.set_epsilon(epsilon, unit='kcal/mol')
         self.set_sigma(sigma, unit='angstrom')
@@ -188,12 +231,12 @@ class LJDataFrame(pd.DataFrame):
         self.set_epsilon_pairs(epsilon_pair, unit='kcal/mol')
         self.set_sigma_pairs(sigma_pair, unit='angstrom')
 
-    def overlay_rtf(self, rtf: str) -> None:
+    def overlay_rtf(self, rtf: Union[str, bytes, PathLike]) -> None:
         r"""Overlay **df** with all :math:`q` values from **rtf**."""
         charge_dict: Dict[str, float] = dict(zip(*read_rtf_file(rtf)))
         self.set_charge(charge_dict)
 
-    def overlay_psf(self, psf: Union[str, PSFContainer]) -> None:
+    def overlay_psf(self, psf: Union[str, bytes, PathLike, PSFContainer]) -> None:
         r"""Overlay **df** with all :math:`q` values from **psf**."""
         if not isinstance(psf, PSFContainer):
             psf = PSFContainer.read(psf)
@@ -249,7 +292,7 @@ class LJDataFrame(pd.DataFrame):
         unit2au = 1 if unit is None else Units.conversion_ratio(unit, 'au')
         atom_pairs = combinations_with_replacement(sorted(atom_mapping.keys()), 2)
         for at1, at2 in atom_pairs:
-            value = func([atom_mapping[at1], atom_mapping[at2]])
+            value = func((atom_mapping[at1], atom_mapping[at2]))
             value *= unit2au
             self.at[(at1, at2), key] = value
 

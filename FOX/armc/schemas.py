@@ -38,7 +38,7 @@ from .phi_updater import PhiUpdater, PhiUpdaterABC
 from .param_mapping import ParamMapping, ParamMappingABC
 from ..type_hints import SupportsArray, Scalar, TypedDict, ArrayLikeOrScalar
 from ..classes import MultiMolecule
-from ..functions.utils import _get_move_range, as_nd_array
+from ..utils import _get_move_range, as_nd_array
 from ..schema_utils import (
     Default, Formatter, supports_int, isinstance_factory, issubclass_factory, import_factory
 )

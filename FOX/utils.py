@@ -4,36 +4,38 @@ import reprlib
 import warnings
 import importlib
 from os import PathLike
-from os.path import join, isfile
+from os.path import join
 from functools import wraps
 from collections import abc
 from pkg_resources import resource_filename
 from typing import (
-    Iterable, Tuple, Callable, Hashable, Sequence, Optional, List, Any, TypeVar, Dict,
-    Type, Mapping, Union, MutableMapping, TYPE_CHECKING, AnyStr, Container
+    Iterable, Tuple, Callable, Hashable, Sequence, Optional, List, TypeVar, Dict,
+    Type, Mapping, Union, MutableMapping, TYPE_CHECKING, AnyStr, Container, cast
 )
 
-import yaml
 import numpy as np
 import pandas as pd
 
-from scm.plams import Settings, add_to_class
+from scm.plams import add_to_class  # type: ignore
 
-from ..type_hints import Scalar, SupportsArray, DtypeLike
+from .type_hints import Scalar, SupportsArray, DtypeLike
 
 if TYPE_CHECKING:
-    from ..classes import MultiMolecule
+    from .classes import MultiMolecule
 else:
     MultiMolecule = 'FOX.classes.multi_Mol.MultiMolecule'
 
 __all__ = ['get_example_xyz', 'as_nd_array']
 
-KT = TypeVar('KT', bound=Hashable)
-VT = TypeVar('VT')
 T = TypeVar('T')
+VT = TypeVar('VT')
+KT = TypeVar('KT', bound=Hashable)
+FT = TypeVar('FT', bound=Callable)
+
+ExcType = Union[Type[Exception], Tuple[Type[Exception], ...]]
 
 
-def append_docstring(item: Callable[..., T]) -> Callable[..., T]:
+def append_docstring(func: Callable) -> Callable[[FT], FT]:
     r"""A decorator for appending the docstring of a Callable one provided by another Callable.
 
     Examples
@@ -63,13 +65,53 @@ def append_docstring(item: Callable[..., T]) -> Callable[..., T]:
         A decorated callable.
 
     """
-    def decorator(func):
+    def _decorator(func_new: FT) -> FT:
         try:
-            func.__doc__ += item.__doc__
+            func_new.__doc__ += func.__doc__
         except TypeError:
-            func.__doc__ = item.__doc__
-        return func
-    return decorator
+            func_new.__doc__ = func.__doc__
+        return func_new
+    return _decorator
+
+
+def get_shape(item: Iterable) -> Tuple[int]:
+    """Try to infer the shape of an object.
+
+    Examples
+    --------
+    .. code:: python
+
+        >>> item = np.random.rand(10, 10, 10)
+        >>> shape = get_shape(item)
+        >>> print(shape)
+        (10, 10, 10)
+
+        >>> item = ['a', 'b', 'c', 'd', 'e']
+        >>> shape = get_shape(item)
+        >>> print(shape)
+        (5,)
+
+        >>> item = None
+        >>> shape = get_shape(item)
+        >>> print(shape)
+        (1,)
+
+    Parameters
+    ----------
+    item : object
+        A python object.
+
+    Returns
+    -------
+    |tuple|_ [|int|_]:
+        The shape of **item**.
+
+    """
+    if hasattr(item, 'shape'):  # Plan A: **item** is an np.ndarray derived object
+        return item.shape
+    elif hasattr(item, '__len__'):  # Plan B: **item** has access to the __len__ magic method
+        return (len(item), )
+    return (1, )  # Plan C: **item** has access to neither A nor B
 
 
 def assert_error(error_msg: Optional[str] = None) -> Callable:
@@ -195,118 +237,6 @@ def read_str_file(filename: Union[AnyStr, PathLike]) -> Optional[Tuple[Sequence,
                 return zip(*inner_loop(f))
         else:
             raise RuntimeError(f"Failed to parse {filename!r}")
-
-
-def get_shape(item: Iterable) -> Tuple[int]:
-    """Try to infer the shape of an object.
-
-    Examples
-    --------
-    .. code:: python
-
-        >>> item = np.random.rand(10, 10, 10)
-        >>> shape = get_shape(item)
-        >>> print(shape)
-        (10, 10, 10)
-
-        >>> item = ['a', 'b', 'c', 'd', 'e']
-        >>> shape = get_shape(item)
-        >>> print(shape)
-        (5,)
-
-        >>> item = None
-        >>> shape = get_shape(item)
-        >>> print(shape)
-        (1,)
-
-    Parameters
-    ----------
-    item : object
-        A python object.
-
-    Returns
-    -------
-    |tuple|_ [|int|_]:
-        The shape of **item**.
-
-    """
-    if hasattr(item, 'shape'):  # Plan A: **item** is an np.ndarray derived object
-        return item.shape
-    elif hasattr(item, '__len__'):  # Plan B: **item** has access to the __len__ magic method
-        return (len(item), )
-    return (1, )  # Plan C: **item** has access to neither A nor B
-
-
-def dict_to_pandas(input_dict: dict, name: Hashable = 0,
-                   object_type: str = 'pd.DataFrame') -> pd.DataFrame:
-    """Turn a nested dictionary into a pandas series or dataframe.
-
-    Keys are un-nested and used for generating multiindices (see meth:`flatten_dict`).
-
-    Examples
-    --------
-    .. code:: python
-
-        >>> name = 'param'
-        >>> print(input_dict)
-        epsilon:
-                Br Br:  1.0501
-                Cs Br:  0.4447
-                keys:   ['input', 'force_eval', 'mm', 'forcefield', 'nonbonded', 'lennard-jones']
-        sigma:
-              Br Br:    0.42
-              Cs Br:    0.38
-              keys:     ['input', 'force_eval', 'mm', 'forcefield', 'nonbonded', 'lennard-jones']
-              unit:     nm
-
-        >>> df = dict_to_pandas(input_dict, name=name)
-        >>> print(df)
-                                                                   param
-        epsilon Br Br                                             1.0501
-                Cs Br                                             0.4447
-                keys   [input, force_eval, mm, forcefield, nonbonded,...
-        sigma   Br Br                                               0.42
-                Cs Br                                               0.38
-                keys   [input, force_eval, mm, forcefield, nonbonded,...
-                unit                                                  nm
-
-    Parameters
-    ----------
-    input_dict : dict
-        A nested dictionary.
-
-    name : |Hashable|_
-        The name of the to be returned series or, alternatively, the dataframe column.
-
-    object_type : str
-        The object type of the to be returned item.
-        Accepted values are ``"Series"`` or ``"DataFrame"``.
-
-    Returns
-    -------
-    |pd.Series|_ or |pd.DataFrame|_ [|pd.MultiIndex|_]:
-        A pandas series or dataframe created fron **input_dict**.
-
-    """
-    # Construct a MultiIndex
-    if not isinstance(input_dict, Settings):
-        flat_dict = Settings(input_dict).flatten(flatten_list=False)
-    else:
-        flat_dict = input_dict.flatten(flatten_list=False)
-    idx = pd.MultiIndex.from_tuples(flat_dict.keys())
-
-    # Construct a DataFrame or Series
-    pd_type = object_type.split('.')[-1].lower()
-    ret = pd.Series(list(flat_dict.values()), index=idx, name=name)
-    if pd_type == 'dataframe':
-        ret = ret.to_frame()
-    elif pd_type != 'series':
-        raise ValueError("{} is not an accepted value for the keyword argument 'object_type'. "
-                         "Accepted values are 'DataFrame' and 'Series'".format(str(object_type)))
-
-    # Sort and return
-    ret.sort_index(inplace=True)
-    return ret
 
 
 def array_to_index(ar: np.ndarray) -> pd.Index:
@@ -435,80 +365,6 @@ def _get_move_range(start: float = 0.005,
     return ret_
 
 
-def get_func_name(item: Callable) -> str:
-    """Return the module + class + name of a function.
-
-    Examples
-    --------
-    .. code:: python
-
-        >>> import numpy as np
-        >>> import FOX
-
-        >>> func1 = FOX.MultiMolecule.init_rdf
-        >>> get_func_name(func1)
-        'FOX.MultiMolecule.init_rdf'
-
-        >>> func2 = np.add
-        >>> get_func_name(func2)
-        'numpy.ufunc.add'
-
-    Parameters
-    ----------
-    item : |Callable|_
-        A function or method.
-
-    Returns
-    -------
-    |str|_:
-        The module + class + name of a function.
-
-    """
-    try:
-        item_class, item_name = item.__qualname__.split('.')
-        item_module = item.__module__.split('.')[0]
-    except AttributeError:
-        item_name = item.__name__
-        item_class = item.__class__.__name__
-        item_module = item.__class__.__module__.split('.')[0]
-    return f'{item_module}.{item_class}.{item_name}'
-
-
-def get_class_name(item: Callable) -> str:
-    """Return the module + name of a class.
-
-    Examples
-    --------
-    .. code:: python
-
-        >>> import FOX
-
-        >>> class1 = FOX.MultiMolecule
-        >>> get_func_name(class1)
-        'FOX.MultiMolecule'
-
-        >>> class2 = float
-        >>> get_func_name(class2)
-        'builtins.float'
-
-    Parameters
-    ----------
-    item : |Callable|_
-        A class.
-
-    Results
-    -------
-    |str|_:
-        The module + name of a class.
-
-    """
-    item_class = item.__qualname__
-    item_module = item.__module__.split('.')[0]
-    if item_module == 'scm':
-        item_module == item.__module__.split('.')[1]
-    return f'{item_module}.{item_class}'
-
-
 def slice_str(str_: str, intervals: List[Optional[int]],
               strip_spaces: bool = True) -> List[str]:
     """Slice a string, **str_**, at intervals specified in **intervals**.
@@ -580,30 +436,6 @@ def get_atom_count(iterable: Iterable[Sequence[KT]],
             return None
 
     return [_get_atom_count(tup) for tup in iterable]
-
-
-def get_nested_element(iterable: Iterable) -> Any:
-    """Grab a (nested) non-iterable element in **iterable**.
-
-    Recursivelly calls ``iter`` followed by ``next`` until maximum recursion depth is reached.
-
-    Parameters
-    ----------
-    iterable : |Iterable|_
-        An iterable.
-
-    Returns
-    -------
-    object:
-        A (nested) non-iterable element extracted from **iterable**.
-
-    """
-    ret = iterable
-    while True:
-        try:
-            ret = next(iter(ret))
-        except TypeError:
-            return ret
 
 
 def get_importable(string: str, validate: Optional[Callable[[T], bool]] = None) -> T:
@@ -809,3 +641,49 @@ def as_nd_array(value: Union[Scalar, Iterable[Scalar], SupportsArray], dtype: Dt
         ret = np.fromiter(value, dtype=dtype)
         ret.shape += (ndmin - ret.ndmim) * (1,)
         return ret
+
+
+def prepend_exception(msg: str, exception: ExcType = Exception) -> Callable[[FT], FT]:
+    """Prepend all :exc:`KeyError` messages raised by **func**.
+
+    Examples
+    --------
+    .. code:: python
+
+        >>> from FOX.utils import prepend_exception
+
+        >>> @prepend_exception('custom message: ', exception=KeyError)
+        ... def func():
+        ...     raise KeyError('test')
+
+        >>> func()
+        Traceback (most recent call last):
+            ...
+        KeyError: "custom message: 'test'"
+
+
+    Parameters
+    ----------
+    msg : :class:`str`
+        The to-be prepended message.
+
+    exception : :class:`type` [:class:`Exception`]
+        An exception type or tuple of exception types.
+        All herein specified exception will have their exception messages prepended.
+
+    """
+    exc_tup = exception if isinstance(exception, tuple) else (exception,)
+    if not all(isinstance(ex, type) and issubclass(ex, Exception) for ex in exc_tup):
+        raise TypeError("'exception' expected an Exception type or tuple of Exception types")
+
+    def _decorator(func: FT) -> FT:
+        @wraps(func)
+        def wrapper(*args, **kwargs):
+            try:
+                return func(*args, **kwargs)
+            except exc_tup as ex:
+                cls = type(ex)
+                raise cls(f"{msg}{ex}").with_traceback(ex.__traceback__)
+        return cast(FT, wrapper)
+
+    return _decorator
