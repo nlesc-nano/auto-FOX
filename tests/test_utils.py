@@ -18,6 +18,7 @@ PATH = join('tests', 'test_files')
 def test_assert_error():
     """Test :func:`FOX.functions.utils.assert_error`,"""
     msg = 'test error {}'
+
     @assert_error(msg)
     def test_func():
         pass
