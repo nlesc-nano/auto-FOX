@@ -129,7 +129,7 @@ class _MolLoc(AbstractDataClass, Generic[MT]):
         """Return a :exc:`ValueError`."""
         cls_name = self.mol.__class__.__name__
         ndim = self.mol.ndim
-        return ValueError(f"{cls_name}.loc() expected a >= 2D array; observed dimensionality: {ndim!r}D")
+        return ValueError(f"{cls_name}.loc() expected a >= 2D array; observed dimensionality: {ndim!r}D")  # noqa: E501
 
     def _type_error(self, obj: Any) -> TypeError:
         """Return a :exc:`TypeError`."""
@@ -145,7 +145,7 @@ class _MolLoc(AbstractDataClass, Generic[MT]):
         except IndexError as ex:
             raise self._value_error() from ex
 
-    def __setitem__(self, key: Union[str, Iterable[str]], value: MT) -> None:
+    def __setitem__(self, key: Union[str, Iterable[str]], value: Any) -> None:
         """Set items in :attr:`_MolLoc.mol`."""
         idx = self._parse_key(key)
         try:

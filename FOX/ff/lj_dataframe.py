@@ -144,7 +144,7 @@ class LJDataFrame(pd.DataFrame):
     def _overlay_s_plams(self, lj: Iterable[Mapping],
                          sigma_dict: MutableMapping,
                          epsilon_dict: MutableMapping) -> None:
-        """Extract PLAMS-style settings from **lj** and put them in **sigma_dict** and **epsilon_dict**."""
+        """Extract PLAMS-style settings from **lj** and put them in **sigma_dict** and **epsilon_dict**."""  # noqa: E501
         for block in lj:
             with Settings.supress_missing():
                 atoms = tuple(block['atoms'].split())
@@ -176,7 +176,7 @@ class LJDataFrame(pd.DataFrame):
     def _overlay_s_qmflows(self, lj: MutableMapping[str, Any],
                            sigma_dict: MutableMapping,
                            epsilon_dict: MutableMapping) -> None:
-        """Extract QMFlows-style settings from **lj** and put them in **sigma_dict** and **epsilon_dict**."""
+        """Extract QMFlows-style settings from **lj** and put them in **sigma_dict** and **epsilon_dict**."""  # noqa: E501
         lj = lj.copy()
         prm_to_df(lj)
 

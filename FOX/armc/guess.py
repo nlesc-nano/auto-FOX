@@ -125,6 +125,9 @@ def guess_param(mol_list: Iterable[MultiMolecule], param: Param,
         Units are in kj/mol (``param="epsilon"``) or nm (``param="sigma"``).
 
     """  # noqa: E501
+    if cp2k_settings is prm is psf_list is None:
+        raise TypeError("'cp2k_settings', 'prm' and 'psf_list' cannot all be None")
+
     # Validate param and mode
     param = _validate_arg(param, name='param', ref={'epsilon', 'sigma'})  # type: ignore
     mode = _validate_arg(mode, name='mode', ref=MODE_SET)  # type: ignore
@@ -230,14 +233,22 @@ def rdf(series: pd.Series, mol_list: Iterable[MultiMolecule]) -> None:
         series.update(guess[series.name])
 
 
+def _geometric_mean(a, b):
+    return np.abs(a * b)**0.5
+
+
+def _arithmetic_mean(a, b):
+    return (a + b) / 2
+
+
 @prepend_exception('No reference parameters available for atom type: ', exception=KeyError)
 def _set_radii(series: pd.Series,
                prm_mapping: Mapping[str, float],
                ref_mapping: Mapping[str, float]) -> None:
     if series.name == 'epsilon':
-        func = lambda a, b: np.abs(a * b)**0.5
+        func = _geometric_mean
     elif series.name == 'sigma':
-        func = lambda a, b: (a + b) / 2
+        func = _mean
     else:
         raise ValueError(f"series.name: {series.name!r:.100}")
 

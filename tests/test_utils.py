@@ -8,9 +8,8 @@ import numpy as np
 from scm.plams import Settings
 from assertionlib import assertion
 
-from FOX.functions.utils import (
-    assert_error, serialize_array, read_str_file, get_shape,
-    dict_to_pandas
+from FOX.utils import (
+    assert_error, serialize_array, read_str_file, get_shape
 )
 
 PATH = join('tests', 'test_files')
@@ -51,17 +50,3 @@ def test_get_shape():
     assertion.eq(get_shape(a), (100, 10))
     assertion.eq(get_shape(b), (15,))
     assertion.eq(get_shape(c), (1,))
-
-
-def test_dict_to_pandas():
-    """Test :func:`FOX.functions.utils.dict_to_pandas`,"""
-    dict_ = {}
-    dict_['a'] = {'a1': 1, 'a2': 2, 'a3': 3}
-    dict_['b'] = {'b1': 4, 'b2': 5}
-    dict_['c'] = {'c1': 6}
-
-    df = dict_to_pandas(dict_)
-    idx = pd.MultiIndex.from_tuples([
-        ('a', 'a1'), ('a', 'a2'), ('a', 'a3'), ('b', 'b1'), ('b', 'b2'), ('c', 'c1')
-    ])
-    np.testing.assert_array_equal(df.index, idx)

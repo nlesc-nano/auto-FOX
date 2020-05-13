@@ -683,7 +683,7 @@ def prepend_exception(msg: str, exception: ExcType = Exception) -> Callable[[FT]
                 return func(*args, **kwargs)
             except exc_tup as ex:
                 cls = type(ex)
-                raise exc_tup(f"{msg}{ex}").with_traceback(ex.__traceback__)
+                raise cls(f"{msg}{ex}").with_traceback(ex.__traceback__)
         return cast(FT, wrapper)
 
     return _decorator
