@@ -25,13 +25,14 @@ import numpy as np
 from scm.plams import KFReader
 
 from ..utils import group_by_values
+from ..type_hints import PathType
 
 __all__ = ['read_kf']
 
 IdxDict = Dict[str, List[int]]
 
 
-def read_kf(filename: Union[str, bytes, os.PathLike]) -> Tuple[np.ndarray, IdxDict]:
+def read_kf(filename: PathType) -> Tuple[np.ndarray, IdxDict]:
     """Read a KF binary file containing a potential energy surface.
 
     Returns the following items:

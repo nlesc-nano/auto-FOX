@@ -29,7 +29,7 @@ from itertools import islice, chain
 
 import numpy as np
 
-from ..type_hints import Literal
+from ..type_hints import Literal, PathType
 from ..utils import group_by_values
 
 __all__ = ['read_multi_xyz']
@@ -44,15 +44,11 @@ XYZoutput2 = Tuple[np.ndarray, Dict[str, List[int]], np.ndarray]
 
 
 @overload
-def read_multi_xyz(filename: Union[AnyStr, os.PathLike],
-                   return_comment: Literal[False]) -> XYZoutput1: ...
-
-
+def read_multi_xyz(filename: PathType) -> XYZoutput2: ...
 @overload
-def read_multi_xyz(filename: Union[AnyStr, os.PathLike],
-                   return_comment: Literal[True]) -> XYZoutput2: ...
-
-
+def read_multi_xyz(filename: PathType, return_comment: Literal[True]) -> XYZoutput2: ...
+@overload
+def read_multi_xyz(filename: PathType, return_comment: Literal[False]) -> XYZoutput1: ...
 def read_multi_xyz(filename, return_comment=True):
     r"""Read a (multi) .xyz file.
 
@@ -115,7 +111,7 @@ def _xyz_generator(f: Iterable[str], atom_count: int) -> Generator[Iterator[str]
         yield chain.from_iterable(at.split()[1:] for at in islice(f, 1, stop))
 
 
-def get_comments(filename: Union[AnyStr, os.PathLike], atom_count: int) -> np.ndarray:
+def get_comments(filename: PathType, atom_count: int) -> np.ndarray:
     """Read and returns all comment lines in an xyz file.
 
     A single comment line should be located under the atom count of each molecule.
@@ -140,8 +136,7 @@ def get_comments(filename: Union[AnyStr, os.PathLike], atom_count: int) -> np.nd
         return np.array([i.rstrip() for i in iterator])
 
 
-def validate_xyz(mol_count: float, atom_count: int,
-                 filename: Union[AnyStr, os.PathLike]) -> None:
+def validate_xyz(mol_count: float, atom_count: int, filename: PathType) -> None:
     """Validate **mol_count** and **atom_count** in **xyz_file**.
 
     Parameters

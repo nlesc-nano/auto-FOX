@@ -44,7 +44,8 @@ import pandas as pd
 from scm.plams import Settings
 
 from ..__version__ import __version__
-from ..utils import get_shape, array_to_index, group_by_values
+from ..type_hints import PathType
+from ..utils import get_shape, array_to_index, group_by_values, prepend_exception
 
 if TYPE_CHECKING:
     from pandas.core.generic import NDFrame
@@ -59,7 +60,7 @@ __all__ = ['create_hdf5', 'create_xyz_hdf5', 'to_hdf5', 'from_hdf5']
 """################################### Creating .hdf5 files ####################################"""
 
 
-def create_hdf5(filename: Union[AnyStr, PathLike], armc: ARMC) -> None:
+def create_hdf5(filename: PathType, armc: ARMC) -> None:
     r"""Create a hdf5 file to hold all addaptive rate Mone Carlo results (:class:`FOX.ARMC`).
 
     Datasets are created to hold a number of results following results over the course of the
@@ -114,7 +115,7 @@ def create_hdf5(filename: Union[AnyStr, PathLike], armc: ARMC) -> None:
     index_to_hdf5(filename, pd_dict)
 
 
-def create_xyz_hdf5(filename: Union[AnyStr, PathLike],
+def create_xyz_hdf5(filename: PathType,
                     mol_list: Iterable[MultiMolecule],
                     iter_len: int,
                     phi: Iterable[float]) -> None:
@@ -161,7 +162,7 @@ def create_xyz_hdf5(filename: Union[AnyStr, PathLike],
             f[key].attrs['bonds'] = mol.bonds
 
 
-def index_to_hdf5(filename: Union[AnyStr, PathLike], pd_dict: Dict[str, NDFrame]) -> None:
+def index_to_hdf5(filename: PathType, pd_dict: Dict[str, NDFrame]) -> None:
     """Store the ``index`` and ``columns`` / ``name`` attributes of **pd_dict** in hdf5 format.
 
     Attributes are exported for all dataframes/series in **pd_dict** and skipped otherwise.
@@ -275,7 +276,7 @@ def _get_kwarg_dict(armc: ARMC) -> Settings:
 """################################### Updating .hdf5 files ####################################"""
 
 
-def hdf5_clear_status(filename: Union[AnyStr, PathLike]) -> bool:
+def hdf5_clear_status(filename: PathType) -> bool:
     """Run the :code:`h5clear filename` command if **filename** refuses to open."""
     try:
         with h5py.File(filename, 'r+', libver='latest'):
@@ -285,7 +286,7 @@ def hdf5_clear_status(filename: Union[AnyStr, PathLike]) -> bool:
         return False
 
 
-def hdf5_availability(filename: Union[AnyStr, PathLike], timeout: float = 5.0,
+def hdf5_availability(filename: PathType, timeout: float = 5.0,
                       max_attempts: Optional[int] = 10) -> None:
     """Check if a .hdf5 file is opened by another process; return once it is not.
 
@@ -333,7 +334,7 @@ def hdf5_availability(filename: Union[AnyStr, PathLike], timeout: float = 5.0,
     raise error
 
 
-def to_hdf5(filename: Union[AnyStr, PathLike], dset_dict: Mapping[str, np.ndarray],
+def to_hdf5(filename: PathType, dset_dict: Mapping[str, np.ndarray],
             kappa: int, omega: int) -> None:
     r"""Export results from **dset_dict** to the hdf5 file **filename**.
 
@@ -373,14 +374,14 @@ def to_hdf5(filename: Union[AnyStr, PathLike], dset_dict: Mapping[str, np.ndarra
                     f[key][kappa, omega] = value
             except Exception as ex:
                 cls = type(ex)
-                raise cls(f"dataset {key!r}: {ex}") from ex
+                raise cls(f"dataset {key!r}: {ex}").with_traceback(ex.__traceback__)
 
     # Update the second hdf5 file with Cartesian coordinates
     filename_xyz = _get_filename_xyz(filename)
     _xyz_to_hdf5(filename_xyz, omega, dset_dict['xyz'])
 
 
-def _xyz_to_hdf5(filename: Union[AnyStr, PathLike], omega: int,
+def _xyz_to_hdf5(filename: PathType, omega: int,
                  mol_list: Optional[Iterable[MultiMolecule]]) -> None:
     r"""Export **mol** to the hdf5 file **filename**.
 
@@ -421,7 +422,7 @@ def _xyz_to_hdf5(filename: Union[AnyStr, PathLike], omega: int,
 DataSets = Union[Hashable, Iterable[Hashable]]
 
 
-def from_hdf5(filename: Union[AnyStr, PathLike],
+def from_hdf5(filename: PathType,
               datasets: Optional[DataSets] = None
               ) -> Union[NDFrame, Dict[Hashable, NDFrame]]:
     """Retrieve all user-specified datasets from **name**.
@@ -547,7 +548,7 @@ def _get_xyz_dset(f: File) -> Tuple[np.ndarray, Dict[str, List[int]]]:
 """###################################### hdf5 utilities #######################################"""
 
 
-def _get_filename_xyz(filename: Union[AnyStr, PathLike], **kwargs: Any) -> str:
+def _get_filename_xyz(filename: PathType, **kwargs: Any) -> str:
     """Construct a filename for the xyz-containing .hdf5 file.
 
     Parameters
@@ -708,8 +709,7 @@ def _aux_err_to_df(f: File, key: Hashable) -> Union[pd.DataFrame, List[pd.DataFr
 Tuple3 = Tuple[np.ndarray, Dict[str, List[int]], np.ndarray]
 
 
-def mol_from_hdf5(filename: Union[AnyStr, PathLike],
-                  i: int = -1, j: int = 0) -> Tuple3:
+def mol_from_hdf5(filename: PathType, i: int = -1, j: int = 0) -> Tuple3:
     """Read a single dataset from a (multi) .xyz.hdf5 file.
 
     Returns values for the :class:`MultiMolecule` ``coords``, ``atoms`` and ``bonds`` parameters.
