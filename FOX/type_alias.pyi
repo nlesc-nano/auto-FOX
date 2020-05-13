@@ -1,6 +1,20 @@
-from typing import Mapping
+import sys
+from typing import Mapping, List
 
-TYPE_ALIAS: Mapping[str, str] = ...
+if sys.version_info >= (3, 8):
+    from typing import Literal
+else:
+    from typing_extensions import Literal
+
+_Keys = Literal[
+    'MultiMolecule', 'FrozenSettings', 'PRMContainer', 'PSFContainer', 'MonteCarloABC', 'ARMC',
+    'PackageManagerABC', 'PackageManager', 'PhiUpdaterABC', 'PhiUpdater', 'ParamMappingABC',
+    'ParamMapping', 'PathLike', 'KFReader', 'Job', 'SingleJob', 'Settings', 'Molecule',
+    'Results', 'Figure', 'File', 'NDFrame', 'Result', 'Package', 'Registry', 'PromisedObject'
+]
+
+__all__: List[str] = ...
+TYPE_ALIAS: Mapping[_Keys, str] = ...
 
 MultiMolecule: str = ...
 FrozenSettings: str = ...
