@@ -27,7 +27,7 @@ def test_guess_param() -> None:
     ])
 
     ref = np.load(PATH / 'guess_param.npy')
-    np.testing.assert_allclose(ar, ref)
+    np.testing.assert_allclose(ar, ref, rtol=1e-05)
 
     assertion.assert_(guess_param, MOL_LIST, 'epsilon', 'crystal_radius',
                       exception=NotImplementedError)
