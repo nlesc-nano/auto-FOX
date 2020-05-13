@@ -10,8 +10,7 @@ from collections import abc
 from pkg_resources import resource_filename
 from typing import (
     Iterable, Tuple, Callable, Hashable, Sequence, Optional, List, TypeVar, Dict,
-    Type, Mapping, Union, MutableMapping, TYPE_CHECKING, AnyStr, Collection, cast,
-    NamedTuple
+    Type, Mapping, Union, MutableMapping, Any, Collection, cast, NamedTuple
 )
 
 import numpy as np
@@ -20,11 +19,6 @@ import pandas as pd
 from scm.plams import add_to_class  # type: ignore
 
 from .type_hints import Scalar, SupportsArray, DtypeLike, PathType
-
-if TYPE_CHECKING:
-    from .classes import MultiMolecule
-else:
-    from .type_alias import MultiMolecule
 
 __all__ = ['get_example_xyz', 'as_nd_array']
 
