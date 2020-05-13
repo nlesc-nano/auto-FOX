@@ -9,7 +9,6 @@ from FOX import MultiMolecule
 from FOX.armc import guess_param
 
 PATH = Path('tests') / 'test_files'
-PATH = Path('/Users/bvanbeek/Documents/GitHub/auto-FOX/tests/test_files')
 
 MOL_LIST = [MultiMolecule.from_xyz(PATH / 'Cd68Se55_26COO_MD_trajec.xyz')]
 PSF_LIST = [PATH / 'Cd68Se55_26COO_MD_trajec.psf']
