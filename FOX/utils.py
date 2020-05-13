@@ -10,7 +10,7 @@ from collections import abc
 from pkg_resources import resource_filename
 from typing import (
     Iterable, Tuple, Callable, Hashable, Sequence, Optional, List, TypeVar, Dict,
-    Type, Mapping, Union, MutableMapping, TYPE_CHECKING, AnyStr, Container, cast,
+    Type, Mapping, Union, MutableMapping, TYPE_CHECKING, AnyStr, Collection, cast,
     NamedTuple
 )
 
@@ -19,12 +19,12 @@ import pandas as pd
 
 from scm.plams import add_to_class  # type: ignore
 
-from .type_hints import Scalar, SupportsArray, DtypeLike
+from .type_hints import Scalar, SupportsArray, DtypeLike, PathType
 
 if TYPE_CHECKING:
     from .classes import MultiMolecule
 else:
-    MultiMolecule = 'FOX.classes.multi_Mol.MultiMolecule'
+    from .type_alias import MultiMolecule
 
 __all__ = ['get_example_xyz', 'as_nd_array']
 
@@ -68,14 +68,14 @@ def append_docstring(func: Callable) -> Callable[[FT], FT]:
     """
     def _decorator(func_new: FT) -> FT:
         try:
-            func_new.__doc__ += func.__doc__
+            func_new.__doc__ += func.__doc__  # type: ignore
         except TypeError:
             func_new.__doc__ = func.__doc__
         return func_new
     return _decorator
 
 
-def get_shape(item: Iterable) -> Tuple[int]:
+def get_shape(item: Any) -> Tuple[int, ...]:
     """Try to infer the shape of an object.
 
     Examples
@@ -115,7 +115,7 @@ def get_shape(item: Iterable) -> Tuple[int]:
     return (1, )  # Plan C: **item** has access to neither A nor B
 
 
-def assert_error(error_msg: Optional[str] = None) -> Callable:
+def assert_error(error_msg: Optional[str] = None) -> Callable[[FT], FT]:
     """Take an error message, if evaluating ``True`` then cause a function or class to raise a ModuleNotFoundError upon being called.
 
     Indended for use as a decorater:
@@ -144,21 +144,19 @@ def assert_error(error_msg: Optional[str] = None) -> Callable:
         A decorated callable.
 
     """  # noqa
-    def _function_error(f_type: Callable,
-                        error_msg: str) -> Callable:
+    def _function_error(f_type: FT, error_msg: Optional[str]) -> FT:
         """Process functions fed into :func:`assert_error`."""
-        if not error_msg:
+        if error_msg is None:
             return f_type
 
         @wraps(f_type)
         def wrapper(*arg, **kwarg):
             raise ModuleNotFoundError(error_msg.format(f_type.__name__))
-        return wrapper
+        return cast(FT, wrapper)
 
-    def _class_error(f_type: Callable,
-                     error_msg: str) -> Callable:
+    def _class_error(f_type: FT, error_msg: Optional[str]) -> FT:
         """Process classes fed into :func:`assert_error`."""
-        if error_msg:
+        if error_msg is not None:
             @add_to_class(f_type)
             def __init__(self, *arg, **kwarg):
                 raise ModuleNotFoundError(error_msg.format(f_type.__name__))
@@ -166,7 +164,7 @@ def assert_error(error_msg: Optional[str] = None) -> Callable:
 
     type_dict = {'function': _function_error, 'type': _class_error}
 
-    def decorator(func):
+    def decorator(func: FT) -> FT:
         return type_dict[func.__class__.__name__](func, error_msg)
     return decorator
 
@@ -206,7 +204,7 @@ def serialize_array(array: np.ndarray, items_per_row: int = 4) -> str:
     return ret
 
 
-def read_str_file(filename: Union[AnyStr, PathLike]) -> Optional[Tuple[Sequence, Sequence]]:
+def read_str_file(filename: PathType) -> Optional[Tuple[Sequence, Sequence]]:
     """Read atomic charges from CHARMM-compatible stream files (.str).
 
     Returns a settings object with atom types and (atomic) charges.
@@ -522,8 +520,7 @@ def group_by_values(iterable: Iterable[Tuple[VT, KT]],
     return ret if mapping_type is dict else mapping_type(ret)
 
 
-def read_rtf_file(filename: Union[AnyStr, PathLike]
-                  ) -> Optional[Tuple[Sequence[str], Sequence[float]]]:
+def read_rtf_file(filename: PathType) -> Optional[Tuple[Sequence[str], Sequence[float]]]:
     """Return a 2-tuple with all atom types and charges."""
     def _parse_item(item: str) -> Tuple[str, float]:
         item_list = item.split()
@@ -589,7 +586,8 @@ def fill_diagonal_blocks(a: np.ndarray, i: int, j: int, val: float = np.nan) -> 
         j0 += j
 
 
-def split_dict(dct: MutableMapping[KT, VT], keep_keys: Container[KT]) -> Dict[KT, VT]:
+def split_dict(dct: MutableMapping[KT, VT], keep_keys: Collection[KT],
+               keep_order: bool = True) -> Dict[KT, VT]:
     """Pop all items from **dct** which are not in **keep_keys** and use them to construct a new dictionary.
 
     Note that, by popping its keys, the passed **dct** will also be modified inplace.
@@ -601,7 +599,7 @@ def split_dict(dct: MutableMapping[KT, VT], keep_keys: Container[KT]) -> Dict[KT
         >>> from FOX.functions.utils import split_dict
 
         >>> dict1 = {1: 'a', 2: 'b', 3: 'c', 4: 'd'}
-        >>> dict2 = split_dict(dict1, keep_keys=[1, 2])
+        >>> dict2 = split_dict(dict1, keep_keys={1, 2})
 
         >>> print(dict1)
         {1: 'a', 2: 'b'}
@@ -613,8 +611,12 @@ def split_dict(dct: MutableMapping[KT, VT], keep_keys: Container[KT]) -> Dict[KT
     ----------
     dct : :class:`~collections.abc.MutableMapping`
         A mutable mapping.
+
     keep_keys : :class:`~collections.abc.Iterable`
         An iterable with keys that should remain in **dct**.
+
+    keep_order : :class:`bool`
+        If :data:`True`, preserve the order of the items in **dct**.
 
     Returns
     -------
@@ -624,7 +626,10 @@ def split_dict(dct: MutableMapping[KT, VT], keep_keys: Container[KT]) -> Dict[KT
     """  # noqa
     # The ordering of dict elements is preserved in this manner,
     # as opposed to the use of set.difference()
-    difference = [k for k in dct if k not in keep_keys]
+    if keep_order:
+        difference: Iterable[KT] = [k for k in dct if k not in keep_keys]
+    else:
+        difference = set(dct.keys()).difference(keep_keys)
 
     return {k: dct.pop(k) for k in difference}
 
