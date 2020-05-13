@@ -18,7 +18,7 @@ from scm.plams import Settings as _Settings
 from .__version__ import __version__
 
 from .utils import (
-    assert_error, get_example_xyz, group_by_values
+    assert_error, get_example_xyz, group_by_values, VersionInfo
 )
 
 from .io import (
@@ -48,6 +48,9 @@ if hasattr(_Settings, 'suppress_missing'):
 #: The path+filename of the example multi-xyz file.
 example_xyz: str = join(__path__[0], 'data', 'Cd68Se55_26COO_MD_trajec.xyz')
 del join
+
+version_info = VersionInfo.from_str(__version__)
+del VersionInfo
 
 __all__ = [
     'get_example_xyz', 'example_xyz', 'assert_error', 'group_by_values',

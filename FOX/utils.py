@@ -10,7 +10,8 @@ from collections import abc
 from pkg_resources import resource_filename
 from typing import (
     Iterable, Tuple, Callable, Hashable, Sequence, Optional, List, TypeVar, Dict,
-    Type, Mapping, Union, MutableMapping, TYPE_CHECKING, AnyStr, Container, cast
+    Type, Mapping, Union, MutableMapping, TYPE_CHECKING, AnyStr, Container, cast,
+    NamedTuple
 )
 
 import numpy as np
@@ -687,3 +688,30 @@ def prepend_exception(msg: str, exception: ExcType = Exception) -> Callable[[FT]
         return cast(FT, wrapper)
 
     return _decorator
+
+
+class VersionInfo(NamedTuple):
+    """A :class:`~collections.namedtuple` representing the version of a package.
+
+    Examples
+    --------
+    .. code:: python
+        >>> from CAT.utils import VersionInfo
+        >>> version = '0.8.2'
+        >>> version_info = VersionInfo.from_str(version)
+
+    """
+
+    major: int
+    minor: int
+    micro: int
+
+    @classmethod
+    def from_str(cls, version: str) -> 'VersionInfo':
+        """Construct a :class:`VersionInfo` from a string; *e.g.*: :code:`version='0.8.2'`."""
+        if not isinstance(version, str):
+            cls_name = version.__class__.__name__
+            raise TypeError(f"'version' expected a string; observed type: {cls_name!r}")
+
+        args = (int(i) for i in version.split('.'))
+        return cls(*args)
