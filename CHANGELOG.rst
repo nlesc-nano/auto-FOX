@@ -6,6 +6,11 @@ All notable changes to this project will be documented in this file.
 This project adheres to `Semantic Versioning <http://semver.org/>`_.
 
 
+0.8.2
+*****
+* Fixed and generalized the frocefield parameter guessing procedures.
+
+
 0.8.1
 *****
 * WiP: Introduction of the ``ARMCPT`` class.
