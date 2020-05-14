@@ -21,6 +21,7 @@ import pandas as pd
 
 from scm.plams import Molecule
 
+from .guess import guess_param
 from .mc_post_process import AtomsFromPSF
 from .schemas import (
     validate_phi, validate_pes, validate_monte_carlo, validate_psf,
@@ -33,6 +34,7 @@ from ..type_hints import Literal, TypedDict
 from ..utils import get_atom_count, split_dict
 from ..io.read_psf import PSFContainer, overlay_str_file, overlay_rtf_file
 from ..classes import MultiMolecule
+from ..functions.cp2k_utils import UNIT_MAP
 from ..functions.molecule_utils import fix_bond_orders, residue_argsort
 from ..functions.charge_utils import assign_constraints
 
@@ -98,12 +100,62 @@ def dict_to_armc(input_dict: MainMapping) -> Tuple[MonteCarloABC, RunDict]:
         workdir = Path(run_kwargs['path']) / run_kwargs['folder']
         _update_psf_settings(package.values(), phi.phi, workdir)
 
+    # Guess parameters
+    if _param_frozen is not None:
+        _guess_param(mc, _param_frozen, frozen=True, psf=psf_list)
+    _guess_param(mc, _param, frozen=False, psf=psf_list)
+
     # Add PES evaluators
     pes = get_pes(dct['pes'])
     for name, kwargs in pes.items():
         mc.add_pes_evaluator(name, **kwargs)
 
     return mc, run_kwargs
+
+
+def _guess_param(mc: MonteCarloABC, prm: dict,
+                 frozen: bool = False,
+                 psf: Optional[Iterable[PSFContainer]] = None) -> None:
+    package = mc.package_manager
+    settings = next(iter(package.values()))[0]['settings']
+    prm_file = settings.get('prm')
+
+    # Guess and collect all to-be updated parameters
+    seq = []
+    for k, v in prm_iter(prm):
+        mode = v.pop('guess', None)
+        if mode is None:
+            continue
+        param = v['param']
+        unit = UNIT_MAP[v.get('unit', 'k_e' if param == 'epsilon' else 'angstrom')]
+
+        prm_series = guess_param(mc.molecule, param, mode=mode,
+                                 psf_list=psf, prm=prm_file, unit=unit)
+        prm_dict = {' '.join(_k for _k in sorted(k)): v for k, v in prm_series.items()}
+        prm_dict['param'] = param
+        seq.append((k, prm_dict))
+
+    # Update the constant parameters
+    package.update_settings(seq, new_keys=True)
+    if frozen:
+        return
+
+    # Update the variable parameters
+    param_mapping = mc.param
+    for k, v in seq:
+        param = v['param']
+        for atom, value in v.items():
+            if atom == 'param':
+                continue
+            key = (k, param, atom)
+
+            param_mapping['param'].loc[key] = value
+            param_mapping['param_old'].loc[key] = value
+            param_mapping['min'][key] = -np.inf
+            param_mapping['max'][key] = np.inf
+            param_mapping['constraints'][key] = None
+            param_mapping['count'][key] = 0
+    return
 
 
 def get_phi(dct: PhiMapping) -> PhiUpdater:
@@ -303,11 +355,11 @@ def _update_psf_settings(job_lists: Iterable[Iterable[dict]], phi: Iterable,
             job['settings'].psf = os.path.join(workdir, f'mol.{i}.psf')
 
 
-NestedDict = Mapping[KT, Union[MT, Iterable[MT]]]
 PrmTuple = Tuple[str, str, str, float]
 
 
-def prm_iter(dct: NestedDict) -> Generator[Tuple[KT, MT], None, None]:
+def prm_iter(dct: Mapping[KT, Union[MT, Iterable[MT]]]
+             ) -> Generator[Tuple[KT, MT], None, None]:
     """Create a an iterator yielding individual parameter dictionaries.
 
     Yields
@@ -438,7 +490,7 @@ def _get_prm_constraints(dct: Mapping[str, Union[MutableMapping, Iterable[Mutabl
 
 
 @overload
-def update_count(param: ParamMapping, psf: Iterable[PSFContainer], mol: Any) -> None: ...
+def update_count(param: ParamMapping, psf: Iterable[PSFContainer], mol: None) -> None: ...
 @overload   # noqa: E302
 def update_count(param: ParamMapping, psf: None, mol: Iterable[MultiMolecule]) -> None: ...  # noqa: E302
 def update_count(param, psf=None, mol=None):  # noqa: E302

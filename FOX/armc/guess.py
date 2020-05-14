@@ -6,6 +6,7 @@ A module with functions for guessing ARMC parameters.
 
 """
 
+from types import MappingProxyType
 from itertools import chain
 from typing import (
     Union,
@@ -17,11 +18,14 @@ from typing import (
     Dict,
     Set,
     Container,
+    FrozenSet,
     TYPE_CHECKING
 )
 
 import numpy as np  # type: ignore
 import pandas as pd  # type: ignore
+
+from scm.plams import Units
 
 from ..io import PSFContainer, PRMContainer
 from ..utils import prepend_exception
@@ -47,26 +51,36 @@ Mode = Literal[
     'crystal_radii'
 ]
 
-ION_SET = frozenset({
+#: A :class:`frozenset` with alias for the :code:`"ion_radius"` guessing mode.
+ION_SET: FrozenSet[str] = frozenset({
     'ionic_radius',
     'ion_radius',
     'ionic_radii',
     'ion_radii'
 })
 
-CRYSTAL_SET = frozenset({
+#: A :class:`frozenset` with alias for the :code:`"crystal_radius"` guessing mode.
+CRYSTAL_SET: FrozenSet[str] = frozenset({
     'crystal_radius',
     'crystal_radii'
 })
 
-MODE_SET = frozenset({'rdf', 'uff'}) | ION_SET | CRYSTAL_SET
+#: A :class:`frozenset` containing all allowed values for the ``mode`` parameter.
+MODE_SET: FrozenSet[str] = ION_SET | CRYSTAL_SET | {'rdf', 'uff'}
+
+#: A :class:`~collections.abc.Mapping` containing the default unit for each ``param`` value.
+DEFAULT_UNIT: Mapping[Param, str] = MappingProxyType({
+    'epsilon': 'kj/mol',
+    'sigma': 'nm'
+})
 
 
 def guess_param(mol_list: Iterable[MultiMolecule], param: Param,
                 mode: Mode = 'rdf',
                 cp2k_settings: Optional[MutableMapping] = None,
                 prm: Union[None, PathType, PRMContainer] = None,
-                psf_list: Optional[Iterable[Union[PathType, PSFContainer]]] = None
+                psf_list: Optional[Iterable[Union[PathType, PSFContainer]]] = None,
+                unit: Optional[str] = None
                 ) -> Dict[Tuple[str, str], float]:
     """Estimate all Lennard-Jones missing forcefield parameters.
 
@@ -75,7 +89,7 @@ def guess_param(mol_list: Iterable[MultiMolecule], param: Param,
     .. code:: python
 
         >>> from FOX import MultiMolecule
-        >>> from FOX.armc import guess_Param
+        >>> from FOX.armc import guess_param
 
         >>> mol_list = [MultiMolecule(...), ...]
         >>> prm = str(...)
@@ -107,13 +121,17 @@ def guess_param(mol_list: Iterable[MultiMolecule], param: Param,
     psf_list : :class:`~collections.abc.Iterable` [path-like_ or :class:`~FOX.PSFContainer`], optional
         An optional list of .psf files.
 
+    unit : :class:`str`, optional
+        The unit of the to-be returned quantity.
+        If ``None``, default to kj/mol for :code:`param="epsilon"`
+        and nm for :code:`param="sigma"`.
+
     .. _`path-like`: https://docs.python.org/3/glossary.html#term-path-like-object
 
     Returns
     -------
     :class:`dict` [:class:`tuple` [:class:`str`, :class:`str`], :class:`float`]
         A dictionary with atom-pairs as keys and the estimated parameters as values.
-        Units are in kj/mol (``param="epsilon"``) or nm (``param="sigma"``).
 
     """  # noqa: E501
     # Validate param and mode
@@ -143,7 +161,12 @@ def guess_param(mol_list: Iterable[MultiMolecule], param: Param,
     # Extract the relevant parameter Series
     _series = df[param]
     series = _series[_series.isnull()]
-    return _guess_param(series, mode, mol_list=mol_list, prm_dict=prm_dict)
+
+    # Construct the to-be returned series and set them to the correct units
+    ret = _guess_param(series, mode, mol_list=mol_list, prm_dict=prm_dict)
+    if unit is not None:
+        ret *= Units.conversion_ratio(DEFAULT_UNIT[param], unit)
+    return ret
 
 
 def _validate_arg(value: str, name: str, ref: Container[str]) -> str:
@@ -167,8 +190,9 @@ def _validate_arg(value: str, name: str, ref: Container[str]) -> str:
 
 def _guess_param(series: pd.Series, mode: Mode,
                  mol_list: Iterable[MultiMolecule],
-                 prm_dict: Mapping[str, float]) -> pd.Series:
-    """Perform the parameter guessing as specified by **mode**
+                 prm_dict: Mapping[str, float],
+                 unit: Optional[str] = None) -> pd.Series:
+    """Perform the parameter guessing as specified by **mode**.
 
     Returns
     -------

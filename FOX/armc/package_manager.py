@@ -326,6 +326,8 @@ class PackageManager(PackageManagerABC):
                 df_update = pd.DataFrame(sub_dict, index=[param])
                 if param not in df.index:
                     df.loc[param] = np.nan
+                if 'guess' in df.columns:
+                    del df['guess']
                 df.update(df_update)
 
     @staticmethod

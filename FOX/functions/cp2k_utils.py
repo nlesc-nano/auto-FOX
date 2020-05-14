@@ -18,19 +18,19 @@ Units.energy['k'] = Units.energy['kelvin'] = (
 
 #: Map CP2K units to PLAMS units.
 UNIT_MAP: Mapping[str, str] = MappingProxyType({
-    '[hartree]': 'hartree',
-    '[ev]': 'eV',
-    '[kcalmol]': 'kcal/mol',
-    '[kjmol]': 'kj/mol',
-    '[k_e]': 'kelvin',
+    'hartree': 'hartree',
+    'ev': 'eV',
+    'kcalmol': 'kcal/mol',
+    'kjmol': 'kj/mol',
+    'k_e': 'kelvin',
 
-    '[bohr]': 'bohr',
-    '[pm]': 'pm',
-    '[nm]': 'nm',
-    '[angstrom]': 'angstrom',
+    'bohr': 'bohr',
+    'pm': 'pm',
+    'nm': 'nm',
+    'angstrom': 'angstrom',
 
-    '[rad]': 'radian',
-    '[deg]': 'degree'
+    'rad': 'radian',
+    'deg': 'degree'
 })
 
 T = TypeVar('T', float, np.ndarray)
@@ -81,17 +81,18 @@ def parse_cp2k_value(param: Union[str, T], unit: str, default_unit: Optional[str
     if not isinstance(param, str):
         value_unit = None
     else:
-        value_unit, param = param.split()
-        param = float(param)
+        value_unit, _param = param.split()
+        param = float(_param)
 
     if not value_unit:
         return param * Units.conversion_ratio(default_unit, unit)
 
     # Correct the units
+    value_unit_lower = value_unit.lower().strip('[').rstrip(']')
     try:  # Convert from CP2K to PLAMS Units
-        value_unit_parsed = UNIT_MAP[value_unit.lower()]
+        value_unit_parsed = UNIT_MAP[value_unit_lower]
     except KeyError as ex:
-        raise ValueError(f"Invalid unit {value_unit.lower()!r};\naccepted units: "
+        raise ValueError(f"Invalid unit {value_unit_lower!r};\naccepted units: "
                          f"{tuple(UNIT_MAP.keys())!r}") from ex
     return param * Units.conversion_ratio(value_unit_parsed, unit)
 

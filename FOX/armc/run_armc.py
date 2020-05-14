@@ -23,16 +23,8 @@ def run_armc(armc: ARMC,
              folder: Union[None, str, os.PathLike] = None,
              logfile: Union[None, str, os.PathLike] = None,
              psf: Optional[Iterable[PSFContainer]] = None,
-             restart: bool = False,
-             guess: Optional[Mapping[str, Mapping]] = None) -> None:
+             restart: bool = False) -> None:
     """A wrapper arround :class:`ARMC` for handling the JobManager."""
-    # Guess the remaining unspecified parameters based on either UFF or the RDF
-    if guess is not None:
-        raise NotImplementedError("'guess = None' is not yet implemented")
-        for k, v in guess.items():
-            frozen = k if v['frozen'] else None
-            guess_param(armc, mode=v['mode'], columns=k, frozen=frozen)
-
     # Initialize the ARMC procedure
     with InitRestart(path=path, folder=folder):
         # Create the .psf file
