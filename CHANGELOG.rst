@@ -6,6 +6,18 @@ All notable changes to this project will be documented in this file.
 This project adheres to `Semantic Versioning <http://semver.org/>`_.
 
 
+0.8.2
+*****
+* Fixed and generalized the frocefield parameter guessing procedures
+  (https://github.com/nlesc-nano/auto-FOX/issues/100 and https://github.com/nlesc-nano/auto-FOX/pull/112).
+* Log the optimum ARMC cycle in ``get_best()`` and ``overlay_descriptor()``
+  (https://github.com/nlesc-nano/auto-FOX/pull/111).
+* Fixed an issue where certain ADF atom-subset-permutations were ignored
+  (https://github.com/nlesc-nano/auto-FOX/pull/110).
+* Aux error: Ensure that the summation over ``qm`` occurs row-wise
+  (https://github.com/nlesc-nano/auto-FOX/pull/108).
+
+
 0.8.1
 *****
 * WiP: Introduction of the ``ARMCPT`` class.

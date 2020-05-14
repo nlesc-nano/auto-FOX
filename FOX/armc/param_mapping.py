@@ -248,7 +248,7 @@ class ParamMappingABC(AbstractDataClass, ABC, _ParamMappingABC):
 
     @property
     def _data(self) -> Data:
-        return self.__data
+        return getattr(self, '__data')
 
     @_data.setter
     def _data(self, value: Union[InputMapping, pd.DataFrame]) -> None:
@@ -273,7 +273,7 @@ class ParamMappingABC(AbstractDataClass, ABC, _ParamMappingABC):
 
         # Construct a dictionary to contain the old parameter
         dct['param_old'] = param.copy()
-        self.__data = cast(Data, dct)
+        setattr(self, '__data', dct)
 
     # Magic methods and Mapping implementation
 

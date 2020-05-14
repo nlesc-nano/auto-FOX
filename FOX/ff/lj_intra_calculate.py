@@ -31,10 +31,9 @@ import pandas as pd
 
 from scm.plams import Units, PT
 
+from . import LJDataFrame, degree_of_separation
 from .lj_calculate import get_V_elstat, get_V_lj, _get_slice_iterator
-from .lj_dataframe import LJDataFrame
 from .bonded_calculate import _dist
-from .degree_of_separation import degree_of_separation
 from ..classes import MultiMolecule
 from ..io import PSFContainer, PRMContainer
 

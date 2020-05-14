@@ -33,9 +33,6 @@ from scm.plams import Settings, Units
 from ..utils import read_rtf_file
 from ..io import PRMContainer, PSFContainer
 
-if hasattr(Settings, 'suppress_missing'):
-    Settings.supress_missing = Settings.suppress_missing
-
 __all__ = ['LJDataFrame']
 
 

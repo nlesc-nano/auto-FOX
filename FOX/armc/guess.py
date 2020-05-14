@@ -6,41 +6,36 @@ A module with functions for guessing ARMC parameters.
 
 """
 
-from functools import wraps
+from types import MappingProxyType
 from itertools import chain
 from typing import (
     Union,
-    Type,
     Iterable,
     Mapping,
+    MutableMapping,
     Tuple,
     Optional,
     Dict,
     Set,
-    Any,
     Container,
-    NoReturn,
-    cast,
-    overload,
+    FrozenSet,
     TYPE_CHECKING
 )
 
 import numpy as np  # type: ignore
 import pandas as pd  # type: ignore
 
+from scm.plams import Units
+
 from ..io import PSFContainer, PRMContainer
 from ..utils import prepend_exception
-from ..type_hints import Literal
-from ..ff.lj_param import estimate_lj
-from ..ff.lj_uff import UFF_DF
-from ..ff.shannon_radii import SIGMA_DF
-from ..ff.lj_dataframe import LJDataFrame
+from ..type_hints import Literal, PathType
+from ..ff import UFF_DF, SIGMA_DF, LJDataFrame, estimate_lj
 
 if TYPE_CHECKING:
-    from os import PathLike
     from ..classes import MultiMolecule
 else:
-    from ..type_alias import PathLike, MultiMolecule
+    from ..type_alias import MultiMolecule
 
 __all__ = ['guess_param']
 
@@ -56,35 +51,45 @@ Mode = Literal[
     'crystal_radii'
 ]
 
-ION_SET = frozenset({
+#: A :class:`frozenset` with alias for the :code:`"ion_radius"` guessing mode.
+ION_SET: FrozenSet[str] = frozenset({
     'ionic_radius',
     'ion_radius',
     'ionic_radii',
     'ion_radii'
 })
 
-CRYSTAL_SET = frozenset({
+#: A :class:`frozenset` with alias for the :code:`"crystal_radius"` guessing mode.
+CRYSTAL_SET: FrozenSet[str] = frozenset({
     'crystal_radius',
     'crystal_radii'
 })
 
-MODE_SET = frozenset({'rdf', 'uff'}) | ION_SET | CRYSTAL_SET
+#: A :class:`frozenset` containing all allowed values for the ``mode`` parameter.
+MODE_SET: FrozenSet[str] = ION_SET | CRYSTAL_SET | {'rdf', 'uff'}
+
+#: A :class:`~collections.abc.Mapping` containing the default unit for each ``param`` value.
+DEFAULT_UNIT: Mapping[Param, str] = MappingProxyType({
+    'epsilon': 'kj/mol',
+    'sigma': 'nm'
+})
 
 
 def guess_param(mol_list: Iterable[MultiMolecule], param: Param,
                 mode: Mode = 'rdf',
-                cp2k_settings: Optional[Mapping] = None,
-                prm: Union[None, str, bytes, PathLike, PRMContainer] = None,
-                psf_list: Optional[Iterable[Union[str, bytes, PathLike, PSFContainer]]] = None
+                cp2k_settings: Optional[MutableMapping] = None,
+                prm: Union[None, PathType, PRMContainer] = None,
+                psf_list: Optional[Iterable[Union[PathType, PSFContainer]]] = None,
+                unit: Optional[str] = None
                 ) -> Dict[Tuple[str, str], float]:
-    """Estimate all missing forcefield parameters.
+    """Estimate all Lennard-Jones missing forcefield parameters.
 
     Examples
     --------
     .. code:: python
 
         >>> from FOX import MultiMolecule
-        >>> from FOX.armc import guess_Param
+        >>> from FOX.armc import guess_param
 
         >>> mol_list = [MultiMolecule(...), ...]
         >>> prm = str(...)
@@ -107,7 +112,7 @@ def guess_param(mol_list: Iterable[MultiMolecule], param: Param,
         The procedure for estimating the parameters.
         Accepted values are ``"rdf"``, ``"uff"``, ``"crystal_radius"`` and ``"ion_radius"``.
 
-    cp2k_settings : :class:`~collections.abc.Mapping`
+    cp2k_settings : :class:`~collections.abc.MutableMapping`, optional
         The CP2K input settings.
 
     prm : path-like_ or :class:`~FOX.PRMContainer`, optional
@@ -116,18 +121,19 @@ def guess_param(mol_list: Iterable[MultiMolecule], param: Param,
     psf_list : :class:`~collections.abc.Iterable` [path-like_ or :class:`~FOX.PSFContainer`], optional
         An optional list of .psf files.
 
+    unit : :class:`str`, optional
+        The unit of the to-be returned quantity.
+        If ``None``, default to kj/mol for :code:`param="epsilon"`
+        and nm for :code:`param="sigma"`.
+
     .. _`path-like`: https://docs.python.org/3/glossary.html#term-path-like-object
 
     Returns
     -------
     :class:`dict` [:class:`tuple` [:class:`str`, :class:`str`], :class:`float`]
         A dictionary with atom-pairs as keys and the estimated parameters as values.
-        Units are in kj/mol (``param="epsilon"``) or nm (``param="sigma"``).
 
     """  # noqa: E501
-    if cp2k_settings is prm is psf_list is None:
-        raise TypeError("'cp2k_settings', 'prm' and 'psf_list' cannot all be None")
-
     # Validate param and mode
     param = _validate_arg(param, name='param', ref={'epsilon', 'sigma'})  # type: ignore
     mode = _validate_arg(mode, name='mode', ref=MODE_SET)  # type: ignore
@@ -144,6 +150,7 @@ def guess_param(mol_list: Iterable[MultiMolecule], param: Param,
     df = LJDataFrame(np.nan, index=atoms)
     if cp2k_settings is not None:
         df.overlay_cp2k_settings(cp2k_settings)
+
     if prm is not None:
         prm_: PRMContainer = prm if isinstance(prm, PRMContainer) else PRMContainer.read(prm)
         df.overlay_prm(prm_)
@@ -153,8 +160,13 @@ def guess_param(mol_list: Iterable[MultiMolecule], param: Param,
 
     # Extract the relevant parameter Series
     _series = df[param]
-    series = _series[~_series.isnull()]
-    return _guess_param(series, mode, mol_list=mol_list, prm_dict=prm_dict)  # type: ignore
+    series = _series[_series.isnull()]
+
+    # Construct the to-be returned series and set them to the correct units
+    ret = _guess_param(series, mode, mol_list=mol_list, prm_dict=prm_dict)
+    if unit is not None:
+        ret *= Units.conversion_ratio(DEFAULT_UNIT[param], unit)
+    return ret
 
 
 def _validate_arg(value: str, name: str, ref: Container[str]) -> str:
@@ -178,8 +190,9 @@ def _validate_arg(value: str, name: str, ref: Container[str]) -> str:
 
 def _guess_param(series: pd.Series, mode: Mode,
                  mol_list: Iterable[MultiMolecule],
-                 prm_dict: Mapping[str, float]) -> pd.Series:
-    """Perform the parameter guessing as specified by **mode**
+                 prm_dict: Mapping[str, float],
+                 unit: Optional[str] = None) -> pd.Series:
+    """Perform the parameter guessing as specified by **mode**.
 
     Returns
     -------
@@ -207,7 +220,8 @@ def uff(series: pd.Series, prm_mapping: Mapping[str, float]) -> None:
 def ion_radius(series: pd.Series, prm_mapping: Mapping[str, float]) -> None:
     """Guess parameters in **df** using ionic radii."""
     if series.name == 'epsilon':
-        raise ValueError(f"'epsilon' guessing is not supported with `guess='ion_radius'`")
+        raise NotImplementedError("'epsilon' guessing is not supported "
+                                  "with `guess='ion_radius'`")
 
     ion_loc = SIGMA_DF['ionic_sigma'].loc
     _set_radii(series, prm_mapping, ion_loc)
@@ -216,7 +230,8 @@ def ion_radius(series: pd.Series, prm_mapping: Mapping[str, float]) -> None:
 def crystal_radius(series: pd.Series, prm_mapping: Mapping[str, float]) -> None:
     """Guess parameters in **df** using crystal radii."""
     if series.name == 'epsilon':
-        raise ValueError(f"'epsilon' guessing is not supported with `guess='crystal_radius'`")
+        raise NotImplementedError("'epsilon' guessing is not supported "
+                                  "with `guess='crystal_radius'`")
 
     ion_loc = SIGMA_DF['crystal_sigma'].loc
     _set_radii(series, prm_mapping, ion_loc)
@@ -224,12 +239,14 @@ def crystal_radius(series: pd.Series, prm_mapping: Mapping[str, float]) -> None:
 
 def rdf(series: pd.Series, mol_list: Iterable[MultiMolecule]) -> None:
     """Guess parameters in **df** using the Boltzmann-inverted radial distribution function."""
+    nonzero = series[~series.isnull()].index
+
     # Construct the RDF and guess the parameters
     rdf_gen = (mol.init_rdf() for mol in mol_list)
     for rdf in rdf_gen:
         guess = estimate_lj(rdf)
         guess.index = pd.MultiIndex.from_tuples(sorted(i.split()) for i in guess.index)
-        guess.loc[series.index] = np.nan
+        guess[guess.index.intersection(nonzero)] = np.nan
         series.update(guess[series.name])
 
 
@@ -248,7 +265,7 @@ def _set_radii(series: pd.Series,
     if series.name == 'epsilon':
         func = _geometric_mean
     elif series.name == 'sigma':
-        func = _mean
+        func = _arithmetic_mean
     else:
         raise ValueError(f"series.name: {series.name!r:.100}")
 

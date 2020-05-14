@@ -33,7 +33,7 @@ from scipy.spatial import cKDTree
 
 from scm.plams import Units
 
-from .lj_dataframe import LJDataFrame
+from . import LJDataFrame
 from ..utils import fill_diagonal_blocks
 from ..classes import MultiMolecule
 from ..io import PSFContainer, PRMContainer

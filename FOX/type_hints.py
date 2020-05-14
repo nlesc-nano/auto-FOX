@@ -16,9 +16,10 @@ API
 
 """
 
+import os
 import sys
 from abc import abstractmethod
-from typing import Sequence, Union, Type, Any, TYPE_CHECKING
+from typing import Sequence, Union, Type, TYPE_CHECKING
 
 import numpy as np
 from pandas.core.generic import NDFrame
@@ -31,6 +32,7 @@ else:
     @runtime_checkable
     class SupportsIndex(Protocol):
         """An ABC with one abstract method __index__."""
+
         __slots__ = ()  # type: ignore
 
         @abstractmethod
@@ -40,12 +42,12 @@ else:
 if TYPE_CHECKING:
     from numpy import DtypeLike, SupportsArray
 else:
-    DtypeLike = Any
-    SupportsArray = Any
+    DtypeLike = np.dtype
+    SupportsArray = np.ndarray
 
 __all__ = [
     'Scalar', 'ScalarType', 'ArrayLike', 'ArrayLikeOrScalar', 'ArrayOrScalar',
-    'Literal', 'TypedDict'
+    'Literal', 'TypedDict', 'PathType'
 ]
 
 #: Annotation for numerical scalars.
@@ -65,6 +67,9 @@ Array = Union[np.ndarray, NDFrame]
 
 #: Annotation for arrays or numerical scalars.
 ArrayOrScalar = Union[Array, Scalar]
+
+#: Annotation for path-like objects.
+PathType = Union[str, bytes, os.PathLike]
 
 
 __doc__ = __doc__.format(
