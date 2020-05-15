@@ -30,45 +30,6 @@ FT = TypeVar('FT', bound=Callable)
 ExcType = Union[Type[Exception], Tuple[Type[Exception], ...]]
 
 
-def append_docstring(func: Callable) -> Callable[[FT], FT]:
-    r"""A decorator for appending the docstring of a Callable one provided by another Callable.
-
-    Examples
-    --------
-    .. code:: python
-
-        >>> def func1():
-        ...     '''func1 docstring.'''
-        ...     pass
-
-        >>> @append_docstring(func1)
-        >>> def func2():
-        ...     '''func2 docstring.'''
-        ...     pass
-
-        >>> help(func2)
-        'func2 docstring func1 docstring'
-
-    Parameters
-    ----------
-    item : |Callable|_
-        A Callable object with a docstring.
-
-    Returns
-    -------
-    |Callable|_
-        A decorated callable.
-
-    """
-    def _decorator(func_new: FT) -> FT:
-        try:
-            func_new.__doc__ += func.__doc__  # type: ignore
-        except TypeError:
-            func_new.__doc__ = func.__doc__
-        return func_new
-    return _decorator
-
-
 def get_shape(item: Any) -> Tuple[int, ...]:
     """Try to infer the shape of an object.
 
@@ -273,8 +234,8 @@ def array_to_index(ar: np.ndarray) -> pd.Index:
         return pd.Index(ar)
     elif ar.ndim == 2:
         return pd.MultiIndex.from_arrays(ar)
-    raise ValueError('Could not construct a Pandas (Multi)Index from an \
-                     {:d}-dimensional array'.format(ar.dim))
+    raise ValueError('Could not construct a Pandas (Multi)Index from an '
+                     f'{ar.ndim}-dimensional array')
 
 
 def get_example_xyz(name: Union[str, PathLike] = 'Cd68Se55_26COO_MD_trajec.xyz') -> str:
@@ -442,7 +403,7 @@ def get_importable(string: str, validate: Optional[Callable[[T], bool]] = None) 
 
     validate : :class:`~Collections.abc.Callable`, optional
         A callable for validating the imported object.
-        Will raise an :exc:`AssertionError` if its output evaluates to ``False``.
+        Will raise a :exc:`RuntimeError` if its output evaluates to ``False``.
 
     Returns
     -------
@@ -452,17 +413,16 @@ def get_importable(string: str, validate: Optional[Callable[[T], bool]] = None) 
     """
     try:
         head, *tail = string.split('.')
-    except ValueError as ex:
-        raise ValueError("No module has been specified in the "
-                         f"passed 'string' ({string!r})") from ex
+    except (AttributeError, TypeError) as ex:
+        raise TypeError("'string' expected a str; observed type: "
+                        f"{string.__class__.__name__!r}") from ex
 
     ret: T = importlib.import_module(head)  # type: ignore
     for name in tail:
         ret = getattr(ret, name)
 
     if validate is not None:
-        msg = f'Passing {reprlib.repr(ret)} to {validate!r} failed to return True'
-        assert validate(ret), msg
+        raise RuntimeError(f'Passing {reprlib.repr(ret)} to {validate!r} failed to return True')
 
     return ret
 
@@ -478,7 +438,7 @@ def group_by_values(iterable: Iterable[Tuple[VT, KT]],
         >>> from typing import Iterator
 
         >>> str_list: list = ['a', 'a', 'a', 'a', 'a', 'b', 'b', 'b']
-        >>> iterable: Iterator = enumerate(str_list)
+        >>> iterable: Iterator = enumerate(str_list, start=1)
         >>> new_dict: dict = group_by_values(iterable)
 
         >>> print(new_dict)
@@ -639,7 +599,7 @@ def as_nd_array(value: Union[Scalar, Iterable[Scalar], SupportsArray], dtype: Dt
             raise ex
 
         ret = np.fromiter(value, dtype=dtype)
-        ret.shape += (ndmin - ret.ndmim) * (1,)
+        ret.shape += (ndmin - ret.ndim) * (1,)
         return ret
 
 
@@ -652,14 +612,14 @@ def prepend_exception(msg: str, exception: ExcType = Exception) -> Callable[[FT]
 
         >>> from FOX.utils import prepend_exception
 
-        >>> @prepend_exception('custom message: ', exception=KeyError)
+        >>> @prepend_exception('custom message: ', exception=TypeError)
         ... def func():
-        ...     raise KeyError('test')
+        ...     raise TypeError('test')
 
         >>> func()
         Traceback (most recent call last):
             ...
-        KeyError: "custom message: 'test'"
+        TypeError: "custom message: test"
 
 
     Parameters
@@ -712,5 +672,9 @@ class VersionInfo(NamedTuple):
             cls_name = version.__class__.__name__
             raise TypeError(f"'version' expected a string; observed type: {cls_name!r}")
 
-        args = (int(i) for i in version.split('.'))
-        return cls(*args)
+        try:
+            major, minor, micro = (int(i) for i in version.split('.'))
+        except (ValueError, TypeError) as ex:
+            raise ValueError(f"'version' expected a string consisting of three "
+                             "'.'-separated integers (e.g. '0.8.2')") from ex
+        return cls(major=major, minor=minor, micro=micro)
