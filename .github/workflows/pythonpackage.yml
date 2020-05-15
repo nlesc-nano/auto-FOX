@@ -15,17 +15,16 @@ on:
 
 jobs:
     build:
-        runs-on: ubuntu-latest
+        runs-on: ${{ matrix.os }}
         strategy:
             matrix:
-                version:
-                    - 3.7
-                    - 3.8
+                os: [ubuntu-latest, macos-latest, windows-latest]
+                version: [3.7, 3.8]
 
         steps:
             - uses: actions/checkout@v2
 
-            - name: Setup conda
+            - name: Set conda with Python ${{ matrix.version }} on ${{ matrix.os }}
               uses: s-weigand/setup-conda@v1
               with:
                   update-conda: true
@@ -47,3 +46,9 @@ jobs:
               run: pytest tests
               env:
                   CONDA_PREFIX: /usr/share/miniconda
+
+            - name: Run codecov
+              uses: codecov/codecov-action@v1
+              with:
+                  file: ./coverage.xml
+                  name: codecov-umbrella
