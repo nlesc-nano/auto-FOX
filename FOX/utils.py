@@ -483,7 +483,10 @@ def read_rtf_file(filename: PathType) -> Optional[Tuple[Sequence[str], Sequence[
 
     i, j, k = len('ATOM'), 2, 3
     with open(filename, 'r') as f:
-        ret = [_parse_item(item) for item in f if item[:i] == 'ATOM']
+        try:
+            ret = [_parse_item(item) for item in f if item[:i] == 'ATOM']
+        except Exception as ex:
+            raise RuntimeError(f"Failed to parse {filename!r}") from ex
     return zip(*ret) if ret else None
 
 
