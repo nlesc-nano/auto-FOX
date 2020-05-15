@@ -251,13 +251,13 @@ def get_move_range(start: float = 0.005,
     --------
     .. code:: python
 
-        >>> move_range1 = _get_move_range(start=0.005, stop=0.020,
-        ...                               step=0.005, ratio=None)
+        >>> move_range1 = get_move_range(start=0.005, stop=0.020,
+        ...                              step=0.005, ratio=None)
         >>> print(move_range1)
         [0.98  0.985 0.99  0.995 1.    1.005 1.01  1.015 1.02 ]
 
-        >>> move_range2 = _get_move_range(start=0.005, stop=0.020,
-        ...                               step=0.005, ratio=[1, 2, 4, 8])
+        >>> move_range2 = get_move_range(start=0.005, stop=0.020,
+        ...                              step=0.005, ratio=[1, 2, 4, 8])
         >>> print(move_range2)
         [[0.98  0.985 0.99  0.995 1.    1.005 1.01  1.015 1.02 ]
          [0.96  0.97  0.98  0.99  1.    1.01  1.02  1.03  1.04 ]
@@ -316,7 +316,7 @@ def get_move_range(start: float = 0.005,
 def _get_move_range(*args, **kwargs):
     _warning = FutureWarning("The 'FOX.utils._get_move_range' function is deprecated; "
                              "use 'FOX.utils.get_move_range' from now on")
-    warnings.warn(_warning)
+    warnings.warn(_warning, stacklevel=2)
     return get_move_range(*args, **kwargs)
 
 
@@ -422,7 +422,7 @@ def get_importable(string: str, validate: Optional[Callable[[T], bool]] = None) 
     for name in tail:
         ret = getattr(ret, name)
 
-    if validate is not None:
+    if validate is not None and not validate(ret):
         raise RuntimeError(f'Passing {reprlib.repr(ret)} to {validate!r} failed to return True')
 
     return ret

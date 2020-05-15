@@ -120,15 +120,20 @@ def test_get_atom_count() -> None:
 def test_get_importable() -> None:
     """Test :func:`FOX.utils.get_importable`."""
 
-    def _validate(dct: dict):
-        return not isinstance(dct, dict)
+    def _validate1(lst: list):
+        return issubclass(lst, list)
+
+    def _validate2(dct: dict):
+        return not issubclass(dct, dict)
 
     dict_type = get_importable('builtins.dict')
     assertion.is_(dict_type, dict)
+    list_type = get_importable('builtins.list', validate=_validate1)
+    assertion.is_(list_type, list)
 
     assertion.assert_(get_importable, b'bob', exception=TypeError)
     assertion.assert_(get_importable, 'bob', exception=ModuleNotFoundError)
-    assertion.assert_(get_importable, 'builtins.dict', validate=_validate, exception=RuntimeError)
+    assertion.assert_(get_importable, 'builtins.dict', validate=_validate2, exception=RuntimeError)
 
 
 def test_group_by_values() -> None:
