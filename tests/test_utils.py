@@ -93,6 +93,9 @@ def test_get_move_range() -> None:
     np.testing.assert_allclose(ar4, ref4)
     np.testing.assert_allclose(ar5, ref5)
 
+    assertion.assert_(get_move_range, stop=10, step=1, exception=ValueError)
+    assertion.assert_(get_move_range, ratio=[1, 99], exception=ValueError)
+
 
 def test_slice_str() -> None:
     """Test :func:`FOX.utils.slice_str`."""
@@ -169,6 +172,9 @@ def test_fill_diagonal_blocks() -> None:
                     [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1],
                     [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1]])
     np.testing.assert_array_equal(ar, ref)
+
+    assertion.assert_(fill_diagonal_blocks, ar, 0, 1, exception=ValueError)
+    assertion.assert_(fill_diagonal_blocks, ar, 1, 0, exception=ValueError)
 
 
 def test_split_dict() -> None:
