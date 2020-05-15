@@ -18,7 +18,7 @@ from scm.plams import Settings as _Settings
 from .__version__ import __version__
 
 from .utils import (
-    assert_error, get_example_xyz, group_by_values, VersionInfo
+    assert_error, group_by_values, VersionInfo
 )
 
 from .io import (
@@ -53,7 +53,7 @@ version_info = VersionInfo.from_str(__version__)
 del VersionInfo
 
 __all__ = [
-    'get_example_xyz', 'example_xyz', 'assert_error', 'group_by_values',
+    'example_xyz', 'assert_error', 'group_by_values',
 
     'PSFContainer',
     'PRMContainer',

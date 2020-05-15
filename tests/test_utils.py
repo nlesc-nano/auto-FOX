@@ -9,7 +9,7 @@ import numpy as np
 from assertionlib import assertion
 
 from FOX.utils import (
-    _get_move_range, array_to_index, assert_error, serialize_array, read_str_file,
+    get_move_range, array_to_index, assert_error, serialize_array, read_str_file,
     get_shape, slice_str, get_atom_count, get_importable, group_by_values,
     read_rtf_file, fill_diagonal_blocks, split_dict, as_nd_array, prepend_exception,
     VersionInfo
@@ -74,12 +74,12 @@ def test_array_to_index() -> None:
 
 
 def test_get_move_range() -> None:
-    """Test :func:`FOX.utils._get_move_range`."""
-    ar1 = _get_move_range()
-    ar2 = _get_move_range(start=0.001)
-    ar3 = _get_move_range(step=0.001)
-    ar4 = _get_move_range(stop=0.01)
-    ar5 = _get_move_range(ratio=[1, 2, 4, 8])
+    """Test :func:`FOX.utils.get_move_range`."""
+    ar1 = get_move_range()
+    ar2 = get_move_range(start=0.001)
+    ar3 = get_move_range(step=0.001)
+    ar4 = get_move_range(stop=0.01)
+    ar5 = get_move_range(ratio=[1, 2, 4, 8])
 
     ref1 = np.load(PATH / 'get_move_range.1.npy')
     ref2 = np.load(PATH / 'get_move_range.2.npy')

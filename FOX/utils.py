@@ -20,7 +20,7 @@ from scm.plams import add_to_class  # type: ignore
 
 from .type_hints import Scalar, SupportsArray, DtypeLike, PathType
 
-__all__ = ['get_example_xyz', 'as_nd_array']
+__all__ = ['as_nd_array']
 
 T = TypeVar('T')
 VT = TypeVar('VT')
@@ -238,17 +238,10 @@ def array_to_index(ar: np.ndarray) -> pd.Index:
                      f'{ar.ndim}-dimensional array')
 
 
-def get_example_xyz(name: Union[str, PathLike] = 'Cd68Se55_26COO_MD_trajec.xyz') -> str:
-    """Return the path + name of the example multi-xyz file."""
-    err = "'FOX.get_example_xyz()' has been deprecated in favour of 'FOX.example_xyz'"
-    warnings.warn(err, FutureWarning)
-    return resource_filename('FOX', join('data', name))
-
-
-def _get_move_range(start: float = 0.005,
-                    stop: float = 0.1,
-                    step: float = 0.005,
-                    ratio: Optional[Iterable[float]] = None) -> np.ndarray:
+def get_move_range(start: float = 0.005,
+                   stop: float = 0.1,
+                   step: float = 0.005,
+                   ratio: Optional[Iterable[float]] = None) -> np.ndarray:
     """Generate an with array of all allowed moves.
 
     The move range spans a range of 1.0 +- **stop** and moves are thus intended to
@@ -317,6 +310,14 @@ def _get_move_range(start: float = 0.005,
         raise ValueError("The returned array cannot contain elements smaller than 0; "
                          f"smallest osberved value: {ret_.min()}")
     return ret_
+
+
+@wraps(get_move_range)
+def _get_move_range(*args, **kwargs):
+    _warning = FutureWarning("The 'FOX.utils._get_move_range' function is deprecated; "
+                             "use 'FOX.utils.get_move_range' from now on")
+    warnings.warn(_warning)
+    return get_move_range(*args, **kwargs)
 
 
 def slice_str(str_: str, intervals: List[Optional[int]],
