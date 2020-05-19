@@ -1,5 +1,6 @@
 """A module for testing files in the :mod:`FOX.utils` module,"""
 
+from collections import abc
 from pathlib import Path
 from types import MappingProxyType
 
