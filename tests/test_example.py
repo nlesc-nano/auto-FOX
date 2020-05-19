@@ -1,7 +1,6 @@
 """A module for testing example input files in the FOX/examples directory."""
 
 import os
-import time
 import functools
 from os.path import join
 from logging import Logger
@@ -12,7 +11,7 @@ import numpy as np
 from assertionlib import assertion
 from qmflows import cp2k_mm, Settings as QmSettings
 
-from FOX import MultiMolecule, PSFContainer, example_xyz
+from FOX import MultiMolecule, PSFContainer
 from FOX.testing_utils import validate_mapping
 from FOX.armc import dict_to_armc, ARMC, PhiUpdater
 
