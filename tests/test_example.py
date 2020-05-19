@@ -13,7 +13,7 @@ from assertionlib import assertion
 from qmflows import cp2k_mm, Settings as QmSettings
 
 from FOX import MultiMolecule, PSFContainer, example_xyz
-from FOX.test_utils import validate_mapping
+from FOX.testing_utils import validate_mapping
 from FOX.armc import dict_to_armc, ARMC, PhiUpdater
 
 PATH = join('tests', 'test_files')
