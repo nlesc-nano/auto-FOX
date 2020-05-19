@@ -1,3 +1,21 @@
+"""A module containing the :class:`ParamMapping` class.
+
+Index
+-----
+.. currentmodule:: FOX.armc.param_mapping
+.. autosummary::
+    ParamMappingABC
+    ParamMapping
+
+API
+---
+.. autoclass:: ParamMappingABC
+    :members:
+.. autoclass:: ParamMapping
+    :members:
+
+"""
+
 from abc import ABC, abstractmethod
 from types import MappingProxyType
 from logging import Logger
@@ -10,6 +28,7 @@ import numpy as np
 import pandas as pd
 from assertionlib.dataclass import AbstractDataClass
 
+from ..utils import set_docstring
 from ..type_hints import Literal, TypedDict, Scalar, SupportsArray
 from ..functions.charge_utils import update_charge, get_net_charge, ChargeError
 
@@ -18,7 +37,7 @@ if TYPE_CHECKING:
 else:
     from ..type_alias import NDFrame
 
-__all__ = ['ParamMapping']
+__all__ = ['ParamMappingABC', 'ParamMapping']
 
 # A generic typevar
 T = TypeVar('T')
@@ -465,6 +484,7 @@ MOVE_RANGE = np.array([[
 MOVE_RANGE.setflags(write=False)
 
 
+@set_docstring(ParamMappingABC.__doc__)
 class ParamMapping(ParamMappingABC):
 
     #: A set of charge-like parameters which require a parameter re-normalization after every move.
@@ -550,6 +570,3 @@ class ParamMapping(ParamMappingABC):
                              prm_max=self['max'].loc[key],
                              constrain_dict=constraints_,
                              net_charge=charge)
-
-
-ParamMapping.__doc__ = ParamMappingABC.__doc__

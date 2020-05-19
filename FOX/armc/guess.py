@@ -1,8 +1,14 @@
-"""
-FOX.armc.guess
-==============
+"""A module with functions for guessing ARMC parameters.
 
-A module with functions for guessing ARMC parameters.
+Index
+-----
+.. currentmodule:: FOX.armc.csv_utils
+.. autosummary::
+    guess_param
+
+API
+---
+.. autofunction:: guess_param
 
 """
 

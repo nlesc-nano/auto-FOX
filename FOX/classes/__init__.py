@@ -1,10 +1,4 @@
-"""
-FOX.classes
-===========
-
-Various classes implemented in Auto-FOX.
-
-"""
+"""Various classes implemented in Auto-FOX."""
 
 from .multi_mol import MultiMolecule
 

@@ -6,6 +6,13 @@ All notable changes to this project will be documented in this file.
 This project adheres to `Semantic Versioning <http://semver.org/>`_.
 
 
+0.8.3
+*****
+* Updated the ARMC tests.
+* Renamed ``FOX.test_utils`` to ``FOX.testing_utils``.
+* Added flake8 and pydocstyle to the tests.
+
+
 0.8.2
 *****
 * Fixed and generalized the frocefield parameter guessing procedures

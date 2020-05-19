@@ -1,8 +1,4 @@
-"""
-FOX.functions.molecule_utils
-============================
-
-A module which expands on the Molecule class of PLAMS.
+"""A module which expands on the Molecule class of PLAMS.
 
 Index
 -----
@@ -267,8 +263,8 @@ def get_impropers(mol: Molecule) -> np.ndarray:
 
 @overload
 def residue_argsort(mol: Molecule, concatenate: Literal[True] = ...) -> np.ndarray: ...
-@overload   # noqa: E302
-def residue_argsort(mol: Molecule, concatenate: Literal[False] = ...) -> List[List[int]]: ...  # noqa: E302
+@overload
+def residue_argsort(mol: Molecule, concatenate: Literal[False] = ...) -> List[List[int]]: ...
 def residue_argsort(mol, concatenate=True):  # noqa: E302
     """Return the indices that would sort this instance by residue number.
 

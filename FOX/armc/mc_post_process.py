@@ -1,8 +1,4 @@
-"""
-FOX.armc.mc_post_process
-========================
-
-Callables for post-processing :class:`MultiMolecule` instances produced by :class:`ARMC`.
+"""Callables for post-processing :class:`MultiMolecule` instances produced by :class:`ARMC`.
 
 Index
 -----

@@ -1,10 +1,4 @@
-"""
-FOX.io
-======
-
-Various io-related functions implemented in Auto-FOX.
-
-"""
+"""Various io-related functions implemented in Auto-FOX."""
 
 from .read_psf import PSFContainer
 from .read_prm import PRMContainer

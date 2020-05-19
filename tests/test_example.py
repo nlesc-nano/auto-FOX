@@ -1,7 +1,6 @@
 """A module for testing example input files in the FOX/examples directory."""
 
 import os
-import time
 import functools
 from os.path import join
 from logging import Logger
@@ -12,47 +11,11 @@ import numpy as np
 from assertionlib import assertion
 from qmflows import cp2k_mm, Settings as QmSettings
 
-from FOX import MultiMolecule, PSFContainer, example_xyz
-from FOX.test_utils import validate_mapping
+from FOX import MultiMolecule, PSFContainer
+from FOX.testing_utils import validate_mapping
 from FOX.armc import dict_to_armc, ARMC, PhiUpdater
 
 PATH = join('tests', 'test_files')
-
-
-def _test_input():
-    """Test :mod:`FOX.examples.input`."""
-    rdf = rmsf = rmsd = None
-
-    # Define the atoms of interest and the .xyz path + filename
-    atoms = ('Cd', 'Se', 'O')
-
-    # Optional: start the timer
-    start = time.time()
-
-    # Read the .xyz file
-    mol = MultiMolecule.from_xyz(example_xyz)
-
-    # Calculate the RDF, RSMF & RMSD
-    rdf = mol.init_rdf(atom_subset=atoms)
-    adf = mol.init_adf(r_max=8.0, atom_subset=['Cd', 'Se'])
-    rmsf = mol.init_rmsf(atom_subset=atoms)
-    rmsd = mol.init_rmsd(atom_subset=atoms)
-
-    # Optional: print the results and try to plot them in a graph (if Matplotlib is installed)
-    for name, df in {'rdf ': rdf, 'adf ': adf, 'rmsf': rmsf, 'rmsd': rmsd}.items():
-        try:
-            df.plot(name)
-        except Exception as ex:
-            print(f'{name} - {repr(ex)}')
-    print('run time: {:.2f} sec'.format(time.time() - start))
-
-    ref_rdf = np.load(join(PATH, 'rdf.npy'))
-    ref_rmsf = np.load(join(PATH, 'rmsf.npy'))
-    ref_rmsd = np.load(join(PATH, 'rmsd.npy'))
-
-    np.testing.assert_allclose(rdf.values, ref_rdf)
-    np.testing.assert_allclose(rmsf.values, ref_rmsf)
-    np.testing.assert_allclose(rmsd.values, ref_rmsd)
 
 
 def test_cp2k_md():

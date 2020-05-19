@@ -1,8 +1,4 @@
-"""
-FOX.io.hdf5_utils
-=================
-
-Functions for storing Monte Carlo results in hdf5 format.
+"""Functions for storing Monte Carlo results in hdf5 format.
 
 Index
 -----
@@ -35,8 +31,9 @@ import subprocess
 from os import remove, PathLike
 from time import sleep
 from os.path import isfile
-from typing import (Dict, Iterable, Optional, Union, Hashable, List, Tuple,
-                    AnyStr, TYPE_CHECKING, Mapping, Any)
+from typing import (
+    Dict, Iterable, Optional, Union, Hashable, List, Tuple, TYPE_CHECKING, Mapping, Any
+)
 
 import h5py
 import numpy as np
@@ -45,7 +42,7 @@ from scm.plams import Settings
 
 from ..__version__ import __version__
 from ..type_hints import PathType
-from ..utils import get_shape, array_to_index, group_by_values, prepend_exception
+from ..utils import get_shape, array_to_index, group_by_values
 
 if TYPE_CHECKING:
     from pandas.core.generic import NDFrame

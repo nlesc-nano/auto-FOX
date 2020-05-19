@@ -1,8 +1,4 @@
-"""
-FOX.ff.shannon_radii
-====================
-
-Functions related to the Lennard-Jones parameters ...
+"""Functions related to the Lennard-Jones parameters ...
 
 Index
 -----

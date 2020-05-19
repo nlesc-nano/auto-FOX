@@ -1,8 +1,4 @@
-"""
-FOX.armc.armc
-=============
-
-A module for performing Addaptive Rate Monte Carlo (ARMC) forcefield parameter optimizations.
+"""A module for performing Addaptive Rate Monte Carlo (ARMC) forcefield parameter optimizations.
 
 Index
 -----
@@ -14,8 +10,6 @@ API
 ---
 .. autoclass:: ARMC
     :members:
-    :private-members:
-    :special-members:
 
 """
 

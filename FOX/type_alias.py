@@ -1,8 +1,4 @@
-"""
-FOX.type_alias
-==============
-
-A module with type-aliases for objects.
+"""A module with type-aliases for objects.
 
 Index
 -----

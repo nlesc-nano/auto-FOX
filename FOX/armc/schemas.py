@@ -1,8 +1,4 @@
-"""
-FOX.armc.schemas
-================
-
-A module with template validation functions for the ARMC input.
+"""A module with template validation functions for the ARMC input.
 
 Index
 -----
@@ -38,7 +34,7 @@ from .phi_updater import PhiUpdater, PhiUpdaterABC
 from .param_mapping import ParamMapping, ParamMappingABC
 from ..type_hints import SupportsArray, Scalar, TypedDict, ArrayLikeOrScalar
 from ..classes import MultiMolecule
-from ..utils import _get_move_range, as_nd_array
+from ..utils import get_move_range, as_nd_array
 from ..schema_utils import (
     Default, Formatter, supports_int, isinstance_factory, issubclass_factory, import_factory
 )
@@ -448,7 +444,7 @@ param_schema = Schema({
         And(None, Default(MOVE_DEFAULT.copy)),
         And(Or(abc.Iterable, SupportsArray), Use(array)),
         And(abc.Mapping, lambda n: {'start', 'stop', 'step', 'ratio'}.issuperset(n.keys()),
-            Use(lambda n: _get_move_range(**n))),
+            Use(lambda n: get_move_range(**n))),
         error=Formatter(f"'param.move_range' expected a Mapping or array-like object{EPILOG}")
     )
 }, name='param_schema', description='Schema for validating the "param" block.')

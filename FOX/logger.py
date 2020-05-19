@@ -1,8 +1,4 @@
-"""
-FOX.logger
-==========
-
-A module for managing all Auto-FOX loggers.
+"""A module for managing all Auto-FOX loggers.
 
 Index
 -----

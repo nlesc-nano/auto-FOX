@@ -1,7 +1,6 @@
 """A work in progress recipe for MM-MD parameter optimizations with CP2K."""
 
 import os
-import stat
 import yaml
 import shutil
 

@@ -1,8 +1,4 @@
-"""
-FOX.ff.lj_dataframe
-===================
-
-A module for holding the :class:`LJDataFrame` class.
+"""A module for holding the :class:`LJDataFrame` class.
 
 Index
 -----

@@ -1,11 +1,27 @@
-"""A module for constructing radial distribution functions."""
+"""A module for constructing radial distribution functions.
+
+Index
+-----
+.. currentmodule:: FOX.functions.adf
+.. autosummary::
+    get_rdf
+    get_rdf_lowmem
+    get_rdf_df
+
+API
+---
+.. autofunction:: get_rdf
+.. autofunction:: get_rdf_lowmem
+.. autofunction:: get_rdf_df
+
+"""
 
 from typing import Hashable, Iterable
 
 import numpy as np
 import pandas as pd
 
-__all__ = ['get_rdf_lowmem', 'get_rdf']
+__all__ = ['get_rdf_df', 'get_rdf_lowmem', 'get_rdf']
 
 
 def get_rdf_df(atom_pairs: Iterable[Hashable],

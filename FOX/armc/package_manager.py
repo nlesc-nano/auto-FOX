@@ -1,3 +1,22 @@
+"""A module containing the :class:`PackageManager` class.
+
+Index
+-----
+.. currentmodule:: FOX.armc.package_manager
+.. autosummary::
+    PackageManagerABC
+    PackageManager
+
+API
+---
+.. autoclass:: PackageManagerABC
+    :members:
+.. autoclass:: PackageManager
+    :members:
+
+
+"""
+
 from __future__ import annotations
 
 import os
@@ -19,6 +38,7 @@ from qmflows import Settings as QmSettings
 from qmflows.cp2k_utils import prm_to_df
 from noodles import gather, schedule, has_scheduled_methods, run_parallel
 
+from ..utils import set_docstring
 from ..classes import MultiMolecule
 from ..functions.cp2k_utils import get_xyz_path
 from ..logger import DummyLogger
@@ -32,7 +52,7 @@ if TYPE_CHECKING:
 else:
     from ..type_alias import PromisedObject, Result, Package, Job
 
-__all__ = ['PackageManager']
+__all__ = ['PackageManagerABC', 'PackageManager']
 
 
 class PkgDict(TypedDict):
@@ -46,7 +66,6 @@ class PkgDict(TypedDict):
 T = TypeVar('T')
 
 MolLike = Iterable[Tuple[float, float, float]]
-
 Value = Tuple[PkgDict, ...]
 
 #: The internal dictionary contained within :class:`PackageManagerABC`.
@@ -55,66 +74,87 @@ Data = Dict[str, Value]
 DataMap = Mapping[str, Iterable[PkgDict]]
 DataIter = Iterable[Tuple[str, Iterable[PkgDict]]]
 
+JobHook = Iterator[Iterable[Result]]
+
 
 class PackageManagerABC(ABC, Mapping[str, Value]):
+    """A class for managing qmflows-style jobs."""
 
-    __data: Data
+    _data: Data
+    _hook: Optional[JobHook]
 
-    def __init__(self, data: Union[DataMap, DataIter], **kwargs: Any) -> None:
-        """Initialize an instance.
+    def __init__(self, data: Union[DataMap, DataIter],
+                 hook: Optional[JobHook] = None,
+                 **kwargs: Any) -> None:
+        r"""Initialize an instance.
 
         Parameters
         ----------
         data : :class:`~collections.abc.Mapping` [:class:`str`, :class:`~collections.abc.Iterable` [:class:`~scm.plams.core.basejob.SingleJob`]]
             A mapping with user-defined job descriptor as keys and an iterable of Job
             instances as values.
-        post_process :class:`~collections.abc.Mapping` [:class:`str`, :class:`~collections.abc.Callable`], optional
-            A mapping with user-specified post processing functions;
-            its keys must be a subset of those in **data**.
-            Setting this value to ``None`` will disable any post-processing.
+        hook : :class:`~collections.abc.Iterator` [:class:`~collections.abc.Iterable` [:class:`~qmflows.packages.packages.Result`]], optional
+            An iterator yielding multiple qmflows Result objects.
+            Can be used as a hook for the purpose of unit-testing.
+        **kwargs : :data:`~typing.Any`
+            Further keyword arguments which can be customized by :class:`PackageManagerABC` subclasses.
 
         See Also
         --------
         func:`evaluate_rmsd`
             Evaluate the RMSD of a geometry optimization.
 
-        """  # noqa
+        """  # noqa: E501
         if kwargs:
             name = next(iter(kwargs))
             raise TypeError(f"Unexpected argument {name!r}")
         super().__init__()
 
-        self._data = cast(Data, data)
+        self.data = cast(Data, data)
+        self.hook = hook
 
     # Attributes and properties
 
     @property
-    def _data(self) -> Data:
-        """A (private) property containing this instance's underlying :class:`dict`.
+    def hook(self) -> Optional[JobHook]:
+        """Get or set the :attr:`hook` attribute."""
+        return self._hook
+
+    @hook.setter
+    def hook(self, value: Optional[JobHook]) -> None:
+        if value is None:
+            pass
+        elif not isinstance(value, abc.Iterator):
+            raise TypeError("'hook' excpected an iterator; "
+                            f"observed type: {value.__class__.__name__!r}")
+        self._hook = value
+
+    @property
+    def data(self) -> Data:
+        """A property containing this instance's underlying :class:`dict`.
 
         The getter will simply return the attribute's value.
         The setter will validate and assign any mapping or iterable containing of key/value pairs.
 
         """
-        return self.__data
+        return self._data
 
-    @_data.setter
-    def _data(self, value: Union[DataMap, DataIter]) -> None:  # noqa
+    @data.setter
+    def data(self, value: Union[DataMap, DataIter]) -> None:  # noqa
         iterable = value.items() if isinstance(value, abc.Mapping) else value
         ret = {k: tuple(v) for k, v in iterable}
 
         value_len = {len(v) for v in ret.values()}
         if not value:
-            raise ValueError(f"{self.__class__.__name__!r}() expected a non-empty Mapping")
+            raise ValueError("'data' expected a non-empty Mapping")
         elif len(value_len) != 1:
-            raise ValueError(f"All values passed to {self.__class__.__name__!r}() "
-                             "must be of the same length")
+            raise ValueError("All values passed to 'data' must be of the same length")
 
         # Ensure all settings are qmflows.Settings instances
         for job_tup in ret.values():
             for job in job_tup:
                 job['settings'] = QmSettings(job['settings'])
-        self.__data = ret
+        self._data = ret
 
     def __eq__(self, value: Any) -> bool:
         """Implement :code:`self == value`."""
@@ -155,39 +195,39 @@ class PackageManagerABC(ABC, Mapping[str, Value]):
 
     def __getitem__(self, key: str) -> Value:
         """Implement :code:`self[key]`."""
-        return self._data[key]
+        return self.data[key]
 
     def __iter__(self) -> Iterator[str]:
         """Implement :code:`iter(self)`."""
-        return iter(self._data)
+        return iter(self.data)
 
     def __len__(self) -> int:
         """Implement :code:`len(self)`."""
-        return len(self._data)
+        return len(self.data)
 
     def __contains__(self, key: Any) -> bool:
         """Implement :code:`key in self`."""
-        return key in self._data
+        return key in self.data
 
     def keys(self) -> KeysView[str]:
         """Return a set-like object providing a view of this instance's keys."""
-        return self._data.keys()
+        return self.data.keys()
 
     def items(self) -> ItemsView[str, Value]:
         """Return a set-like object providing a view of this instance's key/value pairs."""
-        return self._data.items()
+        return self.data.items()
 
     def values(self) -> ValuesView[Value]:
         """Return an object providing a view of this instance's values."""
-        return self._data.values()
+        return self.data.values()
 
     @overload
     def get(self, key: Hashable) -> Optional[Value]: ...
     @overload
     def get(self, key: Hashable, default: T) -> Union[Value, T]: ...
-    def get(self, key, default=None):
+    def get(self, key, default=None):  # noqa: E301
         """Return the value for **key** if it's available; return **default** otherwise."""
-        return self._data.get(key, default)  # type: ignore
+        return self.data.get(key, default)  # type: ignore
 
     # The actual job runner
 
@@ -229,11 +269,12 @@ class PackageManagerABC(ABC, Mapping[str, Value]):
         raise NotImplementedError('Trying to call an abstract method')
 
 
+@set_docstring(PackageManagerABC.__doc__)
 @has_scheduled_methods
 class PackageManager(PackageManagerABC):
 
-    def __init__(self, data: Union[DataMap, DataIter]) -> None:
-        super().__init__(data)
+    def __init__(self, data: Union[DataMap, DataIter], hook: Optional[JobHook] = None) -> None:
+        super().__init__(data, hook)
 
         # Transform all forcefield parameter blocks into DataFrames
         job_iterator = (job['settings'] for job in chain.from_iterable(self.values()))
@@ -260,16 +301,21 @@ class PackageManager(PackageManagerABC):
         if logger is None:
             logger = DummyLogger()
 
+        # Check if a hook has been specified
+        if self.hook is not None:
+            results = next(self.hook)
+            return self._extract_mol(results, logger)
+
         jobs_iter = iter(self.items())
 
-        _name, _jobs = next(jobs_iter)
-        promised_jobs: List[PromisedObject] = [self.assemble_job(j, name=_name) for j in _jobs]
+        name, jobs = next(jobs_iter)
+        promised_jobs: List[PromisedObject] = [self.assemble_job(j, name=name) for j in jobs]
 
         for name, jobs in jobs_iter:
             promised_jobs = [self.assemble_job(j, p_j, name=name) for
                              j, p_j in zip(jobs, promised_jobs)]
 
-        results: List[Result] = run_parallel(gather(*promised_jobs), n_threads=n_processes)
+        results = run_parallel(gather(*promised_jobs), n_threads=n_processes)
         return self._extract_mol(results, logger)
 
     @staticmethod

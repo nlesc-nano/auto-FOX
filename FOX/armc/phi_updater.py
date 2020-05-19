@@ -1,18 +1,18 @@
-r"""
-FOX.armc.phi_updater
-====================
-
-A module holding classes for managing and updating :math:`\phi`.
+r"""A module holding classes for managing and updating :math:`\phi`.
 
 Index
 -----
 .. currentmodule:: FOX.armc.phi_updater
 .. autosummary::
+    PhiUpdaterABC
     PhiUpdater
 
 API
 ---
+.. autoclass:: PhiUpdaterABC
+    :members:
 .. autoclass:: PhiUpdater
+    :members:
 
 """
 
@@ -25,10 +25,10 @@ import numpy as np
 
 from assertionlib.dataclass import AbstractDataClass
 
-from ..utils import as_nd_array
+from ..utils import as_nd_array, set_docstring
 from ..type_hints import ArrayLike, ArrayLikeOrScalar, Scalar, DtypeLike, SupportsIndex
 
-__all__ = ['PhiUpdater']
+__all__ = ['PhiUpdaterABC', 'PhiUpdater']
 
 _PhiFunc = Callable[..., np.ndarray]
 PhiFunc = Callable[[ArrayLikeOrScalar, np.ndarray], np.ndarray]
@@ -227,6 +227,7 @@ class PhiUpdaterABC(AbstractDataClass, ABC, Sized):
         raise NotImplementedError("Trying to call an abstract method")
 
 
+@set_docstring(PhiUpdaterABC.__doc__)
 class PhiUpdater(PhiUpdaterABC):
 
     @PhiUpdaterABC.inherit_annotations()
@@ -265,6 +266,3 @@ class PhiUpdater(PhiUpdaterABC):
         elif logger is not None:
             logger.info(f"Updating phi: {self.phi} -> {phi}")
         self.phi = phi
-
-
-PhiUpdater.__doc__ = PhiUpdaterABC.__doc__

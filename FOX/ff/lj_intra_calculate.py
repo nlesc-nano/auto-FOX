@@ -1,8 +1,4 @@
-r"""
-FOX.ff.lj_intra_calculate
-=========================
-
-A module for calculating non-bonded intra-ligand interactions using Coulomb + Lennard-Jones potentials.
+r"""A module for calculating non-bonded intra-ligand interactions using Coulomb + Lennard-Jones potentials.
 
 See :mod:`lj_calculate<FOX.ff.lj_calculate>` for the calculation of non-covalent inter-moleculair
 interactions.
@@ -21,7 +17,18 @@ interactions.
 
     V_{Coulomb} = \frac{1}{4 \pi \varepsilon_{0}} \frac{q_{i} q_{j}}{r_{ij}}
 
-"""  # noqa
+
+Index
+-----
+.. currentmodule:: FOX.ff.lj_intra_calculate
+.. autosummary::
+    get_intra_non_bonded
+
+API
+---
+.. autofunction:: get_intra_non_bonded
+
+"""  # noqa: E501
 
 import operator
 from typing import Union, Callable, Tuple, Optional

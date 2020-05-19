@@ -1,13 +1,58 @@
-"""A module with miscellaneous functions."""
+"""A module with miscellaneous functions.
+
+Index
+-----
+.. currentmodule:: FOX.utils
+.. autosummary::
+    get_move_range
+    array_to_index
+    assert_error
+    serialize_array
+    read_str_file
+    get_shape
+    slice_str
+    get_atom_count
+    get_importable
+    group_by_values
+    read_rtf_file
+    fill_diagonal_blocks
+    split_dict
+    as_nd_array
+    prepend_exception
+    set_docstring
+    EMPTY_MAPPING
+    VersionInfo
+    VersionInfo.from_str
+
+API
+---
+.. autofunction:: array_to_index
+.. autofunction:: assert_error
+.. autofunction:: serialize_array
+.. autofunction:: read_str_file
+.. autofunction:: get_shape
+.. autofunction:: slice_str
+.. autofunction:: get_atom_count
+.. autofunction:: get_importable
+.. autofunction:: group_by_values
+.. autofunction:: read_rtf_file
+.. autofunction:: fill_diagonal_blocks
+.. autofunction:: split_dict
+.. autofunction:: as_nd_array
+.. autofunction:: prepend_exception
+.. autofunction:: set_docstring
+.. autodata:: EMPTY_MAPPING
+.. autoclass:: VersionInfo
+.. automethod:: VersionInfo.from_str
+
+"""
 
 import reprlib
 import warnings
 import importlib
-from os import PathLike
-from os.path import join
+from types import MappingProxyType
 from functools import wraps
 from collections import abc
-from pkg_resources import resource_filename
 from typing import (
     Iterable, Tuple, Callable, Hashable, Sequence, Optional, List, TypeVar, Dict,
     Type, Mapping, Union, MutableMapping, Any, Collection, cast, NamedTuple
@@ -20,7 +65,12 @@ from scm.plams import add_to_class  # type: ignore
 
 from .type_hints import Scalar, SupportsArray, DtypeLike, PathType
 
-__all__ = ['get_example_xyz', 'as_nd_array']
+__all__ = [
+    'get_move_range', 'array_to_index', 'assert_error', 'serialize_array', 'read_str_file',
+    'get_shape', 'slice_str', 'get_atom_count', 'get_importable', 'group_by_values',
+    'read_rtf_file', 'fill_diagonal_blocks', 'split_dict', 'as_nd_array', 'prepend_exception',
+    'set_docstring', 'VersionInfo', 'EMPTY_MAPPING'
+]
 
 T = TypeVar('T')
 VT = TypeVar('VT')
@@ -28,45 +78,6 @@ KT = TypeVar('KT', bound=Hashable)
 FT = TypeVar('FT', bound=Callable)
 
 ExcType = Union[Type[Exception], Tuple[Type[Exception], ...]]
-
-
-def append_docstring(func: Callable) -> Callable[[FT], FT]:
-    r"""A decorator for appending the docstring of a Callable one provided by another Callable.
-
-    Examples
-    --------
-    .. code:: python
-
-        >>> def func1():
-        ...     '''func1 docstring.'''
-        ...     pass
-
-        >>> @append_docstring(func1)
-        >>> def func2():
-        ...     '''func2 docstring.'''
-        ...     pass
-
-        >>> help(func2)
-        'func2 docstring func1 docstring'
-
-    Parameters
-    ----------
-    item : |Callable|_
-        A Callable object with a docstring.
-
-    Returns
-    -------
-    |Callable|_
-        A decorated callable.
-
-    """
-    def _decorator(func_new: FT) -> FT:
-        try:
-            func_new.__doc__ += func.__doc__  # type: ignore
-        except TypeError:
-            func_new.__doc__ = func.__doc__
-        return func_new
-    return _decorator
 
 
 def get_shape(item: Any) -> Tuple[int, ...]:
@@ -273,21 +284,14 @@ def array_to_index(ar: np.ndarray) -> pd.Index:
         return pd.Index(ar)
     elif ar.ndim == 2:
         return pd.MultiIndex.from_arrays(ar)
-    raise ValueError('Could not construct a Pandas (Multi)Index from an \
-                     {:d}-dimensional array'.format(ar.dim))
+    raise ValueError('Could not construct a Pandas (Multi)Index from an '
+                     f'{ar.ndim}-dimensional array')
 
 
-def get_example_xyz(name: Union[str, PathLike] = 'Cd68Se55_26COO_MD_trajec.xyz') -> str:
-    """Return the path + name of the example multi-xyz file."""
-    err = "'FOX.get_example_xyz()' has been deprecated in favour of 'FOX.example_xyz'"
-    warnings.warn(err, FutureWarning)
-    return resource_filename('FOX', join('data', name))
-
-
-def _get_move_range(start: float = 0.005,
-                    stop: float = 0.1,
-                    step: float = 0.005,
-                    ratio: Optional[Iterable[float]] = None) -> np.ndarray:
+def get_move_range(start: float = 0.005,
+                   stop: float = 0.1,
+                   step: float = 0.005,
+                   ratio: Optional[Iterable[float]] = None) -> np.ndarray:
     """Generate an with array of all allowed moves.
 
     The move range spans a range of 1.0 +- **stop** and moves are thus intended to
@@ -297,13 +301,13 @@ def _get_move_range(start: float = 0.005,
     --------
     .. code:: python
 
-        >>> move_range1 = _get_move_range(start=0.005, stop=0.020,
-        ...                               step=0.005, ratio=None)
+        >>> move_range1 = get_move_range(start=0.005, stop=0.020,
+        ...                              step=0.005, ratio=None)
         >>> print(move_range1)
         [0.98  0.985 0.99  0.995 1.    1.005 1.01  1.015 1.02 ]
 
-        >>> move_range2 = _get_move_range(start=0.005, stop=0.020,
-        ...                               step=0.005, ratio=[1, 2, 4, 8])
+        >>> move_range2 = get_move_range(start=0.005, stop=0.020,
+        ...                              step=0.005, ratio=[1, 2, 4, 8])
         >>> print(move_range2)
         [[0.98  0.985 0.99  0.995 1.    1.005 1.01  1.015 1.02 ]
          [0.96  0.97  0.98  0.99  1.    1.01  1.02  1.03  1.04 ]
@@ -356,6 +360,14 @@ def _get_move_range(start: float = 0.005,
         raise ValueError("The returned array cannot contain elements smaller than 0; "
                          f"smallest osberved value: {ret_.min()}")
     return ret_
+
+
+@wraps(get_move_range)
+def _get_move_range(*args, **kwargs):
+    _warning = FutureWarning("The 'FOX.utils._get_move_range' function is deprecated; "
+                             "use 'FOX.utils.get_move_range' from now on")
+    warnings.warn(_warning, stacklevel=2)
+    return get_move_range(*args, **kwargs)
 
 
 def slice_str(str_: str, intervals: List[Optional[int]],
@@ -442,7 +454,7 @@ def get_importable(string: str, validate: Optional[Callable[[T], bool]] = None) 
 
     validate : :class:`~Collections.abc.Callable`, optional
         A callable for validating the imported object.
-        Will raise an :exc:`AssertionError` if its output evaluates to ``False``.
+        Will raise a :exc:`RuntimeError` if its output evaluates to ``False``.
 
     Returns
     -------
@@ -452,17 +464,16 @@ def get_importable(string: str, validate: Optional[Callable[[T], bool]] = None) 
     """
     try:
         head, *tail = string.split('.')
-    except ValueError as ex:
-        raise ValueError("No module has been specified in the "
-                         f"passed 'string' ({string!r})") from ex
+    except (AttributeError, TypeError) as ex:
+        raise TypeError("'string' expected a str; observed type: "
+                        f"{string.__class__.__name__!r}") from ex
 
     ret: T = importlib.import_module(head)  # type: ignore
     for name in tail:
         ret = getattr(ret, name)
 
-    if validate is not None:
-        msg = f'Passing {reprlib.repr(ret)} to {validate!r} failed to return True'
-        assert validate(ret), msg
+    if validate is not None and not validate(ret):
+        raise RuntimeError(f'Passing {reprlib.repr(ret)} to {validate!r} failed to return True')
 
     return ret
 
@@ -478,7 +489,7 @@ def group_by_values(iterable: Iterable[Tuple[VT, KT]],
         >>> from typing import Iterator
 
         >>> str_list: list = ['a', 'a', 'a', 'a', 'a', 'b', 'b', 'b']
-        >>> iterable: Iterator = enumerate(str_list)
+        >>> iterable: Iterator = enumerate(str_list, start=1)
         >>> new_dict: dict = group_by_values(iterable)
 
         >>> print(new_dict)
@@ -522,7 +533,10 @@ def read_rtf_file(filename: PathType) -> Optional[Tuple[Sequence[str], Sequence[
 
     i, j, k = len('ATOM'), 2, 3
     with open(filename, 'r') as f:
-        ret = [_parse_item(item) for item in f if item[:i] == 'ATOM']
+        try:
+            ret = [_parse_item(item) for item in f if item[:i] == 'ATOM']
+        except Exception as ex:
+            raise RuntimeError(f"Failed to parse {filename!r}") from ex
     return zip(*ret) if ret else None
 
 
@@ -639,7 +653,7 @@ def as_nd_array(value: Union[Scalar, Iterable[Scalar], SupportsArray], dtype: Dt
             raise ex
 
         ret = np.fromiter(value, dtype=dtype)
-        ret.shape += (ndmin - ret.ndmim) * (1,)
+        ret.shape += (ndmin - ret.ndim) * (1,)
         return ret
 
 
@@ -652,14 +666,14 @@ def prepend_exception(msg: str, exception: ExcType = Exception) -> Callable[[FT]
 
         >>> from FOX.utils import prepend_exception
 
-        >>> @prepend_exception('custom message: ', exception=KeyError)
+        >>> @prepend_exception('custom message: ', exception=TypeError)
         ... def func():
-        ...     raise KeyError('test')
+        ...     raise TypeError('test')
 
         >>> func()
         Traceback (most recent call last):
             ...
-        KeyError: "custom message: 'test'"
+        TypeError: "custom message: test"
 
 
     Parameters
@@ -712,5 +726,21 @@ class VersionInfo(NamedTuple):
             cls_name = version.__class__.__name__
             raise TypeError(f"'version' expected a string; observed type: {cls_name!r}")
 
-        args = (int(i) for i in version.split('.'))
-        return cls(*args)
+        try:
+            major, minor, micro = (int(i) for i in version.split('.'))
+        except (ValueError, TypeError) as ex:
+            raise ValueError("'version' expected a string consisting of three '.'-separated "
+                             f"integers (e.g. '0.8.2'); observed value: {version!r}") from ex
+        return cls(major=major, minor=minor, micro=micro)
+
+
+def set_docstring(docstring: Optional[str]) -> Callable[[FT], FT]:
+    """A decorator for assigning docstrings."""
+    def wrapper(func: FT) -> FT:
+        func.__doc__ = docstring
+        return func
+    return wrapper
+
+
+#: An empty mapping.
+EMPTY_MAPPING: Mapping = MappingProxyType({})
