@@ -1,12 +1,25 @@
+"""A module holsing the :func:`run_armc` function.
+
+Index
+-----
+.. currentmodule:: FOX.armc.run_armc
+.. autosummary::
+    run_armc
+
+API
+---
+.. autofunction:: run_armc
+
+"""
+
 import os
-from typing import Union, TYPE_CHECKING, Optional, Iterable, Mapping
+from typing import Union, TYPE_CHECKING, Optional, Iterable
 from pathlib import Path
 from contextlib import redirect_stdout
 
 from scm.plams import config
 from qmflows.utils import InitRestart
 
-from .guess import guess_param
 from ..logger import Plams2Logger, wrap_plams_logger
 
 if TYPE_CHECKING:

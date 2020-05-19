@@ -1,3 +1,22 @@
+"""A module containing the :class:`PackageManager` class.
+
+Index
+-----
+.. currentmodule:: FOX.armc.package_manager
+.. autosummary::
+    PackageManagerABC
+    PackageManager
+
+API
+---
+.. autoclass:: PackageManagerABC
+    :members:
+.. autoclass:: PackageManager
+    :members:
+
+
+"""
+
 from __future__ import annotations
 
 import os
@@ -19,6 +38,7 @@ from qmflows import Settings as QmSettings
 from qmflows.cp2k_utils import prm_to_df
 from noodles import gather, schedule, has_scheduled_methods, run_parallel
 
+from ..utils import set_docstring
 from ..classes import MultiMolecule
 from ..functions.cp2k_utils import get_xyz_path
 from ..logger import DummyLogger
@@ -32,7 +52,7 @@ if TYPE_CHECKING:
 else:
     from ..type_alias import PromisedObject, Result, Package, Job
 
-__all__ = ['PackageManager']
+__all__ = ['PackageManagerABC', 'PackageManager']
 
 
 class PkgDict(TypedDict):
@@ -58,6 +78,7 @@ JobHook = Iterator[Iterable[Result]]
 
 
 class PackageManagerABC(ABC, Mapping[str, Value]):
+    """A class for managing qmflows-style jobs."""
 
     _data: Data
     _hook: Optional[JobHook]
@@ -95,13 +116,15 @@ class PackageManagerABC(ABC, Mapping[str, Value]):
     # Attributes and properties
 
     @property
-    def hook(self) -> JobHook:
+    def hook(self) -> Optional[JobHook]:
         """Get or set the :attr:`hook` attribute."""
         return self._hook
 
     @hook.setter
-    def hook(self, value: JobHook) -> None:
-        if not isinstance(value, abc.Iterator):
+    def hook(self, value: Optional[JobHook]) -> None:
+        if value is None:
+            pass
+        elif not isinstance(value, abc.Iterator):
             raise TypeError("'hook' excpected an iterator; "
                             f"observed type: {value.__class__.__name__!r}")
         self._hook = value
@@ -116,14 +139,14 @@ class PackageManagerABC(ABC, Mapping[str, Value]):
         """
         return self._data
 
-    @_data.setter
+    @data.setter
     def data(self, value: Union[DataMap, DataIter]) -> None:  # noqa
         iterable = value.items() if isinstance(value, abc.Mapping) else value
         ret = {k: tuple(v) for k, v in iterable}
 
         value_len = {len(v) for v in ret.values()}
         if not value:
-            raise ValueError(f"'data' expected a non-empty Mapping")
+            raise ValueError("'data' expected a non-empty Mapping")
         elif len(value_len) != 1:
             raise ValueError("All values passed to 'data' must be of the same length")
 
@@ -202,7 +225,7 @@ class PackageManagerABC(ABC, Mapping[str, Value]):
     def get(self, key: Hashable) -> Optional[Value]: ...
     @overload
     def get(self, key: Hashable, default: T) -> Union[Value, T]: ...
-    def get(self, key, default=None):
+    def get(self, key, default=None):  # noqa: E301
         """Return the value for **key** if it's available; return **default** otherwise."""
         return self.data.get(key, default)  # type: ignore
 
@@ -246,6 +269,7 @@ class PackageManagerABC(ABC, Mapping[str, Value]):
         raise NotImplementedError('Trying to call an abstract method')
 
 
+@set_docstring(PackageManagerABC.__doc__)
 @has_scheduled_methods
 class PackageManager(PackageManagerABC):
 
@@ -279,13 +303,8 @@ class PackageManager(PackageManagerABC):
 
         # Check if a hook has been specified
         if self.hook is not None:
-            try:
-                results: List[Result] = next(self.hook)
-            except StopIteration as ex:
-                logger.warning(ex)
-                return None
-            else:
-                return self._extract_mol(results, logger)
+            results = next(self.hook)
+            return self._extract_mol(results, logger)
 
         jobs_iter = iter(self.items())
 

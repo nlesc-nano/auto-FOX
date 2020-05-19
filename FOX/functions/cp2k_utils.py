@@ -1,4 +1,20 @@
-"""A module with miscellaneous functions related to CP2K."""
+"""A module with miscellaneous functions related to CP2K.
+
+Index
+-----
+.. currentmodule:: FOX.functions.cp2k_utils
+.. autosummary::
+    parse_cp2k_value
+    get_xyz_path
+    UNIT_MAP
+
+API
+---
+.. autofunction:: parse_cp2k_value
+.. autofunction:: update_charge
+.. autodata:: UNIT_MAP
+
+"""
 
 import os
 from types import MappingProxyType
@@ -9,7 +25,7 @@ from scipy import constants
 
 from scm.plams import Units
 
-__all__ = ['parse_cp2k_value']
+__all__ = ['UNIT_MAP', 'parse_cp2k_value', 'get_xyz_path']
 
 # Multiplicative factor for converting Hartree into Kelvin
 Units.energy['k'] = Units.energy['kelvin'] = (

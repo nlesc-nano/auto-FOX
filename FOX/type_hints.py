@@ -1,8 +1,4 @@
-"""
-FOX.type_hints
-==============
-
-A module with type-hint related objects used throughout Auto-FOX.
+"""A module with type-hint related objects used throughout Auto-FOX.
 
 Index
 -----
@@ -25,9 +21,9 @@ import numpy as np
 from pandas.core.generic import NDFrame
 
 if sys.version_info >= (3, 8):
-    from typing import Literal, TypedDict, SupportsIndex
+    from typing import Literal, TypedDict, SupportsIndex, final, Final
 else:
-    from typing_extensions import Literal, TypedDict, Protocol, runtime_checkable
+    from typing_extensions import Literal, TypedDict, Protocol, runtime_checkable, final, Final
 
     @runtime_checkable
     class SupportsIndex(Protocol):
@@ -37,6 +33,7 @@ else:
 
         @abstractmethod
         def __index__(self) -> int:
+            """Return :code:`self` converted to an integer for the purpose of indexing."""
             pass
 
 if TYPE_CHECKING:
@@ -47,7 +44,7 @@ else:
 
 __all__ = [
     'Scalar', 'ScalarType', 'ArrayLike', 'ArrayLikeOrScalar', 'ArrayOrScalar',
-    'Literal', 'TypedDict', 'PathType'
+    'Literal', 'TypedDict', 'PathType', 'final', 'Final'
 ]
 
 #: Annotation for numerical scalars.

@@ -1,10 +1,4 @@
-"""
-FOX.ff
-======
-
-Various forcefield-related modules.
-
-"""
+"""Various forcefield-related modules."""
 
 from .lj_dataframe import LJDataFrame
 from .lj_uff import UFF_DF

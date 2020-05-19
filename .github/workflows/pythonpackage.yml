@@ -43,8 +43,13 @@ jobs:
               env:
                   CONDA_PREFIX: /usr/share/miniconda
 
+            - name: Run pydocstyle and flake8
+              run: pytest FOX
+              env:
+                  CONDA_PREFIX: /usr/share/miniconda
+
             - name: Test with pytest
-              run: pytest tests
+              run: pytest -m "not slow" tests
               env:
                   CONDA_PREFIX: /usr/share/miniconda
 

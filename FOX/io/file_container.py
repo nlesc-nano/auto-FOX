@@ -1,8 +1,4 @@
-"""
-FOX.io.file_container
-=========================
-
-An abstract container for reading and writing files.
+"""An abstract container for reading and writing files.
 
 Index
 -----

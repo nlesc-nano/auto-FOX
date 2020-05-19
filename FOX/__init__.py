@@ -1,15 +1,10 @@
-"""
-Auto-FOX
-========
-
-A library for analyzing potential energy surfaces (PESs) and
-using the resulting PES descriptors for constructing forcefield parameters.
+"""**Auto-FOX** is a library for analyzing potential energy surfaces (PESs) and using the resulting PES descriptors for constructing forcefield parameters.
 
 Documentation
 -------------
 https://auto-fox.readthedocs.io/en/latest/
 
-"""
+"""  # noqa: E501
 
 from os.path import join
 

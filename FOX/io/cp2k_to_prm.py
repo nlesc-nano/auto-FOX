@@ -1,8 +1,4 @@
-"""
-FOX.io.cp2k_to_prm
-==================
-
-A :class:`TypedMapping<FOX.typed_mapping.TypedMapping>` subclass converting CP2K settings to .prm-compatible values.
+"""A :class:`~FOX.typed_mapping.TypedMapping` subclass converting CP2K settings to .prm-compatible values.
 
 Index
 -----

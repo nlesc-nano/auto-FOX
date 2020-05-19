@@ -1,4 +1,5 @@
-"""
+"""A set of functions for creating histograms.
+
 Examples
 --------
 A workflow for creating histograms of non-bonded interactions.

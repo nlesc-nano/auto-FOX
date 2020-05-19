@@ -1,8 +1,4 @@
-"""
-FOX.armc.plotting
-=================
-
-A module with functions for analyzing ARMC results.
+"""A module with functions for analyzing ARMC results.
 
 Index
 -----
@@ -30,14 +26,15 @@ from ..io.hdf5_utils import from_hdf5
 try:
     import matplotlib.pyplot as plt
     from matplotlib.pyplot import Figure
+    __all__ = []
     PLT_ERROR: Optional[str] = None
+
 except ImportError:
     from ..type_alias import Figure
+    __all__ = ['plot_pes_descriptors', 'plot_param', 'plot_dset']
     PLT_ERROR = ("Use of the FOX.{} function requires the 'matplotlib' package."
                  "\n'matplotlib' can be installed via PyPi with the following command:"
                  "\n\tpip install matplotlib")
-
-__all__ = []
 
 
 @assert_error(PLT_ERROR)

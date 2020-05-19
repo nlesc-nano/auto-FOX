@@ -1,7 +1,6 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 import os
-import sys
 
 from setuptools import setup
 
@@ -14,21 +13,6 @@ with open(os.path.join(here, 'FOX', '__version__.py')) as f:
 
 with open('README.rst') as readme_file:
     readme = readme_file.read()
-
-# Add the 'typing_extensions' package in python versions prior to 3.8
-install_requires = [
-    'pyyaml>=5.1',
-    'numpy',
-    'scipy',
-    'pandas',
-    'schema',
-    'AssertionLib>=2.1',
-    'noodles>=0.3.3',
-    'qmflows@git+https://github.com/SCM-NV/qmflows@master',
-    'plams@git+https://github.com/SCM-NV/PLAMS@master'
-]
-if sys.version_info < (3, 8):
-    install_requires.append('typing_extensions')
 
 setup(
     name='Auto-FOX',
@@ -52,10 +36,10 @@ setup(
     ],
     package_dir={'FOX': 'FOX'},
     package_data={'FOX': [
-        'data/Cd68Se55_26COO_MD_trajec.xyz',
+        'data/*.xyz',
         'data/*.yaml',
-        'armc_functions/*.png',
         'data/*.csv',
+        'armc/*.png',
         'py.typed',
         '*.pyi'
     ]},
@@ -91,17 +75,38 @@ setup(
     ],
     test_suite='tests',
     python_requires='>=3.7',
-    install_requires=install_requires,
+    install_requires=[
+        'pyyaml>=5.1',
+        'numpy',
+        'scipy',
+        'pandas',
+        'schema',
+        'AssertionLib>=2.1',
+        'noodles>=0.3.3',
+        'typing_extensions>=3.7.4; python_version<"3.8"',
+        'qmflows@git+https://github.com/SCM-NV/qmflows@master',
+        'plams@git+https://github.com/SCM-NV/PLAMS@master'
+    ],
     setup_requires=[
         'pytest-runner'
     ],
     tests_require=[
         'pytest',
         'pytest-cov',
-        'pycodestyle'
+        'pyflakes>=2.1.1',
+        'pytest-flake8>=1.0.5',
+        'pytest-pydocstyle>=2.1',
+        'matplotlib'
     ],
     extras_require={
         'doc': ['sphinx>=2.0', 'sphinx_rtd_theme', 'matplotlib', 'sphinx-autodoc-typehints'],
-        'test': ['pytest', 'pytest-cov', 'pytest-mock', 'pycodestyle', 'matplotlib']
+        'test': [
+            'pytest',
+            'pytest-cov',
+            'pyflakes>=2.1.1',
+            'pytest-flake8>=1.0.5',
+            'pytest-pydocstyle>=2.1',
+            'matplotlib'
+        ]
     }
 )

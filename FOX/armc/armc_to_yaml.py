@@ -1,3 +1,5 @@
+"""A module for constructing .yaml files from :class:`ARMC` instances."""
+
 import io
 import os
 from typing import TYPE_CHECKING, Union, AnyStr, Optional

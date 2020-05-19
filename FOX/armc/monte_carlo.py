@@ -1,8 +1,4 @@
-"""
-FOX.armc.monte_carlo
-====================
-
-A module for performing Monte Carlo-based forcefield parameter optimizations.
+"""A module for performing Monte Carlo-based forcefield parameter optimizations.
 
 Index
 -----
@@ -14,16 +10,13 @@ API
 ---
 .. autoclass:: MonteCarloABC
     :members:
-    :private-members:
-    :special-members:
 
 """
 
 from os import PathLike
-from functools import wraps, partial
-from logging import Logger
 from abc import ABC, abstractmethod
-from types import MappingProxyType
+from logging import Logger
+from functools import wraps, partial
 from itertools import repeat, cycle, chain
 from collections import abc
 from typing import (
@@ -34,6 +27,7 @@ from typing import (
 import numpy as np
 from assertionlib.dataclass import AbstractDataClass
 
+from ..utils import EMPTY_MAPPING
 from ..logger import DEFAULT_LOGGER
 from ..type_hints import ArrayOrScalar
 
@@ -197,7 +191,7 @@ class MonteCarloABC(AbstractDataClass, ABC, Mapping[Key, np.ndarray]):
     @overload  # noqa: E301
     def add_pes_evaluator(self, name: str, func: GetPesDescriptor, args: Sequence,
                           kwargs: Iterable[Mapping[str, Any]]) -> None: ...
-    def add_pes_evaluator(self, name, func, args=(), kwargs=MappingProxyType({})) -> None:  # noqa: E301
+    def add_pes_evaluator(self, name, func, args=(), kwargs=EMPTY_MAPPING) -> None:  # noqa: E301
         r"""Add a callable to this instance for constructing PES-descriptors.
 
         Examples

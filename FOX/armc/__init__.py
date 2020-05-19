@@ -1,10 +1,4 @@
-"""
-FOX.armc
-========
-
-Various functions and classes related to ARMC.
-
-"""
+"""Various functions and classes related to ARMC."""
 
 from .armc import ARMC
 from .armc_pt import ARMCPT

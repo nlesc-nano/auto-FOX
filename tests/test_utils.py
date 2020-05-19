@@ -12,7 +12,7 @@ from FOX.utils import (
     get_move_range, array_to_index, assert_error, serialize_array, read_str_file,
     get_shape, slice_str, get_atom_count, get_importable, group_by_values,
     read_rtf_file, fill_diagonal_blocks, split_dict, as_nd_array, prepend_exception,
-    VersionInfo
+    VersionInfo, set_docstring, EMPTY_MAPPING
 )
 
 PATH = Path('tests') / 'test_files'
@@ -247,3 +247,23 @@ def test_version_info() -> None:
     assertion.assert_(VersionInfo.from_str, b'0.1.2', exception=TypeError)
     assertion.assert_(VersionInfo.from_str, '0.1.2a', exception=ValueError)
     assertion.assert_(VersionInfo.from_str, '0.1.2.3.4', exception=ValueError)
+
+
+def test_set_docstring() -> None:
+    """Test :func:`FOX.utils.set_docstring`."""
+
+    def func_a():
+        """Test."""
+        pass
+
+    @set_docstring(func_a.__doc__)
+    def func_b():
+        pass
+
+    assertion.eq(func_b.__doc__, func_a.__doc__)
+
+
+def test_empty_mapping() -> None:
+    """Test :data:`FOX.utils.EMPTY_MAPPING`."""
+    assertion.isinstance(EMPTY_MAPPING, abc.Mapping)
+    assertion.not_(EMPTY_MAPPING)

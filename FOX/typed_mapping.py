@@ -1,8 +1,4 @@
-"""
-FOX.typed_mapping
-=================
-
-A module which adds the :class:`TypedMapping` class.
+"""A module which adds the :class:`TypedMapping` class.
 
 Index
 -----

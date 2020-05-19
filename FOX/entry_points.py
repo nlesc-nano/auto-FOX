@@ -1,9 +1,5 @@
 #!/usr/bin/env python
-"""
-FOX.entry_points
-================
-
-Entry points for Auto-FOX.
+"""Entry points for Auto-FOX.
 
 Index
 -----
@@ -34,7 +30,6 @@ import yaml
 
 from .armc import dict_to_armc, run_armc
 from .armc.csv_utils import dset_to_csv
-from .armc.guess import guess_param
 from .armc.plotting import plot_pes_descriptors, plot_param, plot_dset
 
 try:
@@ -85,6 +80,8 @@ def main_armc(args: Optional[list] = None) -> None:
 
 def main_armc2yaml(args: Optional[list] = None) -> None:
     """Entrypoint for :meth:`FOX.classes.armc.ARMC.to_yaml`."""
+    raise NotImplementedError
+
     parser = argparse.ArgumentParser(
          prog='FOX',
          usage='init_armc filename -o output',
@@ -113,24 +110,9 @@ def main_armc2yaml(args: Optional[list] = None) -> None:
         i = 0
         while True:
             output: str = _output.format(i)
-            if not isfile(filename):
+            if not isfile(output):
                 break
             i += 1
-
-    armc, kwargs = ARMC.from_yaml(filename)
-
-    # Create the .psf files
-    if kwargs['psf'] is not None:
-        for item in kwargs['psf']:
-            item.write(None)
-
-    # Guess the remaining unspecified parameters based on either UFF or the RDF
-    if kwargs['guess'] is not None:
-        for k, v in kwargs['guess'].items():
-            frozen = (k if v['frozen'] else None)
-            guess_param(armc, mode=v['mode'], columns=k, frozen=frozen)
-
-    armc.to_yaml(output, path=kwargs['path'], logfile=kwargs['logfile'], folder=kwargs['folder'])
 
 
 def main_plot_pes(args: Optional[list] = None) -> None:
@@ -192,11 +174,11 @@ def main_plot_pes(args: Optional[list] = None) -> None:
 
     if output is None:
         for dset in datasets_:
-            fig = plot_pes_descriptors(input_, dset, dset + '.png', iteration=iteration)
+            plot_pes_descriptors(input_, dset, dset + '.png', iteration=iteration)
             plt.show(block=True)
     else:
         for i, dset in enumerate(datasets_):
-            fig = plot_pes_descriptors(input_, dset, str(i) + '_' + output, iteration=iteration)
+            plot_pes_descriptors(input_, dset, str(i) + '_' + output, iteration=iteration)
             plt.show(block=True)
 
 
@@ -225,9 +207,9 @@ def main_plot_param(args: Optional[list] = None) -> None:
     output = args_parsed.output[0]
 
     if output is None:
-        fig = plot_param(input_, 'param.png')
+        plot_param(input_, 'param.png')
     else:
-        fig = plot_param(input_, output)
+        plot_param(input_, output)
     plt.show(block=True)
 
 
@@ -266,9 +248,9 @@ def main_plot_dset(args: Optional[list] = None) -> None:
         raise ValueError('The "--datasets" argument expects one or more dataset names')
 
     if output is None:
-        fig = plot_dset(input_, datasets, 'datasets.png')
+        plot_dset(input_, datasets, 'datasets.png')
     else:
-        fig = plot_dset(input_, datasets, output)
+        plot_dset(input_, datasets, output)
     plt.show(block=True)
 
 

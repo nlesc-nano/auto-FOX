@@ -1,7 +1,1 @@
-"""
-FOX.examples
-============
-
-Input file examples.
-
-"""
+"""Input file examples."""

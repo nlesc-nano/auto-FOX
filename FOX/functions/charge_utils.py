@@ -1,4 +1,16 @@
-"""A module with functions related to manipulating atomic charges."""
+"""A module with functions related to manipulating atomic charges.
+
+Index
+-----
+.. currentmodule:: FOX.functions.charge_utils
+.. autosummary::
+    update_charge
+
+API
+---
+.. autofunction:: update_charge
+
+"""
 
 import functools
 from types import MappingProxyType

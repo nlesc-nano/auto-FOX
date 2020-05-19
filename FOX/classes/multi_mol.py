@@ -1,8 +1,4 @@
-"""
-FOX.classes.multi_mol
-=====================
-
-A Module for the :class:`.MultiMolecule` class.
+"""A Module for the :class:`MultiMolecule` class.
 
 Index
 -----
@@ -14,14 +10,11 @@ API
 ---
 .. autoclass:: FOX.classes.multi_mol.MultiMolecule
     :members:
-    :private-members:
-    :special-members:
 
 """
 
 from __future__ import annotations
 
-import sys
 import copy
 import warnings
 from os import PathLike
@@ -55,9 +48,9 @@ from ..functions.molecule_utils import fix_bond_orders, separate_mod
 try:
     import dask
     DASK_EX: Optional[Exception] = None
+
 except Exception as ex:
     DASK_EX = ex
-
     _warn = ImportWarning(str(ex))
     _warn.__cause__ = ex
     warnings.warn(_warn)
@@ -117,6 +110,7 @@ class MultiMolecule(_MultiMolecule):
         Is devoid of keys by default.
 
     """
+
     @overload
     def round(self: MT, decimals: int = ...) -> MT: ...
     @overload
@@ -336,7 +330,7 @@ class MultiMolecule(_MultiMolecule):
     def reset_origin(self, mol_subset: MolSubset = ..., atom_subset: AtomSubset = ..., inplace: Literal[True] = ...) -> None: ...  # noqa: E501
     @overload
     def reset_origin(self: MT, mol_subset: MolSubset = ..., atom_subset: AtomSubset = ..., inplace: Literal[False] = ...) -> MT: ...  # noqa: E501
-    def reset_origin(self, mol_subset=None, atom_subset=None, inplace=True):
+    def reset_origin(self, mol_subset=None, atom_subset=None, inplace=True):  # noqa: E301
         """Reallign all molecules in this instance.
 
         All molecules in this instance are rotating and translating, by performing a partial partial
@@ -395,7 +389,7 @@ class MultiMolecule(_MultiMolecule):
     def sort(self, sort_by: Union[str, Sequence[int]] = ..., reverse: bool = ..., inplace: Literal[True] = ...) -> None: ...  # noqa: E501
     @overload
     def sort(self: MT, sort_by: Union[str, Sequence[int]] = ..., reverse: bool = ..., inplace: Literal[False] = ...) -> MT: ...  # noqa: E501
-    def sort(self, sort_by='symbol', reverse=False, inplace=True):
+    def sort(self, sort_by='symbol', reverse=False, inplace=True):  # noqa: E301
         """Sort the atoms in this instance and **self.atoms**, performing in inplace update.
 
         Parameters
@@ -470,7 +464,7 @@ class MultiMolecule(_MultiMolecule):
     def residue_argsort(self, concatenate: Literal[True]) -> np.ndarray: ...
     @overload
     def residue_argsort(self, concatenate: Literal[False]) -> List[List[int]]: ...
-    def residue_argsort(self, concatenate=True):
+    def residue_argsort(self, concatenate=True):  # noqa: E301
         """Return the indices that would sort this instance by residue number.
 
         Residues are defined based on moleculair fragments based on **self.bonds**.
@@ -1750,7 +1744,7 @@ class MultiMolecule(_MultiMolecule):
     def get_angle_mat(self, mol_subset: MolSubset = ..., atom_subset: Tuple[AtomSubset, AtomSubset, AtomSubset] = ..., get_r_max: Literal[False] = ...) -> np.ndarray: ...  # noqa: E501
     @overload
     def get_angle_mat(self, mol_subset: MolSubset = ..., atom_subset: Tuple[AtomSubset, AtomSubset, AtomSubset] = ..., get_r_max: Literal[True] = ...) -> Tuple[np.ndarray, float]: ...  # noqa: E501
-    def get_angle_mat(self, mol_subset=0, atom_subset=(None, None, None), get_r_max=False):
+    def get_angle_mat(self, mol_subset=0, atom_subset=(None, None, None), get_r_max=False):  # noqa: E301, E501
         """Create and return an angle matrix for all molecules and atoms in this instance.
 
         Parameters
@@ -1809,7 +1803,7 @@ class MultiMolecule(_MultiMolecule):
     def _get_atom_subset(self, atom_subset: AtomSubset, as_array: Literal[False]) -> Union[slice, np.ndarray]: ...  # noqa: E501
     @overload
     def _get_atom_subset(self, atom_subset: AtomSubset, as_array: Literal[True]) -> np.ndarray: ...
-    def _get_atom_subset(self, atom_subset, as_array=False):
+    def _get_atom_subset(self, atom_subset, as_array=False):  # noqa: E301
         """Sanitize the **_get_atom_subset** argument.
 
         Accepts the following objects:
@@ -2085,7 +2079,7 @@ class MultiMolecule(_MultiMolecule):
     def as_mass_weighted(self: MT, mol_subset: MolSubset = ..., atom_subset: AtomSubset = ..., inplace: Literal[False] = ...) -> MT: ...  # noqa: E501
     @overload
     def as_mass_weighted(self: MT, mol_subset: MolSubset = ..., atom_subset: AtomSubset = ..., inplace: Literal[True] = ...) -> None: ...  # noqa: E501
-    def as_mass_weighted(self, mol_subset=None, atom_subset=None, inplace=False):
+    def as_mass_weighted(self, mol_subset=None, atom_subset=None, inplace=False):  # noqa: E301
         """Transform the Cartesian of this instance into mass-weighted Cartesian coordinates.
 
         Parameters

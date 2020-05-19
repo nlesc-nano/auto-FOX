@@ -1,11 +1,25 @@
-"""A module for constructing angular distribution functions."""
+"""A module for constructing angular distribution functions.
+
+Index
+-----
+.. currentmodule:: FOX.functions.adf
+.. autosummary::
+    get_adf
+    get_adf_df
+
+API
+---
+.. autofunction:: get_adf
+.. autofunction:: get_adf_df
+
+"""
 
 from typing import Sequence, Hashable, Optional
 
 import numpy as np
 import pandas as pd
 
-__all__ = ['get_adf']
+__all__ = ['get_adf_df', 'get_adf']
 
 
 def get_adf_df(atom_pairs: Sequence[Hashable]) -> pd.DataFrame:
