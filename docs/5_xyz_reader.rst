@@ -2,7 +2,6 @@
 
 Multi-XYZ reader
 ================
-
 A reader of multi-xyz files has been implemented in the
 :mod:`FOX.io.read_xyz` module. The .xyz fileformat is designed
 for storing the atomic symbols and cartesian coordinates of one or more
@@ -25,9 +24,7 @@ a :class:`.MultiMolecule` instance.
 
 API
 ---
-
 .. autofunction:: FOX.io.read_xyz.read_multi_xyz
-
 .. automethod:: FOX.classes.multi_mol.MultiMolecule.from_xyz
     :noindex:
 

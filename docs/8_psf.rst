@@ -1,6 +1,5 @@
 PSFContainer
 ============
-
 .. automodule:: FOX.io.read_psf
 
 .. |Atom.properties| replace:: :class:`Atom.properties<scm.plams.mol.atom.Atom>`

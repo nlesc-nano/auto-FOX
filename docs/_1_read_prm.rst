@@ -1,6 +1,5 @@
 FOX.io.read_prm
 ===============
-
 An abstract container for reading and writing files.
 
 Index
