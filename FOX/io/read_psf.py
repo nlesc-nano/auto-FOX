@@ -1,8 +1,4 @@
-"""
-FOX.io.read_psf
-===============
-
-A class for reading protein structure (.psf) files.
+"""A class for reading protein structure (.psf) files.
 
 Index
 -----
@@ -14,8 +10,6 @@ API
 ---
 .. autoclass:: PSFContainer
     :members:
-    :private-members:
-    :special-members:
 
 """
 

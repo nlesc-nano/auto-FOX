@@ -1,7 +1,1 @@
-"""
-FOX.data
-========
-
-Various .yaml templates, .xyz and .str files.
-
-"""
+"""Various non-.py files used by Auto-FOX."""

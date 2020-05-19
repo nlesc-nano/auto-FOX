@@ -1,12 +1,8 @@
-"""
-FOX.ff.degree_of_separation
-===========================
-
-A set of functions for calculating the degree of separation of atoms within a molecule.
+"""A set of functions for calculating the degree of separation of atoms within a molecule.
 
 Index
 -----
-.. currentmodule:: FOX.recipes.degree_of_separation
+.. currentmodule:: FOX.ff.degree_of_separation
 .. autosummary::
     degree_of_separation
     sparse_bond_matrix

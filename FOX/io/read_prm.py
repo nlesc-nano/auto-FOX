@@ -1,8 +1,4 @@
-"""
-FOX.io.read_prm
-===============
-
-A class for reading and generating .prm parameter files.
+"""A class for reading and generating .prm parameter files.
 
 Index
 -----

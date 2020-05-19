@@ -1,7 +1,9 @@
+"""Placeholder."""
+
 import warnings
 
-from ..utils import *
-from .. import utils
+from ..utils import *  # noqa: F401, F403
+from .. import utils  # noqa: F401
 
 __all__ = utils.__all__
 __doc__ = utils.__doc__

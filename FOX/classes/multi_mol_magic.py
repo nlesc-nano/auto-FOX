@@ -1,8 +1,4 @@
-"""
-FOX.classes.multi_mol_magic
-===========================
-
-A Module for setting up the magic methods and properties of the :class:`.MultiMolecule` class.
+"""A Module for setting up the magic methods and properties of the :class:`.MultiMolecule` class.
 
 Index
 -----
@@ -14,8 +10,6 @@ API
 ---
 .. autoclass:: _MultiMolecule
     :members:
-    :private-members:
-    :special-members:
 
 """
 
@@ -28,12 +22,12 @@ import warnings
 from types import MappingProxyType
 from typing import (
     Dict, Optional, List, Any, Callable, Union, Mapping, Iterable,
-    NoReturn, TypeVar, Type, Generic, cast, ClassVar
+    NoReturn, TypeVar, Type, Generic, cast
 )
 
 import numpy as np
 
-from scm.plams import PeriodicTable, Atom, PTError, Settings  # type: ignore
+from scm.plams import PeriodicTable, PTError, Settings  # type: ignore
 from assertionlib.ndrepr import NDRepr
 from assertionlib.dataclass import AbstractDataClass
 

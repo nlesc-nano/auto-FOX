@@ -1,8 +1,4 @@
-"""
-FOX.armc.schemas
-================
-
-A module with template validation functions for the ARMC input.
+"""A module with template validation functions for the ARMC input.
 
 Index
 -----

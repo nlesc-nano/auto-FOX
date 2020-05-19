@@ -1,13 +1,58 @@
-"""A module with miscellaneous functions."""
+"""A module with miscellaneous functions.
+
+Index
+-----
+.. currentmodule:: FOX.utils
+.. autosummary::
+    get_move_range
+    array_to_index
+    assert_error
+    serialize_array
+    read_str_file
+    get_shape
+    slice_str
+    get_atom_count
+    get_importable
+    group_by_values
+    read_rtf_file
+    fill_diagonal_blocks
+    split_dict
+    as_nd_array
+    prepend_exception
+    set_docstring
+    EMPTY_MAPPING
+    VersionInfo
+    VersionInfo.from_str
+
+API
+---
+.. autofunction:: array_to_index
+.. autofunction:: assert_error
+.. autofunction:: serialize_array
+.. autofunction:: read_str_file
+.. autofunction:: get_shape
+.. autofunction:: slice_str
+.. autofunction:: get_atom_count
+.. autofunction:: get_importable
+.. autofunction:: group_by_values
+.. autofunction:: read_rtf_file
+.. autofunction:: fill_diagonal_blocks
+.. autofunction:: split_dict
+.. autofunction:: as_nd_array
+.. autofunction:: prepend_exception
+.. autofunction:: set_docstring
+.. autodata:: EMPTY_MAPPING
+.. autoclass:: VersionInfo
+.. automethod:: VersionInfo.from_str
+
+"""
 
 import reprlib
 import warnings
 import importlib
-from os import PathLike
-from os.path import join
+from types import MappingProxyType
 from functools import wraps
 from collections import abc
-from pkg_resources import resource_filename
 from typing import (
     Iterable, Tuple, Callable, Hashable, Sequence, Optional, List, TypeVar, Dict,
     Type, Mapping, Union, MutableMapping, Any, Collection, cast, NamedTuple
@@ -20,7 +65,12 @@ from scm.plams import add_to_class  # type: ignore
 
 from .type_hints import Scalar, SupportsArray, DtypeLike, PathType
 
-__all__ = ['as_nd_array']
+__all__ = [
+    'get_move_range', 'array_to_index', 'assert_error', 'serialize_array', 'read_str_file',
+    'get_shape', 'slice_str', 'get_atom_count', 'get_importable', 'group_by_values',
+    'read_rtf_file', 'fill_diagonal_blocks', 'split_dict', 'as_nd_array', 'prepend_exception',
+    'set_docstring', 'VersionInfo', 'EMPTY_MAPPING'
+]
 
 T = TypeVar('T')
 VT = TypeVar('VT')
@@ -679,6 +729,18 @@ class VersionInfo(NamedTuple):
         try:
             major, minor, micro = (int(i) for i in version.split('.'))
         except (ValueError, TypeError) as ex:
-            raise ValueError(f"'version' expected a string consisting of three "
-                             "'.'-separated integers (e.g. '0.8.2')") from ex
+            raise ValueError("'version' expected a string consisting of three '.'-separated "
+                             f"integers (e.g. '0.8.2'); observed value: {version!r}") from ex
         return cls(major=major, minor=minor, micro=micro)
+
+
+def set_docstring(docstring: Optional[str]) -> Callable[[FT], FT]:
+    """A decorator for assigning docstrings."""
+    def wrapper(func: FT) -> FT:
+        func.__doc__ = docstring
+        return func
+    return wrapper
+
+
+#: An empty mapping.
+EMPTY_MAPPING: Mapping = MappingProxyType({})

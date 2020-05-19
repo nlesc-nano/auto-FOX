@@ -1,8 +1,4 @@
-"""
-FOX.recipes.psf
-=================
-
-A set of functions for creating .psf files.
+"""A set of functions for creating .psf files.
 
 Examples
 --------

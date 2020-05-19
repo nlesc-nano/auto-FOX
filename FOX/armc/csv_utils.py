@@ -1,8 +1,4 @@
-"""
-FOX.armc.csv_utils
-==================
-
-A module for exporting ARMC result to .csv files.
+"""A module for exporting ARMC result to .csv files.
 
 Index
 -----
@@ -16,15 +12,17 @@ API
 
 """
 
-from os import PathLike
-from typing import Optional, AnyStr, Union
+from typing import Optional
 
+from ..type_hints import PathType
 from ..io.hdf5_utils import from_hdf5
 
+__all__ = ['dset_to_csv']
 
-def dset_to_csv(filename_in: Union[AnyStr, PathLike],
+
+def dset_to_csv(filename_in: PathType,
                 dataset: str,
-                filename_out: Union[None, AnyStr, PathLike] = None,
+                filename_out: Optional[PathType] = None,
                 iteration: int = -1) -> None:
     """Export ARMC results to one or more .csv files.
 

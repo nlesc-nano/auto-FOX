@@ -1,8 +1,14 @@
-"""
-FOX.ff.parse_wildcards
-======================
+"""A module for parsing wildcards (``"X"``) specified in a CHARMM parameter set.
 
-A module for parsing wildcards (``"X"``) specified in a CHARMM parameter set.
+Index
+-----
+.. currentmodule:: FOX.ff.parse_wildcards
+.. autosummary::
+    parse_wildcards
+
+API
+---
+.. autofunction:: parse_wildcards
 
 """
 

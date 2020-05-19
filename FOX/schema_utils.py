@@ -1,8 +1,4 @@
-"""
-FOX.schema_utils
-================
-
-A module with :mod:`schema`-related utility functions.
+"""A module with :mod:`schema`-related utility functions.
 
 Index
 -----
@@ -15,8 +11,6 @@ API
 {autofunction}
 
 """
-
-from __future__ import annotations
 
 import inspect
 import warnings
@@ -38,7 +32,7 @@ T = TypeVar('T')
 
 @overload
 def supports_float(value: SupportsFloat) -> Literal[True]: ...
-@overload  # noqa: E302
+@overload
 def supports_float(value: Any) -> bool: ...
 def supports_float(value):  # noqa: E302
     """Check if a float-like object has been passed (:data:`~typing.SupportsFloat`)."""
@@ -51,7 +45,7 @@ def supports_float(value):  # noqa: E302
 
 @overload
 def supports_int(value: Union[int, np.integer]) -> Literal[True]: ...
-@overload  # noqa: E302
+@overload
 def supports_int(value: Any) -> bool: ...
 def supports_int(value):  # noqa: E302
     """Check if an int-like object has been passed (:data:`~typing.SupportsInt`)."""
@@ -121,12 +115,11 @@ class Default(Generic[T]):
 
 
 class Formatter(str):
-
-    _msg: str
+    """A :class:`str` subclass used for creating :mod:`schema` error messages."""
 
     def __init__(self, msg: str):
         """Initialize an instance."""
-        self._msg = msg
+        self._msg: str = msg
 
     def __repr__(self) -> str:
         """Implement :code:`str(self)` and :code:`repr(self)`."""

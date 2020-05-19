@@ -1,8 +1,4 @@
-"""
-FOX.io.read_xyz
-===============
-
-A module for reading multi-xyz files.
+"""A module for reading multi-xyz files.
 
 Index
 -----
@@ -22,9 +18,8 @@ API
 
 """
 
-import os
 import reprlib
-from typing import Tuple, Dict, Iterable, List, Union, Iterator, Generator, AnyStr, overload
+from typing import Tuple, Dict, Iterable, List, Union, Iterator, Generator, overload
 from itertools import islice, chain
 
 import numpy as np
@@ -49,7 +44,7 @@ def read_multi_xyz(filename: PathType) -> XYZoutput2: ...
 def read_multi_xyz(filename: PathType, return_comment: Literal[True]) -> XYZoutput2: ...
 @overload
 def read_multi_xyz(filename: PathType, return_comment: Literal[False]) -> XYZoutput1: ...
-def read_multi_xyz(filename, return_comment=True):
+def read_multi_xyz(filename, return_comment=True):  # noqa: E302
     r"""Read a (multi) .xyz file.
 
     Parameters

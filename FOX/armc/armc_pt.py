@@ -1,9 +1,4 @@
-"""
-FOX.armc.armc_pt
-================
-
-A module for performing Addaptive Rate Monte Carlo Parallel Tempering (ARMC-PT)
-forcefield parameter optimizations.
+"""A module for performing Addaptive Rate Monte Carlo Parallel Tempering (ARMC-PT) forcefield parameter optimizations.
 
 Index
 -----
@@ -15,10 +10,8 @@ API
 ---
 .. autoclass:: ARMCPT
     :members:
-    :private-members:
-    :special-members:
 
-"""
+"""  # noqa: E501
 
 from typing import (
     Tuple, Dict, Mapping, Iterable, List, Sequence, overload, Any, TYPE_CHECKING
@@ -28,7 +21,7 @@ import numpy as np
 
 from .armc import ARMC
 from ..type_hints import ArrayOrScalar
-from ..io.hdf5_utils import create_hdf5, create_xyz_hdf5
+from ..io.hdf5_utils import create_xyz_hdf5
 
 if TYPE_CHECKING:
     from ..classes import MultiMolecule
@@ -47,6 +40,7 @@ Key = Tuple[float, ...]
 
 
 class ARMCPT(ARMC):
+    """An :class:`ARMC` subclass implementing a parallel tempering procedure."""
 
     def __init__(self, **kwargs: Any) -> None:
         r"""Initialize an :class:`ARMCPT` instance.

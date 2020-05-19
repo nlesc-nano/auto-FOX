@@ -1,8 +1,4 @@
-"""
-FOX.recipes.param
-=================
-
-A set of functions for analyzing and plotting ARMC results.
+"""A set of functions for analyzing and plotting ARMC results.
 
 Examples
 --------

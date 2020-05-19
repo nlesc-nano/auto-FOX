@@ -1,8 +1,4 @@
-r"""
-FOX.ff.bonded_calculate
-=======================
-
-A module for calculating bonded interactions using harmonic + cosine potentials.
+r"""A module for calculating bonded interactions using harmonic + cosine potentials.
 
 .. math::
 
@@ -15,6 +11,16 @@ A module for calculating bonded interactions using harmonic + cosine potentials.
     V_{dihedrals} = k_{\phi} [1 + \cos(n \phi - \delta)]
 
     V_{impropers} = k_{\omega} (\omega - \omega_{0})^2
+
+Index
+-----
+.. currentmodule:: FOX.ff.bonded_calculate
+.. autosummary::
+    get_bonded
+
+API
+---
+.. autofunction:: get_bonded
 
 """
 

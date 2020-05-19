@@ -1,8 +1,4 @@
-"""
-FOX.recipes.ligands
-===================
-
-A set of functions for analyzing ligands.
+"""A set of functions for analyzing ligands.
 
 Examples
 --------

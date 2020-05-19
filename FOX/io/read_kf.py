@@ -1,8 +1,4 @@
-"""
-FOX.io.read_kf
-==============
-
-A module for potential energy surfaces from KF binary files.
+"""A module for potential energy surfaces from KF binary files.
 
 Index
 -----
@@ -16,9 +12,8 @@ API
 
 """
 
-import os
 from itertools import chain
-from typing import Tuple, Dict, List, Union
+from typing import Tuple, Dict, List
 
 import numpy as np
 

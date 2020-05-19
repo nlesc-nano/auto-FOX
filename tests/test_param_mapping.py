@@ -5,7 +5,7 @@ import pandas as pd
 from assertionlib import assertion
 
 from FOX.armc import ParamMapping
-from FOX.test_utils import validate_mapping
+from FOX.testing_utils import validate_mapping
 
 _DATA = {
     ('charge', 'charge', 'Cd'): 0.9768,
