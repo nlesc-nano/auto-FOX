@@ -98,7 +98,7 @@ Arguments
 ========================== ================== =================================================================================================================
  Parameter                  Default            Parameter description
 ========================== ================== =================================================================================================================
- param.prm_file             -                  The path+filename of a CHARMM parameter file.
+ param.type                 :class:``                  The path+filename of a CHARMM parameter file.
  param.charge               -                  A dictionary with atoms and matching atomic charges.
  param.epsilon              -                  A dictionary with atom-pairs and the matching Lennard-Jones :math:`\epsilon` parameter.
  param.sigma                -                  A dictionary with atom-pairs and the matching Lennard-Jones :math:`\sigma` parameter.
@@ -174,7 +174,7 @@ cadmium, selenium and oxygen atoms (Cd, Se & O),
 whereas the ADF is construced for all combinations of cadmium and
 selenium atoms (Cd & Se).
 
-::
+.. code:: yaml
 
     pes:
         rdf:
@@ -207,7 +207,7 @@ as type object, as long as the following requirements are fulfilled:
 An example of a custom, albit rather nonsensical, PES descriptor involving the
 numpy.sum_ function is provided below:
 
-::
+.. code:: yaml
 
   pes:
     numpy_sum:
@@ -230,7 +230,7 @@ This .yaml input, given a :class:`.MultiMolecule` instance ``mol``, is equivalen
 
 The param block
 ---------------
-::
+.. code:: yaml
 
     param:
         charge:
@@ -273,7 +273,7 @@ CP2K_ can be accessed via this section of the input file.
 For example, the following input is suitable if one wants to optimize a `torsion potential <https://manual.cp2k.org/trunk/CP2K_INPUT/FORCE_EVAL/MM/FORCEFIELD/TORSION.html#list_K>`_
 (starting from :math:`k = 10 \ kcal/mol`) for all C-C-C-C bonds:
 
-::
+.. code:: yaml
 
     param:
         k:
@@ -294,7 +294,7 @@ atomic charges in the ``move.charge_constraints`` block (see below).
 
 Parameter Guessing
 ------------------
-::
+.. code:: yaml
 
     param:
         epsilon:
@@ -362,7 +362,7 @@ parameters will be treated as constants rather than to-be optimized variables.
 
 State-averaged ARMC
 -------------------
-::
+.. code:: yaml
 
     ...
 
@@ -387,18 +387,6 @@ State-averaged ARMC
                 - atom_subset: [Cd, Se, S, O]
 
     ...
-
-
-FOX.MonteCarloABC API
----------------------
-.. autoclass:: FOX.armc.MonteCarloABC
-    :members:
-
-
-FOX.ARMC API
-------------
-.. autoclass:: FOX.armc.ARMC
-    :members:
 
 
 .. _1: https://dx.doi.org/10.1021/acs.jctc.6b01089

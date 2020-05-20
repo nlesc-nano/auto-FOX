@@ -2,7 +2,6 @@
 
 Radial & Angular Distribution Function
 ======================================
-
 Radial and angular distribution function (RDF & ADF) generators have been
 implemented in the :class:`.MultiMolecule` class.
 The radial distribution function, or pair correlation function, describes how
@@ -67,7 +66,6 @@ oxygen (Cd_Cd, Cd_Se, Cd_O, Se_Se, Se_O and O_O).
 
 API
 ---
-
 .. automethod:: FOX.classes.multi_mol.MultiMolecule.init_rdf
     :noindex:
 
