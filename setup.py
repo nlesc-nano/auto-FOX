@@ -99,7 +99,12 @@ setup(
         'matplotlib'
     ],
     extras_require={
-        'doc': ['sphinx>=2.0', 'sphinx_rtd_theme', 'matplotlib', 'sphinx-autodoc-typehints'],
+        'doc': [
+            'sphinx>=2.0',
+            'sphinx_rtd_theme',
+            'matplotlib',
+            'sphinx-autodoc-typehints'
+        ],
         'test': [
             'pytest',
             'pytest-cov',
