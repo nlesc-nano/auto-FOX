@@ -100,7 +100,7 @@ setup(
     ],
     extras_require={
         'doc': [
-            'sphinx>=2.0',
+            'sphinx>=2.1',
             'sphinx_rtd_theme',
             'matplotlib',
             'sphinx-autodoc-typehints'
