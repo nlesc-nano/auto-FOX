@@ -36,6 +36,7 @@ API
 
 """
 
+import sys
 from types import MappingProxyType
 from typing import NoReturn, Mapping, Generic, ClassVar, FrozenSet, TypeVar
 
@@ -123,23 +124,18 @@ class TypedMapping(Mapping[KT, VT], Generic[KT, VT]):
 
     @property
     def __iter__(self):
-        """Implement :func:`iter(self)<dict.__iter__>`."""
+        """Implement :func:`iter(self)<iter>`."""
         return self._view.__iter__
 
     @property
     def __len__(self):
-        """Implement :func:`len(self)<dict.__len__>`."""
+        """Implement :func:`len(self)<len>`."""
         return self._view.__len__
 
     @property
     def __contains__(self):
         """Implement :func:`key in self<dict.__contains__>`."""
         return self._view.__contains__
-
-    @property
-    def __or__(self):
-        """Implement :func:`self | value<dict.__or__>`."""
-        return self._view.__or__
 
     @property
     def get(self):
@@ -160,3 +156,15 @@ class TypedMapping(Mapping[KT, VT], Generic[KT, VT]):
     def values(self):
         """Return an object providing a view on the values in :code:`self`."""
         return self._view.values
+
+    if sys.version_info >= (3, 8):
+        @property
+        def __reversed__(self):
+            """Implement :func:`reversed(self)<reversed>`; requires python 3.8 or later."""
+            return self._view.__reversed__
+
+    if sys.version_info >= (3, 9):
+        @property
+        def __or__(self):
+            """Implement :func:`self | value<object.__or__>`."""
+            return self._view.__or__

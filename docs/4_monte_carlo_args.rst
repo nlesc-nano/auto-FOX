@@ -1,3 +1,5 @@
+.. _Monte Carlo Parameters:
+
 Monte Carlo Parameters
 ======================
 
@@ -88,6 +90,8 @@ Index
 
 Parameters
 ~~~~~~~~~~
+An example .yaml input file:
+
 .. attribute:: param
 
     All forcefield-parameter related options.
@@ -147,7 +151,11 @@ Parameters
 
         The parameter move range.
 
-        blabla.
+        This value accepts one of the following two types of inputs:
+
+        1. A list of allowed moves (*e.g.* :code:`[0.9, 0.95, 1.05, 1.0]`).
+        2. A dictionary with the ``"start"``, ``"stop"`` and ``"step"`` keys.
+           For example, the list in 1. can be reproduced with ``{"start": 0.05, "stop": 0.1, "step": 0.05}``.
 
 
     .. attribute:: param.func
@@ -180,6 +188,7 @@ Parameters
     Note that the :attr:`psf.str_file`, :attr:`psf.rtf_file` and
     :attr:`psf.psf_file` options are all mutually exclusive;
     only one should be specified.
+    Furthermore, this block is completelly optional.
 
     .. admonition:: Examples
 
@@ -298,23 +307,31 @@ Parameters
                 geometry_opt:
                     type: qmflows.cp2k_mm
                     settings:
-                        prm: ligand.prm
-                    template: qmflows.geometry.specific.cp2k_mm
+                        prm: .../ligand.prm
+                    template: qmflows.templates.geometry.specific.cp2k_mm
                 md:
                     type: qmflows.cp2k_mm
                     settings:
-                        prm: ligand.prm
-                    template: qmflows.md.specific.cp2k_mm
+                        prm: .../ligand.prm
+                    template: qmflows.templates.md.specific.cp2k_mm
 
+
+        In addition to having two constant keys (:attr:`~job.type` and :attr:`~job.molecule`)
+        this block accepts an arbitrary number of sub-blocks representing quantum and/or classical
+        mechanical jobs.
+        In the example above there are two of such sub-blocks: ``geometry_opt`` and ``md``.
+        The first step consists of a geometry optimization while the second one runs the
+        actual molecular dynamics calculation.
+        Note that these jobs are executed in the order as provided by the user-input.
 
     .. attribute:: job.type
 
         :Parameter:     * **Type** - :class:`str` or :class:`FOX.armc.PackageManagerABC<FOX.armc.package_manager.PackageManagerABC>` subclass
                         * **Default Value** - ``"FOX.armc.PackageManager"``
 
-        The type of package manager.
+        The type of Auto-FOX package manager.
 
-        Used for running the actual jobs.
+        Used for managing and running the actual jobs.
 
         .. admonition:: See Also
 
@@ -334,7 +351,7 @@ Parameters
         :Parameter:     * **Type** - :class:`str` or :class:`qmflows.packages.Package<qmflows.packages.packages.Package>` instance
                         * **Default Value** - ``"qmflows.cp2k_mm"``
 
-        The package type.
+        An instance of a QMFlows Package.
 
         .. admonition:: See Also
 
@@ -347,7 +364,10 @@ Parameters
         :Parameter:     * **Type** - :class:`dict`
                         * **Default Value** - ``{}``
 
-        The job settings as used by :class:`type<job.block.type>`
+        The job settings as used by :class:`type<job.block.type>`.
+
+        If a :attr:`template<job.block.template>` then this block may or may not be redundant,
+        depending on its completeness.
 
 
     .. attribute:: job.block.template
@@ -359,6 +379,8 @@ Parameters
 
         The template can be provided either as a dictionary or, alternativelly,
         an import path pointing to a pre-existing dictionary.
+        For example, :code:`"qmflows.templates.md.specific.cp2k_mm"` is equivalent to
+        :code:`import qmflows; template = qmflows.templates.md.specific.cp2k_mm`.
 
         .. admonition:: See Also
 
@@ -484,6 +506,8 @@ Parameters
 
         The type of phi updater.
 
+        The phi updater is used for storing, keeping track of and updating :math:`\phi`.
+
         .. admonition:: See Also
 
             :class:`FOX.armc.PhiUpdater<FOX.armc.phi.PhiUpdater>`
@@ -513,7 +537,7 @@ Parameters
     .. attribute:: phi.phi
 
         :Parameter:     * **Type** - :class:`float`
-                        * **Default Value** - ``0.25``
+                        * **Default Value** - ``1.0``
 
         The initial value of the variable :math:`\phi`.
 
