@@ -87,7 +87,7 @@ Index
     :attr:`phi.gamma`                           The constant :math:`\gamma`.
     :attr:`phi.a_target`                        The target acceptance rate :math:`\alpha_{t}`.
     :attr:`phi.phi`                             The initial value of the variable :math:`\phi`.
-    :attr:`phi.func`                            The callable for updating phi.
+    :attr:`phi.func`                            The callable for updating :attr:`phi<phi.phi>`.
     :attr:`phi.kwargs`                          A dictionary with keyword arguments for :attr:`phi.func`.
     =========================================== =========================================================================================================
 
@@ -604,7 +604,7 @@ Settings related to the ARMC :math:`\phi` parameter.
         :Parameter:     * **Type** - :class:`float`
                         * **Default Value** - ``1.0``
 
-        The initial value of the variable :math:`\phi`.
+        The initial value of the variable :attr:`phi<phi.phi>`.
 
         See :eq:`3` and :eq:`4`.
 
