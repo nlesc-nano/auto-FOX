@@ -8,11 +8,27 @@ here = os.path.abspath(os.path.dirname(__file__))
 
 # To update the package version number, edit Auto-FOX/__version__.py
 version = {}
-with open(os.path.join(here, 'FOX', '__version__.py')) as f:
+with open(os.path.join(here, 'FOX', '__version__.py'), encoding='utf-8') as f:
     exec(f.read(), version)
 
-with open('README.rst') as readme_file:
+with open('README.rst', encoding='utf-8') as readme_file:
     readme = readme_file.read()
+
+tests_require = [
+    'pytest>=5.4.0',
+    'pytest-cov',
+    'pyflakes>=2.1.1',
+    'pytest-flake8>=1.0.5',
+    'pytest-pydocstyle>=2.1',
+    'matplotlib'
+]
+
+docs_require = [
+    'sphinx>=2.0',
+    'sphinx_rtd_theme',
+    'matplotlib',
+    'sphinx-autodoc-typehints'
+]
 
 setup(
     name='Auto-FOX',
@@ -66,12 +82,16 @@ setup(
     classifiers=[
         'Development Status :: 4 - Beta',
         'Intended Audience :: Science/Research',
-        'Topic :: Scientific/Engineering :: Chemistry'
         'License :: OSI Approved :: GNU Lesser General Public License',
         'Natural Language :: English',
+        'Operating System :: Unix',
+        'Operating System :: MacOS',
         'Programming Language :: Python :: 3',
         'Programming Language :: Python :: 3.7',
-        'Programming Language :: Python :: 3.8'
+        'Programming Language :: Python :: 3.8',
+        'Topic :: Scientific/Engineering :: Chemistry',
+        'Topic :: Software Development :: Libraries ',
+        'Typing :: Typed'
     ],
     test_suite='tests',
     python_requires='>=3.7',
@@ -90,28 +110,6 @@ setup(
     setup_requires=[
         'pytest-runner'
     ],
-    tests_require=[
-        'pytest',
-        'pytest-cov',
-        'pyflakes>=2.1.1',
-        'pytest-flake8>=1.0.5',
-        'pytest-pydocstyle>=2.1',
-        'matplotlib'
-    ],
-    extras_require={
-        'docs': [
-            'sphinx>=2.0',
-            'sphinx_rtd_theme',
-            'matplotlib',
-            'sphinx-autodoc-typehints'
-        ],
-        'test': [
-            'pytest',
-            'pytest-cov',
-            'pyflakes>=2.1.1',
-            'pytest-flake8>=1.0.5',
-            'pytest-pydocstyle>=2.1',
-            'matplotlib'
-        ]
-    }
+    tests_require=tests_require,
+    extras_require={'docs': docs_require, 'test': tests_require}
 )

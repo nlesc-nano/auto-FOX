@@ -34,7 +34,6 @@ API
 
 """
 
-import sys
 from types import MappingProxyType
 from typing import NoReturn, Mapping, Generic, ClassVar, FrozenSet, TypeVar
 
@@ -83,9 +82,9 @@ class TypedMapping(Mapping[KT, VT], Generic[KT, VT]):
 
     def __delattr__(self, name) -> NoReturn:  # Attributes are read-only
         """Implement :func:`delattr(self, name)<delattr>`."""
-        raise self._attributeError(name)
+        raise self._attribute_error(name)
 
-    def _attributeError(self, name) -> AttributeError:
+    def _attribute_error(self, name) -> AttributeError:
         """Return an :exc:`AttributeError`; attributes of this instance are read-only."""
         cls_name = self.__class__.__name__
         if hasattr(self, name):
@@ -155,14 +154,12 @@ class TypedMapping(Mapping[KT, VT], Generic[KT, VT]):
         """Return an object providing a view on the values in :code:`self`."""
         return self._view.values
 
-    if sys.version_info >= (3, 8):
-        @property
-        def __reversed__(self):
-            """Implement :func:`reversed(self)<reversed>`; requires python 3.8 or later."""
-            return self._view.__reversed__
+    @property
+    def __reversed__(self):
+        """Implement :func:`reversed(self)<reversed>`; requires python 3.8 or later."""
+        return self._view.__reversed__
 
-    if sys.version_info >= (3, 9):
-        @property
-        def __or__(self):
-            """Implement :func:`self | value<object.__or__>`."""
-            return self._view.__or__
+    @property
+    def __or__(self):
+        """Implement :func:`self | value<object.__or__>`."""
+        return self._view.__or__

@@ -3,11 +3,6 @@
 import yaml
 from FOX.armc import dict_to_armc, run_armc
 
-
-# Start the MC parameterization
-armc, job_kwargs = ARMC.from_yaml('armc.yaml')
-run_armc(armc, **job_kwargs)
-
 # Prepare the ARMC settings
 file = str(...)
 with open(file, 'r') as f:
