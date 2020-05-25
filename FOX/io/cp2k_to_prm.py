@@ -97,6 +97,8 @@ if TYPE_CHECKING:
     from ..type_hints import TypedDict
 
     class PRMMapping(TypedDict):
+        """A :class:`~typing.TypedDict`-alias representing :class:`PRMMapping`."""
+
         name: str
         columns: Tuple[Hashable, ...]
         key_path: Tuple[str, ...]
@@ -175,13 +177,13 @@ else:
         })
 
         def __init__(self, name: str,
-                    key: Union[str, Iterable[str]],
-                    columns: Union[int, Iterable[int]],
-                    key_path: Union[str, Iterable[str]],
-                    unit: Union[str, Iterable[str]],
-                    default_unit: Union[None, str, Iterable[Optional[str]]] = None,
-                    post_process: Union[None, PostProcess, Iterable[Optional[PostProcess]]] = None
-                    ) -> None:
+                     key: Union[str, Iterable[str]],
+                     columns: Union[int, Iterable[int]],
+                     key_path: Union[str, Iterable[str]],
+                     unit: Union[str, Iterable[str]],
+                     default_unit: Union[None, str, Iterable[Optional[str]]] = None,
+                     post_process: Union[None, PostProcess, Iterable[Optional[PostProcess]]] = None
+                     ) -> None:
             """Initialize a :class:`PRMMapping` instance."""
             dct = {
                 'name': name,
