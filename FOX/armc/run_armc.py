@@ -23,21 +23,21 @@ from qmflows.utils import InitRestart
 from ..logger import Plams2Logger, wrap_plams_logger
 
 if TYPE_CHECKING:
-    from .armc import ARMC
+    from . import MonteCarloABC
     from ..io import PSFContainer
 else:
-    from ..type_alias import ARMC, PSFContainer
+    from ..type_alias import MonteCarloABC, PSFContainer
 
 __all__ = ['run_armc']
 
 
-def run_armc(armc: ARMC,
+def run_armc(armc: MonteCarloABC,
              path: Union[None, str, os.PathLike] = None,
              folder: Union[None, str, os.PathLike] = None,
              logfile: Union[None, str, os.PathLike] = None,
              psf: Optional[Iterable[PSFContainer]] = None,
              restart: bool = False) -> None:
-    """A wrapper arround :class:`ARMC` for handling the JobManager."""
+    """A wrapper arround :class:`MonteCarloABC` for handling the JobManager."""
     # Initialize the ARMC procedure
     with InitRestart(path=path, folder=folder):
         # Create the .psf file

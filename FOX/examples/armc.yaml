@@ -50,7 +50,7 @@ job:
 
     md:
         type: qmflows.cp2k_mm
-        template: qmflows.md.specific.cp2k_mm
+        template: qmflows.templates.md.specific.cp2k_mm
         settings:
             prm: ligand.prm
 

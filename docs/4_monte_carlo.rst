@@ -93,46 +93,62 @@ The algorithm
     \kappa = 1, 2, 3, ..., N
 
 
-Arguments
----------
-========================== ================== =================================================================================================================
- Parameter                  Default            Parameter description
-========================== ================== =================================================================================================================
- param.prm_file             -                  The path+filename of a CHARMM parameter file.
- param.charge               -                  A dictionary with atoms and matching atomic charges.
- param.epsilon              -                  A dictionary with atom-pairs and the matching Lennard-Jones :math:`\epsilon` parameter.
- param.sigma                -                  A dictionary with atom-pairs and the matching Lennard-Jones :math:`\sigma` parameter.
+Parameters
+----------
+.. code:: yaml
 
- psf.str_file               -                  The path+filename to one or more stream file; used for assigning atom types and charges to ligands.
- psf.rtf_file               -                  The path+filename to one or more MATCH-produced rtf file; used for assigning atom types and charges to ligands.
- psf.psf_file               -                  The path+filename to one or more psf files; used for assigning atom types and charges to ligands.
- psf.ligand_atoms           -                  All atoms within a ligand, used for defining residues.
+    param:
+        charge:
+            param: charge
+            constraints:
+                - '0.5 < Cd < 1.5'
+                - '-0.5 > Se > -1.5'
+                - '0 > O_1 > -1'
+            Cd: 0.9768
+            Se: -0.9768
+            O_1: -0.47041
+            frozen:
+                C_1: 0.4524
+        lennard_jones:
+            -   unit: kjmol
+                param: epsilon
+                Cd Cd: 0.3101
+                Se Se: 0.4266
+                Cd Se: 1.5225
+                Cd O_1: 1.8340
+                Se O_1: 1.6135
+            -   unit: nm
+                param: sigma
+                Cd Cd: 0.1234
+                Se Se: 0.4852
+                Cd Se: 0.2940
+                Cd O_1: 0.2471
+                Se O_1: 0.3526
 
- pes                        -                  A dictionary holding one or more functions for constructing PES descriptors.
+    psf:
+        str_file: ligand.str
+        ligand_atoms: [C, O, H]
 
- molecule                   -                  A list of one or more :class:`.MultiMolecule` instances or .xyz filenames of a reference PES.
+    pes:
+        rdf:
+            func: FOX.MultiMolecule.init_rdf
+            kwargs:
+                atom_subset: [Cd, Se, O]
 
- job.logfile                armc.log           The path+filename for the to-be created `PLAMS logfile <https://www.scm.com/doc/plams/components/functions.html#logging>`_.
- job.job_type               scm.plams.Cp2kJob  The job type, see Job_.
- job.name                   armc               The base name of the various molecular dynamics jobs.
- job.path                   .                  The base path for storing the various molecular dynamics jobs.
- job.folder                 MM_MD_workdir      The name of the to-be created directory for storing all molecular dynamics jobs.
- job.keepfiles              False              Whether the raw MD results should be saved or deleted.
- job.md_settings            -                  A dictionary with the MD job settings. Alternativelly,  the filename of YAML_ file can be supplied.
- job.preopt_setting         -                  A dictionary of geometry preoptimization job settings. Suplemented by job.md_settings.
+    job:
+        molecule: .../mol.xyz
 
- hdf5_file                  ARMC.hdf5          The filename of the to-be created HDF5_ file with all ARMC results.
+        geometry_opt:
+            template: qmflows.templates.geometry.specific.cp2k_mm
+            settings:
+                prm: .../ligand.prm
+        md:
+            template: qmflows.templates.md.specific.cp2k_mm
+            settings:
+                prm: .../ligand.prm
 
- armc.iter_len              50000              The total number of ARMC iterations :math:`\kappa \omega`.
- armc.sub_iter_len          100                The length of each ARMC subiteration :math:`\omega`.
- armc.gamma                 2.0                The constant :math:`\gamma`, see :eq:`4`.
- armc.a_target              0.25               The target acceptance rate :math:`\alpha_{t}`, see :eq:`4`.
- armc.phi                   1.0                The initial value of the variable :math:`\phi`, see :eq:`3` and :eq:`4`.
 
- move.range.start           0.005              Controls the minimum stepsize of Monte Carlo moves.
- move.range.stop            0.1                Controls the maximum stepsize of Monte Carlo moves.
- move.range.step            0.005              Controls the allowed stepsize values between the minima and maxima.
-========================== ================== =================================================================================================================
+A comprehensive overview of all available input parameters is provided in `Monte Carlo Parameters`_.
 
 Once a the .yaml file with the ARMC settings has been sufficiently customized
 the parameter optimization can be started via the command prompt with:
@@ -143,12 +159,12 @@ Previous caculations can be continued with :code:`init_armc my_settings.yaml --r
 
 The pes block
 -------------
-Potential energy surface (PES) descriptors can be descriped in the ``"pes"`` block.
+Potential energy surface (PES) descriptors can be descriped in the :attr:`pes` block.
 Provided below is an example where the radial dsitribution function (RDF) is
 used as PES descriptor, more specifically the RDF constructed from all possible
 combinations of cadmium, selenium and oxygen atoms.
 
-::
+.. code:: yaml
 
     pes:
         rdf:
@@ -174,18 +190,16 @@ cadmium, selenium and oxygen atoms (Cd, Se & O),
 whereas the ADF is construced for all combinations of cadmium and
 selenium atoms (Cd & Se).
 
-::
+.. code:: yaml
 
     pes:
         rdf:
             func: FOX.MultiMolecule.init_rdf
-            args: []
             kwargs:
                 atom_subset: [Cd, Se, O]
 
         adf:
             func: FOX.MultiMolecule.init_adf
-            args: []
             kwargs:
                 atom_subset: [Cd, Se]
 
@@ -193,21 +207,19 @@ In principle any function, class or method can be provided here,
 as type object, as long as the following requirements are fulfilled:
 
 * The name of the block must consist of a user-specified string
-  (``"rdf"`` and ``"adf"`` in the example(s) above).
-* The ``"func"`` key must contain a string representation of thee requested
+  (``rdf`` and ``adf`` in the example(s) above).
+* The :attr:`func<pes.block.func>` key must contain a string representation of thee requested
   function, method or class.
   Auto-FOX will internally convert the string into a callable object.
 * The supplied callable *must* be able to operate on NumPy arrays or
   instances of its :class:`.MultiMolecule` subclass.
-* Arguments and keyword argument can be provided with the
-  ``"args"`` and ``"kwargs"`` keys, respectively.
-  The ``"args"`` and ``"kwargs"`` keys are entirely optional and
-  can be skipped if desired.
+* Keyword argument can be provided with the :attr:`kwargs<pes.block.kwargs>` key.
+  The :attr:`kwargs<pes.block.kwargs>` key is entirely optional and can be skipped if desired.
 
 An example of a custom, albit rather nonsensical, PES descriptor involving the
-numpy.sum_ function is provided below:
+:func:`numpy.sum` function is provided below:
 
-::
+.. code:: yaml
 
   pes:
     numpy_sum:
@@ -220,44 +232,43 @@ This .yaml input, given a :class:`.MultiMolecule` instance ``mol``, is equivalen
 .. code:: python
 
     >>> import numpy
+    >>> from FOX import MultiMolecule
 
     >>> func = numpy.sum
-    >>> args = []
     >>> kwargs = {'axis': 0}
 
-    >>> func(mol, *arg, **kwarg)
+    >>> mol = MultiMolecule(...)
+    >>> func(mol, **kwargs)
 
 
 The param block
 ---------------
-::
+.. code:: yaml
 
     param:
         charge:
-            keys: [input, force_eval, mm, forcefield, charge]
+            param: charge
             constraints:
-                -  0 < Cs < 2
-                -  1 < Pb < 3
-                -  Cs == 0.5 * Br
+                -  '0 < Cs < 2'
+                -  '1 < Pb < 3'
+                -  'Cs == 0.5 * Br'
             Cs: 1.000
             Pb: 2.000
-        epsilon:
-            unit: kjmol
-            keys: [input, force_eval, mm, forcefield, nonbonded, lennard-jones]
-            Cs Cs: 0.1882
-            Cs Pb: 0.7227
-            Pb Pb: 2.7740
-        sigma:
-            unit: nm
-            keys: [input, force_eval, mm, forcefield, nonbonded, lennard-jones]
-            constraints: 'Cs Cs == Pb Pb'
-            Cs Cs: 0.60
-            Cs Pb: 0.50
-            Pb Pb: 0.60
+        lennard_jones:
+            - param: epsilon
+              unit: kjmol
+              Cs Cs: 0.1882
+              Cs Pb: 0.7227
+              Pb Pb: 2.7740
+            - unit: nm
+              param: sigma
+              constraints: 'Cs Cs == Pb Pb'
+              Cs Cs: 0.60
+              Cs Pb: 0.50
+              Pb Pb: 0.60
 
-The ``"param"`` key in the .yaml input contains all user-specified
+The :attr:`param<param.block>` key in the .yaml input contains all user-specified
 to-be optimized parameters.
-
 
 There are three critical (and two optional) components to the ``"param"``
 block:
@@ -273,7 +284,7 @@ CP2K_ can be accessed via this section of the input file.
 For example, the following input is suitable if one wants to optimize a `torsion potential <https://manual.cp2k.org/trunk/CP2K_INPUT/FORCE_EVAL/MM/FORCEFIELD/TORSION.html#list_K>`_
 (starting from :math:`k = 10 \ kcal/mol`) for all C-C-C-C bonds:
 
-::
+.. code:: yaml
 
     param:
         k:
@@ -294,20 +305,19 @@ atomic charges in the ``move.charge_constraints`` block (see below).
 
 Parameter Guessing
 ------------------
-::
+.. code:: yaml
 
     param:
-        epsilon:
-            unit: kjmol
-            keys: [input, force_eval, mm, forcefield, nonbonded, lennard-jones]
-            Cs Cs: 0.1882
-            Cs Pb: 0.7227
-            Pb Pb: 2.7740
-            guess: rdf
-        sigma:
-            unit: nm
-            keys: [input, force_eval, mm, forcefield, nonbonded, lennard-jones]
-            frozen:
+        lennard_jones:
+            - unit: kjmol
+              param: epsilon
+              Cs Cs: 0.1882
+              Cs Pb: 0.7227
+              Pb Pb: 2.7740
+              guess: rdf
+            - unit: nm
+              param: sigma
+              frozen:
                 guess: uff
 
 .. math::
@@ -354,15 +364,10 @@ Note that:
 If ``"guess"`` is placed within the ``"frozen"`` block, than the guessed
 parameters will be treated as constants rather than to-be optimized variables.
 
-.. admonition:: Note
-
-    The guessing procedure requires the presence of both a .prm and .psf file.
-    See the ``"prm_file"`` and ``"psf"`` blocks, respectively.
-
 
 State-averaged ARMC
 -------------------
-::
+.. code:: yaml
 
     ...
 
@@ -389,24 +394,11 @@ State-averaged ARMC
     ...
 
 
-FOX.MonteCarloABC API
----------------------
-.. autoclass:: FOX.armc.MonteCarloABC
-    :members:
-
-
-FOX.ARMC API
-------------
-.. autoclass:: FOX.armc.ARMC
-    :members:
-
-
 .. _1: https://dx.doi.org/10.1021/acs.jctc.6b01089
 .. _2: https://doi.org/10.1021/ja00051a040
 .. _YAML: https://yaml.org/
 .. _HDF5: https://www.h5py.org/
 .. _Job: https://www.scm.com/doc/plams/components/jobs.html#scm.plams.core.basejob.Job
-.. _numpy.sum: https://docs.scipy.org/doc/numpy/reference/generated/numpy.sum.html
 .. _CP2K: https://manual.cp2k.org/trunk/CP2K_INPUT/FORCE_EVAL/MM/FORCEFIELD.html
 
 .. _charge: https://manual.cp2k.org/trunk/CP2K_INPUT/FORCE_EVAL/MM/FORCEFIELD/CHARGE.html#list_CHARGE

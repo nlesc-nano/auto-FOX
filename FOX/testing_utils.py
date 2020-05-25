@@ -101,9 +101,9 @@ def _val_len(mapping: Mapping) -> None:
 def _val_contains(mapping: Mapping[KT, Any], key: KT) -> None:
     """Validate the :meth:`~collections.abc.Mapping.__contains__` method of **mapping**."""
     contains_true = key in mapping
-    contains_False = _Key in mapping
+    contains_false = _Key in mapping
     assertion.is_(contains_true, True)
-    assertion.is_(contains_False, False)
+    assertion.is_(contains_false, False)
 
 
 def _val_getitem(mapping: Mapping[KT, VT], key: KT,

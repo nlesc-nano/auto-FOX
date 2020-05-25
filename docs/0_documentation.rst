@@ -6,6 +6,7 @@ Auto-FOX Documentation
     2_rmsd
     3_multimolecule
     4_monte_carlo
+    4_monte_carlo_args
     5_xyz_reader
     6_estimate_lj
     8_psf
@@ -16,6 +17,9 @@ Auto-FOX Documentation
     :hidden:
 
     _0_file_container
-    _1_read_prm
     _2_cp2k_to_prm
     _3_typed_mapping
+    _4_param_mapping
+    _5_package_manager
+    _6_monte_carlo
+    _7_phi_updater

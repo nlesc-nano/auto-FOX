@@ -177,7 +177,7 @@ def isinstance_factory(class_or_tuple: ClassOrTuple) -> Callable[[Any], bool]:
         isinstance('bob', class_or_tuple)
     except TypeError as ex:
         raise TypeError("'class_or_tuple' expected a type or tuple of types; "  # type: ignore
-                        f"observed type: {class_or_tuple.__class__.__name_!r}") from ex
+                        f"observed type: {class_or_tuple.__class__.__name__!r}") from ex
 
     if isinstance(class_or_tuple, type):
         arg: Tuple[type, ...] = (class_or_tuple,)
@@ -203,7 +203,7 @@ def issubclass_factory(class_or_tuple: ClassOrTuple) -> Callable[[type], bool]:
         issubclass(int, class_or_tuple)
     except TypeError as ex:
         raise TypeError("'class_or_tuple' expected a type or tuple of types; "  # type: ignore
-                        f"observed type: {class_or_tuple.__class__.__name_!r}") from ex
+                        f"observed type: {class_or_tuple.__class__.__name__!r}") from ex
 
     if isinstance(class_or_tuple, type):
         arg: Tuple[type, ...] = (class_or_tuple,)

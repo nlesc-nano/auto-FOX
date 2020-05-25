@@ -67,7 +67,6 @@ class RunDict(TypedDict, total=False):
     folder: Union[str, os.PathLike]
     logfile: Union[str, os.PathLike]
     psf: Optional[List[PSFContainer]]
-    guess: Optional[Mapping[str, Mapping]]
 
 
 def dict_to_armc(input_dict: MainMapping) -> Tuple[MonteCarloABC, RunDict]:
