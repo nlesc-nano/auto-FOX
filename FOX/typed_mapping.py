@@ -34,6 +34,7 @@ API
 
 """
 
+import sys
 from types import MappingProxyType
 from typing import NoReturn, Mapping, Generic, ClassVar, FrozenSet, TypeVar
 
