@@ -9,9 +9,6 @@ on:
             - master
             - Auto-FOX-0.8
     pull_request:
-        branches:
-            - master
-            - Auto-FOX-0.8
 
 jobs:
     build:
