@@ -17,7 +17,6 @@ Auto-FOX Documentation
     :hidden:
 
     _0_file_container
-    _1_read_prm
     _2_cp2k_to_prm
     _3_typed_mapping
     _4_param_mapping

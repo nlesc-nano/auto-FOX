@@ -24,154 +24,139 @@ API
 .. automethod:: TypedMapping.__setattr__
 .. automethod:: TypedMapping.__delattr__
 .. automethod:: TypedMapping.__setitem__
-.. automethod:: TypedMapping.__bool__
-.. automethod:: TypedMapping.__getitem__
-.. automethod:: TypedMapping.__iter__
-.. automethod:: TypedMapping.__len__
-.. automethod:: TypedMapping.__contains__
-.. automethod:: TypedMapping.get
-.. automethod:: TypedMapping.keys
-.. automethod:: TypedMapping.items
-.. automethod:: TypedMapping.values
+.. autoattribute:: TypedMapping.__bool__
+.. autoattribute:: TypedMapping.__getitem__
+.. autoattribute:: TypedMapping.__iter__
+.. autoattribute:: TypedMapping.__len__
+.. autoattribute:: TypedMapping.__contains__
+.. autoattribute:: TypedMapping.get
+.. autoattribute:: TypedMapping.keys
+.. autoattribute:: TypedMapping.items
+.. autoattribute:: TypedMapping.values
 
 """
 
-from collections import abc
 from types import MappingProxyType
-from typing import (Any, Iterator, Optional, Callable, TypeVar, KeysView, ItemsView, ValuesView,
-                    ClassVar, FrozenSet, NoReturn, Mapping)
-
-from assertionlib.dataclass import AbstractDataClass
+from typing import NoReturn, Mapping, Generic, ClassVar, FrozenSet, TypeVar
 
 __all__ = ['TypedMapping']
 
 KT = TypeVar('KT', bound=str)
-KV = TypeVar('KV')
+VT = TypeVar('VT')
 
 
-class TypedMapping(AbstractDataClass, abc.Mapping):
+class TypedMapping(Mapping[KT, VT], Generic[KT, VT]):
     """A :class:`Mapping<collections.abc.Mapping>` type which only allows a specific set of keys.
 
     Values cannot be altered after their assignment.
 
-    Attributes
-    ----------
-    _PRIVATE_ATTR : :class:`frozenset` [:class:`str`], classvar
-        A frozenset defining all private instance variables.
-
-    _ATTR : :class:`frozenset` [:class:`str`], classvar
-        A frozenset containing all allowed keys.
-        Should be defined at the class level.
-
-    view : :class:`MappingProxyType<types.MappingProxyType>` [:class:`str`, :data:`Any<typing.Any>`]
-        Return a read-only view of all items specified in :attr:`TypedMapping._ATTR`.
-
     """
 
-    _PRIVATE_ATTR: ClassVar[FrozenSet[str]] = frozenset({'_view', '_PRIVATE_ATTR'})
-    _ATTR: ClassVar[FrozenSet[str]] = frozenset()
+    __slots__ = ('__weakref__', '_view')
+    KEYS: ClassVar[FrozenSet[str]] = frozenset()
 
-    def __init__(self) -> None:
+    def __init__(self, *args, **kwargs) -> None:
         """Initialize a :class:`TypedMapping` instance."""
-        super().__setattr__('_view', {})  # Dict[str, Any]
         super().__init__()
 
         cls = type(self)
-        for k in cls._ATTR:
-            super().__setattr__(k, None)
+        dct = dict(*args, **kwargs)
+        if not dct.keys() == cls.KEYS:
+            diff = dct.keys() - cls.KEYS
+            raise TypeError(f"Invalid keys: {diff}")
 
-    @property
-    def view(self) -> Mapping[KT, KV]:
-        """Return a read-only view of all items specified in :attr:`TypedMapping._ATTR`."""
-        return MappingProxyType(self._view)
+        object.__setattr__(self, '_view', MappingProxyType(dct))  # Dict[KT, VT]
 
-    def __setattr__(self, name: str, value: Any) -> None:
-        """Implement :code:`setattr(self, name, value)`.
+    def __reduce__(self):
+        """Helper function for :mod:`pickle`."""
+        return type(self), (self._view.copy(),)
 
-        Attributes specified in :attr:`TypedMapping._PRIVATE_ATTR` can freely modified.
-        Attributes specified in :attr:`TypedMapping._ATTR` can only be modified when the
-        previous value is ``None``.
-        All other attribute cannot be modified any further.
+    def __getattr__(self, name):
+        """Implement :func:`getattr(self, name)<getattr>`."""
+        try:
+            return self[name]
+        except KeyError:
+            return getattr(self, name)
 
-        """
-        # These values should be mutable
-        if name in self._PRIVATE_ATTR:
-            super().__setattr__(name, value)
-            return
+    def __setattr__(self, name, value) -> NoReturn:  # Attributes are read-only
+        """Implement :func:`setattr(self, name, value)<setattr>`."""
+        raise self._attributeError(name)
 
-        # These values can only be changed once; i.e. when they're changed from None to Any
-        elif name in self._ATTR and getattr(self, name, None) is None:
-            self._view[name] = value
-            super().__setattr__(name, value)
-            return
+    def __delattr__(self, name) -> NoReturn:  # Attributes are read-only
+        """Implement :func:`delattr(self, name)<delattr>`."""
+        raise self._attributeError(name)
 
-        # Uhoh, trying to mutate something which should not be changed
+    def _attributeError(self, name) -> AttributeError:
+        """Return an :exc:`AttributeError`; attributes of this instance are read-only."""
         cls_name = self.__class__.__name__
-        if name in self._ATTR and getattr(self, name, None) is not None:
-            raise AttributeError(f"{cls_name!r} object attribute {name!r} is read-only")
+        if hasattr(self, name):
+            return AttributeError(f"attribute {name!r} of {cls_name!r} objects is not writable")
         else:
-            raise AttributeError(f"{cls_name!r} object has no attribute {name!r}")
+            return AttributeError(f"{cls_name!r} object has no attribute {name!r}")
 
-    def __delattr__(self, name: str) -> NoReturn:
-        """Implement :code:`delattr(self, name)`.
+    def copy(self):
+        """:class:`TypedMapping` objects are immutable; return :code:`self`."""
+        return self
 
-        Raises an :exc:`AttributeError`, instance variables cannot be deleted.
+    def __copy__(self):
+        """Implement :func:`copy.copy(self)<copy.copy>`."""
+        return self
 
-        """
-        raise AttributeError(f"{self.__class__.__name__!r} object attribute {name!r} is read-only")
-
-    def __setitem__(self, name: str, value: Any) -> None:
-        """Implement :code:`self[name] = value`.
-
-        Serves as an alias for :meth:`TypedMapping.__setattr__` when **name** is in
-        :meth:`TypedMapping._ATTR`.
-
-        """
-        if name in self._PRIVATE_ATTR:
-            raise KeyError(repr(name))
-        self.__setattr__(name, value)
+    def __deepcopy__(self, memo=None):
+        """Implement :func:`copy.deepcopy(self, memo=...)<copy.deepcopy>`."""
+        return self
 
     @property
-    def __bool__(self) -> Callable[[], bool]:
-        """Get the :meth:`__bool__()<types.MappingProxyType.__bool__>` method of :attr:`TypedMapping.view`."""  # noqa
-        return self.view.__bool__
+    def __eq__(self):
+        """Implement :func:`self == value<object.__eq__>`."""
+        return self._view.__eq__
 
     @property
-    def __getitem__(self) -> Callable[[KT], KV]:
-        """Get the :meth:`__getitem__()<types.MappingProxyType.__getitem__>` method of :attr:`TypedMapping.view`."""  # noqa
-        return self.view.__getitem__
+    def __bool__(self):
+        """Implement :func:`bool(value)<object.__bool__>`."""
+        return self._view.__bool__
 
     @property
-    def __iter__(self) -> Callable[[], Iterator[KT]]:
-        """Get the :meth:`__iter__()<types.MappingProxyType.__iter__>` method of :attr:`TypedMapping.view`."""  # noqa
-        return self.view.__iter__
+    def __getitem__(self):
+        """Implement :func:`self[key]<dict.__getitem__>`."""
+        return self._view.__getitem__
 
     @property
-    def __len__(self) -> Callable[[], int]:
-        """Get the :meth:`__len__()<types.MappingProxyType.__len__>` method of :attr:`TypedMapping.view`."""  # noqa
-        return self.view.__len__
+    def __iter__(self):
+        """Implement :func:`iter(self)<dict.__iter__>`."""
+        return self._view.__iter__
 
     @property
-    def __contains__(self) -> Callable[[KT], bool]:
-        """Get the :meth:`__contains__()<types.MappingProxyType.__contains__>` method of :attr:`TypedMapping.view`."""  # noqa
-        return self.view.__contains__
+    def __len__(self):
+        """Implement :func:`len(self)<dict.__len__>`."""
+        return self._view.__len__
 
     @property
-    def get(self) -> Callable[[KT, Optional[Any]], KV]:
-        """Get the :meth:`get()<types.MappingProxyType.get>` method of :attr:`TypedMapping.view`."""  # noqa
-        return self.view.get
+    def __contains__(self):
+        """Implement :func:`key in self<dict.__contains__>`."""
+        return self._view.__contains__
 
     @property
-    def keys(self) -> Callable[[], KeysView[KT]]:
-        """Get the :meth:`keys()<types.MappingProxyType.keys>` method of :attr:`TypedMapping.view`."""  # noqa
-        return self.view.keys
+    def __or__(self):
+        """Implement :func:`self | value<dict.__or__>`."""
+        return self._view.__or__
 
     @property
-    def items(self) -> Callable[[], ItemsView[KT, KV]]:
-        """Get the :meth:`items()<types.MappingProxyType.items>` method of :attr:`TypedMapping.view`."""  # noqa
-        return self.view.items
+    def get(self):
+        """Implement :func:`self.get(key, default=...)<dict.get>`."""
+        return self._view.get
 
     @property
-    def values(self) -> Callable[[], ValuesView[KV]]:
-        """Get the :meth:`values()<types.MappingProxyType.values>` method of :attr:`TypedMapping.view`."""  # noqa
-        return self.view.values
+    def keys(self):
+        """Return a set-like object providing a view on the keys in :code:`self`."""
+        return self._view.keys
+
+    @property
+    def items(self):
+        """Return a set-like object providing a view on the key/value pairs in :code:`self`."""
+        return self._view.items
+
+    @property
+    def values(self):
+        """Return an object providing a view on the values in :code:`self`."""
+        return self._view.values
