@@ -7,7 +7,6 @@ Index
     TypedMapping
     TypedMapping.__setattr__
     TypedMapping.__delattr__
-    TypedMapping.__setitem__
     TypedMapping.__bool__
     TypedMapping.__getitem__
     TypedMapping.__iter__
@@ -23,7 +22,6 @@ API
 .. autoclass:: TypedMapping
 .. automethod:: TypedMapping.__setattr__
 .. automethod:: TypedMapping.__delattr__
-.. automethod:: TypedMapping.__setitem__
 .. autoattribute:: TypedMapping.__bool__
 .. autoattribute:: TypedMapping.__getitem__
 .. autoattribute:: TypedMapping.__iter__

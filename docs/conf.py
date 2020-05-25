@@ -216,7 +216,7 @@ autodoc_warningiserror = True
 # This value contains a list of modules to be mocked up.
 # This is useful when some external dependencies are not met at build time and break the building process.
 # You may only specify the root package of the dependencies themselves and omit the sub-modules:
-autodoc_mock_imports = ['h5py', 'qmflows']
+autodoc_mock_imports = ['h5py']
 
 
 # True to parse Google style docstrings.

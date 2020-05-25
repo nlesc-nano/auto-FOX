@@ -48,7 +48,7 @@ Key = Tuple[float, ...]
 
 
 class MonteCarloABC(AbstractDataClass, ABC, Mapping[Key, np.ndarray]):
-    r"""The base :class:`.MonteCarlo` class."""
+    r"""The base :class:`.MonteCarloABC` class."""
 
     param: ParamMapping
     package_manager: PackageManager

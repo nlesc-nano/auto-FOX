@@ -10,12 +10,16 @@ Index
     :widths: 30 70
 
     =========================================== =========================================================================================================
-    param                                       Description
+    param_                                      Description
     =========================================== =========================================================================================================
     :attr:`param.type`                          The type of parameter mapping.
     :attr:`param.move_range`                    The parameter move range.
     :attr:`param.func`                          The callable for performing the Monte Carlo moves.
     :attr:`param.kwargs`                        A dictionary with keyword arguments for :attr:`param.func`.
+    :attr:`param.block.param`                   The name of the forcefield parameter.
+    :attr:`param.block.unit`                    The unit in which the forcefield parameters are expressed.
+    :attr:`param.block.guess`                   Estimate all non-specified forcefield parameters.
+    :attr:`param.block.frozen`                  A sub-block with to-be frozen parameters.
     =========================================== =========================================================================================================
 
 .. table::
@@ -23,7 +27,7 @@ Index
     :widths: 30 70
 
     =========================================== =========================================================================================================
-    psf                                         Description
+    psf_                                        Description
     =========================================== =========================================================================================================
     :attr:`psf.str_file`                        The path+filename to one or more stream file.
     :attr:`psf.rtf_file`                        The path+filename to one or more MATCH-produced rtf file.
@@ -36,7 +40,7 @@ Index
     :widths: 30 70
 
     =========================================== =========================================================================================================
-    pes                                         Description
+    pes_                                        Description
     =========================================== =========================================================================================================
     :attr:`pes.block.func`                      The callable for performing the Monte Carlo moves.
     :attr:`pes.block.kwargs`                    A dictionary with keyword arguments for :attr:`pes.block.func`.
@@ -47,12 +51,12 @@ Index
     :widths: 30 70
 
     =========================================== =========================================================================================================
-    job                                         Description
+    job_                                        Description
     =========================================== =========================================================================================================
     :attr:`job.type`                            The type of package manager.
     :attr:`job.molecule`                        One or more .xyz files with reference (QM) potential energy surfaces.
-    :attr:`job.block.type`                      The package type.
-    :attr:`job.block.settings`                  The job settings as used by :class:`job.block.type`
+    :attr:`job.block.type`                      An instance of a QMFlows :class:`~qmflows.packages.packages.Package`.
+    :attr:`job.block.settings`                  The job settings as used by :class:`job.block.type`.
     :attr:`job.block.template`                  A settings template for updating :class:`job.block.settings`.
     =========================================== =========================================================================================================
 
@@ -61,7 +65,7 @@ Index
     :widths: 30 70
 
     =========================================== =========================================================================================================
-    monte_carlo                                 Description
+    monte_carlo_                                Description
     =========================================== =========================================================================================================
     :attr:`monte_carlo.type`                    The type of Monte Carlo procedure.
     :attr:`monte_carlo.iter_len`                The total number of ARMC iterations :math:`\kappa \omega`.
@@ -77,7 +81,7 @@ Index
     :widths: 30 70
 
     =========================================== =========================================================================================================
-    phi                                         Description
+    phi_                                        Description
     =========================================== =========================================================================================================
     :attr:`phi.type`                            The type of phi updater.
     :attr:`phi.gamma`                           The constant :math:`\gamma`.
@@ -88,46 +92,52 @@ Index
     =========================================== =========================================================================================================
 
 
-Parameters
-~~~~~~~~~~
-An example .yaml input file:
+param
+~~~~~
+All forcefield-parameter related options.
 
-.. attribute:: param
+This settings block accepts an arbitrary number of sub-blocks.
 
-    All forcefield-parameter related options.
+.. admonition:: Examples
 
-    .. admonition:: Examples
+    .. code:: yaml
 
-        .. code:: yaml
+        param:
+            type: FOX.armc.ParamMapping
+            move_range:
+                start: 0.005
+                stop: 0.1
+                step: 0.005
+            func: numpy.multiply
+            kwargs: {}
 
-            param:
-                type: FOX.armc.ParamMapping
-                move_range:
-                    start: 0.005
-                    stop: 0.1
-                    step: 0.005
-                func: numpy.multiply
-                kwargs: {}
+            charge:
+                param: charge
+                constraints:
+                    - '0.5 < Cd < 1.5'
+                    - '-0.5 > Se > -1.5'
+                Cd: 0.9768
+                Se: -0.9768
+                O_1: -0.47041
+                frozen:
+                    C_1: 0.4524
+            lennard_jones:
+                -   unit: kjmol
+                    param: epsilon
+                    Cd Cd: 0.3101
+                    Se Se: 0.4266
+                    Cd Se: 1.5225
+                    frozen:
+                        guess: uff
+                -   unit: nm
+                    param: sigma
+                    Cd Cd: 0.1234
+                    Se Se: 0.4852
+                    Cd Se: 0.2940
+                    frozen:
+                        guess: uff
 
-                charge:
-                    param: charge
-                    constraints:
-                        - '0.5 < Cd < 1.5'
-                        - '-0.5 > Se > -1.5'
-                    Cd: 0.9768
-                    Se: -0.9768
-                lennard_jones:
-                    -   unit: kjmol
-                        param: epsilon
-                        Cd Cd: 0.3101
-                        Se Se: 0.4266
-                        Cd Se: 1.5225
-                    -   unit: nm
-                        param: sigma
-                        Cd Cd: 0.1234
-                        Se Se: 0.4852
-                        Cd Se: 0.2940
-
+|
 
     .. attribute:: param.type
 
@@ -155,7 +165,7 @@ An example .yaml input file:
 
         1. A list of allowed moves (*e.g.* :code:`[0.9, 0.95, 1.05, 1.0]`).
         2. A dictionary with the ``"start"``, ``"stop"`` and ``"step"`` keys.
-           For example, the list in 1. can be reproduced with ``{"start": 0.05, "stop": 0.1, "step": 0.05}``.
+            For example, the list in 1. can be reproduced with ``{"start": 0.05, "stop": 0.1, "step": 0.05}``.
 
 
     .. attribute:: param.func
@@ -181,23 +191,67 @@ An example .yaml input file:
         A dictionary with keyword arguments for :attr:`param.func`.
 
 
-.. attribute:: psf
+    .. attribute:: param.block.param
 
-    Settings related to the construction of protein structure files (.psf).
+        :Parameter:     * **Type** - :class:`str`
 
-    Note that the :attr:`psf.str_file`, :attr:`psf.rtf_file` and
-    :attr:`psf.psf_file` options are all mutually exclusive;
-    only one should be specified.
-    Furthermore, this block is completelly optional.
+        The name of the forcefield parameter.
 
-    .. admonition:: Examples
+        .. important::
 
-        .. code:: yaml
+            Note that this option has no default value;
+            one *must* be provided by the user.
 
-            psf:
-                rtf_file: ligand.rtf
-                ligand_atoms: [C, O, H]
 
+    .. attribute:: param.block.unit
+
+        :Parameter:     * **Type** - :class:`str`
+
+        The unit in which the forcefield parameters are expressed.
+
+        See the `CP2K manual <https://manual.cp2k.org/trunk/units.html>`_ for a
+        comprehensive list of all available units.
+
+
+    .. attribute:: param.block.guess
+
+        :Parameter:     * **Type** - :class:`dict`
+
+        Estimate all non-specified forcefield parameters.
+
+        If specified, expects a dictionary with the ``"mode"`` key,
+        *e.g.* :code:`{"mode": "uff"}` or :code:`{"mode": "rdf"}`.
+
+
+    .. attribute:: param.block.frozen
+
+        :Parameter:     * **Type** - :class:`dict`
+
+        A sub-block with to-be frozen parameters.
+
+        Parameters specified herein will be treated as constants rather than variables.
+        Accepts forcefield parameters (*e.g.* :code:`"Cd Cd" = 1.0`) and,
+        optionally, the :attr:`guess<param.block.guess>` key.
+
+
+psf
+~~~
+Settings related to the construction of protein structure files (.psf).
+
+Note that the :attr:`psf.str_file`, :attr:`psf.rtf_file` and
+:attr:`psf.psf_file` options are all mutually exclusive;
+only one should be specified.
+Furthermore, this block is completelly optional.
+
+.. admonition:: Examples
+
+    .. code:: yaml
+
+        psf:
+            rtf_file: ligand.rtf
+            ligand_atoms: [C, O, H]
+
+|
 
     .. attribute:: psf.str_file
 
@@ -239,29 +293,29 @@ An example .yaml input file:
         Used for defining residues.
 
 
-.. attribute:: pes
+pes
+~~~
+Settings to the construction of potentialy energy surface (PES) descriptors.
 
-    Settings to the construction of potentialy energy surface (PES) descriptors.
+This settings block accepts an arbitrary number of sub-blocks,
+each containg the :attr:`func<pes.block.func>` and, optionally,
+:attr:`kwargs<pes.block.kwargs>` keys.
 
-    .. admonition:: Examples
+.. admonition:: Examples
 
-        .. code:: yaml
+    .. code:: yaml
 
-            pes:
-                rdf:
-                    func: FOX.MultiMolecule.init_rdf
-                    kwargs:
-                        atom_subset: [Cd, Se, O]
-                adf:
-                    func: FOX.MultiMolecule.init_adf
-                    kwargs:
-                        atom_subset: [Cd, Se]
+        pes:
+            rdf:
+                func: FOX.MultiMolecule.init_rdf
+                kwargs:
+                    atom_subset: [Cd, Se, O]
+            adf:
+                func: FOX.MultiMolecule.init_adf
+                kwargs:
+                    atom_subset: [Cd, Se]
 
-
-        This settings block accepts an arbitrary number of sub-blocks,
-        each containg the :attr:`func<pes.block.func>` and, optionally,
-        :attr:`kwargs<pes.block.kwargs>` keys.
-
+|
 
     .. attribute:: pes.block.func
 
@@ -272,8 +326,10 @@ An example .yaml input file:
         The callable should take a :class:`~FOX.classes.multi_mol.MultiMolecule` instance
         as sole (positional) argument and return an array-like object.
 
-        Note that this option has no default value;
-        one *must* be provided by the user.
+        .. important::
+
+            Note that this option has no default value;
+            one *must* be provided by the user.
 
         .. admonition:: See Also
 
@@ -292,37 +348,38 @@ An example .yaml input file:
         A dictionary with keyword arguments for :attr:`func<pes.block.func>`.
 
 
-.. attribute:: job
+job
+~~~
+Settings related to the running of the various molecular mechanics jobs.
 
-    Settings related to the running of the various molecular mechanics jobs.
+In addition to having two constant keys (:attr:`~job.type` and :attr:`~job.molecule`)
+this block accepts an arbitrary number of sub-blocks representing quantum and/or classical
+mechanical jobs.
+In the example above there are two of such sub-blocks: ``geometry_opt`` and ``md``.
+The first step consists of a geometry optimization while the second one runs the
+actual molecular dynamics calculation.
+Note that these jobs are executed in the order as provided by the user-input.
 
-    .. admonition:: Examples
+.. admonition:: Examples
 
-        .. code:: yaml
+    .. code:: yaml
 
-            job:
-                type: FOX.armc.PackageManager
-                molecule: .../mol.xyz
+        job:
+            type: FOX.armc.PackageManager
+            molecule: .../mol.xyz
 
-                geometry_opt:
-                    type: qmflows.cp2k_mm
-                    settings:
-                        prm: .../ligand.prm
-                    template: qmflows.templates.geometry.specific.cp2k_mm
-                md:
-                    type: qmflows.cp2k_mm
-                    settings:
-                        prm: .../ligand.prm
-                    template: qmflows.templates.md.specific.cp2k_mm
+            geometry_opt:
+                type: qmflows.cp2k_mm
+                settings:
+                    prm: .../ligand.prm
+                template: qmflows.templates.geometry.specific.cp2k_mm
+            md:
+                type: qmflows.cp2k_mm
+                settings:
+                    prm: .../ligand.prm
+                template: qmflows.templates.md.specific.cp2k_mm
 
-
-        In addition to having two constant keys (:attr:`~job.type` and :attr:`~job.molecule`)
-        this block accepts an arbitrary number of sub-blocks representing quantum and/or classical
-        mechanical jobs.
-        In the example above there are two of such sub-blocks: ``geometry_opt`` and ``md``.
-        The first step consists of a geometry optimization while the second one runs the
-        actual molecular dynamics calculation.
-        Note that these jobs are executed in the order as provided by the user-input.
+|
 
     .. attribute:: job.type
 
@@ -344,6 +401,12 @@ An example .yaml input file:
         :Parameter:     * **Type** - :class:`str` or :class:`list` [:class:`str`]
 
         One or more .xyz files with reference (QM) potential energy surfaces.
+
+
+        .. important::
+
+            Note that this option has no default value;
+            one *must* be provided by the user.
 
 
     .. attribute:: job.block.type
@@ -391,24 +454,25 @@ An example .yaml input file:
                 Templates for geometry optimization calculations.
 
 
-.. attribute:: monte_carlo
+monte_carlo
+~~~~~~~~~~~
+Settings related to the Monte Carlo procedure itself.
 
-    Settings related to the Monte Carlo procedure itself.
+.. admonition:: Examples
 
-    .. admonition:: Examples
+    .. code:: yaml
 
-        .. code:: yaml
+        monte_carlo:
+            type: FOX.armc.ARMC
+            iter_len: 50000
+            sub_iter_len: 10
+            logfile: armc.log
+            hdf5_file: armc.hdf5
+            path: .
+            folder: MM_MD_workdir
+            keep_files: False
 
-            monte_carlo:
-                type: FOX.armc.ARMC
-                iter_len: 50000
-                sub_iter_len: 10
-                logfile: armc.log
-                hdf5_file: armc.hdf5
-                path: .
-                folder: MM_MD_workdir
-                keep_files: False
-
+|
 
     .. attribute:: monte_carlo.type
 
@@ -482,22 +546,23 @@ An example .yaml input file:
         Whether to keep *all* raw output files or not.
 
 
-.. attribute:: phi
+phi
+~~~
+Settings related to the ARMC :math:`\phi` parameter.
 
-    Settings related to the ARMC :math:`\phi` parameter.
+.. admonition:: Examples
 
-    .. admonition:: Examples
+    .. code:: yaml
 
-        .. code:: yaml
+        phi:
+            type: FOX.armc.PhiUpdater
+            gamma: 2.0
+            a_target: 0.25
+            phi: 1.0
+            func: numpy.add
+            kwargs: {}
 
-            phi:
-                type: FOX.armc.PhiUpdater
-                gamma: 2.0
-                a_target: 0.25
-                phi: 1.0
-                func: numpy.add
-                kwargs: {}
-
+|
 
     .. attribute:: phi.type
 
