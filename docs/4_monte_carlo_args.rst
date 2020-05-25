@@ -108,6 +108,7 @@ This settings block accepts an arbitrary number of sub-blocks.
                 start: 0.005
                 stop: 0.1
                 step: 0.005
+                ratio: null
             func: numpy.multiply
             kwargs: {}
 
@@ -157,7 +158,7 @@ This settings block accepts an arbitrary number of sub-blocks.
     .. attribute:: param.move_range
 
         :Parameter:     * **Type** - array-like or :class:`dict`
-                        * **Default Value** - ``{"start": 0.005, "stop": 0.1, "step": 0.005}``
+                        * **Default Value** - ``{"start": 0.005, "stop": 0.1, "step": 0.005, "ratio": None}``
 
         The parameter move range.
 
@@ -165,7 +166,12 @@ This settings block accepts an arbitrary number of sub-blocks.
 
         1. A list of allowed moves (*e.g.* :code:`[0.9, 0.95, 1.05, 1.0]`).
         2. A dictionary with the ``"start"``, ``"stop"`` and ``"step"`` keys.
-            For example, the list in 1. can be reproduced with ``{"start": 0.05, "stop": 0.1, "step": 0.05}``.
+            For example, the list in 1. can be reproduced with
+            ``{"start": 0.05, "stop": 0.1, "step": 0.05, "ratio": None}``.
+
+        When running the ARMC parallel procedure (:attr:`monte_carlo.type = FOX.armc.ARMCPT<monte_carlo.type>`)
+        option 1. should be supplied as a nested list (*e.g.* :code:`[[0.9, 0.95, 1.05, 1.0], [0.8, 0.9, 1.1, 1.2]]`)
+        and option 2. requires the additional :code:`"ratio"` keyword (*e.g.* :code:`[1, 2]`).
 
 
     .. attribute:: param.func
@@ -581,32 +587,38 @@ Settings related to the ARMC :math:`\phi` parameter.
 
     .. attribute:: phi.gamma
 
-        :Parameter:     * **Type** - :class:`float`
+        :Parameter:     * **Type** - :class:`float` or :class:`list` [:class:`float`]
                         * **Default Value** - ``2.0``
 
         The constant :math:`\gamma`.
 
         See :eq:`4`.
+        Note that a list must be supplied when running the ARMC parallel
+        tempering procedure (:attr:`monte_carlo.type = FOX.armc.ARMCPT<monte_carlo.type>`)
 
 
     .. attribute:: phi.a_target
 
-        :Parameter:     * **Type** - :class:`float`
+        :Parameter:     * **Type** - :class:`float` or :class:`list` [:class:`float`]
                         * **Default Value** - ``0.25``
 
         The target acceptance rate :math:`\alpha_{t}`.
 
         See :eq:`4`.
+        Note that a list must be supplied when running the ARMC parallel
+        tempering procedure (:attr:`monte_carlo.type = FOX.armc.ARMCPT<monte_carlo.type>`)
 
 
     .. attribute:: phi.phi
 
-        :Parameter:     * **Type** - :class:`float`
+        :Parameter:     * **Type** - :class:`float` or :class:`list` [:class:`float`]
                         * **Default Value** - ``1.0``
 
         The initial value of the variable :attr:`phi<phi.phi>`.
 
         See :eq:`3` and :eq:`4`.
+        Note that a list must be supplied when running the ARMC parallel
+        tempering procedure (:attr:`monte_carlo.type = FOX.armc.ARMCPT<monte_carlo.type>`)
 
 
     .. attribute:: phi.func
