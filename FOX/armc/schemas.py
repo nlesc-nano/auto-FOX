@@ -36,7 +36,7 @@ from .monte_carlo import MonteCarloABC
 from .package_manager import PackageManager, PackageManagerABC
 from .phi_updater import PhiUpdater, PhiUpdaterABC
 from .param_mapping import ParamMapping, ParamMappingABC
-from ..type_hints import SupportsArray, Scalar, ArrayLikeOrScalar
+from ..type_hints import ArrayLike, Scalar, ArrayLikeOrScalar
 from ..classes import MultiMolecule
 from ..utils import get_move_range
 
@@ -134,9 +134,9 @@ class PhiMapping(TypedDict, total=False):
     """A :class:`~typing.TypedDict` representing the input of :data:`phi_schema`."""
 
     type: Union[None, str, Type[PhiUpdaterABC]]
-    phi: Union[None, Scalar, SupportsArray, Iterable[Scalar]]
-    gamma: Union[None, Scalar, SupportsArray, Iterable[Scalar]]
-    a_target: Union[None, Scalar, SupportsArray, Iterable[Scalar]]
+    phi: Union[None, ArrayLike, Iterable[Scalar]]
+    gamma: Union[None, ArrayLike, Iterable[Scalar]]
+    a_target: Union[None, ArrayLike, Iterable[Scalar]]
     func: Union[None, str, PhiFunc]
     kwargs: Optional[Mapping[str, Any]]
 
@@ -443,7 +443,7 @@ param_schema = Schema({
 
     Optional_('move_range', default=MOVE_DEFAULT.copy): Or(
         And(None, Default(MOVE_DEFAULT.copy)),
-        And(Or(abc.Iterable, SupportsArray), Use(array)),
+        And(Or(abc.Iterable, ArrayLike), Use(array)),
         And(abc.Mapping, lambda n: {'start', 'stop', 'step', 'ratio'}.issuperset(n.keys()),
             Use(lambda n: get_move_range(**n))),
         error=Formatter(f"'param.move_range' expected a Mapping or array-like object{EPILOG}")
@@ -465,7 +465,7 @@ class ParamMapping_(TypedDict, total=False):
     type: Union[None, str, Type[ParamMappingABC]]
     func: Union[None, str, Callable[[float, float], float]]
     kwargs: Optional[Mapping[str, Any]]
-    move_range: Union[None, Iterable[Scalar], SupportsArray, MoveRange]
+    move_range: Union[None, ArrayLike, MoveRange]
 
 
 class ParamDict(TypedDict):

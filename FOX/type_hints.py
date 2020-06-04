@@ -12,20 +12,18 @@ API
 
 """
 
-import os
-from typing import Sequence, Union, Type, TYPE_CHECKING
+from typing import Union, Type, TYPE_CHECKING
 
 import numpy as np
 from pandas.core.generic import NDFrame
 
 if TYPE_CHECKING:
-    from numpy.typing import DtypeLike, SupportsArray
+    from numpy.typing import ArrayLike, DtypeLike
 else:
-    from numpy import dtype as DtypeLike
-    from numpy import ndarray as SupportsArray
+    from numpy import ndarray as ArrayLike, dtype as DtypeLike
 
 __all__ = [
-    'Scalar', 'ScalarType', 'ArrayLike', 'ArrayLikeOrScalar', 'ArrayOrScalar'
+    'Scalar', 'ScalarType', 'ArrayLike', 'DtypeLike', 'ArrayLikeOrScalar', 'ArrayOrScalar'
 ]
 
 #: Annotation for numerical scalars.
@@ -34,11 +32,8 @@ Scalar = Union[np.number, np.bool_, int, float, bool, complex]
 #: Annotation for numerical scalar types.
 ScalarType = Type[Scalar]
 
-#: Annotation for array-like objects.
-ArrayLike = Union[Sequence[Scalar], SupportsArray, np.ndarray]
-
 #: Annotation for array-like objects or numerical scalar.
-ArrayLikeOrScalar = Union[ArrayLike, Scalar]
+ArrayLikeOrScalar = ArrayLike
 
 #: Annotation for arrays.
 Array = Union[np.ndarray, NDFrame]

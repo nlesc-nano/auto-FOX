@@ -27,27 +27,20 @@ API
 
 """
 
-import reprlib
 import warnings
-import importlib
-from types import MappingProxyType
 from functools import wraps
-from collections import abc
 from typing import (
-    Iterable, Tuple, Callable, Hashable, Sequence, Optional, List, TypeVar, Dict,
-    Type, Mapping, Union, MutableMapping, Any, Collection, cast, NamedTuple
+    Iterable, Tuple, Callable, Hashable, Sequence, Optional, List, TypeVar,
+    Type, Mapping, Union, Any, cast
 )
 
 import numpy as np
 import pandas as pd
 
-from scm.plams import add_to_class
 from nanoutils import PathType
 
-from .type_hints import Scalar, SupportsArray, DtypeLike
-
 __all__ = [
-    'get_move_range', 'array_to_index', 'assert_error', 'serialize_array', 'read_str_file',
+    'get_move_range', 'array_to_index', 'serialize_array', 'read_str_file',
     'get_shape', 'slice_str', 'get_atom_count', 'read_rtf_file', 'prepend_exception'
 ]
 

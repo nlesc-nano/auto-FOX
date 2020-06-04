@@ -26,7 +26,7 @@ import numpy as np
 import pandas as pd
 
 from scm.plams import Molecule
-from nanoutils import Literal, TypedDict, Literal, split_dict
+from nanoutils import Literal, TypedDict, split_dict
 
 from .guess import guess_param
 from .mc_post_process import AtomsFromPSF
