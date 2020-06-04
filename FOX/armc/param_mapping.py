@@ -27,9 +27,9 @@ from typing import (Any, TypeVar, Optional, Hashable, Tuple, Mapping, Iterable, 
 import numpy as np
 import pandas as pd
 from assertionlib.dataclass import AbstractDataClass
+from nanoutils import Literal, TypedDict, set_docstring
 
-from ..utils import set_docstring
-from ..type_hints import Literal, TypedDict, Scalar, SupportsArray
+from ..type_hints import Scalar, SupportsArray
 from ..functions.charge_utils import update_charge, get_net_charge, ChargeError
 
 if TYPE_CHECKING:

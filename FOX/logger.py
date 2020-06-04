@@ -13,9 +13,9 @@ API
 """
 
 import os
+from typing import Optional, Iterable, Any, Callable, Union
 from logging import Logger, StreamHandler, Handler, FileHandler, DEBUG, getLogger, Formatter
 from functools import wraps
-from typing import Optional, Iterable, Any, Callable, Union
 
 from scm.plams import config
 

@@ -28,14 +28,14 @@ from typing import (
     TYPE_CHECKING
 )
 
-import numpy as np  # type: ignore
-import pandas as pd  # type: ignore
+import numpy as np
+import pandas as pd
 
 from scm.plams import Units
+from nanoutils import Literal, PathType
 
 from ..io import PSFContainer, PRMContainer
 from ..utils import prepend_exception
-from ..type_hints import Literal, PathType
 from ..ff import UFF_DF, SIGMA_DF, LJDataFrame, estimate_lj
 
 if TYPE_CHECKING:

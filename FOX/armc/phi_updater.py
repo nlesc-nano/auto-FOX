@@ -24,9 +24,9 @@ from functools import partial, wraps
 import numpy as np
 
 from assertionlib.dataclass import AbstractDataClass
+from nanoutils import set_docstring, SupportsIndex, as_nd_array
 
-from ..utils import as_nd_array, set_docstring
-from ..type_hints import ArrayLike, ArrayLikeOrScalar, Scalar, DtypeLike, SupportsIndex
+from ..type_hints import ArrayLike, ArrayLikeOrScalar, Scalar, DtypeLike
 
 __all__ = ['PhiUpdaterABC', 'PhiUpdater']
 

@@ -26,6 +26,7 @@ import numpy as np
 import pandas as pd
 
 from scm.plams import Molecule
+from nanoutils import Literal, TypedDict, Literal, split_dict
 
 from .guess import guess_param
 from .mc_post_process import AtomsFromPSF
@@ -36,8 +37,7 @@ from .schemas import (
     PSFMapping, JobMapping
 )
 
-from ..type_hints import Literal, TypedDict
-from ..utils import get_atom_count, split_dict
+from ..utils import get_atom_count
 from ..io.read_psf import PSFContainer, overlay_str_file, overlay_rtf_file
 from ..classes import MultiMolecule
 from ..functions.cp2k_utils import UNIT_MAP
@@ -187,7 +187,9 @@ def get_package(dct: JobMapping, phi: Iterable) -> Tuple[PackageManager, Tuple[M
         A PackageManager and a tuple of MultiMolecules.
 
     """
-    _sub_pkg_dict: Dict[str, Any] = split_dict(dct, keep_keys={'type', 'molecule'})
+    _sub_pkg_dict: Dict[str, Any] = split_dict(
+        dct, preserve_order=True, keep_keys={'type', 'molecule'}
+    )
 
     job_dict = validate_job(dct)
     mol_list = [mol.as_Molecule(mol_subset=0)[0] for mol in job_dict['molecule']]
@@ -219,7 +221,9 @@ def get_param(dct: ParamMapping_) -> Tuple[ParamMapping, dict, dict]:
 
     """
     _prm_dict = dct
-    _sub_prm_dict = split_dict(_prm_dict, keep_keys={'type', 'move_range', 'func', 'kwargs'})
+    _sub_prm_dict = split_dict(
+        _prm_dict, preserve_order=True, keep_keys={'type', 'move_range', 'func', 'kwargs'}
+    )
 
     prm_dict = validate_param(_prm_dict)
     kwargs = prm_dict.pop('kwargs')

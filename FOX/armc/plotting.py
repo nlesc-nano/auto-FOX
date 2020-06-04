@@ -16,33 +16,31 @@ API
 
 """
 
-from typing import Optional, Iterable, Union, Hashable
+from typing import Optional, Iterable, Union, Hashable, Mapping, Any
 
 import pandas as pd
+from nanoutils import raise_if, PathType
 
-from ..functions import assert_error
 from ..io.hdf5_utils import from_hdf5
 
 try:
     import matplotlib.pyplot as plt
     from matplotlib.pyplot import Figure
     __all__ = []
-    PLT_ERROR: Optional[str] = None
+    PLT_ERROR: Optional[ImportError] = None
 
-except ImportError:
+except ImportError as ex:
     from ..type_alias import Figure
     __all__ = ['plot_pes_descriptors', 'plot_param', 'plot_dset']
-    PLT_ERROR = ("Use of the FOX.{} function requires the 'matplotlib' package."
-                 "\n'matplotlib' can be installed via PyPi with the following command:"
-                 "\n\tpip install matplotlib")
+    PLT_ERROR = ex
 
 
-@assert_error(PLT_ERROR)
-def plot_pes_descriptors(filename_in: str,
+@raise_if(PLT_ERROR)
+def plot_pes_descriptors(filename_in: PathType,
                          descriptor: str,
-                         filename_out: Optional[str],
+                         filename_out: Optional[PathType],
                          iteration: int = -1,
-                         savefig_kwarg: Optional[dict] = None) -> Figure:
+                         savefig_kwarg: Optional[Mapping[str, Any]] = None) -> Figure:
     """Create and save a figure showing side-by-side comparisons of QM and MM PES descriptors.
 
     .. _matplotlib.savefig: https://matplotlib.org/3.1.0/api/_as_gen/matplotlib.pyplot.savefig.html
@@ -109,10 +107,10 @@ def plot_pes_descriptors(filename_in: str,
     return fig
 
 
-@assert_error(PLT_ERROR)
-def plot_param(filename_in: str,
-               filename_out: Optional[str] = None,
-               savefig_kwarg: Optional[dict] = None) -> Figure:
+@raise_if(PLT_ERROR)
+def plot_param(filename_in: PathType,
+               filename_out: Optional[PathType] = None,
+               savefig_kwarg: Optional[Mapping[str, Any]] = None) -> Figure:
     """Create and save a figure from the ``"param"`` hdf5 dataset in **filename_in**.
 
     .. _matplotlib.savefig: https://matplotlib.org/3.1.0/api/_as_gen/matplotlib.pyplot.savefig.html
@@ -172,11 +170,11 @@ def plot_param(filename_in: str,
     return fig
 
 
-@assert_error(PLT_ERROR)
-def plot_dset(filename_in: str,
+@raise_if(PLT_ERROR)
+def plot_dset(filename_in: PathType,
               datasets: Union[Hashable, Iterable[Hashable]],
-              filename_out: Optional[str] = None,
-              savefig_kwarg: Optional[dict] = None) -> Figure:
+              filename_out: Optional[PathType] = None,
+              savefig_kwarg: Optional[Mapping[str, Any]] = None) -> Figure:
     """Create and save a figure from an arbitrary hdf5 dataset in **filename_in**.
 
     See :func:`plot_pes_descriptors` and :func:`plot_param` for functions specialized in plotting

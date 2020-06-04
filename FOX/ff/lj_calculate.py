@@ -42,9 +42,9 @@ import pandas as pd
 from scipy.spatial import cKDTree
 
 from scm.plams import Units
+from nanoutils import fill_diagonal_blocks
 
 from . import LJDataFrame
-from ..utils import fill_diagonal_blocks
 from ..classes import MultiMolecule
 from ..io import PSFContainer, PRMContainer
 

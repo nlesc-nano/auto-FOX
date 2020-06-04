@@ -13,38 +13,19 @@ API
 """
 
 import os
-import sys
-from abc import abstractmethod
 from typing import Sequence, Union, Type, TYPE_CHECKING
 
 import numpy as np
 from pandas.core.generic import NDFrame
 
-if sys.version_info >= (3, 8):
-    from typing import Literal, TypedDict, SupportsIndex, final, Final
-else:
-    from typing_extensions import Literal, TypedDict, Protocol, runtime_checkable, final, Final
-
-    @runtime_checkable
-    class SupportsIndex(Protocol):
-        """An ABC with one abstract method __index__."""
-
-        __slots__ = ()  # type: ignore
-
-        @abstractmethod
-        def __index__(self) -> int:
-            """Return :code:`self` converted to an integer for the purpose of indexing."""
-            pass
-
 if TYPE_CHECKING:
-    from numpy import DtypeLike, SupportsArray
+    from numpy.typing import DtypeLike, SupportsArray
 else:
-    DtypeLike = np.dtype
-    SupportsArray = np.ndarray
+    from numpy import dtype as DtypeLike
+    from numpy import ndarray as SupportsArray
 
 __all__ = [
-    'Scalar', 'ScalarType', 'ArrayLike', 'ArrayLikeOrScalar', 'ArrayOrScalar',
-    'Literal', 'TypedDict', 'PathType', 'final', 'Final'
+    'Scalar', 'ScalarType', 'ArrayLike', 'ArrayLikeOrScalar', 'ArrayOrScalar'
 ]
 
 #: Annotation for numerical scalars.
@@ -64,9 +45,6 @@ Array = Union[np.ndarray, NDFrame]
 
 #: Annotation for arrays or numerical scalars.
 ArrayOrScalar = Union[Array, Scalar]
-
-#: Annotation for path-like objects.
-PathType = Union[str, bytes, os.PathLike]
 
 
 __doc__ = __doc__.format(

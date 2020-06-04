@@ -28,17 +28,17 @@ import pandas as pd
 
 from scm.plams import Molecule, Atom, Bond
 from assertionlib.dataclass import AbstractDataClass
+from nanoutils import group_by_values, raise_if
 
 from .file_container import AbstractFileContainer
-from ..utils import read_str_file, read_rtf_file, group_by_values
+from ..utils import read_str_file, read_rtf_file
 from ..functions.molecule_utils import get_bonds, get_angles, get_dihedrals, get_impropers
 
 try:
     from scm.plams import writepdb
-except ImportError as ex:
-    RDKIT_EX: Optional[ImportError] = ex
-else:
     RDKIT_EX: Optional[ImportError] = None
+except ImportError as ex:
+    RDKIT_EX = ex
 
 __all__ = ['PSFContainer']
 
@@ -885,6 +885,7 @@ class PSFContainer(AbstractDataClass, AbstractFileContainer):
         """
         return group_by_values(enumerate(self.atom_type))
 
+    @raise_if(RDKIT_EX)
     def write_pdb(self, mol: Molecule,
                   pdb_file: Union[str, PathLike, TextIOBase] = sys.stdout,
                   copy_mol: bool = True) -> None:
@@ -902,9 +903,6 @@ class PSFContainer(AbstractDataClass, AbstractFileContainer):
             A filename or a file-like object.
 
         """
-        if RDKIT_EX is not None:
-            raise RDKIT_EX
-
         if isinstance(pdb_file, PathLike):
             pdb_file = str(pdb_file)
         if copy_mol:
