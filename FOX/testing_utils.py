@@ -29,8 +29,8 @@ from assertionlib import assertion
 from scm.plams import Molecule
 from qmflows import Settings as QmSettings
 from qmflows.packages.cp2k_mm import CP2KMM_Result
+from nanoutils import Literal, PathType
 
-from .type_hints import Literal, PathType
 from .functions.cp2k_utils import get_xyz_path
 
 if TYPE_CHECKING:

@@ -1,0 +1,30 @@
+param:
+    move_range:
+        ratio: [1, 2, 4]
+    charge:
+        param: charge
+        Cd: 0.9768
+        Se: -0.9768
+    lennard_jones:
+        -   param: epsilon
+            Cd Cd: 0.3101
+            Se Se: 0.4266
+            Cd Se: 1.5225
+        -   param: sigma
+            Cd Cd: 0.1234
+            Se Se: 0.4852
+            Cd Se: 0.2940
+
+pes:
+    rdf:
+        func: FOX.MultiMolecule.init_rdf
+
+job:
+    molecule: /path/to/md_trajec.xyz
+    md:
+        type: qmflows.cp2k_mm
+        template: qmflows.templates.md.specific.cp2k_mm
+        settings: {}
+
+monte_carlo:
+    type: FOX.armc.ARMCPT

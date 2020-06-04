@@ -39,10 +39,10 @@ import h5py
 import numpy as np
 import pandas as pd
 from scm.plams import Settings
+from nanoutils import PathType, group_by_values
 
 from ..__version__ import __version__
-from ..type_hints import PathType
-from ..utils import get_shape, array_to_index, group_by_values
+from ..utils import get_shape, array_to_index
 
 if TYPE_CHECKING:
     from pandas.core.generic import NDFrame

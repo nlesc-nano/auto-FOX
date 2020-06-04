@@ -96,6 +96,7 @@ setup(
     test_suite='tests',
     python_requires='>=3.7',
     install_requires=[
+        'Nano-Utils>=0.3.3',
         'pyyaml>=5.1',
         'numpy',
         'scipy',
@@ -103,7 +104,6 @@ setup(
         'schema',
         'AssertionLib>=2.1',
         'noodles>=0.3.3',
-        'typing_extensions>=3.7.4; python_version<"3.8"',
         'qmflows@git+https://github.com/SCM-NV/qmflows@master',
         'plams@git+https://github.com/SCM-NV/PLAMS@master'
     ],

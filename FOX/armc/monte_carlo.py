@@ -26,8 +26,8 @@ from typing import (
 
 import numpy as np
 from assertionlib.dataclass import AbstractDataClass
+from nanoutils import EMPTY_MAPPING
 
-from ..utils import EMPTY_MAPPING
 from ..logger import DEFAULT_LOGGER
 from ..type_hints import ArrayOrScalar
 

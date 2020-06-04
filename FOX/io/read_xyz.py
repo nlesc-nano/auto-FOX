@@ -23,9 +23,7 @@ from typing import Tuple, Dict, Iterable, List, Union, Iterator, Generator, over
 from itertools import islice, chain
 
 import numpy as np
-
-from ..type_hints import Literal, PathType
-from ..utils import group_by_values
+from nanoutils import Literal, PathType, group_by_values
 
 __all__ = ['read_multi_xyz']
 

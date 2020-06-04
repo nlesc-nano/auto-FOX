@@ -22,14 +22,14 @@ from logging import Logger
 from functools import wraps, partial
 from typing import (Any, TypeVar, Optional, Hashable, Tuple, Mapping, Iterable, ClassVar, Union,
                     Iterator, KeysView, ItemsView, ValuesView, overload, Callable, FrozenSet, cast,
-                    MutableMapping, Sequence, TYPE_CHECKING)
+                    MutableMapping, TYPE_CHECKING)
 
 import numpy as np
 import pandas as pd
 from assertionlib.dataclass import AbstractDataClass
+from nanoutils import Literal, TypedDict, set_docstring
 
-from ..utils import set_docstring
-from ..type_hints import Literal, TypedDict, Scalar, SupportsArray
+from ..type_hints import ArrayLike
 from ..functions.charge_utils import update_charge, get_net_charge, ChargeError
 
 if TYPE_CHECKING:
@@ -243,7 +243,7 @@ class ParamMappingABC(AbstractDataClass, ABC, _ParamMappingABC):
         return self._move_range
 
     @move_range.setter
-    def move_range(self, value: Union[Scalar, Sequence[Scalar], SupportsArray]) -> None:
+    def move_range(self, value: ArrayLike) -> None:
         _ar = np.array(value, dtype=float, ndmin=1, copy=False)
         prm_len = len(self._data['param'].columns)
 

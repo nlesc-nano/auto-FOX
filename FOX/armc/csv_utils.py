@@ -14,7 +14,8 @@ API
 
 from typing import Optional
 
-from ..type_hints import PathType
+from nanoutils import PathType
+
 from ..io.hdf5_utils import from_hdf5
 
 __all__ = ['dset_to_csv']

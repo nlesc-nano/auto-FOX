@@ -12,39 +12,18 @@ API
 
 """
 
-import os
-import sys
-from abc import abstractmethod
-from typing import Sequence, Union, Type, TYPE_CHECKING
+from typing import Union, Type, TYPE_CHECKING
 
 import numpy as np
 from pandas.core.generic import NDFrame
 
-if sys.version_info >= (3, 8):
-    from typing import Literal, TypedDict, SupportsIndex, final, Final
-else:
-    from typing_extensions import Literal, TypedDict, Protocol, runtime_checkable, final, Final
-
-    @runtime_checkable
-    class SupportsIndex(Protocol):
-        """An ABC with one abstract method __index__."""
-
-        __slots__ = ()  # type: ignore
-
-        @abstractmethod
-        def __index__(self) -> int:
-            """Return :code:`self` converted to an integer for the purpose of indexing."""
-            pass
-
 if TYPE_CHECKING:
-    from numpy import DtypeLike, SupportsArray
+    from numpy.typing import ArrayLike, DtypeLike
 else:
-    DtypeLike = np.dtype
-    SupportsArray = np.ndarray
+    from numpy import ndarray as ArrayLike, dtype as DtypeLike
 
 __all__ = [
-    'Scalar', 'ScalarType', 'ArrayLike', 'ArrayLikeOrScalar', 'ArrayOrScalar',
-    'Literal', 'TypedDict', 'PathType', 'final', 'Final'
+    'Scalar', 'ScalarType', 'ArrayLike', 'DtypeLike', 'ArrayLikeOrScalar', 'ArrayOrScalar'
 ]
 
 #: Annotation for numerical scalars.
@@ -53,20 +32,14 @@ Scalar = Union[np.number, np.bool_, int, float, bool, complex]
 #: Annotation for numerical scalar types.
 ScalarType = Type[Scalar]
 
-#: Annotation for array-like objects.
-ArrayLike = Union[Sequence[Scalar], SupportsArray, np.ndarray]
-
 #: Annotation for array-like objects or numerical scalar.
-ArrayLikeOrScalar = Union[ArrayLike, Scalar]
+ArrayLikeOrScalar = ArrayLike
 
 #: Annotation for arrays.
 Array = Union[np.ndarray, NDFrame]
 
 #: Annotation for arrays or numerical scalars.
 ArrayOrScalar = Union[Array, Scalar]
-
-#: Annotation for path-like objects.
-PathType = Union[str, bytes, os.PathLike]
 
 
 __doc__ = __doc__.format(

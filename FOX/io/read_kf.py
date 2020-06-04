@@ -18,9 +18,7 @@ from typing import Tuple, Dict, List
 import numpy as np
 
 from scm.plams import KFReader
-
-from ..utils import group_by_values
-from ..type_hints import PathType
+from nanoutils import group_by_values, PathType
 
 __all__ = ['read_kf']
 

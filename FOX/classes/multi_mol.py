@@ -35,10 +35,9 @@ from scipy.fftpack import fft
 from scipy.spatial.distance import cdist
 
 from scm.plams import Molecule, Atom, Bond
+from nanoutils import group_by_values, Literal
 
 from .multi_mol_magic import _MultiMolecule
-from ..utils import group_by_values
-from ..type_hints import Literal
 from ..io.read_kf import read_kf
 from ..io.read_xyz import read_multi_xyz
 from ..functions.rdf import get_rdf, get_rdf_lowmem, get_rdf_df

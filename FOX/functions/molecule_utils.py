@@ -25,8 +25,7 @@ from typing import List, overload
 import numpy as np
 
 from scm.plams import Molecule, Atom, MoleculeError
-
-from ..type_hints import Literal
+from nanoutils import Literal
 
 __all__ = ['get_bonds', 'get_angles', 'get_dihedrals', 'get_impropers', 'residue_argsort']
 

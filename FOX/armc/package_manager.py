@@ -37,12 +37,11 @@ from scm.plams import config, Molecule, JobManager  # type: ignore
 from qmflows import Settings as QmSettings
 from qmflows.cp2k_utils import prm_to_df
 from noodles import gather, schedule, has_scheduled_methods, run_parallel
+from nanoutils import set_docstring, TypedDict
 
-from ..utils import set_docstring
 from ..classes import MultiMolecule
 from ..functions.cp2k_utils import get_xyz_path
 from ..logger import DummyLogger
-from ..type_hints import TypedDict
 from ..io.read_xyz import XYZError
 
 if TYPE_CHECKING:
