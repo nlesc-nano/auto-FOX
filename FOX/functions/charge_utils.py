@@ -12,29 +12,45 @@ API
 
 """
 
-import functools
+from functools import partial
 from types import MappingProxyType
+from itertools import chain
 from typing import (
-    Hashable, Optional, Collection, Mapping, Container, Dict, Union, Iterable, Tuple, Any,
-    SupportsFloat, Generator, Iterator, Set
+    Hashable, Optional, Collection, Container, Dict, Union, Iterable, Tuple,
+    SupportsFloat, Generator, Iterator, Set, TypeVar, Type, Generic
 )
 
 import numpy as np
 import pandas as pd
 
+from nanoutils import TypedDict
+
 __all__ = ['update_charge']
 
-ConstrainDict = Mapping[Hashable, functools.partial]
+T = TypeVar('T')
+KT = TypeVar('KT', bound=Hashable)
+ST = TypeVar('ST', bound='ChargeError')
 
 
-class ChargeError(ValueError):
-    """A :exc:`ValueError` subclass for charge-related errors."""
+class _StateDict(TypedDict):
+    """A dictionary representing the keyword-only arguments of :exc:`ChargeError`."""
 
     reference: Optional[float]
     value: Optional[float]
     tol: Optional[float]
 
-    def __init__(self, *args: Any, reference: Optional[SupportsFloat] = None,
+
+class ChargeError(ValueError, Generic[T]):
+    """A :exc:`ValueError` subclass for charge-related errors."""
+
+    __slots__ = ('__weakref__', 'reference', 'value', 'tol')
+
+    reference: Optional[float]
+    value: Optional[float]
+    tol: Optional[float]
+    args: Tuple[T, ...]
+
+    def __init__(self, *args: T, reference: Optional[SupportsFloat] = None,
                  value: Optional[SupportsFloat] = None,
                  tol: Optional[SupportsFloat] = 0.001) -> None:
         """Initialize an instance."""
@@ -42,6 +58,17 @@ class ChargeError(ValueError):
         self.reference = float(reference) if reference is not None else None
         self.value = float(value) if value is not None else None
         self.tol = float(tol) if tol is not None else None
+
+    def __reduce__(self: ST) -> Tuple[Type[ST], Tuple[T, ...], _StateDict]:
+        """Helper for :mod:`pickle`."""
+        cls = type(self)
+        kwargs = _StateDict(reference=self.reference, value=self.value, tol=self.tol)
+        return cls, self.args, kwargs
+
+    def __setstate__(self, state: _StateDict) -> None:
+        """Helper for :meth:`pickle`; handles the setting of keyword arguments."""
+        for k, v in state.items():
+            setattr(self, k, v)
 
 
 def get_net_charge(param: pd.Series, count: pd.Series,
@@ -69,15 +96,16 @@ def get_net_charge(param: pd.Series, count: pd.Series,
         The total charge in **df**.
 
     """
-    index_ = slice(None) if index is None else index
-    ret = param[index_] * count[index_]
+    idx = slice(None) if index is None else index
+    ret = param[idx] * count[idx]
     return ret.sum()
 
 
-def update_charge(atom: Hashable, value: float, param: pd.Series, count: pd.Series,
-                  constrain_dict: Optional[ConstrainDict] = None,
-                  prm_min: Optional[Iterable[float]] = None,
-                  prm_max: Optional[Iterable[float]] = None,
+def update_charge(atom: KT, value: float, param: pd.Series, count: pd.Series,
+                  atom_coefs: Optional[Collection[pd.Series]] = None,
+                  prm_min: Optional[pd.Series] = None,
+                  prm_max: Optional[pd.Series] = None,
+                  exclude: Optional[Collection[KT]] = None,
                   net_charge: Optional[float] = None) -> Optional[ChargeError]:
     """Set the atomic charge of **at** equal to **charge**.
 
@@ -89,99 +117,125 @@ def update_charge(atom: Hashable, value: float, param: pd.Series, count: pd.Seri
 
     Performs an inplace update of the *param* column in **df**.
 
-    Examples
-    --------
-    .. code:: python
-
-        >>> print(df)
-            param  count
-        Br   -1.0    240
-        Cs    1.0    112
-        Pb    2.0     64
-
-    Parameters
-    ----------
-    atom : str
-        An atom type such as ``"Se"``, ``"Cd"`` or ``"OG2D2"``.
-
-    charge : float
-        The new charge associated with **at**.
-
-    df : |pd.DataFrame|_
-        A dataframe with atomic charges.
-        Charges should be stored in the *param* column and atom counts in the *count* column.
-
-    constrain_dict : dict
-        A dictionary with charge constrains.
-
     """
     param_backup = param.copy()
-    param[atom] = value
-
-    if constrain_dict is None or atom in constrain_dict:
-        exclude = constrained_update(atom, param, constrain_dict)
+    if exclude is None:
+        exclude_set = set()
     else:
-        exclude = {atom}
+        exclude_set = set(exclude)
+
+    if atom_coefs is not None:
+        try:
+            constrained_update(atom, value, param, count, atom_coefs, prm_min, prm_max, exclude_set)
+        except ChargeError as ex:
+            param[:] = param_backup
+            return ex
+        exclude_set.update(chain.from_iterable(s.index for s in atom_coefs))
 
     if net_charge is not None:
+        exclude_set.add(atom)
+        param[atom] = value
         try:
             unconstrained_update(net_charge, param, count,
                                  prm_min=prm_min,
                                  prm_max=prm_max,
-                                 exclude=exclude)
+                                 exclude=exclude_set)
         except ChargeError as ex:
             param[:] = param_backup
             return ex
     return None
 
 
-def constrained_update(at1: Hashable, param: pd.Series,
-                       constrain_dict: Optional[ConstrainDict] = None) -> Set[Hashable]:
+def constrained_update(atom: KT, value: float, param: pd.Series, count: pd.Series,
+                       atom_coefs: Collection[pd.Series],
+                       param_min: pd.Series, param_max: pd.Series,
+                       exclude: Optional[Set[KT]] = None) -> None:
     """Perform a constrained update of atomic charges.
 
-    Performs an inplace update of the ``"param"`` column in **df**.
+    Performs an inplace update **param**.
 
     Parameters
     ----------
-    at1 : str
+    atom : str
         An atom type such as ``"Se"``, ``"Cd"`` or ``"OG2D2"``.
+    value : :class:`float`
+        The value to be assigned to **atom**.
+    param : :class:`pandas.Series`
+        A Series with parameter values.
+    count : :class:`pandas.Series`
+        A Series with the number of atoms per parameter.
+    atom_coefs : :class:`Collection[pandas.Series]<typing.Collection>`
+        A collection of (disjoint) coefficient Series.
+    param_min : :class:`pandas.Series`
+        A Series with the minimum values for all parameters in **param**.
+    param_min : :class:`pandas.Series`
+        A Series with the maximum values for all parameters in **param**.
 
-    df : |pd.DataFrame|_
-        A dataframe with atomic charges.
 
-    constrain_dict : dict
-        A dictionary with charge constrains (see :func:`.get_charge_constraints`).
-
-    Returns
-    -------
-    |list|_ [|str|_]:
-        A list of atom types with updated atomic charges.
+    :rtype: :data:`None`
 
     """
-    charge = param[at1]
-    exclude = {at1}
-    if constrain_dict is None:
-        return exclude
+    exclude_set = _update_1st_charge(atom, value, param, param_min, param_max, exclude)
 
-    # Perform a constrained charge update
-    func1 = invert_partial_ufunc(constrain_dict[at1])
-    for at2, func2 in constrain_dict.items():
-        if at2 == at1:
-            continue
-        exclude.add(at2)
+    # Identify the charge of the moved atoms set of constraints
+    for ref_coef in atom_coefs:
+        if atom in ref_coef.index:
+            break
+    else:
+        raise ValueError(repr(atom))
+    idx = ref_coef.index
+    idx_ref = idx.tolist()
+    net_charge: float = (param.loc[idx] * ref_coef.loc[idx]).sum()
 
-        # Update the charges
-        param[at2] = func2(func1(charge))
-    return exclude
+    df = pd.DataFrame({'param': param, 'count': count,
+                       'prm_min': param_min, 'prm_max': param_max})
+
+    # Update the charge of all other charge-constraint blocks
+    coef_iterator = (coef for coef in atom_coefs if coef is not ref_coef)
+    with pd.option_context('mode.chained_assignment', None):
+        for coef in coef_iterator:
+            # Identify the to-be considered slice
+            idx = coef.index
+            idx_ref += idx.tolist()
+
+            # Update the charges
+            df_kwargs = df.loc[idx]
+            df_kwargs["count"] = coef
+            unconstrained_update(net_charge, exclude=exclude_set, **df_kwargs)
+            param.loc[idx] = df_kwargs['param']
+            exclude_set.update(idx.intersection(idx_ref))
+
+
+def _update_1st_charge(atom: KT, value: float, param: pd.Series,
+                       param_min: pd.Series, param_max: pd.Series,
+                       exclude: Optional[Set[KT]] = None) -> Set[KT]:
+    """Helper function for :func:`constrained_update`."""
+    if exclude is not None:
+        exclude_set = exclude.copy()
+        idx_ = pd.Series(True, index=param.index)
+        idx_[list(exclude_set)] = False
+    else:
+        exclude_set = set()
+        idx_ = slice(None)
+    exclude_set.add(atom)
+
+    value_old = param[atom]
+    x = value / value_old
+
+    # Scale all parameters (correct them afterwards)
+    param.loc[idx_] *= x
+    param.clip(param_min, param_max, inplace=True)
+    return exclude_set
 
 
 def unconstrained_update(net_charge: float, param: pd.Series, count: pd.Series,
-                         prm_min: Optional[Iterable[float]] = None,
-                         prm_max: Optional[Iterable[float]] = None,
+                         prm_min: Optional[pd.Series] = None,
+                         prm_max: Optional[pd.Series] = None,
                          exclude: Optional[Container[Hashable]] = None) -> None:
     """Perform an unconstrained update of atomic charges."""
     if exclude is None:
-        include = pd.Series(np.ones_like(param, dtype=bool), index=param.index)
+        include = param.astype(bool, copy=True)
+        include.loc[:] = True
     else:
         include = pd.Series([i not in exclude for i in param.keys()], index=param.index)
     if not include.any():
@@ -206,29 +260,33 @@ def unconstrained_update(net_charge: float, param: pd.Series, count: pd.Series,
         param[atom] = s_clip[atom]
         include[atom] = False
 
-        if s_clip[atom] != s[atom] and j:
+        if j and s_clip[atom] != s[atom]:
             i = net_charge - get_net_charge(param, count, ~include)
             i /= get_net_charge(param, count, include)
 
             s = param * i
             s_clip = np.clip(s, s_min, s_max).loc[include]
 
-    # Check if the net charge is actually conserved
+    _check_net_charge(param, count, net_charge)
+
+
+def _check_net_charge(param: pd.Series, count: pd.Series, net_charge: float,
+                      tolerance: float = 0.001) -> None:
+    """Check if the net charge is actually conserved."""
     net_charge_new = get_net_charge(param, count)
-    if abs(net_charge - net_charge_new) > 0.001:
-        msg = ("Failed to conserve the net charge: "
-               f"ref = {net_charge:.4f}); {net_charge_new:.4f} != ref")
-        raise ChargeError(msg, reference=net_charge, value=net_charge_new, tol=0.001)
+    condition = abs(net_charge - net_charge_new) > tolerance
 
+    if not condition:
+        return
 
-def invert_partial_ufunc(ufunc: functools.partial) -> functools.partial:
-    """Invert a NumPy universal function embedded within a :class:`functools.partial` instance."""
-    func = ufunc.func
-    x2 = ufunc.args[0]
-    return functools.partial(func, x2**-1)
+    raise ChargeError(
+        f"Failed to conserve the net charge: ref = {net_charge:.4f}); {net_charge_new:.4f} != ref",
+        reference=net_charge, value=net_charge_new, tol=tolerance
+    )
 
 
 ExtremiteDict = Dict[Tuple[str, str], float]
+ConstrainDict = Dict
 
 
 def assign_constraints(constraints: Union[str, Iterable[str]]
@@ -302,9 +360,9 @@ def _find_float(iterable: Tuple[str, str]) -> Tuple[str, float]:
         return i, float(j)
 
 
-def _eq_constraints(constrain_: list) -> Dict[str, functools.partial]:
+def _eq_constraints(constrain_: list) -> Dict[str, partial]:
     """Parse :math:`a = i * b`-type constraints."""
-    constrain_dict: Dict[str, functools.partial] = {}
+    constrain_dict: Dict[str, partial] = {}
     constrain = ''.join(str(i) for i in constrain_).split('==')
     iterator: Iterator[str] = iter(constrain)
 
@@ -316,12 +374,12 @@ def _eq_constraints(constrain_: list) -> Dict[str, functools.partial]:
     elif len(item_) == 2:
         atom, multiplier = _find_float(item_)
         multiplier **= -1
-    constrain_dict[atom] = functools.partial(np.multiply, 1.0)
+    constrain_dict[atom] = partial(np.multiply, 1.0)
 
     # Assign all other constraints
     for item in iterator:
         item_ = item.split('*')
         atom, i = _find_float(item_)
         i *= multiplier
-        constrain_dict[atom] = functools.partial(np.multiply, i)
+        constrain_dict[atom] = partial(np.multiply, i)
     return constrain_dict
