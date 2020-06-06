@@ -22,7 +22,7 @@ jobs:
         steps:
             - uses: actions/checkout@v2
 
-            - name: Set up conda with Python ${{ matrix.version }} on ${{ matrix.os }}
+            - name: Set up Conda with Python ${{ matrix.version }} on ${{ matrix.os }}
               uses: s-weigand/setup-conda@v1
               with:
                 update-conda: true
@@ -51,7 +51,7 @@ jobs:
               run: conda list
 
             - name: Run tests
-              run: pytest -m "not slow" tests FOX
+              run: pytest -m "not slow"
               env:
                 CONDA_PREFIX: /usr/share/miniconda
 
