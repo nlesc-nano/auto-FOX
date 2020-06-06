@@ -1,19 +1,19 @@
 
-.. image:: https://travis-ci.org/nlesc-nano/auto-FOX.svg?branch=master
-   :target: https://travis-ci.org/nlesc-nano/auto-FOX
+.. image:: https://github.com/nlesc-nano/auto-FOX/workflows/Build%20with%20Conda/badge.svg?branch=Auto-FOX-0.8
+    :target: https://github.com/nlesc-nano/auto-FOX/actions?query=workflow%3A%22Build+with+Conda%22
 .. image:: https://readthedocs.org/projects/auto-fox/badge/?version=latest
-   :target: https://auto-fox.readthedocs.io/en/latest/
+    :target: https://auto-fox.readthedocs.io/en/latest/
 
 |
 
 .. image:: https://img.shields.io/badge/python-3.7-blue.svg
-   :target: https://docs.python.org/3.7/
+    :target: https://docs.python.org/3.7/
 .. image:: https://img.shields.io/badge/python-3.8-blue.svg
-   :target: https://docs.python.org/3.8/
+    :target: https://docs.python.org/3.8/
 
 
 #################################################
-Automated Forcefield Optimization Extension 0.8.5
+Automated Forcefield Optimization Extension 0.8.6
 #################################################
 
 **Auto-FOX** is a library for analyzing potential energy surfaces (PESs) and

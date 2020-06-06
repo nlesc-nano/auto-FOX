@@ -18,8 +18,8 @@ import reprlib
 import inspect
 from os import PathLike
 from io import TextIOBase
-from typing import (Dict, Optional, Any, Set, Iterator, Iterable, Callable,
-                    AnyStr, List, Mapping, Hashable, Union, Collection)
+from typing import (Dict, Optional, Any, Set, Iterator, Iterable, TypeVar,
+                    AnyStr, List, Mapping, Hashable, Union, Collection, Generic)
 from itertools import chain
 from types import MappingProxyType
 
@@ -28,9 +28,8 @@ import pandas as pd
 
 from scm.plams import Molecule, Atom, Bond
 from assertionlib.dataclass import AbstractDataClass
-from nanoutils import group_by_values, raise_if
+from nanoutils import group_by_values, raise_if, AbstractFileContainer, set_docstring
 
-from .file_container import AbstractFileContainer
 from ..utils import read_str_file, read_rtf_file
 from ..functions.molecule_utils import get_bonds, get_angles, get_dihedrals, get_impropers
 
@@ -42,15 +41,17 @@ except ImportError as ex:
 
 __all__ = ['PSFContainer']
 
+T = TypeVar('T')
 
-class DummyGetter:
-    def __init__(self, return_value: Any) -> None:
+
+class DummyGetter(Generic[T]):
+    def __init__(self, return_value: T) -> None:
         self.return_value = return_value
 
-    def __getitem__(self, key: Any) -> Any:
+    def __getitem__(self, key: Any) -> T:
         return self.return_value
 
-    def get(self, key: Any, default: Optional[Any] = None) -> Any:
+    def get(self, key: Any, default: Optional[Any] = None) -> T:
         return self.return_value
 
 
@@ -76,51 +77,6 @@ class PSFContainer(AbstractDataClass, AbstractFileContainer):
         * :meth:`PSFContainer.generate_dihedrals`
         * :meth:`PSFContainer.generate_impropers`
         * :meth:`PSFContainer.generate_atoms`
-
-    Parameters
-    ----------
-    filename : :math:`1` :class:`numpy.ndarray` [:class:`str`]
-        Optional: A 1D array-like object containing a single filename.
-        See also :attr:`PSFContainer.filename`.
-
-    title : :math:`n` :class:`numpy.ndarray` [:class:`str`]
-        Optional: A 1D array of strings holding the title block.
-        See also :attr:`PSFContainer.title`.
-
-    atoms : :math:`n*8` :class:`pandas.DataFrame`
-        Optional: A Pandas DataFrame holding the atoms block.
-        See also :attr:`PSFContainer.atoms`.
-
-    bonds : :math:`n*2` :class:`numpy.ndarray` [:class:`int`]
-        Optional: A 2D array-like object holding the indices of all atom-pairs defining bonds.
-        See also :attr:`PSFContainer.bonds`.
-
-    angles : :math:`n*3` :class:`numpy.ndarray` [:class:`int`]
-        Optional: A 2D array-like object holding the indices of all atom-triplets defining angles.
-        See also :attr:`PSFContainer.angles`.
-
-    dihedrals : :math:`n*4` :class:`numpy.ndarray` [:class:`int`]
-        Optional: A 2D array-like object holding the indices of
-        all atom-quartets defining proper dihedral angles.
-        See also :attr:`PSFContainer.dihedrals`.
-
-    impropers : :math:`n*4` :class:`numpy.ndarray` [:class:`int`]
-        Optional: A 2D array-like object holding the indices of
-        all atom-quartets defining improper dihedral angles.
-        See also :attr:`PSFContainer.impropers`.
-
-    donors : :math:`n*1` :class:`numpy.ndarray` [:class:`int`]
-        Optional: A 2D array-like object holding the atomic indices of all hydrogen-bond donors.
-        See also :attr:`PSFContainer.donors`.
-
-    acceptors : :math:`n*1` :class:`numpy.ndarray` [:class:`int`]
-        Optional: A 2D array-like object holding the atomic indices of all hydrogen-bond acceptors.
-        See also :attr:`PSFContainer.acceptors`.
-
-    no_nonbonded : :math:`n*2` :class:`numpy.ndarray` [:class:`int`]
-        Optional: A 2D array-like object holding the indices of all atom-pairs whose nonbonded
-        interactions should be ignored.
-        See also :attr:`PSFContainer.no_nonbonded`.
 
     Attributes
     ----------
@@ -216,7 +172,54 @@ class PSFContainer(AbstractDataClass, AbstractFileContainer):
     def __init__(self, filename=None, title=None, atoms=None, bonds=None,
                  angles=None, dihedrals=None, impropers=None, donors=None,
                  acceptors=None, no_nonbonded=None) -> None:
-        """Initialize a :class:`PSFContainer` instance."""
+        """Initialize a :class:`PSFContainer` instance.
+
+        Parameters
+        ----------
+        filename : :math:`1` :class:`numpy.ndarray` [:class:`str`]
+            Optional: A 1D array-like object containing a single filename.
+            See also :attr:`PSFContainer.filename`.
+
+        title : :math:`n` :class:`numpy.ndarray` [:class:`str`]
+            Optional: A 1D array of strings holding the title block.
+            See also :attr:`PSFContainer.title`.
+
+        atoms : :math:`n*8` :class:`pandas.DataFrame`
+            Optional: A Pandas DataFrame holding the atoms block.
+            See also :attr:`PSFContainer.atoms`.
+
+        bonds : :math:`n*2` :class:`numpy.ndarray` [:class:`int`]
+            Optional: A 2D array-like object holding the indices of all atom-pairs defining bonds.
+            See also :attr:`PSFContainer.bonds`.
+
+        angles : :math:`n*3` :class:`numpy.ndarray` [:class:`int`]
+            Optional: A 2D array-like object holding the indices of all atom-triplets defining angles.
+            See also :attr:`PSFContainer.angles`.
+
+        dihedrals : :math:`n*4` :class:`numpy.ndarray` [:class:`int`]
+            Optional: A 2D array-like object holding the indices of
+            all atom-quartets defining proper dihedral angles.
+            See also :attr:`PSFContainer.dihedrals`.
+
+        impropers : :math:`n*4` :class:`numpy.ndarray` [:class:`int`]
+            Optional: A 2D array-like object holding the indices of
+            all atom-quartets defining improper dihedral angles.
+            See also :attr:`PSFContainer.impropers`.
+
+        donors : :math:`n*1` :class:`numpy.ndarray` [:class:`int`]
+            Optional: A 2D array-like object holding the atomic indices of all hydrogen-bond donors.
+            See also :attr:`PSFContainer.donors`.
+
+        acceptors : :math:`n*1` :class:`numpy.ndarray` [:class:`int`]
+            Optional: A 2D array-like object holding the atomic indices of all hydrogen-bond acceptors.
+            See also :attr:`PSFContainer.acceptors`.
+
+        no_nonbonded : :math:`n*2` :class:`numpy.ndarray` [:class:`int`]
+            Optional: A 2D array-like object holding the indices of all atom-pairs whose nonbonded
+            interactions should be ignored.
+            See also :attr:`PSFContainer.no_nonbonded`.
+
+        """  # noqa: E501
         super().__init__()
 
         self.filename = filename
@@ -251,8 +254,8 @@ class PSFContainer(AbstractDataClass, AbstractFileContainer):
         """Check if **value** is a :class:`dict` instance; raise a :exc:`TypeError` if not."""
         if not isinstance(value, dict):
             caller_name: str = inspect.stack()[1][3]
-            raise TypeError(f"The {repr(caller_name)} parameter expects an instance of 'dict'; "
-                            f"observed type: {repr(type(value))}")
+            raise TypeError(f"The {caller_name!r} parameter expects an instance of 'dict'; "
+                            f"observed type: {value.__class__.__name__!r}")
         return value
 
     @AbstractDataClass.inherit_annotations()
@@ -485,19 +488,15 @@ class PSFContainer(AbstractDataClass, AbstractFileContainer):
 
     """########################### methods for reading .psf files. ##############################"""
 
-    # The decorator will handle the docstring and annotations
     @classmethod
-    @AbstractFileContainer.inherit_annotations()
-    def read(cls, filename, encoding=None, **kwargs):
-        return super().read(filename, encoding, **kwargs)
-
-    @classmethod
-    @AbstractFileContainer.inherit_annotations()
-    def _read_iterate(cls, iterator):
+    @set_docstring(AbstractFileContainer.read.__doc__)
+    def _read(cls, file_obj, decoder):
         ret = {}
 
-        next(iterator)  # Skip the first line
-        for i in iterator:
+        next(file_obj)  # Skip the first line
+        for _i in file_obj:
+            i = decoder(_i)
+
             # Search for psf blocks
             if i == '\n':
                 continue
@@ -512,23 +511,18 @@ class PSFContainer(AbstractDataClass, AbstractFileContainer):
 
             # Read the actual psf blocks
             try:
-                j = next(iterator)
+                j = next(file_obj)
             except StopIteration:
                 break
 
             while j != '\n':
                 value.append(j.split())
                 try:
-                    j = next(iterator)
+                    j = next(file_obj)
                 except StopIteration:
                     break
 
         return cls._post_process_psf(ret)
-
-    @AbstractFileContainer.inherit_annotations()
-    def _read_postprocess(self, filename, encoding=None, **kwargs):
-        if isinstance(filename, str):
-            self.filename = filename
 
     @classmethod
     def _post_process_psf(cls, psf_dict: dict) -> Dict[str, np.ndarray]:
@@ -578,31 +572,18 @@ class PSFContainer(AbstractDataClass, AbstractFileContainer):
 
     """########################### methods for writing .psf files. ##############################"""
 
-    @AbstractFileContainer.inherit_annotations()
-    def write(self, filename, encoding=None, **kwargs):
-        _filename = filename if filename is not None else self.filename
-        if not _filename:
-            raise TypeError("The 'filename' parameter is missing")
-        super().write(_filename, encoding, **kwargs)
+    @set_docstring(AbstractFileContainer._write.__doc__)
+    def _write(self, file_obj, encoder):
+        self._write_top(file_obj, encoder)
+        self._write_bottom(file_obj, encoder)
 
-    @AbstractFileContainer.inherit_annotations()
-    def _write_iterate(self, write, **kwargs):
-        self._write_top(write)
-        self._write_bottom(write)
-
-    def _write_top(self, write: Callable[[AnyStr], None]) -> None:
+    def _write_top(self, file_obj, encoder) -> None:
         """Write the top-most section of the to-be create .psf file.
 
         The following blocks are seralized:
 
             * :attr:`PSF.title`
             * :attr:`PSF.atoms`
-
-        Parameters
-        ----------
-        write : :class:`Callable` [[:class:`AnyStr`], ``None``]
-            A callable for writing the content of this instance to a `file object`_.
-            An example would be the :meth:`io.TextIOWrapper.write` method.
 
         Returns
         -------
@@ -615,6 +596,8 @@ class PSFContainer(AbstractDataClass, AbstractFileContainer):
             The main method for writing .psf files.
 
         """
+        write = lambda n: file_obj.write(encoder(n))  # noqa
+
         # Prepare the !NTITLE block
         write('PSF EXT\n\n{:>10d} !NTITLE\n'.format(self.title.shape[0]))
         for i in self.title:
@@ -627,7 +610,7 @@ class PSFContainer(AbstractDataClass, AbstractFileContainer):
             args = [i] + j.values.tolist()
             write(string.format(*args))
 
-    def _write_bottom(self, write: Callable[[AnyStr], None]) -> None:
+    def _write_bottom(self, file_obj, encoder) -> None:
         """Write the bottom-most section of the to-be create .psf file.
 
         The following blocks are seralized:
@@ -640,18 +623,13 @@ class PSFContainer(AbstractDataClass, AbstractFileContainer):
             * :attr:`PSF.acceptors`
             * :attr:`PSF.no_nonbonded`
 
-        Parameters
-        ----------
-        write : :class:`Callable` [[:class:`AnyStr`], ``None``]
-            A callable for writing the content of this instance to a `file object`_.
-            An example would be the :meth:`io.TextIOWrapper.write` method.
-
         See Also
         --------
         :meth:`PSFContainer.write`
             The main method for writing .psf files.
 
         """
+        write = lambda n: file_obj.write(encoder(n))  # noqa: E731
         sections = ('bonds', 'angles', 'dihedrals', 'impropers',
                     'donors', 'acceptors', 'no_nonbonded')
 

@@ -12,6 +12,7 @@ on:
 
 jobs:
     build:
+        name: Python ${{ matrix.version }} on ${{ matrix.os }}
         runs-on: ${{ matrix.os }}
         strategy:
             matrix:
@@ -21,16 +22,12 @@ jobs:
         steps:
             - uses: actions/checkout@v2
 
-            - name: Set conda with Python ${{ matrix.version }} on ${{ matrix.os }}
+            - name: Set up Conda with Python ${{ matrix.version }} on ${{ matrix.os }}
               uses: s-weigand/setup-conda@v1
               with:
-                  update-conda: true
-                  python-version: ${{ matrix.version }}
-                  conda-channels: anaconda
-
-            - run: conda --version
-
-            - run: python --version
+                update-conda: true
+                python-version: ${{ matrix.version }}
+                conda-channels: anaconda
 
             - name: Install conda-based dependencies
               run: conda install -c conda-forge h5py rdkit numpy
@@ -38,20 +35,28 @@ jobs:
             - name: Install dependencies
               run: pip install -e .[test]
               env:
-                  CONDA_PREFIX: /usr/share/miniconda
+                CONDA_PREFIX: /usr/share/miniconda
 
-            - name: Run pydocstyle and flake8
-              run: pytest FOX
-              env:
-                  CONDA_PREFIX: /usr/share/miniconda
+            - name: Conda info
+              run: |
+                which conda
+                conda --version
 
-            - name: Test with pytest
-              run: pytest -m "not slow" tests
+            - name: Python info
+              run: |
+                which python
+                python --version
+
+            - name: Installed packages
+              run: conda list
+
+            - name: Run tests
+              run: pytest -m "not slow"
               env:
-                  CONDA_PREFIX: /usr/share/miniconda
+                CONDA_PREFIX: /usr/share/miniconda
 
             - name: Run codecov
               uses: codecov/codecov-action@v1
               with:
-                  file: ./coverage.xml
-                  name: codecov-umbrella
+                file: ./coverage.xml
+                name: codecov-umbrella

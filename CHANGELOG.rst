@@ -6,6 +6,13 @@ All notable changes to this project will be documented in this file.
 This project adheres to `Semantic Versioning <http://semver.org/>`_.
 
 
+0.8.6
+*****
+* Import `AbstractFileContainer` from Nano-Utils.
+* Removed `TypeMapping` in favor of `TypedDict`.
+* Remove travis in favor of GitHub Actions.
+
+
 0.8.5
 *****
 * Moved a number of functions to the `Nano-Utils <https://github.com/nlesc-nano/Nano-Utils>`_ Package.

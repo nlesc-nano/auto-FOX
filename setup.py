@@ -86,6 +86,7 @@ setup(
         'Natural Language :: English',
         'Operating System :: Unix',
         'Operating System :: MacOS',
+        'Programming Language :: Python',
         'Programming Language :: Python :: 3',
         'Programming Language :: Python :: 3.7',
         'Programming Language :: Python :: 3.8',
@@ -93,10 +94,9 @@ setup(
         'Topic :: Software Development :: Libraries ',
         'Typing :: Typed'
     ],
-    test_suite='tests',
     python_requires='>=3.7',
     install_requires=[
-        'Nano-Utils>=0.3.3',
+        'Nano-Utils>=0.4',
         'pyyaml>=5.1',
         'numpy',
         'scipy',

@@ -32,9 +32,9 @@ import pandas as pd
 
 from scm.plams import Settings
 from assertionlib.dataclass import AbstractDataClass
+from nanoutils import AbstractFileContainer, set_docstring
 
 from .cp2k_to_prm import CP2K_TO_PRM as _CP2K_TO_PRM, PRMMapping, PostProcess
-from .file_container import AbstractFileContainer
 from ..functions.cp2k_utils import parse_cp2k_value
 
 __all__ = ['PRMContainer']
@@ -176,18 +176,13 @@ class PRMContainer(AbstractDataClass, AbstractFileContainer):
     """########################### methods for reading .prm files. ##############################"""
 
     @classmethod
-    @AbstractFileContainer.inherit_annotations()
-    def read(cls, filename, encoding=None, **kwargs):
-        return super().read(filename, encoding, **kwargs)
-
-    @classmethod
-    @AbstractFileContainer.inherit_annotations()
-    def _read_iterate(cls, iterator):
+    @set_docstring(AbstractFileContainer._read.__doc__)
+    def _read(cls, file_obj, decoder):
         ret = {}
         value = None
 
-        for i in iterator:
-            i = i.rstrip('\n')
+        for _i in file_obj:
+            i = decoder(_i).rstrip('\n')
             if i.startswith('!') or i.startswith('*') or i.isspace() or not i:
                 continue  # Ignore comment lines and empty lines
 
@@ -256,23 +251,12 @@ class PRMContainer(AbstractDataClass, AbstractFileContainer):
         df['comment'] = None
         df.set_index(cls.INDEX[key], inplace=True)
 
-    @AbstractFileContainer.inherit_annotations()
-    def _read_postprocess(self, filename, encoding=None, **kwargs):
-        if isinstance(filename, str):
-            self.filename = filename
-
     """########################### methods for writing .prm files. ##############################"""
 
-    @AbstractFileContainer.inherit_annotations()
-    def write(self, filename=None, encoding=None, **kwargs):
-        _filename = filename if filename is not None else self.filename
-        if not _filename:
-            raise TypeError("The 'filename' parameter is missing")
-        super().write(_filename, encoding, **kwargs)
-
-    @AbstractFileContainer.inherit_annotations()
-    def _write_iterate(self, write, **kwargs) -> None:
+    @set_docstring(AbstractFileContainer._write.__doc__)
+    def _write(self, file_obj, encoder) -> None:
         isnull = pd.isnull
+        write = lambda n: file_obj.write(encoder(n))  # noqa: E731
 
         for key in self.HEADERS[:-2]:
             key_low = key.lower()
