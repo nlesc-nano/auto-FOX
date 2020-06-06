@@ -34,7 +34,7 @@ def test_write() -> None:
             os.remove(filename2)
 
     with open(filename1, 'rb') as f1, TemporaryFile() as f2:
-        PSF.write(f2, encoding='utf-8')
+        PSF.write(f2, mode='wb', bytes_encoding='utf-8')
         f2.seek(0)
         for i, j in zip_longest(f1, f2):
             assertion.eq(i, j)

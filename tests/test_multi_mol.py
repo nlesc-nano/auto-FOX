@@ -265,7 +265,7 @@ def test_from_mass_weighted():
     assertion.allclose(np.abs((mol_new - mol).mean()), 0.0, abs_tol=10**-8)
 
 
-def test_as_Molecule():
+def test_as_molecule():
     """Test :meth:`.MultiMolecule.as_Molecule`."""
     mol = MOL.copy()
 
@@ -274,7 +274,7 @@ def test_as_Molecule():
     np.testing.assert_allclose(mol_array, mol)
 
 
-def test_from_Molecule():
+def test_from_molecule():
     """Test :meth:`.MultiMolecule.from_Molecule`."""
     mol = MOL.copy()
 
