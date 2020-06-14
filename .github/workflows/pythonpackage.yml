@@ -15,6 +15,7 @@ jobs:
         name: Python ${{ matrix.version }} on ${{ matrix.os }}
         runs-on: ${{ matrix.os }}
         strategy:
+            fail-fast: false
             matrix:
                 os: [ubuntu-latest, macos-latest]
                 version: [3.7, 3.8]
@@ -37,17 +38,10 @@ jobs:
               env:
                 CONDA_PREFIX: /usr/share/miniconda
 
-            - name: Conda info
-              run: |
-                which conda
-                conda --version
+            - name: Info Conda
+              run: conda info
 
-            - name: Python info
-              run: |
-                which python
-                python --version
-
-            - name: Installed packages
+            - name: Info installed packages
               run: conda list
 
             - name: Run tests
