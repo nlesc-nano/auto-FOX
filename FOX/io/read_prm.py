@@ -13,6 +13,8 @@ Index
 API
 ---
 .. autoclass:: PRMContainer
+    :members: atoms, bonds, angles, dihedrals, impropers, nonbonded, nbfix
+
 .. automethod:: PRMContainer.read
 .. automethod:: PRMContainer.write
 .. automethod:: PRMContainer.overlay_mapping
@@ -61,35 +63,66 @@ PRMAttrs = Tuple[
 
 
 class PRMContainer(AbstractFileContainer):
-    """A container for managing prm files.
+    """A class for managing prm files.
 
-    Attributes
-    ----------
-    pd_printoptions : :class:`dict` [:class:`str`, :class:`object`], private
-        A dictionary with Pandas print options.
-        See `Options and settings <https://pandas.pydata.org/pandas-docs/stable/user_guide/options.html>`_.
+    Examples
+    --------
+    .. code:: python
 
-    CP2K_TO_PRM : :class:`Mapping<collections.abc.Mapping>` [:class:`str`, :class:`PRMMapping<FOX.io.cp2k_to_prm.PRMMapping>`]
-        A mapping providing tools for converting CP2K settings to .prm-compatible values.
-        See :data:`CP2K_TO_PRM<FOX.io.cp2k_to_prm.CP2K_TO_PRM>`.
+        >>> from FOX import PRMContainer
 
-    """  # noqa: E501
+        >>> input_file = str(...)
+        >>> output_file = str(...)
+
+        >>> prm = PRMContainer.read(input_file)
+        >>> prm.write(output_file)
+
+    """
 
     __slots__ = (
         '__weakref__', 'atoms', 'bonds', 'angles', 'dihedrals', 'nbfix', 'hbond',
         'nonbonded', 'nonbonded_header',  'impropers', '_pd_printoptions'
     )
 
+    #: A dataframe holding atomic parameters.
+    atoms: Optional[pd.DataFrame]
+
+    #: A dataframe holding bond-related parameters.
+    bonds: Optional[pd.DataFrame]
+
+    #: A dataframe holding angle-related parameters.
+    angles: Optional[pd.DataFrame]
+
+    #: A dataframe holding proper dihedral-related parameters.
+    dihedrals: Optional[pd.DataFrame]
+
+    #: A dataframe holding improper diehdral-related parameters.
+    impropers: Optional[pd.DataFrame]
+
+    #: A dataframe holding non-bonded atomic parameters.
+    nonbonded: Optional[pd.DataFrame]
+
+    #: A string holding additional non-bonded related info.
+    nonbonded_header: Optional[str]
+
+    #: A dataframe holding non-bonded pair-wise atomic parameters.
+    nbfix: Optional[pd.DataFrame]
+
+    #: A string holding hydrogen bonding-related info.
+    hbond: Optional[str]
+
+    #: A mapping providing tools for converting CP2K settings to .prm-compatible values.
+    #: See :data:`CP2K_TO_PRM<FOX.io.cp2k_to_prm.CP2K_TO_PRM>`.
     CP2K_TO_PRM: ClassVar[Mapping[str, PRMMapping]] = _CP2K_TO_PRM
 
     #: A tuple of supported .psf headers.
-    HEADERS: ClassVar[Tuple[str, ...]] = (
+    _HEADERS: ClassVar[Tuple[str, ...]] = (
         'ATOMS', 'BONDS', 'ANGLES', 'DIHEDRALS', 'NBFIX', 'HBOND', 'NONBONDED', 'IMPROPER',
         'IMPROPERS', 'END'
     )
 
     #: Define the columns for each DataFrame which hold its index
-    INDEX: ClassVar[Mapping[str, List[int]]] = MappingProxyType({
+    _INDEX: ClassVar[Mapping[str, List[int]]] = MappingProxyType({
         'atoms': [2],
         'bonds': [0, 1],
         'angles': [0, 1, 2],
@@ -101,7 +134,7 @@ class PRMContainer(AbstractFileContainer):
     })
 
     #: Placeholder values for DataFrame columns
-    COLUMNS: ClassVar[Mapping[str, Tuple[Any, ...]]] = MappingProxyType({
+    _COLUMNS: ClassVar[Mapping[str, Tuple[Any, ...]]] = MappingProxyType({
         'atoms': (None, -1, None, np.nan),
         'bonds': (None, None, np.nan, np.nan),
         'angles': (None, None, None, np.nan, np.nan, np.nan, np.nan),
@@ -230,7 +263,7 @@ class PRMContainer(AbstractFileContainer):
 
             _key = i.split(maxsplit=1)[0]
             key = _key.lower()
-            if _key in cls.HEADERS:
+            if _key in cls._HEADERS:
                 ret[key] = value = []
                 if key in special_header:
                     value.append(i.split()[1:])
@@ -269,13 +302,13 @@ class PRMContainer(AbstractFileContainer):
     @classmethod
     def _process_df(cls, df: pd.DataFrame, key: str) -> None:
         """Fill in all columns, set their data type and assign an index to **df**."""
-        for i, default in enumerate(cls.COLUMNS[key]):
+        for i, default in enumerate(cls._COLUMNS[key]):
             if i not in df:
                 df[i] = default
             else:
                 default_type = str if default is None else type(default)
                 df[i] = df[i].astype(default_type, copy=False)
-        df.set_index(cls.INDEX[key], inplace=True)
+        df.set_index(cls._INDEX[key], inplace=True)
 
     """########################### methods for writing .prm files. ##############################"""
 
@@ -284,7 +317,7 @@ class PRMContainer(AbstractFileContainer):
         isnull = pd.isnull
         write = lambda n: file_obj.write(encoder(n))  # noqa: E731
 
-        for key in self.HEADERS[:-2]:
+        for key in self._HEADERS[:-2]:
             key_low = key.lower()
             df = getattr(self, key_low)
 
@@ -425,11 +458,6 @@ class PRMContainer(AbstractFileContainer):
         ----------
         cp2k_settings : :class:`Mapping<collections.abc.Mapping>`
             A Mapping with PLAMS-style CP2K settings.
-
-        See Also
-        --------
-        PRMMapping : :class:`PRMMapping<FOX.io.cp2k_to_prm.PRMMapping>`
-            A mapping providing tools for converting CP2K settings to .prm-compatible values.
 
         """
         if 'input' not in cp2k_settings:
