@@ -12,6 +12,8 @@ This project adheres to `Semantic Versioning <http://semver.org/>`_.
 * Cleaned up the `PRMContainer` code; updated annotations, etc..
 * Removed `assertionlib.AbstractDataClass` as base class from `PRMContainer`.
 * Do not read or write comments to and from a .prm file.
+* Upped the minimum Sphinx version to `2.1`.
+* Removed `sphinx-autodoc-typehints`.
 
 
 0.8.6
