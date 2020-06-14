@@ -13,25 +13,26 @@ Index
 API
 ---
 .. autoclass:: PRMContainer
+    :members: atoms, bonds, angles, dihedrals, impropers, nonbonded, nbfix
+
 .. automethod:: PRMContainer.read
 .. automethod:: PRMContainer.write
 .. automethod:: PRMContainer.overlay_mapping
 .. automethod:: PRMContainer.overlay_cp2k_settings
 
 """
-import inspect
+import copy
+import textwrap
 from types import MappingProxyType
-from typing import (Any, Iterator, Dict, Tuple, FrozenSet, Mapping, List, Union, Iterable, Sequence,
-                    Hashable, Optional, ClassVar, MutableSequence)
+from typing import (Any, Iterator, Dict, Tuple, Mapping, List, Union, Iterable, Sequence,
+                    Optional, ClassVar, MutableSequence, Type, TypeVar, cast)
 from itertools import chain, repeat
 from contextlib import nullcontext
-from collections import abc
 
 import numpy as np
 import pandas as pd
 
 from scm.plams import Settings
-from assertionlib.dataclass import AbstractDataClass
 from nanoutils import AbstractFileContainer, set_docstring
 
 from .cp2k_to_prm import CP2K_TO_PRM as _CP2K_TO_PRM, PRMMapping, PostProcess
@@ -39,39 +40,89 @@ from ..functions.cp2k_utils import parse_cp2k_value
 
 __all__ = ['PRMContainer']
 
-SeriesIdx = Mapping[str, float]  # e.g. a Pandas.Series with an Index
-SeriesMultiIdx = Mapping[Tuple[str, ...], float]  # e.g. a Pandas.Series with a MultiIndex
+ST = TypeVar('ST', bound='PRMContainer')
+
+# e.g. a Pandas.Series with an Index
+SeriesIdx = Mapping[str, float]
+
+# e.g. a Pandas.Series with a MultiIndex
+SeriesMultiIdx = Mapping[Tuple[str, ...], float]
+
+# A tuple representing PRMContainer attributes
+PRMAttrs = Tuple[
+    Optional[pd.DataFrame],
+    Optional[pd.DataFrame],
+    Optional[pd.DataFrame],
+    Optional[pd.DataFrame],
+    Optional[pd.DataFrame],
+    Optional[pd.DataFrame],
+    Optional[str],
+    Optional[pd.DataFrame],
+    Optional[str]
+]
 
 
-class PRMContainer(AbstractDataClass, AbstractFileContainer):
-    """A container for managing prm files.
+class PRMContainer(AbstractFileContainer):
+    """A class for managing prm files.
 
-    Attributes
-    ----------
-    pd_printoptions : :class:`dict` [:class:`str`, :class:`object`], private
-        A dictionary with Pandas print options.
-        See `Options and settings <https://pandas.pydata.org/pandas-docs/stable/user_guide/options.html>`_.
+    Examples
+    --------
+    .. code:: python
 
-    CP2K_TO_PRM : :class:`Mapping<collections.abc.Mapping>` [:class:`str`, :class:`PRMMapping<FOX.io.cp2k_to_prm.PRMMapping>`]
-        A mapping providing tools for converting CP2K settings to .prm-compatible values.
-        See :data:`CP2K_TO_PRM<FOX.io.cp2k_to_prm.CP2K_TO_PRM>`.
+        >>> from FOX import PRMContainer
 
-    """  # noqa
+        >>> input_file = str(...)
+        >>> output_file = str(...)
 
-    #: A :class:`frozenset` with the names of private instance attributes.
-    #: These attributes will be excluded whenever calling :meth:`PRMContainer.as_dict`.
-    _PRIVATE_ATTR: ClassVar[FrozenSet[str]] = frozenset({'_pd_printoptions'})
+        >>> prm = PRMContainer.read(input_file)
+        >>> prm.write(output_file)
 
+    """
+
+    __slots__ = (
+        '__weakref__', 'atoms', 'bonds', 'angles', 'dihedrals', 'nbfix', 'hbond',
+        'nonbonded', 'nonbonded_header',  'impropers', '_pd_printoptions'
+    )
+
+    #: A dataframe holding atomic parameters.
+    atoms: Optional[pd.DataFrame]
+
+    #: A dataframe holding bond-related parameters.
+    bonds: Optional[pd.DataFrame]
+
+    #: A dataframe holding angle-related parameters.
+    angles: Optional[pd.DataFrame]
+
+    #: A dataframe holding proper dihedral-related parameters.
+    dihedrals: Optional[pd.DataFrame]
+
+    #: A dataframe holding improper diehdral-related parameters.
+    impropers: Optional[pd.DataFrame]
+
+    #: A dataframe holding non-bonded atomic parameters.
+    nonbonded: Optional[pd.DataFrame]
+
+    #: A string holding additional non-bonded related info.
+    nonbonded_header: Optional[str]
+
+    #: A dataframe holding non-bonded pair-wise atomic parameters.
+    nbfix: Optional[pd.DataFrame]
+
+    #: A string holding hydrogen bonding-related info.
+    hbond: Optional[str]
+
+    #: A mapping providing tools for converting CP2K settings to .prm-compatible values.
+    #: See :data:`CP2K_TO_PRM<FOX.io.cp2k_to_prm.CP2K_TO_PRM>`.
     CP2K_TO_PRM: ClassVar[Mapping[str, PRMMapping]] = _CP2K_TO_PRM
 
     #: A tuple of supported .psf headers.
-    HEADERS: Tuple[str, ...] = (
+    _HEADERS: ClassVar[Tuple[str, ...]] = (
         'ATOMS', 'BONDS', 'ANGLES', 'DIHEDRALS', 'NBFIX', 'HBOND', 'NONBONDED', 'IMPROPER',
         'IMPROPERS', 'END'
     )
 
     #: Define the columns for each DataFrame which hold its index
-    INDEX: Mapping[str, List[int]] = MappingProxyType({
+    _INDEX: ClassVar[Mapping[str, List[int]]] = MappingProxyType({
         'atoms': [2],
         'bonds': [0, 1],
         'angles': [0, 1, 2],
@@ -83,7 +134,7 @@ class PRMContainer(AbstractDataClass, AbstractFileContainer):
     })
 
     #: Placeholder values for DataFrame columns
-    COLUMNS: Mapping[str, Tuple[Union[None, int, float], ...]] = MappingProxyType({
+    _COLUMNS: ClassVar[Mapping[str, Tuple[Any, ...]]] = MappingProxyType({
         'atoms': (None, -1, None, np.nan),
         'bonds': (None, None, np.nan, np.nan),
         'angles': (None, None, None, np.nan, np.nan, np.nan, np.nan),
@@ -103,75 +154,99 @@ class PRMContainer(AbstractDataClass, AbstractFileContainer):
     def improper(self, value: Optional[pd.DataFrame]) -> None:
         self.impropers = value
 
-    def __init__(self, filename=None, atoms=None, bonds=None, angles=None, dihedrals=None,
-                 improper=None, impropers=None, nonbonded=None, nonbonded_header=None, nbfix=None,
-                 hbond=None) -> None:
+    def __init__(self, atoms: Optional[pd.DataFrame] = None,
+                 bonds: Optional[pd.DataFrame] = None,
+                 angles: Optional[pd.DataFrame] = None,
+                 dihedrals: Optional[pd.DataFrame] = None,
+                 improper: Optional[pd.DataFrame] = None,
+                 impropers: Optional[pd.DataFrame] = None,
+                 nonbonded: Optional[pd.DataFrame] = None,
+                 nonbonded_header: Optional[str] = None,
+                 nbfix: Optional[pd.DataFrame] = None,
+                 hbond: Optional[str] = None) -> None:
         """Initialize a :class:`PRMContainer` instance."""
-        super().__init__()
+        if impropers is not None and improper is not None:
+            raise TypeError("'impropers' and 'improper' cannot be both specified")
 
-        self.filename: str = filename
-        self.atoms: pd.DataFrame = atoms
-        self.bonds: pd.DataFrame = bonds
-        self.angles: pd.DataFrame = angles
-        self.dihedrals: pd.DataFrame = dihedrals
-        self.improper: pd.DataFrame = improper if improper is not None else impropers
-        self.nonbonded_header: str = nonbonded_header
-        self.nonbonded: pd.DataFrame = nonbonded
-        self.nbfix: pd.DataFrame = nbfix
-        self.hbond: str = hbond
+        self.atoms = atoms
+        self.bonds = bonds
+        self.angles = angles
+        self.dihedrals = dihedrals
+        self.improper = improper if improper is not None else impropers
+        self.nonbonded_header = nonbonded_header
+        self.nonbonded = nonbonded
+        self.nbfix = nbfix
+        self.hbond = hbond
 
         # Print options for Pandas DataFrames
-        self.pd_printoptions: Dict[str, Any] = {'display.max_rows': 20}
+        self._pd_printoptions: Dict[str, Any] = {'display.max_rows': 20}
 
     @property
-    def pd_printoptions(self) -> Iterator[Union[Hashable, Any]]:
+    def pd_printoptions(self) -> Iterator[Union[str, Any]]:
+        """Return an iterator flattening :attr:`_pd_printoptions`."""
         return chain.from_iterable(self._pd_printoptions.items())
 
-    @pd_printoptions.setter
-    def pd_printoptions(self, value: Mapping[str, Any]) -> None:
-        self._pd_printoptions = self._is_mapping(value)
+    def __repr__(self) -> str:
+        """Implement :class:`str(self)<str>` and :func:`repr(self)<repr>`."""
+        # Get all to-be printed attribute (names)
+        cls = type(self)
+        attr_names = cls.__slots__[1:-1]
 
-    @staticmethod
-    def _is_mapping(value: Any) -> dict:
-        """Check if **value** is a :class:`dict` instance; raise a :exc:`TypeError` if not."""
-        if not isinstance(value, abc.Mapping):
-            caller_name: str = inspect.stack()[1][3]
-            raise TypeError(f"The {repr(caller_name)} parameter expects an instance of 'dict'; "
-                            f"observed type: '{value.__class__.__name__}''")
-        return dict(value)
+        # Determine the indentation width
+        width = max(len(k) for k in attr_names)
+        indent = width + 3
 
-    @AbstractDataClass.inherit_annotations()
-    def __repr__(self):
+        # Gather string representations of all attributes
+        ret = ''
         with pd.option_context(*self.pd_printoptions):
-            return super().__repr__()
+            items = ((k, getattr(self, k)) for k in attr_names)
+            for k, _v in items:
+                v = textwrap.indent(repr(_v), ' ' * indent)[indent:]
+                ret += f'{k:{width}} = {v}'
 
-    @AbstractDataClass.inherit_annotations()
-    def __eq__(self, value):
+        return f'{cls.__name__}(\n{textwrap.indent(ret, 4 * " ")}\n)'
+
+    def __eq__(self, value: object) -> bool:
+        """Implement :meth:`self == value<object.__eq__>`."""
         if type(self) is not type(value):
             return False
 
-        try:
-            for k, v1 in vars(self).items():
-                if k in self._PRIVATE_ATTR:
-                    continue
+        # Get all to-be printed attribute (names)
+        cls = type(self)
+        attr_names = cls.__slots__[1:-1]
 
-                v2 = getattr(value, k)
-                if isinstance(v2, pd.DataFrame):
-                    assert (v1 == v2).values.all()
-                else:
-                    assert v1 == v2
-        except (AttributeError, AssertionError):
-            return False
+        # Compare the attributes
+        ret = True
+        iterator = ((getattr(self, k), getattr(value, k)) for k in attr_names)
+        for attr1, attr2 in iterator:
+            ret &= np.all(attr1 == attr2)
+        return bool(ret)
+
+    def __reduce__(self: ST) -> Tuple[Type[ST], PRMAttrs]:
+        """Helper function for :mod:`pickle`."""
+        cls = type(self)
+        attr_names = cls.__slots__[1:-1]
+        attr_tup = cast(PRMAttrs, tuple(getattr(self, k) for k in attr_names))
+        return cls, attr_tup
+
+    def copy(self: ST, deep: bool = True) -> ST:
+        """Create and return a copy of this instance.
+
+        Parameters
+        ----------
+        deep : :class:`bool`
+            If :data:`True`, return a deep copy.
+
+        Returns
+        -------
+        :class:`PRMContainer`
+            A new prmcontainer.
+
+        """
+        if deep:
+            return copy.deepcopy(self)
         else:
-            return True
-
-    # Ensure that a deepcopy is returned unless explictly specified
-
-    @AbstractDataClass.inherit_annotations()
-    def copy(self, deep=True): return super().copy(deep)
-
-    @AbstractDataClass.inherit_annotations()
-    def __copy__(self): return self.copy(deep=True)
+            return copy.copy(self)
 
     """########################### methods for reading .prm files. ##############################"""
 
@@ -179,24 +254,23 @@ class PRMContainer(AbstractDataClass, AbstractFileContainer):
     @set_docstring(AbstractFileContainer._read.__doc__)
     def _read(cls, file_obj, decoder):
         ret = {}
-        value = None
+        special_header = {'hbond', 'nonbonded'}
 
-        for _i in file_obj:
-            i = decoder(_i).rstrip('\n')
+        iterator = (decoder(i).rstrip('\n') for i in file_obj)
+        for i in iterator:
             if i.startswith('!') or i.startswith('*') or i.isspace() or not i:
                 continue  # Ignore comment lines and empty lines
 
-            key = i.split(maxsplit=1)[0]
-            if key in cls.HEADERS:
-                ret[key.lower()] = value = []
-                ret[key.lower() + '_comment'] = value_comment = []
-                if key in ('HBOND', 'NONBONDED'):
+            _key = i.split(maxsplit=1)[0]
+            key = _key.lower()
+            if _key in cls._HEADERS:
+                ret[key] = value = []
+                if key in special_header:
                     value.append(i.split()[1:])
                 continue
 
-            v, _, comment = i.partition('!')
+            v, *_ = i.partition('!')
             value.append(v.split())
-            value_comment.append(comment.strip())
 
         cls._read_post_iterate(ret)
         return ret
@@ -204,16 +278,12 @@ class PRMContainer(AbstractDataClass, AbstractFileContainer):
     @classmethod
     def _read_post_iterate(cls, kwargs: dict) -> None:
         """Post process the dictionary produced by :meth:`PRMContainer._read_iterate`."""
-        if 'end' in kwargs:
-            del kwargs['end']
-        if 'end_comment' in kwargs:
-            del kwargs['end_comment']
+        kwargs.pop('end', None)
+        kwargs.pop('end_comment', None)
 
-        comment_dict = {}
+        nonbonded_header = None
         for k, v in kwargs.items():
-            if k.endswith('_comment'):
-                comment_dict[k] = v
-            elif k == 'hbond':
+            if k == 'hbond':
                 kwargs[k] = ' '.join(chain.from_iterable(v)).split('!')[0].rstrip()
             elif k == 'nonbonded':
                 nonbonded_header = ' '.join(chain.from_iterable(v[0:2])).rstrip()
@@ -222,34 +292,23 @@ class PRMContainer(AbstractDataClass, AbstractFileContainer):
             else:
                 kwargs[k] = df = pd.DataFrame(v)
                 cls._process_df(df, k)
-
-        try:
-            kwargs['nonbonded_header'] = nonbonded_header
-        except NameError:
-            pass
-
-        for k, v in comment_dict.items():
-            if k == 'nonbonded_comment':
-                v = v[1:]
-            del kwargs[k]
-            if k == 'hbond_comment':
-                continue
-            kwargs[k.rstrip('_comment')]['comment'] = v
+        kwargs['nonbonded_header'] = nonbonded_header
 
         for k, v in kwargs.items():
-            if isinstance(v, pd.DataFrame) and not v.values.any():
-                kwargs[k] = None
+            if isinstance(v, pd.DataFrame):
+                if not v.any().any():
+                    kwargs[k] = None
 
     @classmethod
     def _process_df(cls, df: pd.DataFrame, key: str) -> None:
-        for i, default in enumerate(cls.COLUMNS[key]):
+        """Fill in all columns, set their data type and assign an index to **df**."""
+        for i, default in enumerate(cls._COLUMNS[key]):
             if i not in df:
                 df[i] = default
             else:
                 default_type = str if default is None else type(default)
                 df[i] = df[i].astype(default_type, copy=False)
-        df['comment'] = None
-        df.set_index(cls.INDEX[key], inplace=True)
+        df.set_index(cls._INDEX[key], inplace=True)
 
     """########################### methods for writing .prm files. ##############################"""
 
@@ -258,7 +317,7 @@ class PRMContainer(AbstractDataClass, AbstractFileContainer):
         isnull = pd.isnull
         write = lambda n: file_obj.write(encoder(n))  # noqa: E731
 
-        for key in self.HEADERS[:-2]:
+        for key in self._HEADERS[:-2]:
             key_low = key.lower()
             df = getattr(self, key_low)
 
@@ -267,26 +326,25 @@ class PRMContainer(AbstractDataClass, AbstractFileContainer):
                 continue
             elif not isinstance(df, pd.DataFrame):
                 continue
-            df = df.reset_index()
+            df = df.reset_index()  # Do NOT modify this inplace
 
-            iterator = range(df.shape[1] - 1)
-            df_str = ' '.join('{:8}' for _ in iterator) + ' !{}\n'
+            df_str = ('{:8} ' * df.shape[1])[:-1]
 
             if key_low != 'nonbonded':
                 write(f'\n{key}\n')
             else:
-                header = '-\n'.join(i for i in self.nonbonded_header.split('-'))
-                write(f'\n{key} {header}\n')
+                if self.nonbonded_header is not None:
+                    header = '-\n'.join(i for i in self.nonbonded_header.split('-'))
+                    write(f'\n{key} {header}\n')
             for _, row_value in df.iterrows():
                 write_str = df_str.format(*(('' if isnull(i) else i) for i in row_value))
-                write(write_str)
-
+                write(f'{write_str.rstrip()}\n')
         write('\nEND\n')
 
     """######################### Methods for updating the PRMContainer ##########################"""
 
     def overlay_mapping(self, prm_name: str,
-                        param_df: Mapping[str, Union[SeriesIdx, SeriesMultiIdx]],
+                        param: Mapping[str, Union[SeriesIdx, SeriesMultiIdx]],
                         units: Optional[Iterable[Optional[str]]] = None) -> None:
         """Update a set of parameters, **prm_name**, with those provided in **param_df**.
 
@@ -313,7 +371,7 @@ class PRMContainer(AbstractDataClass, AbstractFileContainer):
             The name of the parameter of interest.
             See the keys of :attr:`PRMContainer.CP2K_TO_PRM` for accepted values.
 
-        param_df : :class:`pandas.DataFrame` or nested :class:`Mapping<collections.abc.Mapping>`
+        param : :class:`pandas.DataFrame` or nested :class:`Mapping<collections.abc.Mapping>`
             A DataFrame or nested mapping with the to-be added parameters.
             The keys should be a subset of
             :attr:`PRMContainer.CP2K_TO_PRM[prm_name]["columns"]<PRMContainer.CP2K_TO_PRM>`.
@@ -351,20 +409,20 @@ class PRMContainer(AbstractDataClass, AbstractFileContainer):
             self._process_df(df, name)
 
         # Parse and validate the columns
-        param_df = pd.DataFrame(param_df, copy=True)
+        param_df = pd.DataFrame(param, copy=True)
         if not key_set.issuperset(param_df.columns):
-            raise ValueError("The keys in `param_df` should be a subset of "
+            raise ValueError("The keys in `param` should be a subset of "
                              f"`PRMContainer.CP2K_TO_PRM[{prm_name!r}]['key']`")
         param_df.columns = [str2int[i] for i in param_df.columns]
 
         # Parse and validate the index
         if not isinstance(param_df.index, pd.MultiIndex):
-            iterator = (i.split() for i in param_df.index)
-            param_df.index = pd.MultiIndex.from_tuples(iterator)
+            iterator1 = (i.split() for i in param_df.index)
+            param_df.index = pd.MultiIndex.from_tuples(iterator1)
 
         # Apply unit conversion and post-processing
-        iterator = zip(param_df.items(), units, output_units, post_process)
-        for (k, series), unit, output_unit, func in iterator:
+        iterator2 = zip(param_df.items(), units, output_units, post_process)
+        for (k, series), unit, output_unit, func in iterator2:
             series_new = parse_cp2k_value(series, unit=output_unit, default_unit=unit)
             if func is not None:
                 series_new = func(series_new)
@@ -400,11 +458,6 @@ class PRMContainer(AbstractDataClass, AbstractFileContainer):
         ----------
         cp2k_settings : :class:`Mapping<collections.abc.Mapping>`
             A Mapping with PLAMS-style CP2K settings.
-
-        See Also
-        --------
-        PRMMapping : :class:`PRMMapping<FOX.io.cp2k_to_prm.PRMMapping>`
-            A mapping providing tools for converting CP2K settings to .prm-compatible values.
 
         """
         if 'input' not in cp2k_settings:

@@ -18,7 +18,7 @@ API
 """  # noqa: E501
 
 from types import MappingProxyType
-from typing import Optional, Callable, Tuple, Hashable, Mapping
+from typing import Optional, Callable, Tuple, Mapping
 
 from nanoutils import TypedDict
 
@@ -59,7 +59,7 @@ class PRMMapping(TypedDict):
     """  # noqa: E501
 
     name: str
-    columns: Tuple[Hashable, ...]
+    columns: Tuple[int, ...]
     key_path: Tuple[str, ...]
     key: Tuple[str, ...]
     unit: Tuple[str, ...]
