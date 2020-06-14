@@ -293,7 +293,7 @@ class PRMContainer(AbstractFileContainer):
                 continue
             elif not isinstance(df, pd.DataFrame):
                 continue
-            df.reset_index(inplace=True)
+            df = df.reset_index()  # Do NOT modify this inplace
 
             df_str = ('{:8} ' * df.shape[1])[:-1]
 

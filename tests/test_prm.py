@@ -1,5 +1,6 @@
 """Tests for :class:`nanoCAT.ff.prm.PRMContainer`."""
 
+import os
 from pathlib import Path
 from tempfile import TemporaryFile
 from itertools import zip_longest
@@ -15,6 +16,11 @@ PATH_TMP = PATH / 'tmp.prm'
 
 PRM = PRMContainer.read(PATH_PRM)
 
+if os.name == 'nt':
+    STRIP = b'\r\n'
+else:
+    STRIP = b'\n'
+
 
 @delete_finally(PATH_TMP)
 def test_write() -> None:
@@ -25,7 +31,7 @@ def test_write() -> None:
             assertion.eq(i, j)
 
     with open(PATH_PRM, 'rb') as f3, TemporaryFile() as f4:
-        PRM.write(f4, mode='wb', bytes_encoding='utf-8')
+        PRM.write(f4, bytes_encoding='utf-8')
         f4.seek(0)
-        for i, j in zip_longest(f3, f4):
-            assertion.eq(i, j)
+        for i, j in zip_longest(f3, f4, fillvalue=b'<FILLVALUE>'):
+            assertion.eq(i.rstrip(STRIP), j.rstrip(STRIP))
