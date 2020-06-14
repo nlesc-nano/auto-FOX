@@ -18,7 +18,7 @@ API
 """  # noqa: E501
 
 from types import MappingProxyType
-from typing import Optional, Callable, Tuple, Hashable, Mapping
+from typing import Optional, Callable, Tuple, Mapping
 
 from nanoutils import TypedDict
 
