@@ -24,10 +24,9 @@ tests_require = [
 ]
 
 docs_require = [
-    'sphinx>=2.0',
+    'sphinx>=2.1',
     'sphinx_rtd_theme',
-    'matplotlib',
-    'sphinx-autodoc-typehints'
+    'matplotlib'
 ]
 
 setup(
