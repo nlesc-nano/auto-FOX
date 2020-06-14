@@ -59,7 +59,7 @@ class PRMMapping(TypedDict):
     """  # noqa: E501
 
     name: str
-    columns: Tuple[Hashable, ...]
+    columns: Tuple[int, ...]
     key_path: Tuple[str, ...]
     key: Tuple[str, ...]
     unit: Tuple[str, ...]
