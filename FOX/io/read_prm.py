@@ -221,7 +221,6 @@ class PRMContainer(AbstractFileContainer):
     @set_docstring(AbstractFileContainer._read.__doc__)
     def _read(cls, file_obj, decoder):
         ret = {}
-        value = None
         special_header = {'hbond', 'nonbonded'}
 
         iterator = (decoder(i).rstrip('\n') for i in file_obj)
@@ -229,8 +228,9 @@ class PRMContainer(AbstractFileContainer):
             if i.startswith('!') or i.startswith('*') or i.isspace() or not i:
                 continue  # Ignore comment lines and empty lines
 
-            key = i.split(maxsplit=1)[0].lower()
-            if key in cls.HEADERS:
+            _key = i.split(maxsplit=1)[0]
+            key = _key.lower()
+            if _key in cls.HEADERS:
                 ret[key] = value = []
                 if key in special_header:
                     value.append(i.split()[1:])
@@ -262,8 +262,9 @@ class PRMContainer(AbstractFileContainer):
         kwargs['nonbonded_header'] = nonbonded_header
 
         for k, v in kwargs.items():
-            if not np.any(v):
-                kwargs[k] = None
+            if isinstance(v, pd.DataFrame):
+                if not v.any().any():
+                    kwargs[k] = None
 
     @classmethod
     def _process_df(cls, df: pd.DataFrame, key: str) -> None:
@@ -294,8 +295,7 @@ class PRMContainer(AbstractFileContainer):
                 continue
             df.reset_index(inplace=True)
 
-            iterator = range(df.shape[1] - 1)
-            df_str = ' '.join('{:8}' for _ in iterator) + ' !{}\n'
+            df_str = ('{:8} ' * df.shape[1])[:-1]
 
             if key_low != 'nonbonded':
                 write(f'\n{key}\n')
@@ -305,7 +305,7 @@ class PRMContainer(AbstractFileContainer):
                     write(f'\n{key} {header}\n')
             for _, row_value in df.iterrows():
                 write_str = df_str.format(*(('' if isnull(i) else i) for i in row_value))
-                write(write_str)
+                write(f'{write_str.rstrip()}\n')
         write('\nEND\n')
 
     """######################### Methods for updating the PRMContainer ##########################"""
