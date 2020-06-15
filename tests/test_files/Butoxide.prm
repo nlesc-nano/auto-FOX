@@ -26,7 +26,7 @@ HGA2     C321     C331     HGA3         0.16        3      0.0
 HGA2     C321     C321     O312         0.16        3      0.0
 HGA2     C321     C321     HGA2         0.22        3      0.0
 
-HBOND None
+HBOND CUTHB 0.5
 
 NONBONDED nbxmod 5 atom cdiel shift vatom vdistance vswitch -
  cutnb 14.0 ctofnb 12.0 ctonnb 10.0 eps 1.0 e14fac 1.0 wmin 1.5
