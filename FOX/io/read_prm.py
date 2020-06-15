@@ -25,12 +25,13 @@ import copy
 import textwrap
 from types import MappingProxyType
 from typing import (Any, Iterator, Dict, Tuple, Mapping, List, Union, Iterable, Sequence,
-                    Optional, ClassVar, MutableSequence, Type, TypeVar, cast)
+                    Optional, ClassVar, MutableSequence, Type, TypeVar, NamedTuple)
 from itertools import chain, repeat
 from contextlib import nullcontext
 
 import numpy as np
 import pandas as pd
+from pandas.testing import assert_frame_equal
 
 from scm.plams import Settings
 from nanoutils import AbstractFileContainer, set_docstring
@@ -48,18 +49,19 @@ SeriesIdx = Mapping[str, float]
 # e.g. a Pandas.Series with a MultiIndex
 SeriesMultiIdx = Mapping[Tuple[str, ...], float]
 
-# A tuple representing PRMContainer attributes
-PRMAttrs = Tuple[
-    Optional[pd.DataFrame],
-    Optional[pd.DataFrame],
-    Optional[pd.DataFrame],
-    Optional[pd.DataFrame],
-    Optional[pd.DataFrame],
-    Optional[pd.DataFrame],
-    Optional[str],
-    Optional[pd.DataFrame],
-    Optional[str]
-]
+
+class _PRMAttrTup(NamedTuple):
+    """A :class:`~collections.namedtuple` representing :class:`PRMContainer` attributes."""
+
+    atoms: Optional[pd.DataFrame]
+    bonds: Optional[pd.DataFrame]
+    angles: Optional[pd.DataFrame]
+    dihedrals: Optional[pd.DataFrame]
+    impropers: Optional[pd.DataFrame]
+    nbfix: Optional[pd.DataFrame]
+    hbond: Optional[str]
+    nonbonded_header: Optional[str]
+    nonbonded: Optional[pd.DataFrame]
 
 
 class PRMContainer(AbstractFileContainer):
@@ -79,10 +81,8 @@ class PRMContainer(AbstractFileContainer):
 
     """
 
-    __slots__ = (
-        '__weakref__', 'atoms', 'bonds', 'angles', 'dihedrals', 'nbfix', 'hbond',
-        'nonbonded', 'nonbonded_header',  'impropers', '_pd_printoptions'
-    )
+    # Attribute names should be in the same order as in __init__()
+    __slots__ = _PRMAttrTup._fields + ('_pd_printoptions', '__weakref__')
 
     #: A dataframe holding atomic parameters.
     atoms: Optional[pd.DataFrame]
@@ -158,12 +158,12 @@ class PRMContainer(AbstractFileContainer):
                  bonds: Optional[pd.DataFrame] = None,
                  angles: Optional[pd.DataFrame] = None,
                  dihedrals: Optional[pd.DataFrame] = None,
-                 improper: Optional[pd.DataFrame] = None,
                  impropers: Optional[pd.DataFrame] = None,
-                 nonbonded: Optional[pd.DataFrame] = None,
-                 nonbonded_header: Optional[str] = None,
                  nbfix: Optional[pd.DataFrame] = None,
-                 hbond: Optional[str] = None) -> None:
+                 hbond: Optional[str] = None,
+                 nonbonded_header: Optional[str] = None,
+                 nonbonded: Optional[pd.DataFrame] = None,
+                 improper: Optional[pd.DataFrame] = None) -> None:
         """Initialize a :class:`PRMContainer` instance."""
         if impropers is not None and improper is not None:
             raise TypeError("'impropers' and 'improper' cannot be both specified")
@@ -190,7 +190,7 @@ class PRMContainer(AbstractFileContainer):
         """Implement :class:`str(self)<str>` and :func:`repr(self)<repr>`."""
         # Get all to-be printed attribute (names)
         cls = type(self)
-        attr_names = cls.__slots__[1:-1]
+        attr_names = cls.__slots__[:-2]
 
         # Determine the indentation width
         width = max(len(k) for k in attr_names)
@@ -202,9 +202,9 @@ class PRMContainer(AbstractFileContainer):
             items = ((k, getattr(self, k)) for k in attr_names)
             for k, _v in items:
                 v = textwrap.indent(repr(_v), ' ' * indent)[indent:]
-                ret += f'{k:{width}} = {v}'
+                ret += f'{k:{width}} = {v},\n'
 
-        return f'{cls.__name__}(\n{textwrap.indent(ret, 4 * " ")}\n)'
+            return f'{cls.__name__}(\n{textwrap.indent(ret[:-2], 4 * " ")}\n)'
 
     def __eq__(self, value: object) -> bool:
         """Implement :meth:`self == value<object.__eq__>`."""
@@ -213,21 +213,35 @@ class PRMContainer(AbstractFileContainer):
 
         # Get all to-be printed attribute (names)
         cls = type(self)
-        attr_names = cls.__slots__[1:-1]
+        attr_names = cls.__slots__[:-2]
 
         # Compare the attributes
         ret = True
-        iterator = ((getattr(self, k), getattr(value, k)) for k in attr_names)
-        for attr1, attr2 in iterator:
-            ret &= np.all(attr1 == attr2)
-        return bool(ret)
+        str_or_none = {'nonbonded_header', 'hbond'}
+        iterator = ((k, getattr(self, k), getattr(value, k)) for k in attr_names)
+        for k, attr1, attr2 in iterator:
+            if attr1 is attr2:
+                continue
+            elif k in str_or_none:
+                ret &= attr1 == attr2
+                continue
 
-    def __reduce__(self: ST) -> Tuple[Type[ST], PRMAttrs]:
+            try:
+                assert_frame_equal(attr1, attr2)
+            except AssertionError:
+                return False
+        return ret
+
+    def __reduce__(self: ST) -> Tuple[Type[ST], _PRMAttrTup, Dict[str, Any]]:
         """Helper function for :mod:`pickle`."""
         cls = type(self)
-        attr_names = cls.__slots__[1:-1]
-        attr_tup = cast(PRMAttrs, tuple(getattr(self, k) for k in attr_names))
-        return cls, attr_tup
+        attr_names = cls.__slots__[:-2]
+        attr_tup = _PRMAttrTup._make(getattr(self, k) for k in attr_names)
+        return cls, attr_tup, self._pd_printoptions
+
+    def __setstate__(self, state: Dict[str, Any]) -> None:
+        """Helper function for :meth:`__reduce__`."""
+        self._pd_printoptions = state
 
     def copy(self: ST, deep: bool = True) -> ST:
         """Create and return a copy of this instance.
