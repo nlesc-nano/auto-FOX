@@ -182,12 +182,12 @@ def constrained_update(atom: KT, value: float, param: pd.Series, count: pd.Serie
         if atom in ref_coef.index:
             break
     else:
-        raise ValueError(repr(atom))
+        return None
     idx = ref_coef.index
     idx_ref = idx.tolist()
     net_charge: float = (param.loc[idx] * ref_coef.loc[idx]).sum()
 
-    df = pd.DataFrame({'param': param, 'count': count,
+    df = pd.DataFrame({'param': param, 'count': 0,
                        'prm_min': param_min, 'prm_max': param_max})
 
     # Update the charge of all other charge-constraint blocks
