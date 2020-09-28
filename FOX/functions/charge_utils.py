@@ -12,12 +12,9 @@ API
 
 """
 
-from functools import partial
-from types import MappingProxyType
 from itertools import chain
 from typing import (
-    Hashable, Optional, Collection, Container, Dict, Union, Iterable, Tuple,
-    SupportsFloat, Generator, Iterator, Set, TypeVar, Type, Generic
+    Hashable, Optional, Collection, Container, Tuple, SupportsFloat, Set, TypeVar, Type, Generic
 )
 
 import numpy as np
@@ -283,103 +280,3 @@ def _check_net_charge(param: pd.Series, count: pd.Series, net_charge: float,
         f"Failed to conserve the net charge: ref = {net_charge:.4f}); {net_charge_new:.4f} != ref",
         reference=net_charge, value=net_charge_new, tol=tolerance
     )
-
-
-ExtremiteDict = Dict[Tuple[str, str], float]
-ConstrainDict = Dict
-
-
-def assign_constraints(constraints: Union[str, Iterable[str]]
-                       ) -> Tuple[ExtremiteDict, Optional[ConstrainDict]]:
-    operator_set = {'>', '<', '*', '=='}
-
-    # Parse integers and floats
-    if isinstance(constraints, str):
-        constraints = [constraints]
-
-    constrain_list = []
-    for item in constraints:
-        for i in operator_set:  # Sanitize all operators; ensure they are surrounded by spaces
-            item = item.replace(i, f'~{i}~')
-
-        item_list = [i.strip().rstrip() for i in item.split('~')]
-        if len(item_list) == 1:
-            continue
-
-        for i, j in enumerate(item_list):  # Convert strings to floats where possible
-            try:
-                float_j = float(j)
-            except ValueError:
-                pass
-            else:
-                item_list[i] = float_j
-
-        constrain_list.append(item_list)
-
-    # Set values in **param**
-    extremite_dict: ExtremiteDict = {}
-    constraints_ = None
-    for constrain in constrain_list:
-        if '==' in constrain:
-            constraints_ = _eq_constraints(constrain)
-        else:
-            extremite_dict.update(_gt_lt_constraints(constrain))
-    return extremite_dict, constraints_
-
-
-#: Map ``"min"`` to ``"max"`` and *vice versa*.
-_INVERT = MappingProxyType({'max': 'min', 'min': 'max'})
-
-#: Map :math:`>`, :math:`<`, :math:`\ge` and :math:`\le` to either ``"min"`` or ``"max"``.
-_OPPERATOR_MAPPING = MappingProxyType({'<': 'min', '<=': 'min', '>': 'max', '>=': 'max'})
-
-
-def _gt_lt_constraints(constrain: list) -> Generator[Tuple[Tuple[str, str], float], None, None]:
-    r"""Parse :math:`>`, :math:`<`, :math:`\ge` and :math:`\le`-type constraints."""
-    for i, j in enumerate(constrain):
-        if j not in _OPPERATOR_MAPPING:
-            continue
-
-        operator, value, atom = _OPPERATOR_MAPPING[j], constrain[i-1], constrain[i+1]
-        if isinstance(atom, float):
-            atom, value = value, atom
-            operator = _INVERT[operator]
-        yield (atom, operator), value
-
-
-def _find_float(iterable: Tuple[str, str]) -> Tuple[str, float]:
-    """Take an iterable of 2 strings and identify which element can be converted into a float."""
-    try:
-        i, j = iterable
-    except ValueError:
-        return iterable[0], 1.0
-
-    try:
-        return j, float(i)
-    except ValueError:
-        return i, float(j)
-
-
-def _eq_constraints(constrain_: list) -> Dict[str, partial]:
-    """Parse :math:`a = i * b`-type constraints."""
-    constrain_dict: Dict[str, partial] = {}
-    constrain = ''.join(str(i) for i in constrain_).split('==')
-    iterator: Iterator[str] = iter(constrain)
-
-    # Set the first item; remove any prefactor and compensate al other items if required
-    item_ = next(iterator).split('*')
-    if len(item_) == 1:
-        atom = item_[0]
-        multiplier = 1.0
-    elif len(item_) == 2:
-        atom, multiplier = _find_float(item_)
-        multiplier **= -1
-    constrain_dict[atom] = partial(np.multiply, 1.0)
-
-    # Assign all other constraints
-    for item in iterator:
-        item_ = item.split('*')
-        atom, i = _find_float(item_)
-        i *= multiplier
-        constrain_dict[atom] = partial(np.multiply, i)
-    return constrain_dict

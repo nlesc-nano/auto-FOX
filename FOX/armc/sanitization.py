@@ -42,7 +42,7 @@ from ..io.read_psf import PSFContainer, overlay_str_file, overlay_rtf_file
 from ..classes import MultiMolecule
 from ..functions.cp2k_utils import UNIT_MAP
 from ..functions.molecule_utils import fix_bond_orders, residue_argsort
-from ..functions.charge_utils import assign_constraints
+from ..functions.charge_parser import assign_constraints
 
 if TYPE_CHECKING:
     from .package_manager import PackageManager, PkgDict
