@@ -59,6 +59,7 @@ def test_cp2k_md():
     for i in job_kwarg['psf']:
         assertion.isinstance(i, PSFContainer)
     assertion.eq(job_kwarg['folder'], 'MM_MD_workdir')
-    assertion.assert_(str.endswith, job_kwarg['path'], '/tests/test_files')
+    assertion.assert_(str.endswith, job_kwarg['path'],
+                      join('tests', 'test_files'))
     assertion.assert_(str.endswith, job_kwarg['logfile'],
-                      '/tests/test_files/MM_MD_workdir/armc.log')
+                      join('tests', 'test_files', 'MM_MD_workdir', 'armc.log'))
