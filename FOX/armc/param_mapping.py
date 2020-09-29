@@ -22,7 +22,7 @@ from logging import Logger
 from functools import wraps, partial
 from typing import (Any, TypeVar, Optional, Hashable, Tuple, Mapping, Iterable, ClassVar, Union,
                     Iterator, KeysView, ItemsView, ValuesView, overload, Callable, FrozenSet, cast,
-                    MutableMapping, TYPE_CHECKING)
+                    MutableMapping, TYPE_CHECKING, Dict)
 
 import numpy as np
 import pandas as pd
@@ -44,17 +44,15 @@ T = TypeVar('T')
 
 # MultiIndex keys
 Tup3 = Tuple[Hashable, Hashable, Hashable]
+Tup2 = Tuple[Hashable, Hashable]
 
 # All dict keys in ParamMappingABC
-SeriesKeys = Literal['min', 'max', 'constraints', 'count']
+SeriesKeys = Literal['min', 'max', 'count', 'constant']
 DFKeys = Literal['param', 'param_old']
-ValidKeys = Literal['param', 'param_old', 'min', 'max', 'constraints', 'count']
+ValidKeys = Union[SeriesKeys, DFKeys]
 
 # A function for moving parameters
 MoveFunc = Callable[[float, float], float]
-
-# A dictionary of constraints
-ConstrainDict = Mapping[Hashable, partial]
 
 # A Mapping representing the conent of ParamMappingABC
 _ParamMappingABC = Mapping[ValidKeys, NDFrame]
@@ -72,8 +70,8 @@ class InputMapping(_InputMapping, total=False):
 
     min: pd.Series
     max: pd.Series
-    constraints: pd.Series
     count: pd.Series
+    constant: pd.Series
 
 
 class Data(TypedDict):
@@ -83,8 +81,8 @@ class Data(TypedDict):
     param_old: pd.DataFrame
     min: pd.Series
     max: pd.Series
-    constraints: pd.Series
     count: pd.Series
+    constant: pd.Series
 
 
 def _parse_param(dct: MutableMapping[str, Any]) -> pd.DataFrame:
@@ -163,8 +161,6 @@ class ParamMappingABC(AbstractDataClass, ABC, _ParamMappingABC):
         * ``"param_old"`` (:class:`float`): Old paramters from a previous iteration.
         * ``"min"`` (:class:`float`): The minimum value for each parameter.
         * ``"max"`` (:class:`float`): The maximum value for each parameter.
-        * ``"constraints"`` (:class:`object`): A dictionary of constraints for each parameter.
-          Setting a value to ``None`` means that there are no constraints for that parameter.
         * ``"count"`` (:class:`int`): The number of unique atom (pairs) assigned
           to a given parameter.
           Currently only important when updating the charge,
@@ -179,21 +175,23 @@ class ParamMappingABC(AbstractDataClass, ABC, _ParamMappingABC):
 
     _net_charge: Optional[float]
     _move_range: np.ndarray
-    __data: Data
+    _data_dict: Data
 
     #: Fill values for when optional keys are absent.
     FILL_VALUE: ClassVar[Mapping[ValidKeys, Any]] = MappingProxyType({
         'min': -np.inf,
         'max': np.inf,
-        'constraints': None,  # Dict[str, functools.partial]
-        'count': -1
+        'count': -1,
+        'constant': False,
     })
 
     _PRIVATE_ATTR = frozenset({'_net_charge'})  # type: ignore
 
     def __init__(self, data: Union[InputMapping, pd.DataFrame],
                  move_range: Iterable[float],
-                 func: MoveFunc, **kwargs: Any) -> None:
+                 func: MoveFunc,
+                 constraints: Optional[Mapping[Tup2, Iterable[Mapping[str, float]]]] = None,
+                 **kwargs: Any) -> None:
         r"""Initialize an :class:`ParamMappingABC` instance.
 
         Parameters
@@ -235,8 +233,24 @@ class ParamMappingABC(AbstractDataClass, ABC, _ParamMappingABC):
         self._data = cast(Data, data)
         self.move_range = cast(np.ndarray, move_range)
         self.func: Callable[[float, float], float] = wraps(func)(partial(func, **kwargs))
+        self.constraints = cast(Dict[Tup2, Tuple[pd.Series, ...]], constraints)
 
     # Properties
+
+    @property
+    def constraints(self) -> Dict[Tup2, Tuple[pd.Series, ...]]:
+        return self._constraints
+
+    @constraints.setter
+    def constraints(self, value: Optional[Mapping[Tup2, Iterable[Mapping[str, float]]]]) -> None:
+        if value is not None:
+            dct = {k: tuple(pd.Series(i) for i in v) for k, v in value.items()}
+        else:
+            dct = {}
+
+        for key in self['param'].index:
+            dct.setdefault(key[:2], ())
+        self._constraints = dct
 
     @property
     def move_range(self) -> np.ndarray:
@@ -267,7 +281,7 @@ class ParamMappingABC(AbstractDataClass, ABC, _ParamMappingABC):
 
     @property
     def _data(self) -> Data:
-        return getattr(self, '__data')
+        return self._data_dict
 
     @_data.setter
     def _data(self, value: Union[InputMapping, pd.DataFrame]) -> None:
@@ -292,7 +306,7 @@ class ParamMappingABC(AbstractDataClass, ABC, _ParamMappingABC):
 
         # Construct a dictionary to contain the old parameter
         dct['param_old'] = param.copy()
-        setattr(self, '__data', dct)
+        self._data_dict = cast(Data, dct)
 
     # Magic methods and Mapping implementation
 
@@ -406,8 +420,7 @@ class ParamMappingABC(AbstractDataClass, ABC, _ParamMappingABC):
             _, prm_type, atoms = idx
             logger.info(f"Moving {prm_type} ({atoms}): {x1:.4f} -> {value:.4f}")
 
-        constraints: ConstrainDict = self['constraints'][idx]
-        ex = self.apply_constraints(idx, value, param_idx, constraints)
+        ex = self.apply_constraints(idx, value, param_idx)
         if ex is not None:
             return ex
 
@@ -450,8 +463,7 @@ class ParamMappingABC(AbstractDataClass, ABC, _ParamMappingABC):
         """  # noqa
         return value
 
-    def apply_constraints(self, idx: Tup3, value: float, param: int,
-                          constraints: ConstrainDict) -> Optional[Exception]:
+    def apply_constraints(self, idx: Tup3, value: float, param: int) -> Optional[Exception]:
         """An optional function for applying further constraints based on **idx** and **value**.
 
         Should perform an inplace update of this instance.
@@ -511,7 +523,8 @@ class ParamMapping(ParamMappingABC):
 
         """  # noqa
         # Define a random parameter
-        random_prm: pd.Series = self['param'][param_idx].sample()
+        variable = ~self['constant']
+        random_prm: pd.Series = self['param'].loc[variable, param_idx].sample()
         idx, x1 = next(random_prm.items())  # Type: Tup3, float
 
         # Define a random move size
@@ -539,8 +552,7 @@ class ParamMapping(ParamMappingABC):
         prm_max: float = self['max'][idx]
         return np.clip(value, prm_min, prm_max)
 
-    def apply_constraints(self, idx: Tup3, value: float, param_idx: int,
-                          constraints: ConstrainDict) -> Optional[ChargeError]:
+    def apply_constraints(self, idx: Tup3, value: float, param_idx: int) -> Optional[ChargeError]:
         """Apply further constraints based on **idx** and **value**.
 
         Performs an inplace update of this instance.
@@ -560,13 +572,16 @@ class ParamMapping(ParamMappingABC):
             A Mapping with the to-be applied constraints per atom (pair).
 
         """  # noqa
-        key, prm_type, _ = idx
-        charge = self._net_charge if prm_type in self.CHARGE_LIKE else None
+        key = idx[:2]
+        atom = idx[2]
+        charge = self._net_charge if key[1] in self.CHARGE_LIKE else None
 
-        constraints_ = None if pd.isnull(constraints) else constraints
-        return update_charge(idx[1:], value, self['param'].loc[key, param_idx],
-                             count=self['count'].loc[key],
-                             prm_min=self['min'].loc[key],
-                             prm_max=self['max'].loc[key],
-                             constrain_dict=constraints_,
-                             net_charge=charge)
+        return update_charge(
+            atom, value,
+            param=self['param'].loc[key, param_idx],
+            count=self['count'].loc[key],
+            atom_coefs=self.constraints[key],
+            prm_min=self['min'].loc[key],
+            prm_max=self['max'].loc[key],
+            net_charge=charge
+        )

@@ -16,7 +16,7 @@ import os
 import copy
 from pathlib import Path
 from itertools import islice
-from collections import abc
+from collections import abc, Counter
 from typing import (
     Union, Iterable, Tuple, Optional, Mapping, Any, MutableMapping, Hashable,
     Dict, TYPE_CHECKING, Generator, List, Collection, TypeVar, overload, cast
@@ -42,7 +42,7 @@ from ..io.read_psf import PSFContainer, overlay_str_file, overlay_rtf_file
 from ..classes import MultiMolecule
 from ..functions.cp2k_utils import UNIT_MAP
 from ..functions.molecule_utils import fix_bond_orders, residue_argsort
-from ..functions.charge_utils import assign_constraints
+from ..functions.charge_parser import assign_constraints
 
 if TYPE_CHECKING:
     from .package_manager import PackageManager, PkgDict
@@ -100,6 +100,7 @@ def dict_to_armc(input_dict: MainMapping) -> Tuple[MonteCarloABC, RunDict]:
     psf_list: Optional[List[PSFContainer]] = get_psf(dct['psf'], mol_list)
     run_kwargs['psf'] = psf_list
     update_count(param, psf=psf_list, mol=mol_list)
+    _parse_ligand_alias(psf_list, prm=param)
     if psf_list is not None:
         mc.pes_post_process = [AtomsFromPSF.from_psf(*psf_list)]
         workdir = Path(run_kwargs['path']) / run_kwargs['folder']
@@ -110,11 +111,18 @@ def dict_to_armc(input_dict: MainMapping) -> Tuple[MonteCarloABC, RunDict]:
         _guess_param(mc, _param_frozen, frozen=True, psf=psf_list)
     _guess_param(mc, _param, frozen=False, psf=psf_list)
 
+    mc.param['param'].sort_index(inplace=True)
+    mc.param['param_old'].sort_index(inplace=True)
+    mc.param['min'].sort_index(inplace=True)
+    mc.param['max'].sort_index(inplace=True)
+    mc.param['count'].sort_index(inplace=True)
+    mc.param['constant'].sort_index(inplace=True)
+    mc.param._data['constant'] = mc.param['constant'].astype(bool, copy=False)
+
     # Add PES evaluators
     pes = get_pes(dct['pes'])
     for name, kwargs in pes.items():
         mc.add_pes_evaluator(name, **kwargs)
-
     return mc, run_kwargs
 
 
@@ -142,24 +150,18 @@ def _guess_param(mc: MonteCarloABC, prm: dict,
 
     # Update the constant parameters
     package.update_settings(seq, new_keys=True)
-    if frozen:
-        return
 
     # Update the variable parameters
     param_mapping = mc.param
     for k, v in seq:
-        param = v['param']
-        for atom, value in v.items():
-            if atom == 'param':
-                continue
-            key = (k, param, atom)
-
+        iterator = (((k, v['param'], at), value) for at, value in v.items() if at == 'param')
+        for key, value in iterator:
             param_mapping['param'].loc[key] = value
             param_mapping['param_old'].loc[key] = value
             param_mapping['min'][key] = -np.inf
             param_mapping['max'][key] = np.inf
-            param_mapping['constraints'][key] = None
             param_mapping['count'][key] = 0
+            param_mapping['constant'][key] = frozen
     return
 
 
@@ -224,16 +226,25 @@ def get_param(dct: ParamMapping_) -> Tuple[ParamMapping, dict, dict]:
     _sub_prm_dict = split_dict(
         _prm_dict, preserve_order=True, keep_keys={'type', 'move_range', 'func', 'kwargs'}
     )
+    _sub_prm_dict_frozen = _get_prm_frozen(_sub_prm_dict)
 
     prm_dict = validate_param(_prm_dict)
     kwargs = prm_dict.pop('kwargs')
     data = _get_param_df(_sub_prm_dict)
-    data[['constraints', 'min', 'max']] = list(_get_prm_constraints(_sub_prm_dict))
+    constraints, min_max = _get_prm_constraints(_sub_prm_dict)
+    data[['min', 'max']] = min_max
 
-    _sub_prm_dict_frozen = _get_prm_frozen(_sub_prm_dict)
+    for *_key, value in _get_prm(_sub_prm_dict_frozen):
+        key = tuple(_key)
+        data.loc[key, :] = [value, True, -np.inf, np.inf]
+    data.sort_index(inplace=True)
 
     param_type = prm_dict.pop('type')  # type: ignore
-    return param_type(data, **prm_dict, **kwargs), _sub_prm_dict, _sub_prm_dict_frozen
+    return (
+        param_type(data, constraints=constraints, **prm_dict, **kwargs),
+        _sub_prm_dict,
+        _sub_prm_dict_frozen,
+    )
 
 
 def get_pes(dct: Mapping[str, PESMapping]) -> Dict[str, PESDict]:
@@ -355,7 +366,7 @@ def _psf_idx_iterator(job_list: Iterable[T], phi: Iterable) -> Generator[Tuple[i
             yield i, job
 
 
-def _update_psf_settings(job_lists: Iterable[Iterable[dict]], phi: Iterable,
+def _update_psf_settings(job_lists: Iterable[Iterable[MutableMapping[str, Any]]], phi: Iterable,
                          workdir: Union[str, os.PathLike]) -> None:
     """Set the .psf path in all job settings."""
     for job_list in job_lists:
@@ -405,7 +416,7 @@ def _get_param_df(dct: Mapping[str, Any]) -> pd.DataFrame:
     df = pd.DataFrame(data, columns=columns)
     df.set_index(['key', 'param_type', 'atoms'], inplace=True)
 
-    df['constraints'] = None
+    df['constant'] = False
     df['min'] = -np.inf
     df['max'] = np.inf
     return df
@@ -464,8 +475,12 @@ def _get_prm_frozen(dct: Mapping[str, Union[MutableMapping, Iterable[MutableMapp
     return ret if ret else None
 
 
-def _get_prm_constraints(dct: Mapping[str, Union[MutableMapping, Iterable[MutableMapping]]]
-                         ) -> Generator[Tuple[Optional[dict], float, float], None, None]:
+def _get_prm_constraints(
+    dct: Mapping[str, Union[MutableMapping, Iterable[MutableMapping]]]
+) -> Tuple[
+    Dict[Tuple[str, str], Optional[List[Dict[str, float]]]],
+    List[Tuple[float, float]]
+]:
     """Parse all user-provided constraints.
 
     Yields
@@ -480,6 +495,9 @@ def _get_prm_constraints(dct: Mapping[str, Union[MutableMapping, Iterable[Mutabl
     """
     ignore_keys = {'frozen', 'constraints', 'param', 'unit', 'guess'}
 
+    constraints_dict: Dict[Tuple[str, str], Optional[List[Dict[str, float]]]] = {}
+    min_max: List[Tuple[float, float]] = []
+
     dct_iterator = prm_iter(dct)
     for key_alias, sub_dict in dct_iterator:
         try:
@@ -487,15 +505,54 @@ def _get_prm_constraints(dct: Mapping[str, Union[MutableMapping, Iterable[Mutabl
         except KeyError:
             for k in sub_dict:
                 if k not in ignore_keys:
-                    yield None, -np.inf, np.inf
+                    min_max.append((-np.inf, np.inf))
+            constraints_dict[key_alias, sub_dict["param"]] = []
             continue
 
         extremites, constraints = assign_constraints(proto_constraints)
         for k in sub_dict:
             if k not in ignore_keys:
-                yield (constraints,
-                       extremites.get((k, 'min'), -np.inf),
-                       extremites.get((k, 'max'), np.inf))
+                min_max.append((
+                    extremites.get((k, 'min'), -np.inf),
+                    extremites.get((k, 'max'), np.inf)
+                ))
+        constraints_dict[key_alias, sub_dict["param"]] = (
+            constraints if constraints is not None else []
+        )
+    return constraints_dict, min_max
+
+
+def _parse_ligand_alias(psf_list: Optional[List[PSFContainer]], prm: ParamMapping) -> None:
+    """Replace ``$LIGAND`` constraints with explicit ligands."""
+    not_implemented = psf_list is None or len(psf_list) != 1
+    if not not_implemented:
+        psf: PSFContainer = psf_list[0]
+        lig_id = psf.residue_id.iloc[-1]
+        df = psf.atoms[psf.residue_id == lig_id]
+
+        atom_types: Iterable[str] = df['atom type'].values
+        atom_counter = Counter(atom_types)
+        for k in atom_counter:
+            key = ('charge', 'charge', k)
+            if key not in prm['param'].index:
+                prm['param'].loc[key] = df.loc[df['atom type'] == k, 'charge'].iloc[0]
+                prm['min'][key] = -np.inf
+                prm['max'][key] = np.inf
+                prm['constant'][key] = True
+
+    for lst in prm.constraints.values():
+        for series in lst:
+            if "$LIGAND" not in series:
+                continue
+            elif not_implemented:
+                raise NotImplementedError
+
+            i = series.pop("$LIGAND")
+            for k, v in atom_counter.items():
+                if k in series:
+                    series[k] += v * i
+                else:
+                    series[k] = v * i
 
 
 @overload
