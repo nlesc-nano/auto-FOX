@@ -36,7 +36,10 @@ def test_write() -> None:
     with open(filename1, 'rb') as f1, TemporaryFile() as f2:
         PSF.write(f2, mode='wb', bytes_encoding='utf-8')
         f2.seek(0)
-        for i, j in zip_longest(f1, f2):
+
+        linesep = os.linesep.encode()
+        iterator = ((i.rstrip(linesep), j.rstrip(linesep)) for i, j in zip_longest(f1, f2))
+        for i, j in iterator:
             assertion.eq(i, j)
 
 
