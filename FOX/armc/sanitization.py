@@ -115,7 +115,6 @@ def dict_to_armc(input_dict: MainMapping) -> Tuple[MonteCarloABC, RunDict]:
     pes = get_pes(dct['pes'])
     for name, kwargs in pes.items():
         mc.add_pes_evaluator(name, **kwargs)
-
     return mc, run_kwargs
 
 
@@ -523,8 +522,25 @@ def _parse_ligand_alias(psf_list: Optional[List[PSFContainer]], prm: ParamMappin
     if not not_implemented:
         psf: PSFContainer = psf_list[0]
         lig_id = psf.residue_id.iloc[-1]
-        atom_types: Iterable[str] = psf.atom_type[psf.residue_id == lig_id].values
+        df = psf.atoms[psf.residue_id == lig_id]
+
+        atom_types: Iterable[str] = df['atom type'].values
         atom_counter = Counter(atom_types)
+        update = False
+        for k in atom_counter:
+            key = ('charge', 'charge', k)
+            if key not in prm['param'].index:
+                update = True
+                prm['param'].loc[key] = df.loc[df['atom type'] == k, 'charge'].iloc[0]
+                prm['min'].at[key] = -np.inf
+                prm['max'].at[key] = np.inf
+                prm['constant'].at[key] = True
+
+        if update:
+            prm['param'].sort_index(inplace=True)
+            prm['min'].sort_index(inplace=True)
+            prm['max'].sort_index(inplace=True)
+            prm['constant'].sort_index(inplace=True)
 
     for lst in prm.constraints.values():
         for series in lst:
