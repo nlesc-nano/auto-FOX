@@ -18,7 +18,8 @@ param:
         Cd: 0.9768
         Se: -0.9768
         OG2D2: -0.4704
-        CG2O3: 0.4524
+        frozen:
+            CG2O3: 0.4524
     lennard_jones:
         -   unit: kjmol
             param: epsilon

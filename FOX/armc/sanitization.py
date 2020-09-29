@@ -221,6 +221,7 @@ def get_param(dct: ParamMapping_) -> Tuple[ParamMapping, dict, dict]:
     _sub_prm_dict = split_dict(
         _prm_dict, preserve_order=True, keep_keys={'type', 'move_range', 'func', 'kwargs'}
     )
+    _sub_prm_dict_frozen = _get_prm_frozen(_sub_prm_dict)
 
     prm_dict = validate_param(_prm_dict)
     kwargs = prm_dict.pop('kwargs')
@@ -228,7 +229,10 @@ def get_param(dct: ParamMapping_) -> Tuple[ParamMapping, dict, dict]:
     constraints, min_max = _get_prm_constraints(_sub_prm_dict)
     data[['min', 'max']] = min_max
 
-    _sub_prm_dict_frozen = _get_prm_frozen(_sub_prm_dict)
+    for *_key, value in _get_prm(_sub_prm_dict_frozen):
+        key = tuple(_key)
+        data.loc[key, :] = [value, True, -np.inf, np.inf]
+    data.sort_index(inplace=True)
 
     param_type = prm_dict.pop('type')  # type: ignore
     return (
@@ -407,6 +411,7 @@ def _get_param_df(dct: Mapping[str, Any]) -> pd.DataFrame:
     df = pd.DataFrame(data, columns=columns)
     df.set_index(['key', 'param_type', 'atoms'], inplace=True)
 
+    df['constant'] = False
     df['min'] = -np.inf
     df['max'] = np.inf
     return df
