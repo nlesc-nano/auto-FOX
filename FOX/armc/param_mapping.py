@@ -47,15 +47,12 @@ Tup3 = Tuple[Hashable, Hashable, Hashable]
 Tup2 = Tuple[Hashable, Hashable]
 
 # All dict keys in ParamMappingABC
-SeriesKeys = Literal['min', 'max', 'count']
+SeriesKeys = Literal['min', 'max', 'count', 'constant']
 DFKeys = Literal['param', 'param_old']
-ValidKeys = Literal['param', 'param_old', 'min', 'max', 'count']
+ValidKeys = Union[SeriesKeys, DFKeys]
 
 # A function for moving parameters
 MoveFunc = Callable[[float, float], float]
-
-# A dictionary of constraints
-ConstrainDict = Mapping[Hashable, partial]
 
 # A Mapping representing the conent of ParamMappingABC
 _ParamMappingABC = Mapping[ValidKeys, NDFrame]
@@ -74,6 +71,7 @@ class InputMapping(_InputMapping, total=False):
     min: pd.Series
     max: pd.Series
     count: pd.Series
+    constant: pd.Series
 
 
 class Data(TypedDict):
@@ -84,6 +82,7 @@ class Data(TypedDict):
     min: pd.Series
     max: pd.Series
     count: pd.Series
+    constant: pd.Series
 
 
 def _parse_param(dct: MutableMapping[str, Any]) -> pd.DataFrame:
@@ -182,8 +181,8 @@ class ParamMappingABC(AbstractDataClass, ABC, _ParamMappingABC):
     FILL_VALUE: ClassVar[Mapping[ValidKeys, Any]] = MappingProxyType({
         'min': -np.inf,
         'max': np.inf,
-        'constraints': None,  # Dict[str, functools.partial]
-        'count': -1
+        'count': -1,
+        'constant': False,
     })
 
     _PRIVATE_ATTR = frozenset({'_net_charge'})  # type: ignore
@@ -524,7 +523,8 @@ class ParamMapping(ParamMappingABC):
 
         """  # noqa
         # Define a random parameter
-        random_prm: pd.Series = self['param'][param_idx].sample()
+        variable = ~self['constant']
+        random_prm: pd.Series = self['param'].loc[variable, param_idx].sample()
         idx, x1 = next(random_prm.items())  # Type: Tup3, float
 
         # Define a random move size
