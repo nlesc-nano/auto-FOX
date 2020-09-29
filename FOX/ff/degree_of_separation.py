@@ -154,7 +154,7 @@ def _sparse_mat(sparse_type: Type[S], shape: Tuple[int, int], data: np.ndarray,
     except Exception as ex:
         if not issubclass(sparse_type, spmatrix):  # Validate the passed type
             raise TypeError("'sparse_type' expect a subclass of 'spmatrix'; observed type: "
-                            f"'{sparse_type.__class__.__name__}'").with_traceback(ex.__traceback__)
+                            f"'{sparse_type.__class__.__name__}'") from ex
 
         try:  # Try harder
             return sparse_type(csr_matrix((data, (rows, columns)), shape=shape), **kwargs)

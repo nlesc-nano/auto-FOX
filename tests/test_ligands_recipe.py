@@ -57,8 +57,8 @@ def test_plot_descriptor() -> None:
     ref2 = imread(str(PATH / 'ref2.png')).astype('int8')
 
     try:
-        fig1.savefig(name1, dpi=300, quality=100, format='png')
-        fig2.savefig(name2, dpi=300, quality=100, format='png')
+        fig1.savefig(name1, dpi=300, format='png')
+        fig2.savefig(name2, dpi=300, format='png')
 
         ar1 = imread(name1).astype('int8')
         ar2 = imread(name2).astype('int8')

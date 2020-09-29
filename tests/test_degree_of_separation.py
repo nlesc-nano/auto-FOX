@@ -1,5 +1,6 @@
 """A module for testing the :mod:`FOX.ff.degree_of_separation` module."""
 
+import warnings
 from pathlib import Path
 
 import numpy as np
@@ -53,9 +54,12 @@ def test_sparse_bond_matrix():
         bsr_matrix, coo_matrix, csr_matrix, csc_matrix, dia_matrix, dok_matrix, lil_matrix
     )
 
-    for sparse_type in sparse_type_tup:
-        mat_n = sparse_bond_matrix(MOL, sparse_type=sparse_type)
-        np.testing.assert_array_equal(mat_n.toarray(), ref3)
+    with warnings.catch_warnings():
+        warnings.simplefilter('ignore', category=np.VisibleDeprecationWarning())
+
+        for sparse_type in sparse_type_tup:
+            mat_n = sparse_bond_matrix(MOL, sparse_type=sparse_type)
+            np.testing.assert_array_equal(mat_n.toarray(), ref3)
 
     assertion.assert_(sparse_bond_matrix, MOL, dtype='bob', exception=TypeError)
     assertion.assert_(sparse_bond_matrix, MOL, sparse_type='bob', exception=TypeError)
