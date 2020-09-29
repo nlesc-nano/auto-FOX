@@ -118,6 +118,9 @@ def _eq_constraints(constrain_: List[str]) -> ConstrainList:
     ret = []
     for _item in constrain:
         dct: Dict[str, float] = {}
+        if ")" in _item or "(" in _item:
+            raise NotImplementedError(f"Parenthesized constraints are not supported: {_item!r}")
+
         item_split = _split_operator(_item)
         for item in item_split:
             item_list = item.split('*')
