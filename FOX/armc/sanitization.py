@@ -111,6 +111,14 @@ def dict_to_armc(input_dict: MainMapping) -> Tuple[MonteCarloABC, RunDict]:
         _guess_param(mc, _param_frozen, frozen=True, psf=psf_list)
     _guess_param(mc, _param, frozen=False, psf=psf_list)
 
+    mc.param['param'].sort_index(inplace=True)
+    mc.param['param_old'].sort_index(inplace=True)
+    mc.param['min'].sort_index(inplace=True)
+    mc.param['max'].sort_index(inplace=True)
+    mc.param['count'].sort_index(inplace=True)
+    mc.param['constant'].sort_index(inplace=True)
+    mc.param._data['constant'] = mc.param['constant'].astype(bool, copy=False)
+
     # Add PES evaluators
     pes = get_pes(dct['pes'])
     for name, kwargs in pes.items():
@@ -142,8 +150,6 @@ def _guess_param(mc: MonteCarloABC, prm: dict,
 
     # Update the constant parameters
     package.update_settings(seq, new_keys=True)
-    if frozen:
-        return
 
     # Update the variable parameters
     param_mapping = mc.param
@@ -154,8 +160,8 @@ def _guess_param(mc: MonteCarloABC, prm: dict,
             param_mapping['param_old'].loc[key] = value
             param_mapping['min'][key] = -np.inf
             param_mapping['max'][key] = np.inf
-            param_mapping['constraints'][key] = None
             param_mapping['count'][key] = 0
+            param_mapping['constant'][key] = frozen
     return
 
 
@@ -526,21 +532,13 @@ def _parse_ligand_alias(psf_list: Optional[List[PSFContainer]], prm: ParamMappin
 
         atom_types: Iterable[str] = df['atom type'].values
         atom_counter = Counter(atom_types)
-        update = False
         for k in atom_counter:
             key = ('charge', 'charge', k)
             if key not in prm['param'].index:
-                update = True
                 prm['param'].loc[key] = df.loc[df['atom type'] == k, 'charge'].iloc[0]
-                prm['min'].at[key] = -np.inf
-                prm['max'].at[key] = np.inf
-                prm['constant'].at[key] = True
-
-        if update:
-            prm['param'].sort_index(inplace=True)
-            prm['min'].sort_index(inplace=True)
-            prm['max'].sort_index(inplace=True)
-            prm['constant'].sort_index(inplace=True)
+                prm['min'][key] = -np.inf
+                prm['max'][key] = np.inf
+                prm['constant'][key] = True
 
     for lst in prm.constraints.values():
         for series in lst:
