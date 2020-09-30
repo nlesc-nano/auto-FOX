@@ -234,9 +234,10 @@ def get_param(dct: ParamMapping_) -> Tuple[ParamMapping, dict, dict]:
     constraints, min_max = _get_prm_constraints(_sub_prm_dict)
     data[['min', 'max']] = min_max
 
-    for *_key, value in _get_prm(_sub_prm_dict_frozen):
-        key = tuple(_key)
-        data.loc[key, :] = [value, True, -np.inf, np.inf]
+    if _sub_prm_dict_frozen is not None:
+        for *_key, value in _get_prm(_sub_prm_dict_frozen):
+            key = tuple(_key)
+            data.loc[key, :] = [value, value, True, -np.inf, np.inf]
     data.sort_index(inplace=True)
 
     param_type = prm_dict.pop('type')  # type: ignore
@@ -416,6 +417,7 @@ def _get_param_df(dct: Mapping[str, Any]) -> pd.DataFrame:
     df = pd.DataFrame(data, columns=columns)
     df.set_index(['key', 'param_type', 'atoms'], inplace=True)
 
+    df['param_old'] = df['param'].copy()
     df['constant'] = False
     df['min'] = -np.inf
     df['max'] = np.inf
@@ -536,6 +538,7 @@ def _parse_ligand_alias(psf_list: Optional[List[PSFContainer]], prm: ParamMappin
             key = ('charge', 'charge', k)
             if key not in prm['param'].index:
                 prm['param'].loc[key] = df.loc[df['atom type'] == k, 'charge'].iloc[0]
+                prm['param_old'].loc[key] = prm['param'].loc[key]
                 prm['min'][key] = -np.inf
                 prm['max'][key] = np.inf
                 prm['constant'][key] = True

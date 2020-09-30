@@ -10,8 +10,8 @@ def test_assign_constraints() -> None:
     constraints = [
         'H < 1',
         'C >2.0',
-        '3.0> N',
-        '4<O',
+        '-3.0> N',
+        '- 4<O',
         '1 < F< 2.0',
         '2 > P >1.0',
         'S == 2 * Cl == 0.5*Br + -1.5*K - 1*Na == 1* I',
@@ -22,8 +22,8 @@ def test_assign_constraints() -> None:
     extremite_ref = {
         ('H', 'max'): 1.0,
         ('C', 'min'): 2.0,
-        ('N', 'max'): 3.0,
-        ('O', 'min'): 4.0,
+        ('N', 'max'): -3.0,
+        ('O', 'min'): -4.0,
         ('F', 'min'): 1.0,
         ('F', 'max'): 2.0,
         ('P', 'max'): 2.0,
