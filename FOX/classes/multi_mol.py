@@ -111,8 +111,6 @@ class MultiMolecule(_MultiMolecule):
     """
 
     @overload
-    def round(self: MT, decimals: int = ...) -> MT: ...
-    @overload
     def round(self: MT, decimals: int = ..., inplace: Literal[False] = ...) -> MT: ...
     @overload
     def round(self, decimals: int = ..., inplace: Literal[True] = ...) -> None: ...
@@ -272,8 +270,6 @@ class MultiMolecule(_MultiMolecule):
         self.bonds = self.bonds[idx]
 
     @overload
-    def random_slice(self: MT, start: int = ..., stop: Optional[int] = ..., p: float = ...) -> MT: ...  # noqa: E501
-    @overload
     def random_slice(self: MT, start: int = ..., stop: Optional[int] = ..., p: float = ..., inplace: Literal[False] = ...) -> MT: ...  # noqa: E501
     @overload
     def random_slice(self, start: int = ..., stop: Optional[int] = ..., p: float = ..., inplace: Literal[True] = ...) -> None: ...  # noqa: E501
@@ -323,8 +319,6 @@ class MultiMolecule(_MultiMolecule):
         else:
             return self[idx].copy()
 
-    @overload
-    def reset_origin(self, mol_subset: MolSubset = ..., atom_subset: AtomSubset = ...) -> None: ...
     @overload
     def reset_origin(self, mol_subset: MolSubset = ..., atom_subset: AtomSubset = ..., inplace: Literal[True] = ...) -> None: ...  # noqa: E501
     @overload
@@ -382,8 +376,6 @@ class MultiMolecule(_MultiMolecule):
         else:
             return coords @ rotmat
 
-    @overload
-    def sort(self, sort_by: Union[str, Sequence[int]] = ..., reverse: bool = ...) -> None: ...
     @overload
     def sort(self, sort_by: Union[str, Sequence[int]] = ..., reverse: bool = ..., inplace: Literal[True] = ...) -> None: ...  # noqa: E501
     @overload
@@ -458,9 +450,7 @@ class MultiMolecule(_MultiMolecule):
             return mol
 
     @overload
-    def residue_argsort(self) -> np.ndarray: ...
-    @overload
-    def residue_argsort(self, concatenate: Literal[True]) -> np.ndarray: ...
+    def residue_argsort(self, concatenate: Literal[True] = ...) -> np.ndarray: ...
     @overload
     def residue_argsort(self, concatenate: Literal[False]) -> List[List[int]]: ...
     def residue_argsort(self, concatenate=True):  # noqa: E301
@@ -1738,8 +1728,6 @@ class MultiMolecule(_MultiMolecule):
         return ret
 
     @overload
-    def get_angle_mat(self, mol_subset: MolSubset = ..., atom_subset: Tuple[AtomSubset, AtomSubset, AtomSubset] = ...) -> np.ndarray: ...  # noqa: E501
-    @overload
     def get_angle_mat(self, mol_subset: MolSubset = ..., atom_subset: Tuple[AtomSubset, AtomSubset, AtomSubset] = ..., get_r_max: Literal[False] = ...) -> np.ndarray: ...  # noqa: E501
     @overload
     def get_angle_mat(self, mol_subset: MolSubset = ..., atom_subset: Tuple[AtomSubset, AtomSubset, AtomSubset] = ..., get_r_max: Literal[True] = ...) -> Tuple[np.ndarray, float]: ...  # noqa: E501
@@ -1797,9 +1785,7 @@ class MultiMolecule(_MultiMolecule):
             return np.arccos(np.einsum('ijkl,ijml->ijkm', unit_vec1, unit_vec2))
 
     @overload
-    def _get_atom_subset(self, atom_subset: AtomSubset) -> Union[slice, np.ndarray]: ...
-    @overload
-    def _get_atom_subset(self, atom_subset: AtomSubset, as_array: Literal[False]) -> Union[slice, np.ndarray]: ...  # noqa: E501
+    def _get_atom_subset(self, atom_subset: AtomSubset, as_array: Literal[False] = ...) -> Union[slice, np.ndarray]: ...  # noqa: E501
     @overload
     def _get_atom_subset(self, atom_subset: AtomSubset, as_array: Literal[True]) -> np.ndarray: ...
     def _get_atom_subset(self, atom_subset, as_array=False):  # noqa: E301
@@ -2073,11 +2059,9 @@ class MultiMolecule(_MultiMolecule):
                 np.savetxt(file, np.hstack((at, xyz)), header=header.format(i), **kwargs)
 
     @overload
-    def as_mass_weighted(self: MT, mol_subset: MolSubset = ..., atom_subset: AtomSubset = ...) -> MT: ...  # noqa: E501
-    @overload
     def as_mass_weighted(self: MT, mol_subset: MolSubset = ..., atom_subset: AtomSubset = ..., inplace: Literal[False] = ...) -> MT: ...  # noqa: E501
     @overload
-    def as_mass_weighted(self: MT, mol_subset: MolSubset = ..., atom_subset: AtomSubset = ..., inplace: Literal[True] = ...) -> None: ...  # noqa: E501
+    def as_mass_weighted(self, mol_subset: MolSubset = ..., atom_subset: AtomSubset = ..., inplace: Literal[True] = ...) -> None: ...  # noqa: E501
     def as_mass_weighted(self, mol_subset=None, atom_subset=None, inplace=False):  # noqa: E301
         """Transform the Cartesian of this instance into mass-weighted Cartesian coordinates.
 

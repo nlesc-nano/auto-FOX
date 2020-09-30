@@ -7,11 +7,24 @@ import yaml
 import numpy as np
 
 from assertionlib import assertion
+from nanoutils import delete_finally
 
 from FOX import MultiMolecule, example_xyz
 
 MOL = MultiMolecule.from_xyz(example_xyz)
+MOL.guess_bonds(['C', 'H', 'O'])
+
 PATH = join('tests', 'test_files')
+
+
+@delete_finally(join(PATH, '.tmp.xyz'))
+def test_mol_to_file():
+    """Test :meth:`MultiMolecule._mol_to_file`."""
+    file = join(PATH, '.tmp.xyz')
+    MOL._mol_to_file(file, 'xyz')
+
+    mol = MultiMolecule.from_xyz(file)
+    np.testing.assert_allclose(MOL[0][None], mol, atol=1e-6)
 
 
 def test_delete_atoms():
@@ -300,3 +313,47 @@ def test_from_xyz():
 
     mol_new = MultiMolecule.from_xyz(example_xyz)
     np.testing.assert_allclose(mol_new, mol)
+
+
+def test_properties():
+    """Test :class:`MultiMolecule` properties."""
+    mol = MOL.copy()
+
+    order_ref1 = mol.bonds[:, 2] / 10.0
+    np.testing.assert_array_equal(mol.order, order_ref1)
+
+    order_ref2 = np.arange(len(mol.bonds))
+    mol.order = order_ref2
+    np.testing.assert_array_equal(mol.order, order_ref2)
+
+    np.testing.assert_array_equal(mol.x, mol[..., 0])
+    np.testing.assert_array_equal(mol.y, mol[..., 1])
+    np.testing.assert_array_equal(mol.z, mol[..., 2])
+
+    mol.x = 1
+    mol.y = 2
+    mol.z = 3
+    np.testing.assert_array_equal(mol.x, 1)
+    np.testing.assert_array_equal(mol.y, 2)
+    np.testing.assert_array_equal(mol.z, 3)
+
+
+def test_loc():
+    """Test :attr:`MultiMolecule.loc`."""
+    mol = MOL.copy()
+
+    loc1 = mol.loc
+    loc2 = mol.loc
+
+    assertion.eq(loc1, loc2)
+    assertion.eq(hash(loc1), hash(loc2))
+    assertion.assert_(loc1.__reduce__, exception=TypeError)
+
+    assertion.shape_eq(mol.loc['Cd'], (4905, 68, 3))
+    assertion.shape_eq(mol.loc['Cd', 'Cd'], (4905, 136, 3))
+    assertion.assert_(mol.loc.__getitem__, 1, exception=TypeError)
+
+    mol.loc['Cd'] = 1
+    np.testing.assert_array_equal(mol.loc['Cd'], 1)
+
+    assertion.assert_(mol.loc.__delitem__, 'Cd', exception=ValueError)
