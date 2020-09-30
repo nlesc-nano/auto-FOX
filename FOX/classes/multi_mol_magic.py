@@ -29,7 +29,7 @@ import numpy as np
 
 from scm.plams import PeriodicTable, PTError, Settings  # type: ignore
 from assertionlib.ndrepr import NDRepr
-from assertionlib.dataclass import AbstractDataClass
+from nanoutils import ArrayLike, Literal
 
 __all__: List[str] = []
 
@@ -52,7 +52,7 @@ _NONE_DICT: Mapping[str, Union[str, int, float]] = MappingProxyType({
 })
 
 
-class _MolLoc(AbstractDataClass, Generic[MT]):
+class _MolLoc(Generic[MT]):
     """A getter and setter for atom-type-based slicing.
 
     Get, set and del operations are performed using the list(s) of atomic indices associated
@@ -112,20 +112,9 @@ class _MolLoc(AbstractDataClass, Generic[MT]):
             return self._atoms
 
     def __init__(self, mol: MT) -> None:
-        super().__init__()
         self._mol = mol
 
-    @AbstractDataClass.inherit_annotations()
-    def _str_iterator(self):
-        yield 'mol', self.mol
-
-    def _value_error(self) -> ValueError:
-        """Return a :exc:`ValueError`."""
-        cls_name = self.mol.__class__.__name__
-        ndim = self.mol.ndim
-        return ValueError(f"{cls_name}.loc() expected a >= 2D array; observed dimensionality: {ndim!r}D")  # noqa: E501
-
-    def _type_error(self, obj: Any) -> TypeError:
+    def _type_error(self, obj: object) -> TypeError:
         """Return a :exc:`TypeError`."""
         cls_name = self.mol.__class__.__name__
         name = obj.__class__.__name__
@@ -134,18 +123,12 @@ class _MolLoc(AbstractDataClass, Generic[MT]):
     def __getitem__(self, key: Union[str, Iterable[str]]) -> MT:
         """Get items from :attr:`_MolLoc.mol`."""
         idx = self._parse_key(key)
-        try:
-            return self.mol[..., idx, :]
-        except IndexError as ex:
-            raise self._value_error() from ex
+        return self.mol[..., idx, :]
 
-    def __setitem__(self, key: Union[str, Iterable[str]], value: Any) -> None:
+    def __setitem__(self, key: Union[str, Iterable[str]], value: ArrayLike) -> None:
         """Set items in :attr:`_MolLoc.mol`."""
         idx = self._parse_key(key)
-        try:
-            self.mol[..., idx, :] = value
-        except IndexError as ex:
-            raise self._value_error() from ex
+        self.mol[..., idx, :] = value
 
     def __delitem__(self, key: Union[str, Iterable[str]]) -> NoReturn:
         """Delete items from :attr:`_MolLoc.mol`; this raises a :exc:`ValueError`."""
@@ -153,7 +136,7 @@ class _MolLoc(AbstractDataClass, Generic[MT]):
         del self.mol[..., idx, :]  # This will raise a ValueError
         raise
 
-    def _parse_key(self, key: Union[str, Iterable[str]]) -> List[int]:
+    def _parse_key(self, key: Union[str, Iterable[str]]) -> np.ndarray:
         """Return the atomic indices of **key** are all atoms in **key**.
 
         Parameter
@@ -181,6 +164,9 @@ class _MolLoc(AbstractDataClass, Generic[MT]):
         for k in key_iterator:
             idx += atoms[k]
         return idx
+
+    def __reduce__(self) -> NoReturn:
+        raise TypeError(f'cannot pickle {self.__class__.__name__!r} object')
 
     def __hash__(self) -> int:
         """Implement :code:`hash(self)`."""
@@ -356,7 +342,9 @@ class _MultiMolecule(np.ndarray):
         """Get the atomic connectors of all atoms in :attr:`.MultiMolecule.atoms` as 1D array."""
         return self._get_atomic_property('connectors')
 
-    def _get_atomic_property(self, prop: str = 'symbol') -> np.ndarray:
+    def _get_atomic_property(
+        self, prop: Literal['symbol', 'radius', 'atnum', 'mass', 'connectors']
+    ) -> np.ndarray:
         """Create a flattened array with atomic properties.
 
         Take **self.atoms** and return an (concatenated) array of a specific property associated
@@ -434,15 +422,8 @@ class _MultiMolecule(np.ndarray):
 
     def __str__(self) -> str:
         """Return a human-readable string constructed from this instance."""
-        def _str(k: str, v: Any) -> str:
-            key = k.strip('_')
-            str_list = self._ndrepr.repr(v).split('\n')
-            joiner = '\n' + (3 + len(key)) * ' '
-            return f'{k} = ' + joiner.join(i for i in str_list)
-
-        ret = super().__str__() + '\n\n'
-        ret += ',\n\n'.join(_str(k, v) for k, v in vars(self).items())
-        ret_indent = textwrap.indent(ret, '    ')
+        ret = super().__str__()
+        ret_indent = textwrap.indent(ret, 4 * ' ')
         return f'{self.__class__.__name__}(\n{ret_indent}\n)'
 
     def __repr__(self) -> str:
