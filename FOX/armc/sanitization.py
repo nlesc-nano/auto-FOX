@@ -234,9 +234,10 @@ def get_param(dct: ParamMapping_) -> Tuple[ParamMapping, dict, dict]:
     constraints, min_max = _get_prm_constraints(_sub_prm_dict)
     data[['min', 'max']] = min_max
 
-    for *_key, value in _get_prm(_sub_prm_dict_frozen):
-        key = tuple(_key)
-        data.loc[key, :] = [value, True, -np.inf, np.inf]
+    if _sub_prm_dict_frozen is not None:
+        for *_key, value in _get_prm(_sub_prm_dict_frozen):
+            key = tuple(_key)
+            data.loc[key, :] = [value, True, -np.inf, np.inf]
     data.sort_index(inplace=True)
 
     param_type = prm_dict.pop('type')  # type: ignore
