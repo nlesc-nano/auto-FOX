@@ -42,6 +42,7 @@ __all__ = ['validate_mapping', 'load_results']
 
 KT = TypeVar('KT')
 VT = TypeVar('VT')
+RT = TypeVar('RT', bound=Result)
 
 
 class AssertionWarning(Warning):
@@ -218,14 +219,13 @@ def validate_mapping(mapping: Mapping[KT, VT],
                          f"{', '.join(repr(k) for k in exc_dict)}") from exc_old
 
 
-RT = TypeVar('RT', bound=Result)
-
-
 @overload
-def load_results(workdir: PathType) -> List[CP2KMM_Result]: ...
-@overload
-def load_results(workdir: PathType, result_type: Type[RT]) -> List[RT]: ...
-def load_results(workdir, result_type=CP2KMM_Result):  # noqa: E302
+def load_results(workdir: PathType, *, n: int = ...) -> List[Tuple[CP2KMM_Result, ...]]:
+    ...
+@overload  # noqa: E302
+def load_results(workdir: PathType, *, result_type: Type[RT], n: int = ...) -> List[Tuple[RT, ...]]:
+    ...
+def load_results(workdir, *, result_type=CP2KMM_Result, n=1):  # noqa: E302
     """Construct a :class:`~qmflows.packages.packages.Result` instances for all jobs in the passed PLAMS working directory.
 
     Parameters
@@ -234,16 +234,24 @@ def load_results(workdir, result_type=CP2KMM_Result):  # noqa: E302
         A path-like object pointing to the PLAMS working directory.
     result_type : :class:`type` [:class:`~qmflows.packages.packages.Result`]
         The type of the to-be returned Result object.
+    n : :class:`int`
+        The length of each nested tuple.
 
     Returns
     -------
-    :class:`list` [:class:`~qmflows.packages.packages.Result`]
-        A list of Result objects of the type specified in **result_type**.
+    :class:`List[Tuple[Result, ...]]]<typing.List>`
+        A list of tuples with Result objects of the type specified in **result_type**.
+        Each tuple is of length **n**.
 
     """  # noqa: E501
+    if n <= 0:
+        raise ValueError(f"'n' cannot be smaller than 1; observed value: {n!r}")
     workdir_path = Path(abspath(workdir))
+
     ret = []
-    for jobname in listdir(workdir_path):
+    tmp = []
+    i = -n
+    for jobname in sorted(listdir(workdir_path)):
         plams_dir = workdir_path / jobname
         if not isdir(plams_dir):
             continue
@@ -254,5 +262,15 @@ def load_results(workdir, result_type=CP2KMM_Result):  # noqa: E302
 
         result = result_type(settings, mol, jobname, dill_path=dill_path,
                              plams_dir=plams_dir, work_dir=plams_dir, status='successful')
-        ret.append(result)
+
+        tmp.append(result)
+        i += 1
+        if not i:
+            ret.append(tuple(tmp))
+            tmp = []
+            i = -n
+
+    if len(ret[-1]) != n:
+        m = len(ret[-1])
+        raise ValueError(f"len(ret[-1]) == {m}; {m} != {n!r}")
     return ret

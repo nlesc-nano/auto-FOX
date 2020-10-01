@@ -101,7 +101,7 @@ setup(
         'scipy',
         'pandas',
         'schema',
-        'AssertionLib>=2.1',
+        'AssertionLib>=2.2',
         'noodles>=0.3.3',
         'qmflows@git+https://github.com/SCM-NV/qmflows@master',
         'plams@git+https://github.com/SCM-NV/PLAMS@master'
