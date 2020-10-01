@@ -222,7 +222,7 @@ def validate_mapping(mapping: Mapping[KT, VT],
 @overload
 def load_results(workdir: PathType, *, n: int = ...) -> List[Tuple[CP2KMM_Result, ...]]:
     ...
-@overload
+@overload  # noqa: E302
 def load_results(workdir: PathType, *, result_type: Type[RT], n: int = ...) -> List[Tuple[RT, ...]]:
     ...
 def load_results(workdir, *, result_type=CP2KMM_Result, n=1):  # noqa: E302
