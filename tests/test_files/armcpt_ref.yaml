@@ -1,0 +1,81 @@
+param:
+    type: FOX.armc.ParamMapping
+    move_range:
+        ratio: [1, 2, 4]
+        start: 0.005
+        stop: 0.1
+        step: 0.005
+
+    charge:
+        param: charge
+        constraints:
+            - 'Cd == -2 * $LIGAND'
+            - '0 < Cd < 2'
+            - '-2 < Se < 0'
+            - '-1 < O_1 < 0'
+            - '0 < C_1 < 1'
+        Cd: 0.9768
+        Se: -0.9768
+        O_1: -0.47041
+        C_1: 0.4524
+    lennard_jones:
+        -   unit: kjmol
+            param: epsilon
+            Cd Cd: 0.3101
+            Se Se: 0.4266
+            Cd Se: 1.5225
+            Cd O_1: 1.8340
+            Se O_1: 1.6135
+        -   unit: nm
+            param: sigma
+            Cd Cd: 0.1234
+            Se Se: 0.4852
+            Cd Se: 0.2940
+            Cd O_1: 0.2471
+            Se O_1: 0.3526
+
+psf:
+    str_file: tests/test_files/ligand.str
+    ligand_atoms: [C, O, H]
+
+pes:
+    rdf:
+        func: FOX.MultiMolecule.init_rdf
+        kwargs:
+            atom_subset: [Cd, Se, O]
+
+job:
+    type: FOX.armc.PackageManager
+    molecule: tests/test_files/Cd68Se55_26COO_MD_trajec.xyz
+
+    md:
+        type: qmflows.cp2k_mm
+        template: qmflows.md.specific.cp2k_mm
+        settings:
+            prm: tests/test_files/ligand.prm
+            input:
+                force_eval:
+                    mm:
+                        forcefield:
+                            spline:
+                                emax_spline: 500.0
+                                r0_nb: 0.1
+                motion:
+                    md:
+                        steps: 100
+
+monte_carlo:
+    type: FOX.armc.ARMCPT
+    iter_len: 100
+    sub_iter_len: 10
+    logfile: armc.log
+    hdf5_file: armc.hdf5
+    path: tests/test_files
+    folder: _ARMCPT
+    keep_files: True
+
+phi:
+    type: FOX.armc.PhiUpdater
+    phi: [1, 2, 4]
+    gamma: [2, 2, 2]
+    a_target: [0.25, 0.375, 0.5]
