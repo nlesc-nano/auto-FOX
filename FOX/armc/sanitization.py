@@ -15,7 +15,6 @@ API
 import os
 import copy
 from pathlib import Path
-from itertools import islice
 from collections import abc, Counter
 from typing import (
     Union, Iterable, Tuple, Optional, Mapping, Any, MutableMapping, Hashable,
@@ -357,21 +356,15 @@ def _generate_psf(file_list: Iterable[Union[str, os.PathLike]],
     return ret
 
 
-def _psf_idx_iterator(job_list: Iterable[T], phi: Iterable) -> Generator[Tuple[int, T], None, None]:
-    job_iterator = iter(job_list)
-    for i, job in enumerate(job_iterator):
-        yield i, job
-
-        phi_iterator = islice(phi, 1)
-        for _, job in zip(phi_iterator, job_iterator):
-            yield i, job
-
-
-def _update_psf_settings(job_lists: Iterable[Iterable[MutableMapping[str, Any]]], phi: Iterable,
+def _update_psf_settings(job_lists: Iterable[Iterable[MutableMapping[str, Any]]], phi: Collection,
                          workdir: Union[str, os.PathLike]) -> None:
     """Set the .psf path in all job settings."""
     for job_list in job_lists:
-        iterator = _psf_idx_iterator(job_list, phi)
+        if len(phi) == 1:
+            iterator = enumerate(job_list)
+        else:
+            iterator = ((0, job) for job in job_list)
+
         for i, job in iterator:
             job['settings'].psf = os.path.join(workdir, f'mol.{i}.psf')
 
