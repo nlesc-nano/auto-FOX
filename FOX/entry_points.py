@@ -27,6 +27,7 @@ from os.path import isfile, join
 from typing import Optional
 
 import yaml
+import h5py
 
 from .armc import dict_to_armc, run_armc
 from .armc.csv_utils import dset_to_csv
