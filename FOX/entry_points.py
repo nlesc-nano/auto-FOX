@@ -1,9 +1,5 @@
 #!/usr/bin/env python
-"""
-FOX.entry_points
-================
-
-Entry points for Auto-FOX.
+"""Entry points for Auto-FOX.
 
 Index
 -----
@@ -17,11 +13,11 @@ Index
 
 API
 ---
-.. autofunction:: FOX.entry_points.main_armc
-.. autofunction:: FOX.entry_points.main_plot_pes
-.. autofunction:: FOX.entry_points.main_plot_param
-.. autofunction:: FOX.entry_points.main_plot_dset
-.. autofunction:: FOX.entry_points.main_dset_to_csv
+.. autofunction:: main_armc
+.. autofunction:: main_plot_pes
+.. autofunction:: main_plot_param
+.. autofunction:: main_plot_dset
+.. autofunction:: main_dset_to_csv
 
 """
 
@@ -30,10 +26,11 @@ import argparse
 from os.path import isfile, join
 from typing import Optional
 
-from .classes.armc import ARMC, run_armc
-from .armc_functions.csv_utils import dset_to_csv
-from .armc_functions.guess import guess_param
-from .armc_functions.plotting import plot_pes_descriptors, plot_param, plot_dset
+import yaml
+
+from .armc import dict_to_armc, run_armc
+from .armc.csv_utils import dset_to_csv
+from .armc.plotting import plot_pes_descriptors, plot_param, plot_dset
 
 try:
     import matplotlib.pyplot as plt
@@ -42,13 +39,11 @@ except ImportError:
 
 try:
     import h5py
-    H5PY_ERROR = ''
+    H5PY_ERROR = None
 except ImportError:
     H5PY_ERROR = ("Use of the FOX.{} function requires the 'h5py' package."
                   "\n'h5py' can be installed via anaconda with the following command:"
                   "\n\tconda install --name FOX -y -c conda-forge h5py")
-
-__all__: list = []
 
 
 def main_armc(args: Optional[list] = None) -> None:
@@ -77,12 +72,16 @@ def main_armc(args: Optional[list] = None) -> None:
     if not isfile(filename):
         raise FileNotFoundError("[Errno 2] No such file: '{}'".format(filename))
 
-    armc, kwargs = ARMC.from_yaml(filename)
+    with open(filename, 'r') as f:
+        dct = yaml.load(f.read(), Loader=yaml.FullLoader)
+    armc, kwargs = dict_to_armc(dct)
     run_armc(armc, restart=restart, **kwargs)
 
 
 def main_armc2yaml(args: Optional[list] = None) -> None:
     """Entrypoint for :meth:`FOX.classes.armc.ARMC.to_yaml`."""
+    raise NotImplementedError
+
     parser = argparse.ArgumentParser(
          prog='FOX',
          usage='init_armc filename -o output',
@@ -111,24 +110,9 @@ def main_armc2yaml(args: Optional[list] = None) -> None:
         i = 0
         while True:
             output: str = _output.format(i)
-            if not isfile(filename):
+            if not isfile(output):
                 break
             i += 1
-
-    armc, kwargs = ARMC.from_yaml(filename)
-
-    # Create the .psf files
-    if kwargs['psf'] is not None:
-        for item in kwargs['psf']:
-            item.write(None)
-
-    # Guess the remaining unspecified parameters based on either UFF or the RDF
-    if kwargs['guess'] is not None:
-        for k, v in kwargs['guess'].items():
-            frozen = (k if v['frozen'] else None)
-            guess_param(armc, mode=v['mode'], columns=k, frozen=frozen)
-
-    armc.to_yaml(output, path=kwargs['path'], logfile=kwargs['logfile'], folder=kwargs['folder'])
 
 
 def main_plot_pes(args: Optional[list] = None) -> None:
@@ -190,11 +174,11 @@ def main_plot_pes(args: Optional[list] = None) -> None:
 
     if output is None:
         for dset in datasets_:
-            fig = plot_pes_descriptors(input_, dset, dset + '.png', iteration=iteration)
+            plot_pes_descriptors(input_, dset, dset + '.png', iteration=iteration)
             plt.show(block=True)
     else:
         for i, dset in enumerate(datasets_):
-            fig = plot_pes_descriptors(input_, dset, str(i) + '_' + output, iteration=iteration)
+            plot_pes_descriptors(input_, dset, str(i) + '_' + output, iteration=iteration)
             plt.show(block=True)
 
 
@@ -223,9 +207,9 @@ def main_plot_param(args: Optional[list] = None) -> None:
     output = args_parsed.output[0]
 
     if output is None:
-        fig = plot_param(input_, 'param.png')
+        plot_param(input_, 'param.png')
     else:
-        fig = plot_param(input_, output)
+        plot_param(input_, output)
     plt.show(block=True)
 
 
@@ -264,9 +248,9 @@ def main_plot_dset(args: Optional[list] = None) -> None:
         raise ValueError('The "--datasets" argument expects one or more dataset names')
 
     if output is None:
-        fig = plot_dset(input_, datasets, 'datasets.png')
+        plot_dset(input_, datasets, 'datasets.png')
     else:
-        fig = plot_dset(input_, datasets, output)
+        plot_dset(input_, datasets, output)
     plt.show(block=True)
 
 

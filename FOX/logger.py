@@ -1,8 +1,4 @@
-"""
-FOX.logger
-==========
-
-A module for managing all Auto-FOX loggers.
+"""A module for managing all Auto-FOX loggers.
 
 Index
 -----
@@ -16,19 +12,66 @@ API
 
 """
 
-import logging
-from typing import Optional, Type, Any, Callable
+import os
+from typing import Optional, Iterable, Any, Callable, Union
+from logging import Logger, StreamHandler, Handler, FileHandler, DEBUG, getLogger, Formatter
+from functools import wraps
 
-__all__ = ['get_logger', 'Plams2Logger', 'DEFAULT_LOGGER']
+from scm.plams import config
+
+__all__ = ['DEFAULT_LOGGER', 'DummyLogger', 'get_logger', 'Plams2Logger', 'wrap_plams_logger']
+
+
+def _pass(*args: Any, **kwargs: Any) -> None:
+    pass
+
+
+class DummyLogger(Logger):
+    """A :class:`~logging.Logger` subclass whose methods do absolutely nothing."""
+
+    __slots__ = ()
+
+    __init__ = wraps(Logger.__init__)(_pass)
+    __repr__ = object.__repr__
+
+    warning = warn = wraps(Logger.warning)(_pass)
+    info = wraps(Logger.info)(_pass)
+    debug = wraps(Logger.debug)(_pass)
+    error = wraps(Logger.error)(_pass)
+    critical = fatal = wraps(Logger.critical)(_pass)
+    log = wraps(Logger.log)(_pass)
+    exception = wraps(Logger.exception)(_pass)
+
+
+def wrap_plams_logger(logfile: Union[None, str, os.PathLike] = None,
+                      name: str = 'logger', **kwargs: Any) -> Logger:
+    """Substitute the PLAMS .log file for one created by a :class:`Logger<logging.Logger>`."""
+    # Define filenames
+    plams_logfile = config.default_jobmanager.logfile
+    logfile = os.path.abspath(logfile) if logfile is not None else plams_logfile
+
+    # Modify the plams logger
+    config.log.time = False
+    config.log.file = 0
+
+    # Replace the plams logger with a proper logging.Logger instance
+    os.remove(plams_logfile)
+    logger = get_logger(name, handlers=[FileHandler(logfile), StreamHandler()], **kwargs)
+    if plams_logfile != logfile:
+        try:
+            os.symlink(logfile, plams_logfile)
+        except OSError:
+            pass
+
+    return logger
 
 
 def get_logger(name: str,
-               handler_type: Type[logging.Handler] = logging.FileHandler,
-               level: int = logging.DEBUG,
+               handlers: Union[Handler, Iterable[Handler]] = FileHandler,
+               level: int = DEBUG,
                style: str = '{',
                fmt: Optional[str] = '[{asctime}] {levelname}: {message}',
-               datefmt: Optional[str] = '%H:%M:%S',
-               **kwargs: Any) -> logging.Logger:
+               datefmt: Optional[str] = '%H:%M:%S') -> Logger:
     r"""Create and return a new :class:`Logger<logging.Logger>` instance.
 
     More details about the various options is provided in the :mod:`logging` module.
@@ -50,10 +93,8 @@ def get_logger(name: str,
     name : :class:`str`
         The name of the to-be returned logger.
 
-    handler_type : :class:`type` [:class:`logging.Handler`]
-        The type of logging Handler assigned to the to-ber returned logger.
-        Note that certain handler types require additional positional arguments,
-        *e.g.* the ``filename`` argument of :class:`FileHandler<logging.FileHandler>`.
+    handlers : :class:`~collections.abc.Iterable` [:class:`logging.Handler`]
+        An iterable with one or more logging Handler.
 
     level : :class:`int`
         The level of logging.
@@ -68,33 +109,21 @@ def get_logger(name: str,
     datefmt : :class:`str`, optional
         A pre-formatted string for to-be reported date(s)/time(s).
 
-    \**kwargs : :data:`Any<typing.Any>`
-        Further keyword arguments specific to the provided **handler_type**.
-        The relevant arguments for :class:`FileHandler<logging.FileHandler>` are
-        ``filename`` (positional), ``mode``, ``encoding`` and ``delay``.
-
     Returns
     -------
     :class:`Logger<logging.Logger>`
         A newly constructed Logger instance.
 
     """
-    # Create and customize the console handler
-    try:
-        handler = handler_type(**kwargs)
-    except TypeError as ex:
-        if 'required positional argument' not in ex.args[0]:
-            raise ex
-        ex.args = (f'{handler_type.__name__}.{ex.args[0]}',)
-        raise ex
-
-    handler.setLevel(level)
-    handler.setFormatter(logging.Formatter(fmt=fmt, datefmt=datefmt, style=style))
-
     #: The Auto-FOX ARMC logger.
-    logger = logging.getLogger(name=name)
+    logger = getLogger(name=name)
     logger.setLevel(level)
-    logger.addHandler(handler)
+
+    handler_list = [handlers] if isinstance(handlers, Handler) else handlers
+    for handler in handler_list:
+        handler.setLevel(level)
+        handler.setFormatter(Formatter(fmt=fmt, datefmt=datefmt, style=style))
+        logger.addHandler(handler)
 
     return logger
 
@@ -138,7 +167,7 @@ class Plams2Logger:
         """Return the :meth:`Logger.warning<logging.Logger.warning>` method of :attr:`Plams2Logger.logger.`."""  # noqa
         return self.logger.warning
 
-    def __init__(self, logger: logging.Logger, *filters: Callable[[str], bool]) -> None:
+    def __init__(self, logger: Logger, *filters: Callable[[str], bool]) -> None:
         self.logger = logger
         self.filters = filters
 
@@ -165,5 +194,5 @@ class Plams2Logger:
         return None
 
 
-#: The default Auto-FOX :class:`~logging.Logger`.
-DEFAULT_LOGGER = get_logger('FOX', handler_type=logging.StreamHandler)
+#: The default :class:`~logging.Logger` used by :class:`~FOX.armc.MonteCarloABC`.
+DEFAULT_LOGGER = get_logger('FOX', handlers=StreamHandler())

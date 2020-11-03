@@ -2,55 +2,35 @@
 
 from pathlib import Path
 
-import yaml
 import numpy as np
 from assertionlib import assertion
 
-from scm.plams import Settings
-
-from FOX import ARMC as ARMCType
-from FOX.armc_functions.guess import guess_param
+from FOX import MultiMolecule
+from FOX.armc import guess_param
 
 PATH = Path('tests') / 'test_files'
-ARMC, _ = ARMCType.from_yaml(PATH / 'armc.yaml')
-ARMC.md_settings[0].input.force_eval.subsys.topology.conn_file_name = str(PATH / 'mol.0.psf')
+
+MOL_LIST = [MultiMolecule.from_xyz(PATH / 'Cd68Se55_26COO_MD_trajec.xyz')]
+PSF_LIST = [PATH / 'Cd68Se55_26COO_MD_trajec.psf']
+PRM = PATH / 'Cd68Se55_26COO_MD_trajec.prm'
 
 
 def test_guess_param() -> None:
-    """Test :func:`FOX.armc_functions.guess.guess_param`."""
-    armc = ARMC.copy(deep=True)
-    assertion.assert_(guess_param, armc, mode='bob', exception=ValueError)
-    assertion.assert_(guess_param, armc, mode=1, exception=ValueError)
+    """Test :func:`FOX.armc.guess.guess_param`."""
+    ar = np.array([
+        guess_param(MOL_LIST, 'sigma', mode='rdf', prm=PRM, psf_list=PSF_LIST),
+        guess_param(MOL_LIST, 'sigma', mode='uff', prm=PRM, psf_list=PSF_LIST),
+        guess_param(MOL_LIST, 'sigma', mode='crystal_radius', prm=PRM, psf_list=PSF_LIST),
+        guess_param(MOL_LIST, 'sigma', mode='ion_radius', prm=PRM, psf_list=PSF_LIST),
+        guess_param(MOL_LIST, 'epsilon', mode='rdf', prm=PRM, psf_list=PSF_LIST),
+        guess_param(MOL_LIST, 'epsilon', mode='uff', prm=PRM, psf_list=PSF_LIST)
+    ])
 
-    guess_param(armc, mode='rdf')
-    param1 = armc.param['param']
-    ref1 = np.load(PATH / 'guess_param_rdf.npy')
-    np.testing.assert_allclose(param1, ref1, rtol=1e-06)
-    with open(PATH / 'guess_param_rdf.yaml', 'r') as f:
-        s1 = armc.md_settings[0].input.force_eval.mm.forcefield.nonbonded
-        for i in s1['lennard-jones']:
-            i.epsilon = i.epsilon[:-2]
-            i.sigma = i.sigma[:-2]
-        s1_ref = Settings(yaml.load(f, Loader=yaml.Loader))
-        assertion.eq(s1, s1_ref)
+    ref = np.load(PATH / 'guess_param.npy')
+    np.testing.assert_allclose(ar, ref, rtol=1e-05)
 
-    armc = ARMC.copy(deep=True)
-    guess_param(armc, mode='uff')
-    param2 = armc.param['param']
-    ref2 = np.load(PATH / 'guess_param_uff.npy')
-    np.testing.assert_allclose(param2, ref2, rtol=1e-06)
-    with open(PATH / 'guess_param_uff.yaml', 'r') as f:
-        s2 = armc.md_settings[0].input.force_eval.mm.forcefield.nonbonded
-        for i in s2['lennard-jones']:
-            i.epsilon = i.epsilon[:-2]
-            i.sigma = i.sigma[:-2]
-        s2_ref = Settings(yaml.load(f, Loader=yaml.Loader))
-        assertion.eq(s2, s2_ref)
-
-    armc = ARMC.copy(deep=True)
-    guess_param(armc, mode='rdf', frozen=['sigma', 'epsilon'])
-    np.testing.assert_allclose(armc.param['param'], ARMC.param['param'].sort_index())
-
-    armc = ARMC.copy(deep=True)
-    guess_param(armc, mode='uff', frozen=['sigma', 'epsilon'])
-    np.testing.assert_allclose(armc.param['param'], ARMC.param['param'].sort_index())
+    assertion.assert_(guess_param, MOL_LIST, 'epsilon', 'crystal_radius',
+                      exception=NotImplementedError)
+    assertion.assert_(guess_param, MOL_LIST, 'epsilon', 'ion_radius', exception=NotImplementedError)
+    assertion.assert_(guess_param, MOL_LIST, 'bob', 'crystal_radius', exception=ValueError)
+    assertion.assert_(guess_param, MOL_LIST, 'epsilon', int, exception=TypeError)

@@ -1,4 +1,16 @@
-"""A module for randimizing parameters."""
+"""A module for randimizing parameters.
+
+Index
+-----
+.. currentmodule:: FOX.functions.randomize_param
+.. autosummary::
+    randomize
+
+API
+---
+.. autofunction:: randomize
+
+"""
 
 from typing import Callable, Optional
 

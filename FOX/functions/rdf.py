@@ -1,14 +1,30 @@
-"""A module for constructing radial distribution functions."""
+"""A module for constructing radial distribution functions.
 
-from typing import Sequence, Hashable
+Index
+-----
+.. currentmodule:: FOX.functions.adf
+.. autosummary::
+    get_rdf
+    get_rdf_lowmem
+    get_rdf_df
+
+API
+---
+.. autofunction:: get_rdf
+.. autofunction:: get_rdf_lowmem
+.. autofunction:: get_rdf_df
+
+"""
+
+from typing import Hashable, Iterable
 
 import numpy as np
 import pandas as pd
 
-__all__ = ['get_rdf_lowmem', 'get_rdf']
+__all__ = ['get_rdf_df', 'get_rdf_lowmem', 'get_rdf']
 
 
-def get_rdf_df(atom_pairs: Sequence[Hashable],
+def get_rdf_df(atom_pairs: Iterable[Hashable],
                dr: float = 0.05,
                r_max: float = 12.0) -> pd.DataFrame:
     """Construct and return a pandas dataframe filled with zeros.

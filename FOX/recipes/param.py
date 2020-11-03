@@ -1,8 +1,4 @@
-"""
-FOX.recipes.param
-=================
-
-A set of functions for analyzing and plotting ARMC results.
+"""A set of functions for analyzing and plotting ARMC results.
 
 Examples
 --------
@@ -126,41 +122,28 @@ API
 from typing import Dict, Union, Iterable, Any, FrozenSet, Tuple, Iterator, Hashable, Optional
 from collections import abc
 
+import h5py
 import numpy as np
 import pandas as pd
 from pandas.core.generic import NDFrame
+from nanoutils import raise_if
+
+from FOX import from_hdf5
+from FOX.logger import DEFAULT_LOGGER as logger
 
 try:
     import matplotlib.pyplot as plt
-    PltFigure: Union[type, str] = plt.Figure
-    PLT_ERROR: Optional[str] = None
-except ImportError:
-    PltFigure = 'matplotlib.pyplot.Figure'
-    PLT_ERROR = (
-        "Use of the FOX.{} function requires the 'matplotlib' package."
-        "\n'matplotlib' can be installed via PyPi with the following command:"
-        "\n\tpip install matplotlib"
-    )
-
-try:
-    import h5py
-    H5PY_ERROR: Optional[str] = None
-except ImportError:
-    H5PY_ERROR = (
-        "Use of the FOX.{} function requires the 'h5py' package."
-        "\n'h5py' can be installed via conda with the following command:"
-        "\n\tconda install -n FOX -c conda-forge h5py"
-    )
-
-from FOX import from_hdf5, assert_error
-from FOX.logger import DEFAULT_LOGGER as logger
+    from matplotlib.pyplot import Figure
+    PLT_ERROR: Optional[ImportError] = None
+except ImportError as ex:
+    from FOX.type_alias import Figure
+    PLT_ERROR = ex
 
 __all__ = ['get_best', 'overlay_descriptor', 'plot_descriptor']
 
 PlotAccessor: type = pd.DataFrame.plot  # A class used by Pandas for plotting stuff
 
 
-@assert_error(H5PY_ERROR)
 def get_best(hdf5_file: str, name: str = 'rdf', i: int = 0) -> pd.DataFrame:
     """Return the PES descriptor or ARMC property which yields the lowest error.
 
@@ -209,7 +192,6 @@ def get_best(hdf5_file: str, name: str = 'rdf', i: int = 0) -> pd.DataFrame:
     return df
 
 
-@assert_error(H5PY_ERROR)
 def overlay_descriptor(hdf5_file: str, name: str = 'rdf', i: int = 0) -> Dict[str, pd.DataFrame]:
     """Return the PES descriptor which yields the lowest error and overlay it with the reference PES descriptor.
 
@@ -254,11 +236,11 @@ def overlay_descriptor(hdf5_file: str, name: str = 'rdf', i: int = 0) -> Dict[st
     return ret
 
 
-@assert_error(PLT_ERROR)
+@raise_if(PLT_ERROR)
 def plot_descriptor(descriptor: Union[NDFrame, Iterable[NDFrame]],
                     show_fig: bool = True, kind: str = 'line',
                     sharex: bool = True, sharey: bool = False,
-                    **kwargs: Any) -> PltFigure:
+                    **kwargs: Any) -> Figure:
     r"""Plot a DataFrame or iterable consisting of one or more DataFrames.
 
     Requires the matplotlib_ package.

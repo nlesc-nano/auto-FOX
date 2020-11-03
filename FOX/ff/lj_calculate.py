@@ -1,8 +1,4 @@
-r"""
-FOX.ff.lj_calculate
-===================
-
-A module for calculating non-bonded interactions using Coulomb + Lennard-Jones potentials.
+r"""A module for calculating non-bonded interactions using Coulomb + Lennard-Jones potentials.
 
 See :mod:`lj_intra_calculate<FOX.ff.lj_intra_calculate>` for the calculation of non-covalent
 intra-moleculair interactions.
@@ -21,6 +17,20 @@ intra-moleculair interactions.
 
     V_{Coulomb} = \frac{1}{4 \pi \varepsilon_{0}} \frac{q_{i} q_{j}}{r_{ij}}
 
+Index
+-----
+.. currentmodule:: FOX.ff.lj_calculate
+.. autosummary::
+    get_non_bonded
+    get_V
+    MAX_ARRAY_SIZE
+
+API
+---
+.. autofunction:: get_bonded
+.. autofunction:: get_V
+.. autodata:: MAX_ARRAY_SIZE
+
 """
 
 import math
@@ -32,12 +42,11 @@ import pandas as pd
 from scipy.spatial import cKDTree
 
 from scm.plams import Units
+from nanoutils import fill_diagonal_blocks
 
-from .lj_dataframe import LJDataFrame
-from ..functions.utils import fill_diagonal_blocks
-from ..classes.multi_mol import MultiMolecule
-from ..io.read_psf import PSFContainer
-from ..io.read_prm import PRMContainer
+from . import LJDataFrame
+from ..classes import MultiMolecule
+from ..io import PSFContainer, PRMContainer
 
 __all__ = ['get_non_bonded', 'get_V', 'MAX_ARRAY_SIZE']
 

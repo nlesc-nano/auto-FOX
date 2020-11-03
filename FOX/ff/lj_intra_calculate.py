@@ -1,8 +1,4 @@
-r"""
-FOX.ff.lj_intra_calculate
-=========================
-
-A module for calculating non-bonded intra-ligand interactions using Coulomb + Lennard-Jones potentials.
+r"""A module for calculating non-bonded intra-ligand interactions using Coulomb + Lennard-Jones potentials.
 
 See :mod:`lj_calculate<FOX.ff.lj_calculate>` for the calculation of non-covalent inter-moleculair
 interactions.
@@ -21,7 +17,18 @@ interactions.
 
     V_{Coulomb} = \frac{1}{4 \pi \varepsilon_{0}} \frac{q_{i} q_{j}}{r_{ij}}
 
-"""  # noqa
+
+Index
+-----
+.. currentmodule:: FOX.ff.lj_intra_calculate
+.. autosummary::
+    get_intra_non_bonded
+
+API
+---
+.. autofunction:: get_intra_non_bonded
+
+"""  # noqa: E501
 
 import operator
 from typing import Union, Callable, Tuple, Optional
@@ -31,13 +38,11 @@ import pandas as pd
 
 from scm.plams import Units, PT
 
+from . import LJDataFrame, degree_of_separation
 from .lj_calculate import get_V_elstat, get_V_lj, _get_slice_iterator
-from .lj_dataframe import LJDataFrame
 from .bonded_calculate import _dist
-from .degree_of_separation import degree_of_separation
-from ..classes.multi_mol import MultiMolecule
-from ..io.read_psf import PSFContainer
-from ..io.read_prm import PRMContainer
+from ..classes import MultiMolecule
+from ..io import PSFContainer, PRMContainer
 
 __all__ = ['get_intra_non_bonded']
 

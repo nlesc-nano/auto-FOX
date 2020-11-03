@@ -1,8 +1,4 @@
-"""
-FOX.classes.multi_mol_magic
-===========================
-
-A Module for setting up the magic methods and properties of the :class:`.MultiMolecule` class.
+"""A Module for setting up the magic methods and properties of the :class:`.MultiMolecule` class.
 
 Index
 -----
@@ -14,27 +10,36 @@ API
 ---
 .. autoclass:: _MultiMolecule
     :members:
-    :private-members:
-    :special-members:
 
 """
+
+from __future__ import annotations
 
 import copy as pycopy
 import textwrap
 import itertools
 import warnings
 from types import MappingProxyType
-from typing import Dict, Optional, List, Any, Callable, Union, Mapping, Iterable, NoReturn
+from typing import (
+    Dict, Optional, List, Any, Callable, Union, Mapping, Iterable,
+    NoReturn, TypeVar, Type, Generic, cast
+)
 
 import numpy as np
 
-from scm.plams import PeriodicTable, Atom, PTError, Settings
+from scm.plams import PeriodicTable, PTError, Settings  # type: ignore
 from assertionlib.ndrepr import NDRepr
-from assertionlib.dataclass import AbstractDataClass
+from nanoutils import ArrayLike, Literal
 
 __all__: List[str] = []
 
-_PROP_MAPPING: Mapping[str, Callable[[Atom], Any]] = MappingProxyType({
+T = TypeVar('T')
+MT = TypeVar('MT', bound='_MultiMolecule')
+
+IdxDict = Dict[str, List[int]]
+IdxMapping = Mapping[str, List[int]]
+
+_PROP_MAPPING: Mapping[str, Callable[[str], Union[int, float, str]]] = MappingProxyType({
     'symbol': lambda x: x,
     'radius': PeriodicTable.get_radius,
     'atnum': PeriodicTable.get_atomic_number,
@@ -47,7 +52,7 @@ _NONE_DICT: Mapping[str, Union[str, int, float]] = MappingProxyType({
 })
 
 
-class LocGetter(AbstractDataClass):
+class _MolLoc(Generic[MT]):
     """A getter and setter for atom-type-based slicing.
 
     Get, set and del operations are performed using the list(s) of atomic indices associated
@@ -81,53 +86,57 @@ class LocGetter(AbstractDataClass):
     Parameters
     ----------
     mol : :class:`MultiMolecule`
-        A MultiMolecule instance; see :attr:`AtGetter.atoms`.
+        A MultiMolecule instance; see :attr:`_MolLoc.mol`.
 
     Attributes
     ----------
     mol : :class:`MultiMolecule`
         A MultiMolecule instance.
+    atoms : :class:`~collections.abc.Mapping`
+        A read-only view of :attr:`_MolLoc.mol.atoms<MultiMolecule.atoms>`.
 
     """
 
-    _VALUE_ERR = "'MultiMolecule.at' operations require a >= 2D array; observed dimensionality: {}D"
-    _TYPE_ERR = "'MultiMolecule.at' operations require a 'str' or iterable consisting of 'str'; observed type: '{}'"  # noqa
-    __slots__ = frozenset({'mol'})
+    __slots__ = ('_mol', '_atoms')
 
     @property
-    def atoms(self) -> Dict[str, List[int]]: return self.mol.atoms
+    def mol(self) -> MT:
+        return self._mol
 
-    def __init__(self, mol: '_MultiMolecule') -> None:
-        super().__init__()
-        self.mol = mol
-
-    @AbstractDataClass.inherit_annotations()
-    def _str_iterator(self):
-        yield 'mol', self.mol
-        yield 'keys', self.atoms.keys()
-
-    def __getitem__(self, key: Union[str, Iterable[str]]) -> '_MultiMolecule':
-        """Get items from :attr:`AtGetter.mol`."""
-        idx = self._parse_key(key)
+    @property
+    def atoms(self) -> IdxMapping:
         try:
-            return self.mol[..., idx, :]
-        except IndexError as ex:
-            raise ValueError(self._VALUE_ERR.format(self.mol.ndim)).with_traceback(ex.__traceback__)
+            return self._atoms
+        except AttributeError:
+            self._atoms: IdxMapping = MappingProxyType(self.mol.atoms)
+            return self._atoms
 
-    def __setitem__(self, key: Union[str, Iterable[str]], value: '_MultiMolecule') -> None:
-        """Set items in :attr:`AtGetter.mol`."""
+    def __init__(self, mol: MT) -> None:
+        self._mol = mol
+
+    def _type_error(self, obj: object) -> TypeError:
+        """Return a :exc:`TypeError`."""
+        cls_name = self.mol.__class__.__name__
+        name = obj.__class__.__name__
+        return TypeError(f"{cls_name}.loc() expected one or more strings; observed type: {name!r}")
+
+    def __getitem__(self, key: Union[str, Iterable[str]]) -> MT:
+        """Get items from :attr:`_MolLoc.mol`."""
         idx = self._parse_key(key)
-        try:
-            self.mol[..., idx, :] = value
-        except IndexError as ex:
-            raise ValueError(self._VALUE_ERR.format(self.mol.ndim)).with_traceback(ex.__traceback__)
+        return self.mol[..., idx, :]
+
+    def __setitem__(self, key: Union[str, Iterable[str]], value: ArrayLike) -> None:
+        """Set items in :attr:`_MolLoc.mol`."""
+        idx = self._parse_key(key)
+        self.mol[..., idx, :] = value
 
     def __delitem__(self, key: Union[str, Iterable[str]]) -> NoReturn:
-        """Delete items from :attr:`AtGetter.mol`, thus raising a :exc:`ValueError`."""
+        """Delete items from :attr:`_MolLoc.mol`; this raises a :exc:`ValueError`."""
         idx = self._parse_key(key)
         del self.mol[..., idx, :]  # This will raise a ValueError
+        raise
 
-    def _parse_key(self, key: Union[str, Iterable[str]]) -> List[int]:
+    def _parse_key(self, key: Union[str, Iterable[str]]) -> np.ndarray:
         """Return the atomic indices of **key** are all atoms in **key**.
 
         Parameter
@@ -147,8 +156,7 @@ class LocGetter(AbstractDataClass):
         try:
             key_iterator = iter(key)
         except TypeError as ex:  # **key** is neither a string nor an iterable of strings
-            cls_name = key.__class__.__name__
-            raise TypeError(self._TYPE_ERR.format(cls_name)).with_traceback(ex.__traceback__)
+            raise self._type_error(key) from ex
 
         # Gather all indices and flatten them
         idx: List[int] = []
@@ -157,8 +165,15 @@ class LocGetter(AbstractDataClass):
             idx += atoms[k]
         return idx
 
+    def __reduce__(self) -> NoReturn:
+        raise TypeError(f'cannot pickle {self.__class__.__name__!r} object')
+
+    def __hash__(self) -> int:
+        """Implement :code:`hash(self)`."""
+        return id(self.mol)
+
     def __eq__(self, value: Any) -> bool:
-        """Check if this instance and **value** are equivalent."""
+        """Implement :code:`self == value`."""
         try:
             return type(self) is type(value) and self.mol is value.mol
         except AttributeError:
@@ -172,21 +187,21 @@ class _MultiMolecule(np.ndarray):
 
     """
 
-    def __new__(cls, coords: np.ndarray,
-                atoms: Optional[Dict[str, List[int]]] = None,
+    def __new__(cls: Type[MT], coords: np.ndarray,
+                atoms: Optional[IdxDict] = None,
                 bonds: Optional[np.ndarray] = None,
-                properties: Optional[Dict[str, Any]] = None) -> '_MultiMolecule':
+                properties: Optional[Mapping] = None) -> MT:
         """Create and return a new object."""
         obj = np.array(coords, dtype=float, ndmin=3, copy=False).view(cls)
 
         # Set attributes
-        obj.atoms = atoms
-        obj.bonds = bonds
-        obj.properties = properties
+        obj.atoms = cast(IdxDict, atoms)
+        obj.bonds = cast(np.ndarray, bonds)
+        obj.properties = cast(Settings, properties)
         obj._ndrepr = NDRepr()
         return obj
 
-    def __array_finalize__(self, obj: '_MultiMolecule') -> None:
+    def __array_finalize__(self, obj: _MultiMolecule) -> None:
         """Finalize the array creation."""
         if obj is None:
             return
@@ -199,16 +214,16 @@ class _MultiMolecule(np.ndarray):
     """#####################  Properties for managing instance attributes  ######################"""
 
     @property
-    def loc(self) -> LocGetter:
-        return LocGetter(self)
-    loc.__doc__ = LocGetter.__doc__
+    def loc(self: MT) -> _MolLoc[MT]:
+        return _MolLoc(self)
+    loc.__doc__ = _MolLoc.__doc__
 
     @property
-    def atoms(self) -> Dict[str, List[int]]:
+    def atoms(self) -> IdxDict:
         return self._atoms
 
     @atoms.setter
-    def atoms(self, value: Optional[Mapping]) -> None:
+    def atoms(self, value: Optional[Mapping[str, List[int]]]) -> None:
         self._atoms = {} if value is None else dict(value)
 
     @property
@@ -240,7 +255,7 @@ class _MultiMolecule(np.ndarray):
     """###############################  PLAMS-based properties  ################################"""
 
     @property
-    def atom12(self) -> '_MultiMolecule':
+    def atom12(self) -> np.ndarray:
         """Get or set the indices of the atoms for all bonds in :attr:`.MultiMolecule.bonds` as 2D array."""  # noqa
         return self._bonds[:, 0:2]
 
@@ -249,7 +264,7 @@ class _MultiMolecule(np.ndarray):
         self._bonds[:, 0:2] = value
 
     @property
-    def atom1(self) -> '_MultiMolecule':
+    def atom1(self) -> _MultiMolecule:
         """Get or set the indices of the first atoms in all bonds of :attr:`.MultiMolecule.bonds` as 1D array."""  # noqa
         return self._bonds[:, 0]
 
@@ -276,7 +291,7 @@ class _MultiMolecule(np.ndarray):
         self._bonds[:, 2] = value * 10
 
     @property
-    def x(self) -> '_MultiMolecule':
+    def x(self: MT) -> MT:
         """Get or set the x coordinates for all atoms in instance as 2D array."""
         return self[:, :, 0]
 
@@ -285,7 +300,7 @@ class _MultiMolecule(np.ndarray):
         self[:, :, 0] = value
 
     @property
-    def y(self) -> '_MultiMolecule':
+    def y(self: MT) -> MT:
         """Get or set the y coordinates for all atoms in this instance as 2D array."""
         return self[:, :, 1]
 
@@ -294,7 +309,7 @@ class _MultiMolecule(np.ndarray):
         self[:, :, 1] = value
 
     @property
-    def z(self) -> '_MultiMolecule':
+    def z(self: MT) -> MT:
         """Get or set the z coordinates for all atoms in this instance as 2D array."""
         return self[:, :, 2]
 
@@ -327,7 +342,9 @@ class _MultiMolecule(np.ndarray):
         """Get the atomic connectors of all atoms in :attr:`.MultiMolecule.atoms` as 1D array."""
         return self._get_atomic_property('connectors')
 
-    def _get_atomic_property(self, prop: str = 'symbol') -> np.ndarray:
+    def _get_atomic_property(
+        self, prop: Literal['symbol', 'radius', 'atnum', 'mass', 'connectors']
+    ) -> np.ndarray:
         """Create a flattened array with atomic properties.
 
         Take **self.atoms** and return an (concatenated) array of a specific property associated
@@ -364,7 +381,7 @@ class _MultiMolecule(np.ndarray):
 
     """##################################  Magic methods  #################################### """
 
-    def copy(self, order: str = 'C', deep: bool = True) -> '_MultiMolecule':
+    def copy(self: MT, order: str = 'C', deep: bool = True) -> MT:
         """Create a copy of this instance.
 
         .. _np.ndarray.copy: https://docs.scipy.org/doc/numpy/reference/generated/numpy.ndarray.copy.html  # noqa
@@ -389,31 +406,24 @@ class _MultiMolecule(np.ndarray):
             return ret
 
         # Copy attributes
-        copy_func = pycopy.deepcopy if deep else pycopy.copy()
+        copy_func = cast(Callable[[T], T], pycopy.deepcopy if deep else pycopy.copy)
         iterator = copy_func(vars(self)).items()
         for key, value in iterator:
             setattr(ret, key, value)
         return ret
 
-    def __copy__(self) -> '_MultiMolecule':
+    def __copy__(self: MT) -> MT:
         """Create copy of this instance."""
         return self.copy(order='K', deep=False)
 
-    def __deepcopy__(self, memo: None) -> '_MultiMolecule':
+    def __deepcopy__(self: MT, memo: Optional[Dict[int, Any]] = None) -> MT:
         """Create a deep copy of this instance."""
         return self.copy(order='K', deep=True)
 
     def __str__(self) -> str:
         """Return a human-readable string constructed from this instance."""
-        def _str(k: str, v: Any) -> str:
-            key = k.strip('_')
-            str_list = self._ndrepr.repr(v).split('\n')
-            joiner = '\n' + (3 + len(key)) * ' '
-            return f'{k} = ' + joiner.join(i for i in str_list)
-
-        ret = super().__str__() + '\n\n'
-        ret += ',\n\n'.join(_str(k, v) for k, v in vars(self).items())
-        ret_indent = textwrap.indent(ret, '    ')
+        ret = super().__str__()
+        ret_indent = textwrap.indent(ret, 4 * ' ')
         return f'{self.__class__.__name__}(\n{ret_indent}\n)'
 
     def __repr__(self) -> str:

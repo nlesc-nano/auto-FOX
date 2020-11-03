@@ -1,28 +1,38 @@
 param:
-    prm_file: ligand.prm
+    type: FOX.armc.ParamMapping
+    move_range:
+        start: 0.005
+        stop: 0.1
+        step: 0.005
+    func: numpy.multiply
+    kwargs: {}
+
     charge:
-        constraints: ['0 < Cs < 2', '1 < Pb < 3', '-2 < Br < 0', 'Cd == -1 * Se']
-        keys: [input, force_eval, mm, forcefield, charge]
+        param: charge
+        constraints:
+            - '0.5 < Cd < 1.5'
+            - '-0.5 > Se > -1.5'
+            - '0 > O_1 > -1'
         Cd: 0.9768
         Se: -0.9768
-        OG2D2: -0.4704
-        C_1: 0.4524
-    epsilon:
-        unit: kjmol
-        keys: [input, force_eval, mm, forcefield, nonbonded, lennard-jones]
-        Cd Cd: 0.3101
-        Se Se: 0.4266
-        Cd Se: 1.5225
-        Cd OG2D2: 1.8340
-        Se OG2D2: 1.6135
-    sigma:
-        unit: nm
-        keys: [input, force_eval, mm, forcefield, nonbonded, lennard-jones]
-        Cd Cd: 0.1234
-        Se Se: 0.4852
-        Cd Se: 0.2940
-        Cd OG2D2: 0.2471
-        Se OG2D2: 0.3526
+        O_1: -0.47041
+        frozen:
+            C_1: 0.4524
+    lennard_jones:
+        -   unit: kjmol
+            param: epsilon
+            Cd Cd: 0.3101
+            Se Se: 0.4266
+            Cd Se: 1.5225
+            Cd O_1: 1.8340
+            Se O_1: 1.6135
+        -   unit: nm
+            param: sigma
+            Cd Cd: 0.1234
+            Se Se: 0.4852
+            Cd Se: 0.2940
+            Cd O_1: 0.2471
+            Se O_1: 0.3526
 
 psf:
     str_file: ligand.str
@@ -34,43 +44,30 @@ pes:
         kwargs:
             atom_subset: [Cd, Se, O]
 
-molecule: mol.xyz
-
 job:
+    type: FOX.armc.PackageManager
+    molecule: .../mol.xyz
+
+    md:
+        type: qmflows.cp2k_mm
+        template: qmflows.templates.md.specific.cp2k_mm
+        settings:
+            prm: ligand.prm
+
+monte_carlo:
+    type: FOX.armc.ARMC
+    iter_len: 50000
+    sub_iter_len: 10
     logfile: armc.log
-    job_type: scm.plams.Cp2kJob
-    name: armc
+    hdf5_file: armc.hdf5
     path: .
     folder: MM_MD_workdir
-    keep_files: False
-    rmsd_threshold: 10.0
+    keep_files: True
 
-    preopt_settings: null
-    md_settings:
-        input:
-            motion:
-                md:
-                    ensemble: NVT
-                    temperature: 300.0
-                    timestep: 1.0
-                    time_start_val: 5000
-                    steps: 10000
-                    thermostat:
-                        type: CSVR
-                        csvr:
-                            timecon: 1250
-
-hdf5_file: armc.hdf5
-
-armc:
-    iter_len: 50000
-    sub_iter_len: 100
-    gamma: 2.0
+phi:
+    type: FOX.armc.PhiUpdater
+    phi: 1
+    gamma: 2
     a_target: 0.25
-    phi: 1.0
-
-move:
-    range:
-        start: 0.005
-        stop: 0.1
-        step: 0.005
+    func: numpy.add
+    kwargs: {}

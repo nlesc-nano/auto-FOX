@@ -1,3 +1,0 @@
-#!/bin/sh
-
-mpirun cp2k.popt -i cp2kjob.MD.003.in -o cp2kjob.MD.003.out

@@ -1,12 +1,8 @@
-"""
-FOX.ff.lj_uff
-=============
-
-Functions related to the Lennard-Jones parameters of the Universal force field (UFF).
+"""Functions related to the Lennard-Jones parameters of the Universal force field (UFF).
 
 Index
 -----
-.. currentmodule:: FOX.functions.lj_uff
+.. currentmodule:: FOX.ff.lj_uff
 .. autosummary::
     UFF_DF
     combine_sigma

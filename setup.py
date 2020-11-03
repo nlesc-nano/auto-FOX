@@ -8,11 +8,26 @@ here = os.path.abspath(os.path.dirname(__file__))
 
 # To update the package version number, edit Auto-FOX/__version__.py
 version = {}
-with open(os.path.join(here, 'FOX', '__version__.py')) as f:
+with open(os.path.join(here, 'FOX', '__version__.py'), encoding='utf-8') as f:
     exec(f.read(), version)
 
-with open('README.rst') as readme_file:
+with open('README.rst', encoding='utf-8') as readme_file:
     readme = readme_file.read()
+
+tests_require = [
+    'pytest>=5.4.0',
+    'pytest-cov',
+    'pyflakes>=2.1.1',
+    'pytest-flake8>=1.0.5',
+    'pytest-pydocstyle>=2.1',
+    'matplotlib'
+]
+
+docs_require = [
+    'sphinx>=2.1',
+    'sphinx_rtd_theme',
+    'matplotlib'
+]
 
 setup(
     name='Auto-FOX',
@@ -28,7 +43,7 @@ setup(
         'FOX.data',
         'FOX.examples',
         'FOX.functions',
-        'FOX.armc_functions',
+        'FOX.armc',
         'FOX.classes',
         'FOX.io',
         'FOX.ff',
@@ -36,10 +51,12 @@ setup(
     ],
     package_dir={'FOX': 'FOX'},
     package_data={'FOX': [
-        'data/Cd68Se55_26COO_MD_trajec.xyz',
+        'data/*.xyz',
         'data/*.yaml',
-        'armc_functions/*.png',
-        'data/*.csv'
+        'data/*.csv',
+        'armc/*.png',
+        'py.typed',
+        '*.pyi'
     ]},
     include_package_data=True,
     entry_points={'console_scripts': [
@@ -58,42 +75,40 @@ setup(
         'science',
         'chemistry',
         'python-3',
-        'python-3.6',
         'python-3.7',
         'python-3.8'
     ],
     classifiers=[
         'Development Status :: 4 - Beta',
         'Intended Audience :: Science/Research',
-        'Topic :: Scientific/Engineering :: Chemistry'
         'License :: OSI Approved :: GNU Lesser General Public License',
         'Natural Language :: English',
+        'Operating System :: Unix',
+        'Operating System :: MacOS',
+        'Programming Language :: Python',
         'Programming Language :: Python :: 3',
-        'Programming Language :: Python :: 3.6',
         'Programming Language :: Python :: 3.7',
-        'Programming Language :: Python :: 3.8'
+        'Programming Language :: Python :: 3.8',
+        'Topic :: Scientific/Engineering :: Chemistry',
+        'Topic :: Software Development :: Libraries ',
+        'Typing :: Typed'
     ],
-    test_suite='tests',
-    python_requires='>=3.6',
+    python_requires='>=3.7',
     install_requires=[
+        'Nano-Utils>=0.4',
         'pyyaml>=5.1',
         'numpy',
         'scipy',
         'pandas',
         'schema',
-        'AssertionLib>=2.1',
+        'AssertionLib>=2.2',
+        'noodles>=0.3.3',
+        'qmflows@git+https://github.com/SCM-NV/qmflows@master',
         'plams@git+https://github.com/SCM-NV/PLAMS@master'
     ],
     setup_requires=[
         'pytest-runner'
     ],
-    tests_require=[
-        'pytest',
-        'pytest-cov',
-        'pycodestyle'
-    ],
-    extras_require={
-        'doc': ['sphinx>=2.0', 'sphinx_rtd_theme', 'matplotlib', 'sphinx-autodoc-typehints'],
-        'test': ['pytest', 'pytest-cov', 'pytest-mock', 'pycodestyle', 'matplotlib']
-    }
+    tests_require=tests_require,
+    extras_require={'docs': docs_require, 'test': tests_require}
 )

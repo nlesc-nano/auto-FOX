@@ -1,25 +1,17 @@
-"""
-Auto-FOX
-========
-
-A library for analyzing potential energy surfaces (PESs) and
-using the resulting PES descriptors for constructing forcefield parameters.
+"""**Auto-FOX** is a library for analyzing potential energy surfaces (PESs) and using the resulting PES descriptors for constructing forcefield parameters.
 
 Documentation
 -------------
 https://auto-fox.readthedocs.io/en/latest/
 
-"""
+"""  # noqa: E501
 
 from os.path import join
+from nanoutils import VersionInfo
 
 from scm.plams import Settings as _Settings
 
 from .__version__ import __version__
-
-from .functions import (
-    assert_error, get_example_xyz, group_by_values
-)
 
 from .io import (
     PSFContainer,
@@ -28,9 +20,7 @@ from .io import (
 )
 
 from .classes import (
-    FrozenSettings,
-    MultiMolecule,
-    ARMC, run_armc,
+    MultiMolecule
 )
 
 from .ff import (
@@ -42,7 +32,6 @@ from .ff import (
 
 __author__ = "Bas van Beek"
 __email__ = 'b.f.van.beek@vu.nl'
-__version__ = __version__
 
 if hasattr(_Settings, 'suppress_missing'):
     _Settings.supress_missing = _Settings.suppress_missing
@@ -51,16 +40,17 @@ if hasattr(_Settings, 'suppress_missing'):
 example_xyz: str = join(__path__[0], 'data', 'Cd68Se55_26COO_MD_trajec.xyz')
 del join
 
+version_info = VersionInfo.from_str(__version__)
+del VersionInfo
+
 __all__ = [
-    'get_example_xyz', 'example_xyz', 'assert_error', 'group_by_values',
+    'example_xyz',
 
     'PSFContainer',
     'PRMContainer',
     'create_hdf5', 'create_xyz_hdf5', 'to_hdf5', 'from_hdf5',
 
-    'FrozenSettings',
     'MultiMolecule',
-    'ARMC', 'run_armc',
 
     'estimate_lj', 'get_free_energy',
     'get_non_bonded',

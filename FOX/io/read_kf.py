@@ -1,8 +1,4 @@
-"""
-FOX.io.read_kf
-==============
-
-A module for potential energy surfaces from KF binary files.
+"""A module for potential energy surfaces from KF binary files.
 
 Index
 -----
@@ -22,13 +18,14 @@ from typing import Tuple, Dict, List
 import numpy as np
 
 from scm.plams import KFReader
-
-from ..functions.utils import group_by_values
+from nanoutils import group_by_values, PathType
 
 __all__ = ['read_kf']
 
+IdxDict = Dict[str, List[int]]
 
-def read_kf(filename: str) -> Tuple[np.ndarray, Dict[str, List[int]]]:
+
+def read_kf(filename: PathType) -> Tuple[np.ndarray, IdxDict]:
     """Read a KF binary file containing a potential energy surface.
 
     Returns the following items:
@@ -71,7 +68,7 @@ def read_kf(filename: str) -> Tuple[np.ndarray, Dict[str, List[int]]]:
     return xyz, _get_idx_dict(kf)
 
 
-def _get_idx_dict(kf: KFReader) -> Dict[str, List[int]]:
+def _get_idx_dict(kf: KFReader) -> IdxDict:
     """Extract atomic symbols and matching atomic indices from **kf**.
 
     Parameters

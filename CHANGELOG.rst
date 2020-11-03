@@ -6,6 +6,74 @@ All notable changes to this project will be documented in this file.
 This project adheres to `Semantic Versioning <http://semver.org/>`_.
 
 
+0.8.7
+*****
+* Moved from `PRMContainer.__dict__` to a `PRMContainer.__slots__` based class structure.
+* Cleaned up the `PRMContainer` code; updated annotations, etc..
+* Removed `assertionlib.AbstractDataClass` as base class from `PRMContainer`.
+* Do not read or write comments to and from a .prm file.
+* Upped the minimum Sphinx version to `2.1`.
+* Removed `sphinx-autodoc-typehints`.
+
+
+0.8.6
+*****
+* Import `AbstractFileContainer` from Nano-Utils.
+* Removed `TypeMapping` in favor of `TypedDict`.
+* Remove travis in favor of GitHub Actions.
+
+
+0.8.5
+*****
+* Moved a number of functions to the `Nano-Utils <https://github.com/nlesc-nano/Nano-Utils>`_ Package.
+
+
+0.8.4
+*****
+* Updated the ARMC documentation.
+
+
+0.8.3
+*****
+* Updated the ARMC tests.
+* Renamed ``FOX.test_utils`` to ``FOX.testing_utils``.
+* Added flake8 and pydocstyle to the tests.
+
+
+0.8.2
+*****
+* Fixed and generalized the frocefield parameter guessing procedures
+  (https://github.com/nlesc-nano/auto-FOX/issues/100 and https://github.com/nlesc-nano/auto-FOX/pull/112).
+* Log the optimum ARMC cycle in ``get_best()`` and ``overlay_descriptor()``
+  (https://github.com/nlesc-nano/auto-FOX/pull/111).
+* Fixed an issue where certain ADF atom-subset-permutations were ignored
+  (https://github.com/nlesc-nano/auto-FOX/pull/110).
+* Aux error: Ensure that the summation over ``qm`` occurs row-wise
+  (https://github.com/nlesc-nano/auto-FOX/pull/108).
+
+
+0.8.1
+*****
+* WiP: Introduction of the ``ARMCPT`` class.
+
+
+0.8.0
+*****
+* Move all ARMC related modules to the new ``FOX.armc`` module.
+* Switched from ``plams.Job`` to ``qmflows.Package`` runners.
+* Introduced the ``PhiUpdater`` class for handling and updating the ``phi`` parameter.
+* Introduced the ``ParamMapping`` class for handling and updating the forcefield parameters.
+* Introduced the ``PackageManager`` class for handling the and managing the ``qmflows.Package``
+  instances, including the running of jobs.
+* Store the Auto-FOX ``__version__`` in the .hdf5 file.
+* Changed the .yaml input to closer resemble the actual class structure.
+* Overhauled the .yaml input parsing.
+* Bumped the minimum Python version to 3.7.
+* Marked Auto-FOX as a typed package.
+* Added ``qmflows`` and ``noodles`` as new dependencies.
+* Added ``typing_extensions`` as a new dependency for Python < 3.8.
+
+
 0.7.4
 *****
 * Increased the assertionlib version requirement to >= v2.1.

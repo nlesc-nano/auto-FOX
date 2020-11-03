@@ -1,8 +1,4 @@
-"""
-FOX.recipes.psf
-=================
-
-A set of functions for creating .psf files.
+"""A set of functions for creating .psf files.
 
 Examples
 --------
@@ -95,60 +91,43 @@ API
 .. autofunction:: extract_ligand
 
 """
+
 import math
 import warnings
-from os import PathLike
-from sys import version_info
 from types import MappingProxyType
 from typing import (Union, Iterable, Optional, TypeVar, Callable, Mapping, Type, Iterator,
-                    Hashable, Any, Tuple, MutableMapping, AnyStr, List, SupportsFloat)
+                    Hashable, Any, Tuple, MutableMapping, List)
 from itertools import chain
 from collections import abc
 
 import numpy as np
 from scm.plams import Molecule, Atom, Bond, MoleculeError, PT
+from nanoutils import group_by_values, PathType
 
-from FOX import PSFContainer, assert_error
+from FOX import PSFContainer
 from FOX.io.read_psf import overlay_rtf_file, overlay_str_file
-from FOX.functions.utils import group_by_values
 from FOX.functions.molecule_utils import fix_bond_orders
-from FOX.armc_functions.sanitization import _assign_residues
+from FOX.armc.sanitization import _assign_residues
 
-if version_info.minor < 7:
-    from collections import OrderedDict
-else:  # Dictionaries are ordered starting from python 3.7
-    OrderedDict = dict
+from rdkit.Chem import Mol
+from scm.plams import from_smiles, to_rdmol
 
+# A somewhat contrived way of loading :exc:`ArgumentError<Boost.Python.ArgumentError>`
+_MOL = Molecule()
+_MOL.atoms = [Atom(symbol='H', coords=[0, 0, 0], mol=_MOL)]
+_MOL[1].properties.charge = -0.5
 try:
-    from rdkit import Chem
-    from scm.plams import from_smiles, to_rdmol
-
-    Mol: Union[str, type] = Chem.Mol
-    RDKIT_ERROR = None
-
-    # A somewhat contrived way of loading :exc:`ArgumentError<Boost.Python.ArgumentError>`
-    _MOL = Molecule()
-    _MOL.atoms = [Atom(symbol='H', coords=[0, 0, 0], mol=_MOL)]
-    _MOL[1].properties.charge = -0.5
-    try:
-        to_rdmol(_MOL)
-    except Exception as ex:
-        ArgumentError: Optional[Type[Exception]] = type(ex)
-    del _MOL
-
-except ImportError:
-    Mol: Union[str, type] = 'rdkit.Chem.rdchem.Mol'
-    ArgumentError: Optional[Type[Exception]] = None
-    RDKIT_ERROR = ("Use of the FOX.{} function requires the 'rdkit' package."
-                   "\n'rdkit' can be installed via conda with the following command:"
-                   "\n\tconda install -n FOX -c conda-forge rdkit")
-
+    to_rdmol(_MOL)
+except Exception as ex:
+    ArgumentError: Type[Exception] = type(ex)
+del _MOL
 
 __all__ = ['generate_psf', 'generate_psf2', 'extract_ligand']
 
 
 def generate_psf(qd: Union[str, Molecule], ligand: Union[str, Molecule],
-                 rtf_file: Optional[str] = None, str_file: Optional[str] = None) -> PSFContainer:
+                 rtf_file: Optional[PathType] = None,
+                 str_file: Optional[PathType] = None) -> PSFContainer:
     """Generate a :class:`PSFContainer` instance for **qd**.
 
     Parameters
@@ -275,11 +254,10 @@ def extract_ligand(qd: Union[str, Molecule], ligand_len: int,
     return ligand
 
 
-@assert_error(RDKIT_ERROR)
 def generate_psf2(qd: Union[str, Molecule],
                   *ligands: Union[str, Molecule, Mol],
-                  rtf_file: Union[None, str, Iterable[str]] = None,
-                  str_file: Union[None, str, Iterable[str]] = None,
+                  rtf_file: Union[None, PathType, Iterable[PathType]] = None,
+                  str_file: Union[None, PathType, Iterable[PathType]] = None,
                   ret_failed_lig: bool = False) -> PSFContainer:
     r"""Generate a :class:`PSFContainer` instance for **qd** with multiple different **ligands**.
 
@@ -453,7 +431,7 @@ except NameError:
 
 
 def _overlay(psf: PSFContainer, mode: str, id_ranges: Iterable[Iterable[int]],
-             files: Union[AnyStr, PathLike, Iterable[AnyStr], Iterable[PathLike]]) -> None:
+             files: Union[PathType, Iterable[PathType]]) -> None:
     """Overlay one or more .str or .rtf files."""
     if not isinstance(files, abc.Iterable) or isinstance(files, (str, bytes)):
         files_iter = (files,)
@@ -476,7 +454,6 @@ def _items_sorted(dct: Mapping) -> Iterator[Tuple[Hashable, Any]]:
     return iter(sorted(dct.items(), key=lambda kv: kv[1], reverse=True))
 
 
-@assert_error(RDKIT_ERROR)
 def _get_matches(mol: Molecule, ref: Mol) -> bool:
     """Check if the structures of **mol** and **ref** match."""
     try:
@@ -488,7 +465,6 @@ def _get_matches(mol: Molecule, ref: Mol) -> bool:
     return match_set == set(range(len(mol))) and len(match_set) == len(mol)
 
 
-@assert_error(RDKIT_ERROR)
 def _get_rddict(ligands: Iterable[Union[str, Molecule, Mol]]) -> MutableMapping[Mol, int]:
     """Create an ordered dict with rdkit molecules and delta atom counts for :func:`generate_psf`."""  # noqa
     tmp_dct = {MOL_MAPPING[type(lig)](lig): 0 for lig in ligands}
@@ -496,7 +472,7 @@ def _get_rddict(ligands: Iterable[Union[str, Molecule, Mol]]) -> MutableMapping[
         tmp_dct[rdmol] = len(rdmol.GetAtoms())
 
     v_old = 0
-    rdmol_dict = OrderedDict()
+    rdmol_dict = {}
     for k, v in _items_sorted(tmp_dct):
         rdmol_dict[k] = v - v_old
         v_old = v
@@ -603,7 +579,7 @@ def set_integer_bonds(self):
 
     # Mark all non-integer bonds; floats which can be represented exactly
     # by an integer (e.g. 1.0 and 2.0) are herein treated as integers
-    bond_dict = OrderedDict()  # An improvised OrderedSet (as it does not exist)
+    bond_dict = {}  # An improvised OrderedSet (as it does not exist)
     for bond in self.bonds:
         if hasattr(bond.order, 'is_integer') and not bond.order.is_integer():
             bond._visited = False

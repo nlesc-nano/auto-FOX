@@ -26,7 +26,15 @@ sys.path.insert(0, os.path.abspath('..'))
 # -- General configuration ------------------------------------------------
 
 # If your documentation needs a minimal Sphinx version, state it here.
-needs_sphinx = '2.0'
+needs_sphinx = '2.1'
+
+
+# This value controls how to represents typehints. The setting takes the following values:
+# 'signature' – Show typehints as its signature (default)
+# 'description' – Show typehints as content of function or method
+# 'none' – Do not show typehints
+autodoc_typehints = 'none'
+
 
 # Add any Sphinx extension module names here, as strings. They can be
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom
@@ -40,9 +48,9 @@ extensions = [
     'sphinx.ext.githubpages',
     'sphinx.ext.napoleon',
     'sphinx.ext.autosummary',
-    'sphinx_autodoc_typehints',
+    'sphinx.ext.duration',
     'matplotlib.sphinxext.plot_directive'
-    ]
+]
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ['_templates']
@@ -58,15 +66,15 @@ master_doc = 'index'
 
 # General information about the project.
 project = 'Auto-FOX'
-year = str(datetime.datetime.now().year)
+_year = str(datetime.datetime.now().year)
 author = 'B. F. van Beek'
-copyright = f'{year}, {author}'
+copyright = f'{_year}, {author}'
 
 
 # The version info for the project you're documenting, acts as replacement for
 # |version| and |release|, also used in various other places throughout the
 # built documents.
-release = '0.7.4'  # The full version, including alpha/beta/rc tags.
+release = '0.8.7'  # The full version, including alpha/beta/rc tags.
 version = release.rsplit('.', maxsplit=1)[0]  # The short X.Y version.
 
 
@@ -187,7 +195,7 @@ texinfo_documents = [
 intersphinx_mapping = {
     'python': ('https://docs.python.org/3/', None),
     'pandas': ('https://pandas.pydata.org/pandas-docs/stable/', None),
-    'numpy': ('https://docs.scipy.org/doc/numpy/', None),
+    'numpy': ('https://numpy.org/doc/stable/', None),
     'matplotlib': ('http://matplotlib.org', None),
     'plams': ('https://www.scm.com/doc/plams/', None)
 }
@@ -216,7 +224,7 @@ autodoc_warningiserror = True
 # This value contains a list of modules to be mocked up.
 # This is useful when some external dependencies are not met at build time and break the building process.
 # You may only specify the root package of the dependencies themselves and omit the sub-modules:
-autodoc_mock_imports = ['h5py']
+autodoc_mock_imports = ['h5py', 'rdkit']
 
 
 # True to parse Google style docstrings.

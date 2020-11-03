@@ -1,8 +1,4 @@
-"""
-FOX.ff.lj_param
-===============
-
-A module for estimating Lennard-Jones parameters.
+"""A module for estimating Lennard-Jones parameters.
 
 Examples
 --------

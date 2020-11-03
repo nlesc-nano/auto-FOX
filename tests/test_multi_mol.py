@@ -3,15 +3,28 @@
 from os import remove
 from os.path import join
 
+import yaml
 import numpy as np
 
 from assertionlib import assertion
+from nanoutils import delete_finally
 
 from FOX import MultiMolecule, example_xyz
-from FOX.functions.utils import get_template
 
 MOL = MultiMolecule.from_xyz(example_xyz)
+MOL.guess_bonds(['C', 'H', 'O'])
+
 PATH = join('tests', 'test_files')
+
+
+@delete_finally(join(PATH, '.tmp.xyz'))
+def test_mol_to_file():
+    """Test :meth:`MultiMolecule._mol_to_file`."""
+    file = join(PATH, '.tmp.xyz')
+    MOL._mol_to_file(file, 'xyz')
+
+    mol = MultiMolecule.from_xyz(file)
+    np.testing.assert_allclose(MOL[0][None], mol, atol=1e-6)
 
 
 def test_delete_atoms():
@@ -237,10 +250,14 @@ def test_get_at_idx():
     rmsf, idx_series, _ = mol.init_shell_search()
     dist = 3.0, 6.5, 10.0
     dist_dict = {'Cd': dist, 'Se': dist, 'O': dist, 'C': dist, 'H': dist}
-    dict_ = mol.get_at_idx(rmsf, idx_series, dist_dict)
-    ref = get_template('idx_series.yaml', path=PATH)
-    for key in dict_:
-        assertion.eq(dict_[key], ref[key])
+
+    dct = mol.get_at_idx(rmsf, idx_series, dist_dict)
+    with open(join(PATH, 'idx_series.yaml'), 'r') as f:
+        ref = yaml.load(f.read(), Loader=yaml.FullLoader)
+
+    for key, value in dct.items():
+        value_ref = ref.get(key)
+        assertion.eq(value, value_ref)
 
 
 def test_as_mass_weighted():
@@ -261,7 +278,7 @@ def test_from_mass_weighted():
     assertion.allclose(np.abs((mol_new - mol).mean()), 0.0, abs_tol=10**-8)
 
 
-def test_as_Molecule():
+def test_as_molecule():
     """Test :meth:`.MultiMolecule.as_Molecule`."""
     mol = MOL.copy()
 
@@ -270,7 +287,7 @@ def test_as_Molecule():
     np.testing.assert_allclose(mol_array, mol)
 
 
-def test_from_Molecule():
+def test_from_molecule():
     """Test :meth:`.MultiMolecule.from_Molecule`."""
     mol = MOL.copy()
 
@@ -296,3 +313,47 @@ def test_from_xyz():
 
     mol_new = MultiMolecule.from_xyz(example_xyz)
     np.testing.assert_allclose(mol_new, mol)
+
+
+def test_properties():
+    """Test :class:`MultiMolecule` properties."""
+    mol = MOL.copy()
+
+    order_ref1 = mol.bonds[:, 2] / 10.0
+    np.testing.assert_array_equal(mol.order, order_ref1)
+
+    order_ref2 = np.arange(len(mol.bonds))
+    mol.order = order_ref2
+    np.testing.assert_array_equal(mol.order, order_ref2)
+
+    np.testing.assert_array_equal(mol.x, mol[..., 0])
+    np.testing.assert_array_equal(mol.y, mol[..., 1])
+    np.testing.assert_array_equal(mol.z, mol[..., 2])
+
+    mol.x = 1
+    mol.y = 2
+    mol.z = 3
+    np.testing.assert_array_equal(mol.x, 1)
+    np.testing.assert_array_equal(mol.y, 2)
+    np.testing.assert_array_equal(mol.z, 3)
+
+
+def test_loc():
+    """Test :attr:`MultiMolecule.loc`."""
+    mol = MOL.copy()
+
+    loc1 = mol.loc
+    loc2 = mol.loc
+
+    assertion.eq(loc1, loc2)
+    assertion.eq(hash(loc1), hash(loc2))
+    assertion.assert_(loc1.__reduce__, exception=TypeError)
+
+    assertion.shape_eq(mol.loc['Cd'], (4905, 68, 3))
+    assertion.shape_eq(mol.loc['Cd', 'Cd'], (4905, 136, 3))
+    assertion.assert_(mol.loc.__getitem__, 1, exception=TypeError)
+
+    mol.loc['Cd'] = 1
+    np.testing.assert_array_equal(mol.loc['Cd'], 1)
+
+    assertion.assert_(mol.loc.__delitem__, 'Cd', exception=ValueError)

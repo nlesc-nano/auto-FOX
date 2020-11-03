@@ -1,7 +1,7 @@
 # This workflow will install Python dependencies, run tests and lint with a variety of Python versions
 # For more information see: https://help.github.com/actions/language-and-framework-guides/using-python-with-github-actions
 
-name: Python package
+name: Build with Conda
 
 on:
     push:
@@ -9,41 +9,52 @@ on:
             - master
             - Auto-FOX-0.8
     pull_request:
-        branches:
-            - master
-            - Auto-FOX-0.8
 
 jobs:
     build:
-        runs-on: ubuntu-latest
+        name: Python ${{ matrix.version }} on ${{ matrix.os }}
+        runs-on: ${{ matrix.os }}
         strategy:
+            fail-fast: false
             matrix:
-                version: 
-                    - 3.7
-                    - 3.8
+                os: [ubuntu-latest, macos-latest, windows-latest]
+                version: [3.7, 3.8]
 
         steps:
             - uses: actions/checkout@v2
 
-            - name: Setup conda
+            - name: Set up Conda with Python ${{ matrix.version }} on ${{ matrix.os }}
               uses: s-weigand/setup-conda@v1
               with:
-                  update-conda: true
-                  python-version: ${{ matrix.version }}
-                  conda-channels: anaconda
+                update-conda: true
+                python-version: ${{ matrix.version }}
+                conda-channels: anaconda
 
-            - run: conda --version
+            - name: Fix the windows/python 3.7 installation
+              if: matrix.os == 'windows-latest' && matrix.version == 3.7
+              run: conda install -c anaconda python=3.7.9 --force-reinstall
 
-            - run: python --version
-
-            - run: conda install -c conda-forge h5py rdkit
+            - name: Install conda-based dependencies
+              run: conda install -c conda-forge h5py rdkit numpy
 
             - name: Install dependencies
-              run: pip install -e .[test] --upgrade
+              run: pip install -e .[test]
               env:
-                  CONDA_PREFIX: /usr/share/miniconda
+                CONDA_PREFIX: /usr/share/miniconda
 
-            - name: Test with pytest
-              run: pytest tests
+            - name: Info Conda
+              run: conda info
+
+            - name: Info installed packages
+              run: conda list
+
+            - name: Run tests
+              run: pytest -m "not slow"
               env:
-                  CONDA_PREFIX: /usr/share/miniconda
+                CONDA_PREFIX: /usr/share/miniconda
+
+            - name: Run codecov
+              uses: codecov/codecov-action@v1
+              with:
+                file: ./coverage.xml
+                name: codecov-umbrella

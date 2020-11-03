@@ -1,31 +1,33 @@
-"""
-FOX.functions.molecule_utils
-============================
-
-A module which expands on the Molecule class of PLAMS.
+"""A module which expands on the Molecule class of PLAMS.
 
 Index
 -----
 .. currentmodule:: FOX.functions.molecule_utils
 .. autosummary::
-    Molecule
+    get_bonds
+    get_angles
+    get_dihedrals
+    get_impropers
+    residue_argsort
 
 API
 ---
-.. autofunction:: FOX.functions.molecule_utils.get_bonds
-.. autofunction:: FOX.functions.molecule_utils.get_angles
-.. autofunction:: FOX.functions.molecule_utils.get_dihedrals
-.. autofunction:: FOX.functions.molecule_utils.get_impropers
+.. autofunction:: get_bonds
+.. autofunction:: get_angles
+.. autofunction:: get_dihedrals
+.. autofunction:: get_impropers
+.. autofunction:: residue_argsort
 
 """
 
-from typing import List
+from typing import List, overload
 
 import numpy as np
 
-from scm.plams import Molecule, Atom
+from scm.plams import Molecule, Atom, MoleculeError
+from nanoutils import Literal
 
-__all__ = ['get_bonds', 'get_angles', 'get_dihedrals', 'get_impropers']
+__all__ = ['get_bonds', 'get_angles', 'get_dihedrals', 'get_impropers', 'residue_argsort']
 
 
 def fix_bond_orders(mol: Molecule) -> None:
@@ -256,3 +258,53 @@ def get_impropers(mol: Molecule) -> np.ndarray:
     # Sort vertically
     idx2 = np.argsort(ret, axis=0)[:, 0]
     return ret[idx2]
+
+
+@overload
+def residue_argsort(mol: Molecule, concatenate: Literal[True] = ...) -> np.ndarray: ...
+@overload
+def residue_argsort(mol: Molecule, concatenate: Literal[False] = ...) -> List[List[int]]: ...
+def residue_argsort(mol, concatenate=True):  # noqa: E302
+    """Return the indices that would sort this instance by residue number.
+
+    Residues are defined based on moleculair fragments based on **self.bonds**.
+
+    Parameters
+    ----------
+    mol : :class:`~scm.plams.mol.molecule.Molecule`
+        A PLAMS Molecule with bonds.
+    concatenate : bool
+        If ``False``, returned a nested list with atomic indices.
+        Each sublist contains the indices of a single residue.
+
+    Returns
+    -------
+    :class:`numpy.ndarray` [:class:`int`], shape :math:`(n,)` or :class:`list` [:class:`list` [:class:`int`]]
+        A 1D array of indices that would sort :math:`n` atoms this instance
+        or a nested list of indices.
+
+    """  # noqa: E501
+    if not mol.bonds:
+        raise MoleculeError("The passed Molecule has no bonds")
+
+    # Define residues
+    frags = separate_mod(mol)
+    symbol = np.fromiter((at.symbol for at in mol), count=len(mol), dtype='U2')
+
+    # Sort the residues
+    core = []
+    ligands = []
+    for frag in frags:
+        if len(frag) == 1:
+            core += frag
+        else:
+            i = np.array(frag)
+            argsort = np.argsort(symbol[i])
+            ligands.append(i[argsort].tolist())
+    core.sort()
+    ligands.sort()
+
+    ret = [core] + ligands
+    if concatenate:
+        return np.concatenate(ret)
+    return ret
