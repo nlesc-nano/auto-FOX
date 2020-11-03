@@ -13,7 +13,6 @@ API
 """
 
 import os
-from os.path import abspath
 from functools import partial
 from collections import abc
 from typing import (
@@ -82,6 +81,12 @@ GAMMA.setflags(write=False)
 #: The default value for ``phi.a_target```.
 A_TARGET = np.array([0.25])
 A_TARGET.setflags(write=False)
+
+
+def abspath(file: Union[str, bytes, os.PathLike]) -> str:
+    """Return the absolute path of **file**."""
+    file_str = os.fsdecode(file)
+    return os.path.abspath(file_str)
 
 
 #: Schema for validating the ``"phi"`` block.
@@ -175,29 +180,25 @@ mc_schema = Schema({
 
     Optional_('hdf5_file', default='armc.hdf5'): Or(
         And(None, Default('armc.hdf5')),
-        str,
-        os.PathLike,
+        And(Or(str, bytes, os.PathLike), Use(os.fsdecode)),
         error=Formatter(f"'monte_carlo.hdf5_file' expected a path-like object{EPILOG}")
     ),
 
     Optional_('logfile', default=lambda: 'armc.log'): Or(
         And(None, Default('armc.log')),
-        str,
-        os.PathLike,
+        And(Or(str, bytes, os.PathLike), Use(os.fsdecode)),
         error=Formatter(f"'monte_carlo.logfile' expected a path-like object{EPILOG}")
     ),
 
     Optional_('path', default=lambda: os.getcwd()): Or(
         And(None, Default(os.getcwd)),
-        And(str, Use(os.path.abspath)),
-        And(os.PathLike, Use(os.path.abspath)),
+        And(Or(str, bytes, os.PathLike), Use(abspath)),
         error=Formatter(f"'monte_carlo.path' expected a path-like object{EPILOG}")
     ),
 
     Optional_('folder', default='MM_MD_workdir'): Or(
         And(None, Default('MM_MD_workdir')),
-        str,
-        os.PathLike,
+        And(Or(str, bytes, os.PathLike), Use(os.fsdecode)),
         error=Formatter(f"'monte_carlo.folder' expected a path-like object{EPILOG}")
     ),
 
@@ -215,10 +216,10 @@ class MCMapping(TypedDict, total=False):
     type: Union[None, str, Type[MonteCarloABC]]
     iter_len: Optional[SupportsInt]
     sub_iter_len:  Optional[SupportsInt]
-    hdf5_file: Union[None, str, os.PathLike]
-    logfile: Union[None, str, os.PathLike]
-    path: Union[None, str, os.PathLike]
-    folder: Union[None, str, os.PathLike]
+    hdf5_file: Union[None, str, bytes, os.PathLike]
+    logfile: Union[None, str, bytes, os.PathLike]
+    path: Union[None, str, bytes, os.PathLike]
+    folder: Union[None, str, bytes, os.PathLike]
     keep_files: Optional[bool]
 
 
@@ -228,10 +229,10 @@ class MCDict(TypedDict):
     type: Type[MonteCarloABC]
     iter_len: int
     sub_iter_len: int
-    hdf5_file: Union[str, os.PathLike]
-    logfile: Union[str, os.PathLike]
-    path: Union[str, os.PathLike]
-    folder: Union[str, os.PathLike]
+    hdf5_file: str
+    logfile: str
+    path: str
+    folder: str
     keep_files: bool
 
 
@@ -239,27 +240,24 @@ class MCDict(TypedDict):
 psf_schema = Schema({
     Optional_('str_file', default=None): Or(
         None,
-        And(str, Use(lambda n: (abspath(n),))),
-        And(os.PathLike, Use(lambda n: (abspath(n),))),
-        And(abc.Sequence, lambda n: all(isinstance(i, (os.PathLike, str)) for i in n),
+        And(Or(str, bytes, os.PathLike), Use(lambda n: (abspath(n),))),
+        And(abc.Sequence, lambda n: all(isinstance(i, (os.PathLike, bytes, str)) for i in n),
             Use(lambda n: tuple(abspath(i) for i in n))),
         error=Formatter(f"'psf.str_file' expected None or one or more path-like objects{EPILOG}")
     ),
 
     Optional_('rtf_file', default=None): Or(
         None,
-        And(str, Use(lambda n: (abspath(n),))),
-        And(os.PathLike, Use(lambda n: (abspath(n),))),
-        And(abc.Sequence, lambda n: all(isinstance(i, (os.PathLike, str)) for i in n),
+        And(Or(str, bytes, os.PathLike), Use(lambda n: (abspath(n),))),
+        And(abc.Sequence, lambda n: all(isinstance(i, (os.PathLike, bytes, str)) for i in n),
             Use(lambda n: tuple(abspath(i) for i in n))),
         error=Formatter(f"'psf.rtf_file' expected None or one or more path-like objects{EPILOG}")
     ),
 
     Optional_('psf_file', default=None): Or(
         None,
-        And(str, Use(lambda n: (abspath(n),))),
-        And(os.PathLike, Use(lambda n: (abspath(n),))),
-        And(abc.Sequence, lambda n: all(isinstance(i, (os.PathLike, str)) for i in n),
+        And(Or(str, bytes, os.PathLike), Use(lambda n: (abspath(n),))),
+        And(abc.Sequence, lambda n: all(isinstance(i, (os.PathLike, bytes, str)) for i in n),
             Use(lambda n: tuple(abspath(i) for i in n))),
         error=Formatter(f"'psf.psf_file' expected None or one or more path-like objects{EPILOG}")
     ),
@@ -276,18 +274,18 @@ psf_schema = Schema({
 class PSFMapping(TypedDict, total=False):
     """A :class:`~typing.TypedDict` representing the input of :data:`psf_schema`."""
 
-    str_file: Union[None, str, os.PathLike, Sequence[Union[str, os.PathLike]]]
-    rtf_file: Union[None, str, os.PathLike, Sequence[Union[str, os.PathLike]]]
-    psf_file: Union[None, str, os.PathLike, Sequence[Union[str, os.PathLike]]]
+    str_file: Union[None, bytes, str, os.PathLike, Sequence[Union[str, bytes, os.PathLike]]]
+    rtf_file: Union[None, bytes, str, os.PathLike, Sequence[Union[str, bytes, os.PathLike]]]
+    psf_file: Union[None, bytes, str, os.PathLike, Sequence[Union[str, bytes, os.PathLike]]]
     ligand_atoms: Optional[Collection[str]]
 
 
 class PSFDict(TypedDict):
     """A typed dict represneting the output of :data:`psf_schema`."""
 
-    str_file: Optional[Tuple[Union[str, os.PathLike], ...]]
-    rtf_file: Optional[Tuple[Union[str, os.PathLike], ...]]
-    psf_file: Optional[Tuple[Union[str, os.PathLike], ...]]
+    str_file: Optional[Tuple[str, ...]]
+    rtf_file: Optional[Tuple[str, ...]]
+    psf_file: Optional[Tuple[str, ...]]
     ligand_atoms: Optional[FrozenSet[str]]
 
 

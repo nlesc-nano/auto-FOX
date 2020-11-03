@@ -27,6 +27,7 @@ from os.path import isfile, join
 from typing import Optional
 
 import yaml
+import h5py
 
 from .armc import dict_to_armc, run_armc
 from .armc.csv_utils import dset_to_csv
@@ -36,14 +37,6 @@ try:
     import matplotlib.pyplot as plt
 except ImportError:
     pass
-
-try:
-    import h5py
-    H5PY_ERROR = None
-except ImportError:
-    H5PY_ERROR = ("Use of the FOX.{} function requires the 'h5py' package."
-                  "\n'h5py' can be installed via anaconda with the following command:"
-                  "\n\tconda install --name FOX -y -c conda-forge h5py")
 
 
 def main_armc(args: Optional[list] = None) -> None:
@@ -69,11 +62,9 @@ def main_armc(args: Optional[list] = None) -> None:
     args_parsed = parser.parse_args(args)
     filename: str = args_parsed.filename[0]
     restart: bool = args_parsed.restart[0]
-    if not isfile(filename):
-        raise FileNotFoundError("[Errno 2] No such file: '{}'".format(filename))
 
     with open(filename, 'r') as f:
-        dct = yaml.load(f.read(), Loader=yaml.FullLoader)
+        dct = yaml.safe_load(f.read())
     armc, kwargs = dict_to_armc(dct)
     run_armc(armc, restart=restart, **kwargs)
 
