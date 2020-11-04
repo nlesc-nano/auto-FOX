@@ -50,9 +50,10 @@ Using **Auto-FOX**
   - The absolute path + filename of aforementioned trajectory
     can be retrieved as following:
 
-::
 
-         from FOX import example_xyz
+.. code:: python
+
+    >>> from FOX import example_xyz
 
 - Further examples and more detailed descriptions are
   available in the documentation_.
@@ -77,7 +78,7 @@ Anaconda environments
 - Anaconda environments can be created, enabled and disabled by,
   respectively, typing:
 
-  - Create environment: ``conda create --name FOX python=3.7``
+  - Create environment: ``conda create -n FOX -c conda-forge python rdkit h5py``
 
   - Enable environment: ``conda activate FOX``
 
@@ -94,11 +95,6 @@ Installing **Auto-FOX**
 
 Optional dependencies
 ---------------------
-
-- Use of the FOX.monte_carlo_ module requires h5py_.
-  Note: h5py is not distrbuted via PyPi:
-
-  - Anaconda:   ``conda install --name FOX -y -c conda-forge h5py``
 
 - The plotting of data produced by **Auto-FOX** requires Matplotlib_.
   Matplotlib is distributed by both PyPi and Anaconda:
@@ -127,6 +123,4 @@ Optional dependencies
 .. _Matplotlib: https://matplotlib.org/
 .. _FOX.data: https://github.com/nlesc-nano/auto-FOX/blob/master/FOX/data
 .. _FOX.examples: https://github.com/nlesc-nano/auto-FOX/blob/master/FOX/examples/input.py
-.. _h5py: https://www.h5py.org/
-.. _FOX.monte_carlo: https://auto-fox.readthedocs.io/en/latest/4_monte_carlo.html
 .. _DASK: https://dask.org/
