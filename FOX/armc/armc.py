@@ -2,7 +2,7 @@
 
 Index
 -----
-.. currentmodule:: FOX.armc.armc
+.. currentmodule:: FOX.armc
 .. autosummary::
     ARMC
 
@@ -80,7 +80,6 @@ class ARMC(MonteCarloABC):
 
     @property
     def super_iter_len(self) -> int:
-        """Get :attr:`ARMC.iter_len` ``//`` :attr:`ARMC.sub_iter_len`."""
         return self.iter_len // self.sub_iter_len
 
     def acceptance(self) -> np.ndarray:

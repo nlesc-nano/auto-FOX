@@ -2,7 +2,7 @@
 
 Index
 -----
-.. currentmodule:: FOX.armc.monte_carlo
+.. currentmodule:: FOX.armc
 .. autosummary::
     MonteCarloABC
 

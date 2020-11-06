@@ -2,7 +2,7 @@
 
 Index
 -----
-.. currentmodule:: FOX.armc.sanitization
+.. currentmodule:: FOX.armc
 .. autosummary::
     dict_to_armc
 

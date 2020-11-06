@@ -1,11 +1,16 @@
-FOX.armc.monte_carlo
-====================
-.. automodule:: FOX.armc.monte_carlo
+Index
+-----
+.. currentmodule:: FOX.armc
+.. autosummary::
+    MonteCarloABC
+    ARMC
+    ARMCPT
 
-FOX.armc.armc
-=============
-.. automodule:: FOX.armc.armc
-
-FOX.armc.armc_pt
-================
-.. automodule:: FOX.armc.armc_pt
+API
+---
+.. autoclass:: MonteCarloABC
+    :members:
+.. autoclass:: ARMC
+    :members:
+.. autoclass:: ARMCPT
+    :members:

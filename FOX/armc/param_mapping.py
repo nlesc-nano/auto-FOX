@@ -2,7 +2,7 @@
 
 Index
 -----
-.. currentmodule:: FOX.armc.param_mapping
+.. currentmodule:: FOX.armc
 .. autosummary::
     ParamMappingABC
     ParamMapping

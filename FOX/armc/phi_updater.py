@@ -2,7 +2,7 @@ r"""A module holding classes for managing and updating :math:`\phi`.
 
 Index
 -----
-.. currentmodule:: FOX.armc.phi_updater
+.. currentmodule:: FOX.armc
 .. autosummary::
     PhiUpdaterABC
     PhiUpdater
@@ -73,12 +73,6 @@ class PhiUpdaterABC(AbstractDataClass, ABC, Sized):
 
     @property
     def phi(self) -> np.ndarray:
-        """Get or set :attr:`phi`.
-
-        Get wil simply return :attr:`phi` while set will cast the supplied value
-        into an array and then assign it to :attr:`phi`.
-
-        """
         return self._phi
 
     @phi.setter
@@ -87,17 +81,14 @@ class PhiUpdaterABC(AbstractDataClass, ABC, Sized):
 
     @property
     def gamma(self) -> np.ndarray:
-        """Get the read-only attribute :attr:`gamma`."""
         return self._gamma  # type: ignore
 
     @property
     def a_target(self) -> np.ndarray:
-        """Get the read-only attribute :attr:`a_target`."""
         return self._a_target  # type: ignore
 
     @property
     def func(self) -> PhiFunc:
-        """Get the read-only attribute :attr:`func`."""
         return self._func  # type: ignore
 
     _PRIVATE_ATTR = frozenset({'__name__', '__qualname__'})  # type: ignore
