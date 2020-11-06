@@ -36,12 +36,10 @@ jobs:
                 conda-channels: anaconda
 
             - name: Set up Conda with Python ${{ matrix.version }} on ${{ matrix.os }}
-              run: |
-                  conda create -n env python=${{ matrix.version }}
-                  source activate env
+              run: conda install -y python=${{ matrix.version }} --force-reinstall --update-all
 
             - name: Install conda-based dependencies
-              run: conda install -n env -c conda-forge h5py rdkit
+              run: conda install -c conda-forge h5py rdkit
 
             - name: Install dependencies
               run: pip install -e .[test]
@@ -52,7 +50,7 @@ jobs:
               run: conda info
 
             - name: Info installed packages
-              run: conda list -n env
+              run: conda list
 
             - name: Run tests
               run: pytest -m "not slow"
