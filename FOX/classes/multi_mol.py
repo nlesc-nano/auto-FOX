@@ -2,13 +2,13 @@
 
 Index
 -----
-.. currentmodule:: FOX.classes.multi_mol
+.. currentmodule:: FOX
 .. autosummary::
     MultiMolecule
 
 API
 ---
-.. autoclass:: FOX.classes.multi_mol.MultiMolecule
+.. autoclass:: FOX.MultiMolecule
     :members:
 
 """

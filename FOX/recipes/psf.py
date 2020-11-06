@@ -78,7 +78,7 @@ it is possible to return all (failed) potential ligands with the **ret_failed_li
 
 Index
 -----
-.. currentmodule:: FOX.recipes.psf
+.. currentmodule:: FOX.recipes
 .. autosummary::
     generate_psf
     generate_psf2
