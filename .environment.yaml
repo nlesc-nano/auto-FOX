@@ -8,3 +8,4 @@ dependencies:
     - python=3.8
     - h5py
     - rdkit
+    - matplotlib
