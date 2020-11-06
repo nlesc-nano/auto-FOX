@@ -23,7 +23,7 @@ def test_td_rdf():
 def test_td_adf():
     """Test :func:`FOX.recipes.time_resolved_adf`."""
     mol = MOL.copy()
-    adf_list = time_resolved_adf(mol, atom_subset=['Cd', 'Se'])
+    adf_list = time_resolved_adf(mol, atom_subset=['Cd', 'Se'], r_max=6.0)
 
     array = np.array(adf_list)
     array_ref = np.load(PATH / 'time_resolved_adf.npy')

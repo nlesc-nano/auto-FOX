@@ -143,15 +143,6 @@ def time_resolved_adf(mol: FOX.MultiMolecule, start: int = 0, stop: Optional[int
         Calculate the angular distribution function.
 
     """
-    i0 = start
-    i1 = step
+    func = FOX.MultiMolecule.init_adf
     stop_ = stop if stop is not None else len(mol)
-    ret = []
-
-    while i0 < stop_:
-        rdf = mol.init_rdf(mol_subset=np.s_[i0:i1], **kwargs)
-        ret.append(rdf)
-        i0 += step
-        i1 += step
-
-    return ret
+    return _time_resolved(mol, func, start, stop_, step, **kwargs)
