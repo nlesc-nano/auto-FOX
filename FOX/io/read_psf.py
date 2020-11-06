@@ -2,13 +2,14 @@
 
 Index
 -----
-.. currentmodule:: FOX.io.read_psf
+.. currentmodule:: FOX
 .. autosummary::
     PSFContainer
 
 API
 ---
 .. autoclass:: PSFContainer
+    :noindex:
     :members:
 
 """

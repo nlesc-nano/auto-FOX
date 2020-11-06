@@ -10,6 +10,7 @@ API
 ---
 .. autoclass:: _MultiMolecule
     :members:
+    :noindex:
 
 """
 
@@ -85,15 +86,15 @@ class _MolLoc(Generic[MT]):
 
     Parameters
     ----------
-    mol : :class:`MultiMolecule`
+    mol : :class:`~FOX.MultiMolecule`
         A MultiMolecule instance; see :attr:`_MolLoc.mol`.
 
     Attributes
     ----------
-    mol : :class:`MultiMolecule`
+    mol : :class:`~FOX.MultiMolecule`
         A MultiMolecule instance.
-    atoms : :class:`~collections.abc.Mapping`
-        A read-only view of :attr:`_MolLoc.mol.atoms<MultiMolecule.atoms>`.
+    atoms_view : :class:`~collections.abc.Mapping`
+        A read-only view of :attr:`_MolLoc.mol.atoms<FOX.MultiMolecule.atoms>`.
 
     """
 
@@ -104,7 +105,7 @@ class _MolLoc(Generic[MT]):
         return self._mol
 
     @property
-    def atoms(self) -> IdxMapping:
+    def atoms_view(self) -> IdxMapping:
         try:
             return self._atoms
         except AttributeError:
@@ -141,7 +142,7 @@ class _MolLoc(Generic[MT]):
 
         Parameter
         ---------
-        key : :class:`str` or :class:`Iterable<collections.abc.Iterable>` [:class:`str`]
+        key : :class:`str` or :class:`Iterable[str]<collections.abc.Iterable>`
             An atom type or an iterable consisting of atom types.
 
         Returns
@@ -151,7 +152,7 @@ class _MolLoc(Generic[MT]):
 
         """
         if isinstance(key, str):
-            return self.atoms[key]
+            return self.atoms_view[key]
 
         try:
             key_iterator = iter(key)
@@ -160,7 +161,7 @@ class _MolLoc(Generic[MT]):
 
         # Gather all indices and flatten them
         idx: List[int] = []
-        atoms = self.atoms
+        atoms = self.atoms_view
         for k in key_iterator:
             idx += atoms[k]
         return idx
