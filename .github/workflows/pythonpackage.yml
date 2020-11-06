@@ -38,7 +38,7 @@ jobs:
             - name: Set up Conda with Python ${{ matrix.version }} on ${{ matrix.os }}
               run: |
                   conda create -n env python=${{ matrix.version }}
-                  conda init
+                  conda init bash
                   conda activate env
 
             - name: Install conda-based dependencies
