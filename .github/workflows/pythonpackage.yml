@@ -39,6 +39,8 @@ jobs:
               run: |
                   conda create -n env python=${{ matrix.version }}
                   conda init bash
+                  chmod u+rwx $HOME/.bashrc
+                  $HOME/.bashrc
                   conda activate env
 
             - name: Install conda-based dependencies
