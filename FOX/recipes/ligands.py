@@ -24,7 +24,6 @@ An example for generating a ligand center of mass RDF.
     :scale: 20 %
     :align: center
 
-|
 Or the ADF.
 
 .. code:: python
@@ -37,7 +36,6 @@ Or the ADF.
     :scale: 20 %
     :align: center
 
-|
 Or the potential of mean force (*i.e.* Boltzmann-inverted RDF).
 
 .. code:: python
@@ -58,7 +56,6 @@ Or the potential of mean force (*i.e.* Boltzmann-inverted RDF).
     :scale: 20 %
     :align: center
 
-|
 Focus on a specific ligand subset is possible by slicing the new ligand Cartesian coordinate array.
 
 .. code:: python

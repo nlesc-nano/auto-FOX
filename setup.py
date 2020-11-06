@@ -104,7 +104,7 @@ setup(
         'AssertionLib>=2.2',
         'noodles>=0.3.3',
         'qmflows@git+https://github.com/SCM-NV/qmflows@master',
-        'plams@git+https://github.com/SCM-NV/PLAMS@master'
+        'plams@git+https://github.com/SCM-NV/PLAMS@a5696ce62c09153a9fa67b2b03a750913e1d0924',
     ],
     setup_requires=[
         'pytest-runner'

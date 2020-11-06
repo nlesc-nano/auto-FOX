@@ -5,6 +5,7 @@
     :target: https://auto-fox.readthedocs.io/en/latest/
 .. image:: https://zenodo.org/badge/DOI/10.5281/zenodo.3988143.svg
     :target: https://doi.org/10.5281/zenodo.3988143
+
 |
 
 .. image:: https://img.shields.io/badge/python-3.7-blue.svg

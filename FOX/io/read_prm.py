@@ -2,7 +2,7 @@
 
 Index
 -----
-.. currentmodule:: FOX.io.read_prm
+.. currentmodule:: FOX
 .. autosummary::
     PRMContainer
     PRMContainer.read
@@ -13,6 +13,7 @@ Index
 API
 ---
 .. autoclass:: PRMContainer
+    :noindex:
     :members: atoms, bonds, angles, dihedrals, impropers, nonbonded, nbfix
 
 .. automethod:: PRMContainer.read

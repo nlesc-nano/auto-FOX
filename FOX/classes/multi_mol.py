@@ -10,6 +10,7 @@ API
 ---
 .. autoclass:: FOX.MultiMolecule
     :members:
+    :noindex:
 
 """
 

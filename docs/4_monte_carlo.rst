@@ -148,7 +148,7 @@ Parameters
                 prm: .../ligand.prm
 
 
-A comprehensive overview of all available input parameters is provided in `Monte Carlo Parameters`_.
+A comprehensive overview of all available input parameters is provided in Monte Carlo Parameters.
 
 Once a the .yaml file with the ARMC settings has been sufficiently customized
 the parameter optimization can be started via the command prompt with:
