@@ -1,3 +1,13 @@
-FOX.armc.package_manager
-========================
-.. automodule:: FOX.armc.package_manager
+Index
+-----
+.. currentmodule:: FOX.armc
+.. autosummary::
+    PackageManagerABC
+    PackageManager
+
+API
+---
+.. autoclass:: PackageManagerABC
+    :members:
+.. autoclass:: PackageManager
+    :members:

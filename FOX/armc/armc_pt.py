@@ -2,7 +2,7 @@
 
 Index
 -----
-.. currentmodule:: FOX.armc.armc_pt
+.. currentmodule:: FOX.armc
 .. autosummary::
     ARMCPT
 

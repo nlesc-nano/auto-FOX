@@ -1,3 +1,13 @@
-FOX.armc.param_mapping
-======================
-.. automodule:: FOX.armc.param_mapping
+Index
+-----
+.. currentmodule:: FOX.armc
+.. autosummary::
+    ParamMappingABC
+    ParamMapping
+
+API
+---
+.. autoclass:: ParamMappingABC
+    :members:
+.. autoclass:: ParamMapping
+    :members:

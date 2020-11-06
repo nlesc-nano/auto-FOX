@@ -1,3 +1,13 @@
-FOX.armc.phi_updater
-====================
-.. automodule:: FOX.armc.phi_updater
+Index
+-----
+.. currentmodule:: FOX.armc
+.. autosummary::
+    PhiUpdaterABC
+    PhiUpdater
+
+API
+---
+.. autoclass:: PhiUpdaterABC
+    :members:
+.. autoclass:: PhiUpdater
+    :members:

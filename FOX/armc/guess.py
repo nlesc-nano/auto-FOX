@@ -2,7 +2,7 @@
 
 Index
 -----
-.. currentmodule:: FOX.armc.csv_utils
+.. currentmodule:: FOX.armc
 .. autosummary::
     guess_param
 

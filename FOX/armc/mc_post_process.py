@@ -2,7 +2,7 @@
 
 Index
 -----
-.. currentmodule:: FOX.armc.mc_post_process
+.. currentmodule:: FOX.armc
 .. autosummary::
     AtomsFromPSF
 

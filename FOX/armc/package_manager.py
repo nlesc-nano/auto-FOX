@@ -2,7 +2,7 @@
 
 Index
 -----
-.. currentmodule:: FOX.armc.package_manager
+.. currentmodule:: FOX.armc
 .. autosummary::
     PackageManagerABC
     PackageManager
@@ -13,7 +13,6 @@ API
     :members:
 .. autoclass:: PackageManager
     :members:
-
 
 """
 

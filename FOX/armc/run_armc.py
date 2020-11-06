@@ -2,7 +2,7 @@
 
 Index
 -----
-.. currentmodule:: FOX.armc.run_armc
+.. currentmodule:: FOX.armc
 .. autosummary::
     run_armc
 
