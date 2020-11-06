@@ -38,7 +38,7 @@ jobs:
             - name: Set up Conda with Python ${{ matrix.version }} on ${{ matrix.os }}
               run: |
                   conda create -n env python=${{ matrix.version }}
-                  conda activate env
+                  source activate env
 
             - name: Install conda-based dependencies
               run: conda install -n env -c conda-forge h5py rdkit
