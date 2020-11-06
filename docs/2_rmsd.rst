@@ -127,16 +127,16 @@ can be accessed by their index.
 
 API
 ---
-.. automethod:: FOX.classes.multi_mol.MultiMolecule.init_rmsd
+.. automethod:: FOX.MultiMolecule.init_rmsd
     :noindex:
 
-.. automethod:: FOX.classes.multi_mol.MultiMolecule.init_rmsf
+.. automethod:: FOX.MultiMolecule.init_rmsf
     :noindex:
 
-.. automethod:: FOX.classes.multi_mol.MultiMolecule.init_shell_search
+.. automethod:: FOX.MultiMolecule.init_shell_search
     :noindex:
 
-.. automethod:: FOX.classes.multi_mol.MultiMolecule.get_at_idx
+.. automethod:: FOX.MultiMolecule.get_at_idx
     :noindex:
 
 

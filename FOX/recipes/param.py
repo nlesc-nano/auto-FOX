@@ -105,7 +105,7 @@ Given a sequence of booleans (``bool_seq``), one can slice a DataFrame or Series
 
 Index
 -----
-.. currentmodule:: FOX.recipes.param
+.. currentmodule:: FOX.recipes
 .. autosummary::
     get_best
     overlay_descriptor

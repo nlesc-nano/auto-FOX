@@ -66,12 +66,17 @@ oxygen (Cd_Cd, Cd_Se, Cd_O, Se_Se, Se_O and O_O).
 
 API
 ---
-.. automethod:: FOX.classes.multi_mol.MultiMolecule.init_rdf
+.. automethod:: FOX.MultiMolecule.init_rdf
     :noindex:
 
-.. automethod:: FOX.classes.multi_mol.MultiMolecule.init_adf
+.. automethod:: FOX.MultiMolecule.init_adf
     :noindex:
 
+.. autofunction:: FOX.recipes.time_resolved_rdf
+    :noindex:
+
+.. autofunction:: FOX.recipes.time_resolved_rdf
+    :noindex:
 
 .. _NumPy: https://www.numpy.org/
 .. _Pandas: https://pandas.pydata.org/

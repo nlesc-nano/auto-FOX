@@ -107,7 +107,7 @@ A .psf file will herein be used as starting point.
 
 Index
 -----
-.. currentmodule:: FOX.recipes.ligands
+.. currentmodule:: FOX.recipes
 .. autosummary::
     get_lig_center
     get_multi_lig_center

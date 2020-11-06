@@ -10,7 +10,7 @@ function allows for the fast, and memory-effiecient, retrieval of the
 various molecular geometries stored in an .xyz file.
 
 An .xyz file, ``example_xyz_file``, can also be directly converted into
-a :class:`.MultiMolecule` instance.
+a :class:`FOX.MultiMolecule` instance.
 
 .. code:: python
 
@@ -25,7 +25,7 @@ a :class:`.MultiMolecule` instance.
 API
 ---
 .. autofunction:: FOX.io.read_xyz.read_multi_xyz
-.. automethod:: FOX.classes.multi_mol.MultiMolecule.from_xyz
+.. automethod:: FOX.MultiMolecule.from_xyz
     :noindex:
 
 .. autodata:: FOX.example_xyz

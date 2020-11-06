@@ -67,7 +67,7 @@ Sum the interactions.
 
 Index
 -----
-.. currentmodule:: FOX.recipes.histogram
+.. currentmodule:: FOX.recipes
 .. autosummary::
     filter_atoms
 
