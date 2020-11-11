@@ -249,9 +249,9 @@ The param block
         charge:
             param: charge
             constraints:
-                -  '0 < Cs < 2'
-                -  '1 < Pb < 3'
-                -  'Cs == 0.5 * Br'
+                - Cs == -0.5 * Br
+                - 0 < Cs < 2
+                - 1 < Pb < 3
             Cs: 1.000
             Pb: 2.000
         lennard_jones:
@@ -262,19 +262,18 @@ The param block
               Pb Pb: 2.7740
             - unit: nm
               param: sigma
-              constraints: 'Cs Cs == Pb Pb'
+              constraints: Cs Cs == Pb Pb
               Cs Cs: 0.60
               Cs Pb: 0.50
               Pb Pb: 0.60
 
-The :attr:`param<param.block>` key in the .yaml input contains all user-specified
+The :attr:`~param.block` key in the .yaml input contains all user-specified
 to-be optimized parameters.
 
 There are three critical (and two optional) components to the ``"param"``
 block:
 
     * The key of each block (charge_, epsilon_ & sigma_).
-    * The ``"keys"`` sub-block, which points to the section path in the CP2K settings (*e.g.* `['input', 'force_eval', 'mm', 'forcefield', 'charge'] <https://manual.cp2k.org/trunk/CP2K_INPUT/FORCE_EVAL/MM/FORCEFIELD/CHARGE.html>`_).
     * The sub-blocks containing either singular atoms_ or `atom pairs <https://manual.cp2k.org/trunk/CP2K_INPUT/FORCE_EVAL/MM/FORCEFIELD/NONBONDED/LENNARD-JONES.html#list_ATOMS>`_.
 
 Together, these three components point to the appropiate path of the
@@ -287,8 +286,8 @@ For example, the following input is suitable if one wants to optimize a `torsion
 .. code:: yaml
 
     param:
-        k:
-            keys: [input, force_eval, mm, forcefield, torsion]
+        torsion:
+            param: k
             unit: kcalmol
             C C C C: 10
 
@@ -297,10 +296,28 @@ Besides the three above-mentioned mandatory components, one can
 its value to a certain range.
 When supplying units, it is the responsibility of the user to ensure
 the units are supported by CP2K.
-Furthermore, parameter constraints are, as of the moment, limited to specifying
-minimum and/or maximum values (*e.g.* :code:`0 < Cs < 2`).
-Additional (more elaborate) constrainst are currently already available for
-atomic charges in the ``move.charge_constraints`` block (see below).
+
+.. code:: yaml
+
+    param:
+        charge:
+            constraints:
+                - Cd == -2 * $LIGAND
+                - 0 < Cd < 2
+                - -2 < Se < 0
+
+Lastly, a number of constraints can be applied to the various parameters
+in the form of minima/maxima and fixed ratios. The special ``$LIGAND``
+string can herein be used as an alias representing all atoms within a single
+ligand. For example, when the formate anion is used as ligand (O2CH),
+``$LIGAND`` is equivalent to ``2 * O + C + H``.
+
+.. note::
+
+    The ``charge`` parameter is unique in that the total molecular charge is
+    *always* constrained; it will remain constant with respect to the initial
+    charge of the system. It is the users responsibiliy to ensure that the
+    initial charge is actually integer.
 
 
 Parameter Guessing
@@ -318,7 +335,7 @@ Parameter Guessing
             - unit: nm
               param: sigma
               frozen:
-                guess: uff
+                  guess: uff
 
 .. math::
 
