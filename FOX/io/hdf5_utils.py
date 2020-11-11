@@ -365,10 +365,12 @@ def to_hdf5(filename: PathType, dset_dict: Mapping[str, np.ndarray],
             try:
                 if key == 'xyz':
                     continue
-                elif key == 'phi':
-                    f[key][kappa] = value
+
+                dset = f[key]
+                if key == 'phi':
+                    dset[kappa] = np.asarray(value, dtype=dset.dtype)
                 else:
-                    f[key][kappa, omega] = value
+                    dset[kappa, omega] = np.asarray(value, dtype=dset.dtype)
             except Exception as ex:
                 cls = type(ex)
                 raise cls(f"dataset {key!r}: {ex}").with_traceback(ex.__traceback__)
