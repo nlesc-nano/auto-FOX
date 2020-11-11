@@ -14,6 +14,7 @@ API
 
 import os
 import copy
+import warnings
 from pathlib import Path
 from collections import abc, Counter
 from typing import (
@@ -408,6 +409,7 @@ def _get_param_df(dct: Mapping[str, Any]) -> pd.DataFrame:
     data = _get_prm(dct)
 
     df = pd.DataFrame(data, columns=columns)
+    _sort_atoms(df)
     df.set_index(['key', 'param_type', 'atoms'], inplace=True)
 
     df['param_old'] = df['param'].copy()
@@ -415,6 +417,50 @@ def _get_param_df(dct: Mapping[str, Any]) -> pd.DataFrame:
     df['min'] = -np.inf
     df['max'] = np.inf
     return df
+
+
+def _sort_atoms(df: pd.DataFrame) -> None:
+    """Sort all 2- and 3-atom based parameters in alphabetical order.
+
+    Only the first and last elements are sorted in the case of 3-atom based parameters.
+
+    Parameters
+    ----------
+    df : :class:`pandas.DataFrame`
+        A dataframe with the ``"param_type"`` and ``"atoms"`` columns.
+
+    Raises
+    ------
+    KeyError : Raised if duplicate keys are observed after the sorting.
+
+    """
+    param_types = set(df["param_type"])
+    for prm in param_types:
+        condition = df['param_type'] == prm
+        atoms = df.loc[condition, 'atoms'].values.astype(str)
+        atoms_split = np.char.partition(atoms, " ")
+
+        # Sort the atoms whenever dealing with atom-pair/triplet-based parameters
+        n = atoms_split.shape[1]
+        if n == 3:
+            atoms_split[..., ::2].sort(axis=1)
+        elif n == 5:
+            atoms_split[..., ::4].sort(axis=1)
+        elif n >= 7:
+            m = (n - 1) // 2
+            warnings.warn(f"The sorting of {m}-atom based parameters is not implemented")
+            continue
+        else:
+            continue
+
+        new_atoms = np.array([''.join(j for j in i) for i in atoms_split])
+
+        # Check for duplicates
+        _, idx, counts = np.unique(new_atoms, return_index=True, return_counts=True)
+        if not (counts == 1).all():
+            duplicates = atoms[idx[counts != 1]]
+            raise KeyError(f"Duplicate {prm!r} keys encountered: {duplicates}")
+        df.loc[condition, 'atoms'] = new_atoms
 
 
 def _get_prm(dct: Mapping[str, Union[Mapping, Iterable[Mapping]]]
