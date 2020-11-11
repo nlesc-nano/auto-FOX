@@ -18,6 +18,7 @@ Index
     :attr:`param.kwargs`                        A dictionary with keyword arguments for :attr:`param.func`.
     :attr:`param.block.param`                   The name of the forcefield parameter.
     :attr:`param.block.unit`                    The unit in which the forcefield parameters are expressed.
+    :attr:`param.block.constraints`             A string or list of strings with parameter constraints.
     :attr:`param.block.guess`                   Estimate all non-specified forcefield parameters.
     :attr:`param.block.frozen`                  A sub-block with to-be frozen parameters.
     =========================================== =========================================================================================================
@@ -217,6 +218,18 @@ This settings block accepts an arbitrary number of sub-blocks.
 
         See the `CP2K manual <https://manual.cp2k.org/trunk/units.html>`_ for a
         comprehensive list of all available units.
+
+
+    .. attribute:: param.block.constraints
+
+        :Parameter:     * **Type** - :class:`str` or :class:`list` [:class:`str`]
+
+        A string or list of strings with parameter constraints.
+        Accepted types of constraints are minima/maxima (*e.g.* ``2 > Cd > 0``)
+        and fixed parameter ratios (*e.g.* ``Cd == -1 * Se``).
+        The special ``$LIGAND`` alias can be used for representing all
+        atoms within a single ligand. For example, ``$LIGAND`` is equivalent to
+        ``2 * O + C + H`` in the case of formate.
 
 
     .. attribute:: param.block.guess
