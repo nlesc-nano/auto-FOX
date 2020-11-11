@@ -28,6 +28,7 @@ API
 
 import warnings
 import subprocess
+import textwrap
 from os import remove, PathLike
 from time import sleep
 from os.path import isfile
@@ -331,6 +332,15 @@ def hdf5_availability(filename: PathType, timeout: float = 5.0,
     raise error
 
 
+_HDF5_EXC = """Failed to write dataset {key!r}
+
+dset: {dset.__class__.__name__} = {dset!r}
+kappa: {kappa.__class__.__name__} = {kappa!r}
+omega: {omega.__class__.__name__} = {omega!r}
+value: {value.__class__.__name__} = {value}
+"""
+
+
 def to_hdf5(filename: PathType, dset_dict: Mapping[str, np.ndarray],
             kappa: int, omega: int) -> None:
     r"""Export results from **dset_dict** to the hdf5 file **filename**.
@@ -365,13 +375,18 @@ def to_hdf5(filename: PathType, dset_dict: Mapping[str, np.ndarray],
             try:
                 if key == 'xyz':
                     continue
-                elif key == 'phi':
-                    f[key][kappa] = value
+
+                dset = f[key]
+                if key == 'phi':
+                    dset[kappa] = np.asarray(value, dtype=dset.dtype)
                 else:
-                    f[key][kappa, omega] = value
+                    dset[kappa, omega] = np.asarray(value, dtype=dset.dtype)
             except Exception as ex:
-                cls = type(ex)
-                raise cls(f"dataset {key!r}: {ex}").with_traceback(ex.__traceback__)
+                value_str = textwrap.indent(repr(value), 27 * ' ')[27:]
+                msg = _HDF5_EXC.format(
+                    key=key, dset=dset, kappa=kappa, omega=omega, value=value_str,
+                )
+                raise RuntimeError(msg) from ex
 
     # Update the second hdf5 file with Cartesian coordinates
     filename_xyz = _get_filename_xyz(filename)
