@@ -252,6 +252,9 @@ def load_results(workdir, *, result_type=CP2KMM_Result, n=1):  # noqa: E302
     tmp = []
     i = -n
     for jobname in sorted(listdir(workdir_path)):
+        if jobname == '__pycache__':
+            continue
+
         plams_dir = workdir_path / jobname
         if not isdir(plams_dir):
             continue
