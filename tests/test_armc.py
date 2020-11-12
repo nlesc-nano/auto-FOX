@@ -22,6 +22,35 @@ DF = pd.DataFrame({
 })
 
 
+def test_armc_guess() -> None:
+    file = PATH / 'armc_ref.yaml'
+    with open(file, 'r') as f:
+        dct = yaml.load(f.read(), Loader=yaml.FullLoader)
+
+    sigma = dct['param']['lennard_jones'][1]
+    del sigma['Cd Cd']
+    sigma['frozen'] = {'guess': 'uff'}
+
+    armc, job_kwargs = dict_to_armc(dct)
+    param = armc.param['param'].loc[('lennard_jones', 'sigma'), 0]
+
+    # The expected `sigma` parameters
+    ref = np.array([
+        3.05043721,
+        3.65491199,
+        2.53727955,
+        2.07044862,
+        2.7831676,
+        0.2471,
+        3.14175433,
+        2.6749234,
+        3.38764238,
+        0.3526,
+        3.74622911,
+    ])
+    np.testing.assert_allclose(param.values, ref)
+
+
 @delete_finally(PATH / '_ARMC')
 def test_armc() -> None:
     """Test :class:`ARMC`."""
