@@ -22,18 +22,18 @@ This project adheres to `Semantic Versioning <http://semver.org/>`_.
 
 0.8.7
 *****
-* Moved from `PRMContainer.__dict__` to a `PRMContainer.__slots__` based class structure.
-* Cleaned up the `PRMContainer` code; updated annotations, etc..
-* Removed `assertionlib.AbstractDataClass` as base class from `PRMContainer`.
+* Moved from ``PRMContainer.__dict__`` to a ``PRMContainer.__slots__`` based class structure.
+* Cleaned up the ``PRMContainer`` code; updated annotations, *etc.*.
+* Removed ``assertionlib.AbstractDataClass`` as base class from ``PRMContainer``.
 * Do not read or write comments to and from a .prm file.
-* Upped the minimum Sphinx version to `2.1`.
-* Removed `sphinx-autodoc-typehints`.
+* Upped the minimum Sphinx version to ``2.1``.
+* Removed ``sphinx-autodoc-typehints``.
 
 
 0.8.6
 *****
-* Import `AbstractFileContainer` from Nano-Utils.
-* Removed `TypeMapping` in favor of `TypedDict`.
+* Import ``AbstractFileContainer`` from Nano-Utils.
+* Removed ``TypeMapping`` in favor of `TypedDict`.
 * Remove travis in favor of GitHub Actions.
 
 
