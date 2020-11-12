@@ -20,6 +20,7 @@ from contextlib import redirect_stdout
 from scm.plams import config
 from qmflows.utils import InitRestart
 
+from ..utils import log_traceback_locals
 from ..logger import Plams2Logger, wrap_plams_logger
 
 if TYPE_CHECKING:
@@ -57,7 +58,13 @@ def run_armc(armc: MonteCarloABC,
                               lambda n: 'Trying to obtain results of crashed or failed job' in n)
 
         with redirect_stdout(writer):
-            if not restart:  # To restart or not? That's the question
-                armc()
-            else:
-                armc.restart()
+            try:
+                if not restart:  # To restart or not? That's the question
+                    armc()
+                else:
+                    armc.restart()
+            except Exception:
+                logger = armc.logger
+                logger.debug("Unexpected exception encounterd, dumping local variables:")
+                log_traceback_locals(logger)
+                raise

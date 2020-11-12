@@ -13,6 +13,7 @@ Index
     get_atom_count
     read_rtf_file
     prepend_exception
+    log_traceback_locals
 
 API
 ---
@@ -24,10 +25,16 @@ API
 .. autofunction:: get_atom_count
 .. autofunction:: read_rtf_file
 .. autofunction:: prepend_exception
+.. autofunction:: log_traceback_locals
 
 """
 
+import operator
+import inspect
+import textwrap
 import warnings
+from pprint import pformat
+from logging import Logger
 from functools import wraps
 from typing import (
     Iterable, Tuple, Callable, Hashable, Sequence, Optional, List, TypeVar,
@@ -37,11 +44,12 @@ from typing import (
 import numpy as np
 import pandas as pd
 
-from nanoutils import PathType
+from nanoutils import PathType, SupportsIndex
 
 __all__ = [
     'get_move_range', 'array_to_index', 'serialize_array', 'read_str_file',
-    'get_shape', 'slice_str', 'get_atom_count', 'read_rtf_file', 'prepend_exception'
+    'get_shape', 'slice_str', 'get_atom_count', 'read_rtf_file', 'prepend_exception',
+    'log_traceback_locals',
 ]
 
 T = TypeVar('T')
@@ -420,3 +428,32 @@ def prepend_exception(msg: str, exception: ExcType = Exception) -> Callable[[FT]
         return cast(FT, wrapper)
 
     return _decorator
+
+
+def log_traceback_locals(logger: Logger, level: SupportsIndex = -1,
+                         str_func: Callable[[object], str] = pformat) -> None:
+    """Log all local variables at the specified traceback level.
+
+    Parameters
+    ----------
+    logger : :class:`~logging.Logger`
+        A logger for writing the local variables.
+    level : :class:`int`
+        The traceback level.
+    str_func : :data:`Callable[[object], str]<typing.Callable>`
+        The callable for creating the variables string representation.
+
+    """
+    try:
+        local_dct = inspect.trace()[level].frame.f_locals
+    except IndexError:
+        i = operator.index(level)
+        raise RuntimeError(f"No traceback was found at level {i}") from None
+
+    for name, _value in local_dct.items():
+        prefix = f"    {name}: {_value.__class__.__name__} = "
+        n = len(prefix)
+        value_str = textwrap.indent(str_func(_value), n * ' ')[n:].split('\n')
+        value_str[0] = prefix + value_str[0]
+        for v in value_str:
+            logger.debug(v)
