@@ -14,7 +14,7 @@ API
 """  # noqa: E501
 
 from typing import (
-    Tuple, Dict, Mapping, Iterable, List, Sequence, overload, Any, TYPE_CHECKING
+    Tuple, Dict, Mapping, Iterable, List, Sequence, overload, Any, TYPE_CHECKING, Callable
 )
 
 import numpy as np
@@ -37,22 +37,89 @@ MolList = List[MultiMolecule]
 MolIter = Iterable[MultiMolecule]
 
 Key = Tuple[float, ...]
+SwapFunc = Callable[[np.ndarray, "ARMCPT"], Iterable[Tuple[int, int]]]
+
+
+def swap_random(acceptance: np.ndarray, armcpt: "ARMCPT",
+                weighted: bool = False) -> List[Tuple[int, int]]:
+    r"""Swap the :math:`\phi` and move range of two between forcefield parameter sets.
+
+    The two main parameters are the acceptance rate
+    :math:`\boldsymbol{\alpha} \in \mathbb{R}^{(n,)}` and target acceptance rate
+    :math:`\boldsymbol{\alpha^{t}} \in \mathbb{R}^{(n,)}`,
+    both vector's elements being the :math:`[0,1]` interval.
+
+    The (weighted) probability distribution :math:`\boldsymbol{p} \in \mathbb{R}^{(n,)}` is
+    consequently used for identifying which two forcefield parameter sets
+    are swapped.
+
+    .. math::
+
+        \hat{\boldsymbol{p}} = |\boldsymbol{\alpha} - \boldsymbol{\alpha^{t}}|^{-1}
+
+        \boldsymbol{p} = \frac{\hat{\boldsymbol{p}}}{\sum^n_{i} {\hat{\boldsymbol{p}}}_{i}}
+
+    Parameters
+    ----------
+    acceptance : :class:`numpy.ndarray` [:class:`bool`], shape :math:`(n, m)`
+        A 2D boolean array with acceptance rates over
+        the course of the last super-iteration.
+    armc : :class:`FOX.armc.ARMCPT`
+        An ARMCPT instance.
+    weighted : :class:`bool`
+        If ``True``, identify the to-be swapped parameters via a
+        weighted probability distribution.
+
+    Returns
+    -------
+    :data:`List[Tuple[int, int]]<typing.List>`
+        A list of 2-tuples with to-be swapped indices.
+
+    """
+    self = armcpt
+    if weighted:
+        _p = acceptance.mean(axis=0) - self.phi.a_target
+        if 0 in _p:
+            p = np.zeros_like(_p)
+            p[_p == 0] = True
+        else:
+            p = _p**-1
+    else:
+        p = np.ones(acceptance.shape[1])
+    p /= p.sum()  # normalize
+
+    idx_range = np.arange(len(p))
+    idx1 = np.random.choice(idx_range, p=p)
+    idx2 = np.random.choice(idx_range, p=p)
+
+    if idx1 != idx2:
+        self.logger.info(f"Swapping parameter sets {idx1} and {idx2}")
+        return [(idx1, idx2)]
+    else:
+        self.logger.info("Preserving all parameter sets")
+        return []
 
 
 class ARMCPT(ARMC):
     """An :class:`ARMC` subclass implementing a parallel tempering procedure."""
 
-    def __init__(self, **kwargs: Any) -> None:
+    swap_phi: SwapFunc
+
+    def __init__(self, swapper: SwapFunc = swap_random, **kwargs: Any) -> None:
         r"""Initialize an :class:`ARMCPT` instance.
 
         Parameters
         ----------
+        swapper : :data:`Callable[[ndarray,ARMCPT], Iterable[Tuple[int, int]]<typing.Callable>`
+            A callable for identifying the to-be swapped parameter.
+            Should return an iterable with 2-tuples of to-be swapped indices.
         \**kwargs : :data:`~typing.Any`
             Further keyword arguments for the :class:`ARMC` and
             :class:`MonteCarloABC` superclasses.
 
         """
         super().__init__(**kwargs)
+        self.swap_phi = swapper
         if len(self.phi.phi) <= 1:
             raise ValueError("{self.__class__.__name__!r} requires 'phi.phi' to "
                              "contain more than 1 element")
@@ -65,9 +132,7 @@ class ARMCPT(ARMC):
         return np.zeros(shape, dtype=bool)
 
     @overload
-    def _parse_call(self) -> List[Key]: ...
-    @overload
-    def _parse_call(self, start: None, key_new: None) -> List[Key]: ...
+    def _parse_call(self, start: None = ..., key_new: None = ...) -> List[Key]: ...
     @overload
     def _parse_call(self, start: int, key_new: Iterable[Key]) -> List[Key]: ...
     def _parse_call(self, start=None, key_new=None):  # noqa: E301
@@ -81,9 +146,7 @@ class ARMCPT(ARMC):
             return list(ret)
 
     @overload
-    def __call__(self) -> None: ...
-    @overload
-    def __call__(self, start: None, key_new: None) -> None: ...
+    def __call__(self, start: None = ..., key_new: None = ...) -> None: ...
     @overload
     def __call__(self, start: int, key_new: Key) -> None: ...
     def __call__(self, start=None, key_new=None):  # noqa: E301
@@ -100,7 +163,7 @@ class ARMCPT(ARMC):
             for omega in range(self.sub_iter_len):
                 key_new = self.do_inner(kappa, omega, acceptance, key_new)
             self.phi.update(acceptance)
-            self.swap_phi(acceptance)
+            self.swap_phi(acceptance, self)
 
     def do_inner(self, kappa: int, omega: int, acceptance: np.ndarray,
                  key_old: Sequence[Key]) -> List[Key]:
@@ -179,53 +242,7 @@ class ARMCPT(ARMC):
 
         return ret
 
-    def swap_phi(self, acceptance: np.ndarray, weighted: bool = False) -> None:
-        r"""Swap the :math:`\phi` and move range of two between forcefield parameter sets.
-
-        The two main parameters are the acceptance rate
-        :math:`\boldsymbol{\alpha} \in \mathbb{R}^{(n,)}` and target acceptance rate
-        :math:`\boldsymbol{\alpha^{t}} \in \mathbb{R}^{(n,)}`,
-        both vector's elements being the :math:`[0,1]` interval.
-
-        The (weighted) probability distribution :math:`\boldsymbol{p} \in \mathbb{R}^{(n,)}` is
-        consequently used for identifying which two forcefield parameter sets
-        are swapped.
-
-        .. math::
-
-            \hat{\boldsymbol{p}} = |\boldsymbol{\alpha} - \boldsymbol{\alpha^{t}}|^{-1}
-
-            \boldsymbol{p} = \frac{\hat{\boldsymbol{p}}}{\sum^n_{i} {\hat{\boldsymbol{p}}}_{i}}
-
-        Parameters
-        ----------
-        acceptance : :class:`numpy.ndarray` [:class:`bool`], shape :math:`(n, m)`
-            A 2D boolean array with acceptance rates over
-            the course of the last super-iteration.
-
-        """
-        if weighted:
-            _p = acceptance.mean(axis=0) - self.phi.a_target
-            if 0 in _p:
-                p = np.zeros_like(_p)
-                p[_p == 0] = True
-            else:
-                p = _p**-1
-        else:
-            p = np.ones(acceptance.shape[1])
-        p /= p.sum()  # normalize
-
-        idx_range = np.arange(len(p))
-        idx1 = np.random.choice(idx_range, p=p)
-        idx2 = np.random.choice(idx_range, p=p)
-
-        if idx1 != idx2:
-            self.logger.info(f"Swapping parameter sets {idx1} and {idx2}")
-            self._swap_phi(idx1, idx2)
-        else:
-            self.logger.info("Preserving all parameter sets")
-
-    def _swap_phi(self, idx1: int, idx2: int) -> None:
+    def _swap_phi(self, idx_iter: Iterable[Tuple[int, int]]) -> None:
         """Swap the array-elements **idx1** and **idx2** of four :class:`ARMCPT` attributes.
 
         Affects the following attributes:
@@ -236,10 +253,11 @@ class ARMCPT(ARMC):
         * :attr:`ARMCPT.param.move_range<FOX.armc.ParamMapping.move_range>`
 
         """
-        i = [idx1, idx2]
-        j = [idx2, idx1]
+        for idx1, idx2 in idx_iter:
+            i = [idx1, idx2]
+            j = [idx2, idx1]
 
-        self.phi.phi[i] = self.phi.phi[j]
-        self.phi.a_target[i] = self.phi.a_target[j]
-        self.phi.gamma[i] = self.phi.gamma[j]
-        self.param.move_range[i] = self.param.move_range[j]
+            self.phi.phi[i] = self.phi.phi[j]
+            self.phi.a_target[i] = self.phi.a_target[j]
+            self.phi.gamma[i] = self.phi.gamma[j]
+            self.param.move_range[i] = self.param.move_range[j]

@@ -55,6 +55,7 @@ class MonteCarloABC(AbstractDataClass, ABC, Mapping[Key, np.ndarray]):
     keep_files: bool
     hdf5_file: Union[str, PathLike]
     pes: Dict[str, GetPesDescriptor]
+    swap_phi: Optional[Callable[..., Any]]
 
     @property
     def molecule(self) -> Tuple[MultiMolecule, ...]:
