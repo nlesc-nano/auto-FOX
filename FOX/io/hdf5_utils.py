@@ -337,7 +337,7 @@ _HDF5_EXC = """Failed to write dataset {key!r}
 dset: {dset.__class__.__name__} = {dset!r}
 kappa: {kappa.__class__.__name__} = {kappa!r}
 omega: {omega.__class__.__name__} = {omega!r}
-value: {value.__class__.__name__} = {value}
+value: {value_cls.__name__} = {value}
 """
 
 
@@ -384,7 +384,8 @@ def to_hdf5(filename: PathType, dset_dict: Mapping[str, np.ndarray],
             except Exception as ex:
                 value_str = textwrap.indent(repr(value), 27 * ' ')[27:]
                 msg = _HDF5_EXC.format(
-                    key=key, dset=dset, kappa=kappa, omega=omega, value=value_str,
+                    key=key, dset=dset, kappa=kappa, omega=omega,
+                    value_cls=type(value), value=value_str,
                 )
                 raise RuntimeError(msg) from ex
 
