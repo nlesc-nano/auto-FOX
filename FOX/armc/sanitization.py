@@ -164,7 +164,8 @@ def _guess_param(mc: MonteCarloABC, prm: dict,
             param_mapping['min'][key] = -np.inf
             param_mapping['max'][key] = np.inf
             param_mapping['count'][key] = 0
-            param_mapping['constant'][key] = frozen
+            param_mapping['frozen'][key] = frozen
+            param_mapping['guess'][key] = True
     return
 
 
@@ -416,7 +417,8 @@ def _get_param_df(dct: Mapping[str, Any]) -> pd.DataFrame:
     df.set_index(['key', 'param_type', 'atoms'], inplace=True)
 
     df['param_old'] = df['param'].copy()
-    df['constant'] = False
+    df['frozen'] = False
+    df['guess'] = False
     df['min'] = -np.inf
     df['max'] = np.inf
     df['count'] = 0

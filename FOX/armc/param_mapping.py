@@ -47,7 +47,7 @@ Tup3 = Tuple[Hashable, Hashable, Hashable]
 Tup2 = Tuple[Hashable, Hashable]
 
 # All dict keys in ParamMappingABC
-SeriesKeys = Literal['min', 'max', 'count', 'constant']
+SeriesKeys = Literal['min', 'max', 'count', 'frozen', 'guess']
 DFKeys = Literal['param', 'param_old']
 ValidKeys = Union[SeriesKeys, DFKeys]
 
@@ -71,7 +71,8 @@ class InputMapping(_InputMapping, total=False):
     min: pd.Series
     max: pd.Series
     count: pd.Series
-    constant: pd.Series
+    frozen: pd.Series
+    guess: pd.Series
 
 
 class Data(TypedDict):
@@ -82,7 +83,8 @@ class Data(TypedDict):
     min: pd.Series
     max: pd.Series
     count: pd.Series
-    constant: pd.Series
+    frozen: pd.Series
+    guess: pd.Series
 
 
 def _parse_param(dct: MutableMapping[str, Any]) -> pd.DataFrame:
@@ -178,11 +180,12 @@ class ParamMappingABC(AbstractDataClass, ABC, _ParamMappingABC):
     _data_dict: Data
 
     #: Fill values for when optional keys are absent.
-    FILL_VALUE: ClassVar[Mapping[ValidKeys, Any]] = MappingProxyType({
-        'min': -np.inf,
-        'max': np.inf,
-        'count': -1,
-        'constant': False,
+    FILL_VALUE: ClassVar[Mapping[ValidKeys, np.generic]] = MappingProxyType({
+        'min': np.float64(-np.inf),
+        'max': np.float64(np.inf),
+        'count': np.int64(-1),
+        'frozen': np.False_,
+        'guess': np.False_,
     })
 
     _PRIVATE_ATTR = frozenset({'_net_charge'})  # type: ignore
@@ -523,7 +526,7 @@ class ParamMapping(ParamMappingABC):
 
         """  # noqa
         # Define a random parameter
-        variable = ~self['constant']
+        variable = ~self['frozen']
         random_prm: pd.Series = self['param'].loc[variable, param_idx].sample()
         idx, x1 = next(random_prm.items())  # Type: Tup3, float
 
