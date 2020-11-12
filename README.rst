@@ -1,5 +1,5 @@
 
-.. image:: https://github.com/nlesc-nano/auto-FOX/workflows/Build%20with%20Conda/badge.svg?branch=Auto-FOX-0.8
+.. image:: https://github.com/nlesc-nano/auto-FOX/workflows/Build%20with%20Conda/badge.svg
     :target: https://github.com/nlesc-nano/auto-FOX/actions?query=workflow%3A%22Build+with+Conda%22
 .. image:: https://readthedocs.org/projects/auto-fox/badge/?version=latest
     :target: https://auto-fox.readthedocs.io/en/latest/
