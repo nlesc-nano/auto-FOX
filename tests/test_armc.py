@@ -14,10 +14,12 @@ from assertionlib import assertion
 from FOX.testing_utils import load_results
 from FOX.armc import dict_to_armc, run_armc
 from FOX.armc.sanitization import _sort_atoms
+from FOXdata import (
+    ARMC_DIR as ARMC_REF,
+    ARMCPT_DIR as ARMCPT_REF,
+)
 
 PATH = Path('tests') / 'test_files'
-ARMC_REF = PATH / 'ARMC_ref'
-ARMCPT_REF = PATH / 'ARMCPT_ref'
 
 DF = pd.DataFrame({
     "param_type": ['charge', 'charge', 'charge', 'charge', 'epsilon', 'epsilon', 'epsilon', 'epsilon', 'epsilon', 'sigma', 'sigma', 'sigma', 'sigma', 'sigma'],  # noqa: E501
