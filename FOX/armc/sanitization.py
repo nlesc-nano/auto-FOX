@@ -154,7 +154,7 @@ def _guess_param(mc: MonteCarloABC, prm: dict,
     # Update the variable parameters
     param_mapping = mc.param
     for k, v in seq:
-        iterator = (((k, v['param'], at), value) for at, value in v.items() if at == 'param')
+        iterator = (((k, v['param'], at), value) for at, value in v.items() if at != 'param')
         for key, value in iterator:
             param_mapping['param'].loc[key] = value
             param_mapping['param_old'].loc[key] = value
