@@ -340,7 +340,7 @@ class ARMC(MonteCarloABC):
             aux_error_mod.shape = len(self.phi), -1
 
         hdf5_kwarg = {
-            'param': self.param['param'].T,
+            'param': self.param['param'].values.T,
             'xyz': mol_list,
             'phi': phi,
             'acceptance': accept,
