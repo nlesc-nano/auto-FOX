@@ -6,6 +6,20 @@ All notable changes to this project will be documented in this file.
 This project adheres to `Semantic Versioning <http://semver.org/>`_.
 
 
+0.8.8
+*****
+* Added recipes for calculating time-resolved angular/radial distribution functions.
+* Various documentation-related updates.
+* The order in wich atom-pair/-triplet based parameters are provided is now irrelevant.
+  For example ``Cd Se`` and ``Se Cd`` are now treated as equivalent, as well as
+  ``O C H`` and ``H C O`` (but not ``O H C``).
+* Fixed an issue where guessed parameters were not properly parsed.
+* Relaxed the PLAMS version requirement.
+* Log all local variables whenever an exception is encountered.
+* Move the ARMC test files to their own repo.
+* Export parameter metadata to the .hdf5 file.
+
+
 0.8.7
 *****
 * Moved from `PRMContainer.__dict__` to a `PRMContainer.__slots__` based class structure.
