@@ -93,6 +93,21 @@ def create_hdf5(filename: PathType, armc: ARMC) -> None:
         f.attrs['sub-iteration'] = -1
         f.attrs['__version__'] = np.fromiter(__version__.split('.'), count=3, dtype=int)
 
+        str_dtype = h5py.string_dtype(encoding='ascii')
+        index: np.ndarray = armc.param['param'].index
+        index_dtype = np.dtype(list((k, str_dtype) for k in index.names))
+
+        dset = f.create_dataset(name='param_metadata', data=armc.param.to_struct_array())
+        dset.attrs['index'] = index.values.astype(index_dtype)
+        dset.attrs['net_charge'] = armc.param._net_charge
+        dset.attrs['move_range'] = armc.param.move_range
+
+        constraints = armc.param.constraints_to_str()
+        index2: np.ndarray = constraints.index
+        index2_dtype = np.dtype(list((k, str_dtype) for k in index2.names))
+        dset.attrs['constraints'] = constraints.values.astype(str_dtype)
+        dset.attrs['constraints_index'] = index2.values.astype(index2_dtype)
+
     # Store the *index*, *column* and *name* attributes of dataframes/series in the hdf5 file
     kappa = armc.iter_len // armc.sub_iter_len
     idx = armc.param['param'][0].index.append(pd.MultiIndex.from_tuples([('', 'phi', '')]))

@@ -9,6 +9,7 @@ import numpy as np
 
 from scm.plams import Settings
 from assertionlib import assertion
+from nanoutils import delete_finally
 
 import FOX
 from FOX.armc import dict_to_armc
@@ -17,6 +18,7 @@ from FOX.io.hdf5_utils import create_hdf5, to_hdf5, from_hdf5, create_xyz_hdf5
 PATH: str = join('tests', 'test_files')
 
 
+@delete_finally(join(PATH, 'test.hdf5'))
 def test_create_hdf5():
     """Test :meth:`FOX.io.hdf5_utils.create_hdf5`."""
     yaml_file = join(PATH, 'armc.yaml')
@@ -26,28 +28,27 @@ def test_create_hdf5():
 
     ref_dict = Settings()
     ref_dict.acceptance.shape = 500, 100, 1
-    ref_dict.acceptance.dtype = bool
+    ref_dict.acceptance.dtype = np.bool_
     ref_dict.aux_error.shape = 500, 100, 1, 1
-    ref_dict.aux_error.dtype = np.float
+    ref_dict.aux_error.dtype = np.float64
     ref_dict.aux_error_mod.shape = 500, 100, 1, 16
-    ref_dict.aux_error_mod.dtype = np.float
+    ref_dict.aux_error_mod.dtype = np.float64
     ref_dict.param.shape = 500, 100, 1, 15
-    ref_dict.param.dtype = np.float
+    ref_dict.param.dtype = np.float64
+    ref_dict.param_metadata.shape = (15,)
+    ref_dict.param_metadata.dtype = np.void
     ref_dict.phi.shape = 500, 1
-    ref_dict.phi.dtype = np.float
+    ref_dict.phi.dtype = np.float64
     ref_dict['rdf.0'].shape = 500, 100, 241, 6
-    ref_dict['rdf.0'].dtype = np.float
+    ref_dict['rdf.0'].dtype = np.float64
     ref_dict['rdf.0.ref'].shape = 241, 6
-    ref_dict['rdf.0.ref'].dtype = np.float
+    ref_dict['rdf.0.ref'].dtype = np.float64
 
-    try:
-        create_hdf5(hdf5_file, armc)
-        with h5py.File(hdf5_file, 'r') as f:
-            for key, value in f.items():
-                assertion.shape_eq(value, ref_dict[key].shape, message=key)
-                assertion.isinstance(value[:].item(0), ref_dict[key].dtype, message=key)
-    finally:
-        remove(hdf5_file) if isfile(hdf5_file) else None
+    create_hdf5(hdf5_file, armc)
+    with h5py.File(hdf5_file, 'r') as f:
+        for key, value in f.items():
+            assertion.shape_eq(value, ref_dict[key].shape, message=key)
+            assertion.isinstance(value[:].take(0), ref_dict[key].dtype, message=key)
 
 
 def test_to_hdf5():

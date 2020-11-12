@@ -488,6 +488,27 @@ class ParamMappingABC(AbstractDataClass, ABC, _ParamMappingABC):
         """  # noqa
         pass
 
+    def to_struct_array(self) -> np.ndarray:
+        """Stack all :class:`~pandas.Series` in this instance into a single structured array."""
+        cls = type(self)
+        dtype = np.dtype(list((k, type(v)) for k, v in cls.FILL_VALUE.items()))
+        data = [self[k].values for k in cls.FILL_VALUE]
+        return np.fromiter(zip(*data), dtype=dtype)
+
+    def constraints_to_str(self) -> pd.Series:
+        """Convert the constraints into a human-readably :class:`pandas.Series`."""
+        dct = {k: '' for k in self.constraints}
+        for key, tup in self.constraints.items():
+            if not len(tup):
+                continue
+            dct[key] += ' == '.join(
+                ' + '.join(f'{v}*{k}' for k, v in series.items()) for series in tup
+            )
+        ret = pd.Series(dct)
+        ret.name = 'constraints'
+        ret.index.names = self['param'].index.names[:2]
+        return ret
+
 
 MOVE_RANGE = np.array([[
     0.900, 0.905, 0.910, 0.915, 0.920, 0.925, 0.930, 0.935, 0.940,
