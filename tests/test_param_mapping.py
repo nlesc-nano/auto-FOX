@@ -1,5 +1,7 @@
 """A module for testing :mod:`FOX.armc.param_mapping`."""
+
 import warnings
+import numpy as np
 import pandas as pd
 
 from assertionlib import assertion
@@ -24,7 +26,7 @@ _DF = pd.DataFrame({'param': _DATA})
 _DF['count'] = 2 * [26, 68, 26, 52, 55]
 _DF['min'] = _DF['param'] - 0.5 * abs(_DF['param'])
 _DF['max'] = _DF['param'] + 0.5 * abs(_DF['param'])
-_DF['constant'] = 2 * [False, False, True, False, False]
+_DF['frozen'] = 2 * [False, False, True, False, False]
 
 _CONSTRAINTS = {
     ('charge', 'charge'): [{'Cd': 1.0}, {'O': -4.0, 'C': -2.0, 'H': -2.0}]
@@ -54,14 +56,14 @@ def test_call():
         assertion.isclose(value, ref, abs_tol=0.001)
 
         try:
-            assert (param['param'][0] <= param['max']).all()
+            assertion.le(param['param'][0], param['max'], post_process=np.all)
         except AssertionError as ex:
             df = pd.DataFrame({'param': param['param'][0], 'max': param['max']})
             msg = f"iteration{i}\n{df.round(2)}"
             raise AssertionError(msg) from ex
 
         try:
-            assert (param['param'][0] >= param['min']).all()
+            assertion.ge(param['param'][0], param['min'], post_process=np.all)
         except AssertionError as ex:
             df = pd.DataFrame({'param': param['param'][0], 'max': param['min']})
             msg = f"iteration{i}\n{df.round(2)}"

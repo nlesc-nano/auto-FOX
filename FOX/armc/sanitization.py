@@ -99,7 +99,6 @@ def dict_to_armc(input_dict: MainMapping) -> Tuple[MonteCarloABC, RunDict]:
     # Handle psf stuff
     psf_list: Optional[List[PSFContainer]] = get_psf(dct['psf'], mol_list)
     run_kwargs['psf'] = psf_list
-    update_count(param, psf=psf_list, mol=mol_list)
     _parse_ligand_alias(psf_list, prm=param)
     if psf_list is not None:
         mc.pes_post_process = [AtomsFromPSF.from_psf(*psf_list)]
@@ -110,14 +109,18 @@ def dict_to_armc(input_dict: MainMapping) -> Tuple[MonteCarloABC, RunDict]:
     if _param_frozen is not None:
         _guess_param(mc, _param_frozen, frozen=True, psf=psf_list)
     _guess_param(mc, _param, frozen=False, psf=psf_list)
+    update_count(param, psf=psf_list, mol=mol_list)
 
     mc.param['param'].sort_index(inplace=True)
     mc.param['param_old'].sort_index(inplace=True)
     mc.param['min'].sort_index(inplace=True)
     mc.param['max'].sort_index(inplace=True)
     mc.param['count'].sort_index(inplace=True)
-    mc.param['constant'].sort_index(inplace=True)
-    mc.param._data['constant'] = mc.param['constant'].astype(bool, copy=False)
+    mc.param['frozen'].sort_index(inplace=True)
+    mc.param['guess'].sort_index(inplace=True)
+    mc.param._data['count'] = mc.param['count'].astype(int, copy=False)
+    mc.param._data['frozen'] = mc.param['frozen'].astype(bool, copy=False)
+    mc.param._data['guess'] = mc.param['guess'].astype(bool, copy=False)
 
     # Add PES evaluators
     pes = get_pes(dct['pes'])
@@ -161,7 +164,8 @@ def _guess_param(mc: MonteCarloABC, prm: dict,
             param_mapping['min'][key] = -np.inf
             param_mapping['max'][key] = np.inf
             param_mapping['count'][key] = 0
-            param_mapping['constant'][key] = frozen
+            param_mapping['frozen'][key] = frozen
+            param_mapping['guess'][key] = True
     return
 
 
@@ -237,7 +241,7 @@ def get_param(dct: ParamMapping_) -> Tuple[ParamMapping, dict, dict]:
     if _sub_prm_dict_frozen is not None:
         for *_key, value in _get_prm(_sub_prm_dict_frozen):
             key = tuple(_key)
-            data.loc[key, :] = [value, value, True, -np.inf, np.inf]
+            data.loc[key, :] = [value, value, True, False, -np.inf, np.inf, 0]
     data.sort_index(inplace=True)
 
     param_type = prm_dict.pop('type')  # type: ignore
@@ -413,9 +417,11 @@ def _get_param_df(dct: Mapping[str, Any]) -> pd.DataFrame:
     df.set_index(['key', 'param_type', 'atoms'], inplace=True)
 
     df['param_old'] = df['param'].copy()
-    df['constant'] = False
+    df['frozen'] = False
+    df['guess'] = False
     df['min'] = -np.inf
     df['max'] = np.inf
+    df['count'] = 0
     return df
 
 
@@ -580,7 +586,9 @@ def _parse_ligand_alias(psf_list: Optional[List[PSFContainer]], prm: ParamMappin
                 prm['param_old'].loc[key] = prm['param'].loc[key]
                 prm['min'][key] = -np.inf
                 prm['max'][key] = np.inf
-                prm['constant'][key] = True
+                prm['frozen'][key] = True
+                prm['guess'][key] = False
+                prm['count'][key] = 0
 
     for lst in prm.constraints.values():
         for series in lst:

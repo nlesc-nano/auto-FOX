@@ -1,7 +1,7 @@
 """Tests for various ARMC jobs."""
 
 from pathlib import Path
-from typing import Tuple, Generator, Any, cast
+from typing import Tuple, Generator, Any, cast, Container
 from itertools import combinations_with_replacement
 
 import numpy as np
@@ -56,6 +56,28 @@ def test_armc_guess() -> None:
     np.testing.assert_allclose(param.values, ref)
 
 
+def compare_hdf5(f1: h5py.Group, f2: h5py.Group, skip: Container[str] = frozenset({})) -> None:
+    """Check if the two passed hdf5 files are equivalent."""
+    assertion.eq(f1.keys(), f2.keys())
+
+    iterator1 = ((k, f1[k], f2[k]) for k in f2.keys() if k not in skip)
+    for k1, dset1, dset2 in iterator1:
+        if issubclass(dset1.dtype.type, np.inexact):
+            np.testing.assert_allclose(dset1[:], dset2[:], err_msg=f'dataset {k1!r}\n')
+        else:
+            np.testing.assert_array_equal(dset1[:], dset2[:], err_msg=f'dataset {k1!r}\n')
+
+        # Compare attributes
+        assertion.eq(dset1.attrs.keys(), dset2.attrs.keys())
+        iterator2 = ((k2, dset1.attrs[k2], dset1.attrs[k2]) for k2 in dset1.attrs.keys())
+        for k2, attr1, attr2 in iterator2:
+            err_msg = f'dataset {k1!r}; attribute {k2!r}'
+            if issubclass(attr1.dtype.type, np.inexact):
+                np.testing.assert_allclose(attr1, attr2, err_msg=err_msg)
+            else:
+                np.testing.assert_array_equal(attr1, attr2, err_msg=err_msg)
+
+
 @delete_finally(PATH / '_ARMC')
 def test_armc() -> None:
     """Test :class:`ARMC`."""
@@ -71,12 +93,7 @@ def test_armc() -> None:
     hdf5 = PATH / '_ARMC' / 'armc.hdf5'
     hdf5_ref = ARMC_REF / 'armc.hdf5'
     with h5py.File(hdf5, 'r') as f1, h5py.File(hdf5_ref, 'r') as f2:
-        assertion.eq(f1.keys(), f2.keys())
-
-        skip = {'param', 'aux_error_mod'}
-        iterator = ((k, f1[k][:], f2[k][:]) for k in f2.keys() if k not in skip)
-        for k, ar1, ar2 in iterator:
-            np.testing.assert_allclose(ar1, ar2, err_msg=f'dataset {k!r}\n')
+        compare_hdf5(f1, f2, skip={'param', 'aux_error_mod'})
 
 
 def swap_phi(*args: Any, n: int = 3, **kwargs: Any) -> Generator[Tuple[int, int], None, None]:
@@ -102,12 +119,7 @@ def test_armcpt() -> None:
     hdf5 = PATH / '_ARMCPT' / 'armc.hdf5'
     hdf5_ref = ARMCPT_REF / 'armc.hdf5'
     with h5py.File(hdf5, 'r') as f1, h5py.File(hdf5_ref, 'r') as f2:
-        assertion.eq(f1.keys(), f2.keys())
-
-        skip = {'param', 'aux_error_mod'}
-        iterator = ((k, f1[k][:], f2[k][:]) for k in f2.keys() if k not in skip)
-        for k, ar1, ar2 in iterator:
-            np.testing.assert_allclose(ar1, ar2, err_msg=f'dataset {k!r}\n')
+        compare_hdf5(f1, f2, skip={'param', 'aux_error_mod'})
 
 
 def test_param_sorting() -> None:
