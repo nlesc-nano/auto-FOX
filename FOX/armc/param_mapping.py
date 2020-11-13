@@ -17,6 +17,7 @@ API
 """
 
 import warnings
+from copy import deepcopy
 from abc import ABC, abstractmethod
 from types import MappingProxyType
 from logging import Logger
@@ -521,6 +522,67 @@ class ParamMappingABC(AbstractDataClass, ABC, _ParamMappingABC):
         ret = pd.Series(dct)
         ret.name = 'constraints'
         ret.index.names = self['param'].index.names[:2]
+        return ret
+
+    def to_yaml_dict(self) -> Dict[str, Any]:
+        cls = type(self)
+        func = cast('partial[float]', self.func)
+        try:
+            if isinstance(func.func, np.ufunc):
+                module = 'numpy'
+            else:
+                module = func.func.__module__
+            name = getattr(func.func, '__qualname__', func.func.__name__)
+        except AttributeError as ex:
+            raise TypeError(f"Failed to parse {cls.__name__}.func.func: {func.func!r}") from ex
+
+        ret = {
+            'type': f'{cls.__module__}.{cls.__name__}',
+            'move_range': self.move_range.tolist(),
+            'func': f'{module}.{name}',
+            'kwargs': func.keywords,
+            'validation': {
+                'allow_non_existent': True,
+                'charge_tolerance': 'inf'
+            }
+        }
+
+        _template = {
+            'param': '',
+            'constraints': [],
+            'frozen': {},
+        }
+        idx_dict = {}
+
+        index = self['param'].index
+        constraints = self.constraints_to_str()
+        for key, param, _ in index:
+            if (key, param) in idx_dict:
+                continue
+
+            template = deepcopy(_template)
+            template['param'] = param
+            if constraints.at[key, param]:
+                template['constraints'].append(constraints.at[key, param])
+
+            lst = ret.setdefault(key, [])
+            lst.append(template)
+            idx_dict[key, param] = len(lst) - 1
+
+        # Set the extremites
+        iterator1 = ((k, self['min'].at[k], self['max'].at[k]) for k in index)
+        for (key, param, atom), min_, max_ in iterator1:
+            i = idx_dict[key, param]
+            ret[key][i]['constraints'].append(f'{min_} < {atom} < {max_}')
+
+        # Set the parameters
+        iterator2 = ((k, self['param'].at[k, 0], self['frozen'].at[k]) for k in index)
+        for (key, param, atom), value, frozen in iterator2:
+            i = idx_dict[key, param]
+            if frozen:
+                ret[key][i]['frozen'][atom] = value.item()
+            else:
+                ret[key][i][atom] = value.item()
         return ret
 
 
