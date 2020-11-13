@@ -16,6 +16,7 @@ import os
 import copy
 import warnings
 from pathlib import Path
+from itertools import chain
 from collections import abc, Counter
 from typing import (
     Union, Iterable, Tuple, Optional, Mapping, Any, MutableMapping, Hashable,
@@ -34,7 +35,7 @@ from .schemas import (
     validate_phi, validate_pes, validate_monte_carlo, validate_psf,
     validate_job, validate_sub_job, validate_param, validate_main,
     PESDict, PESMapping, PhiMapping, MainMapping, ParamMapping_, MCMapping,
-    PSFMapping, JobMapping
+    PSFMapping, JobMapping, ValidationDict, validation_schema
 )
 
 from ..utils import get_atom_count
@@ -88,7 +89,7 @@ def dict_to_armc(input_dict: MainMapping) -> Tuple[MonteCarloABC, RunDict]:
     # Construct an ARMC instance
     phi = get_phi(dct['phi'])
     package, mol_list = get_package(dct['job'], phi.phi)
-    param, _param, _param_frozen = get_param(dct['param'])
+    param, _param, _param_frozen, validation_dict = get_param(dct['param'])
     mc, run_kwargs = get_armc(dct['monte_carlo'], package, param, phi, mol_list)
 
     # Update the job Settings
@@ -111,6 +112,10 @@ def dict_to_armc(input_dict: MainMapping) -> Tuple[MonteCarloABC, RunDict]:
     _guess_param(mc, _param, frozen=False, psf=psf_list)
     update_count(param, psf=psf_list, mol=mol_list)
 
+    # Perform validation checks
+    validate_atoms(param, psf_list, mol_list,
+                   allow_non_existent=validation_dict['allow_non_existent'])
+
     mc.param['param'].sort_index(inplace=True)
     mc.param['param_old'].sort_index(inplace=True)
     mc.param['min'].sort_index(inplace=True)
@@ -127,6 +132,39 @@ def dict_to_armc(input_dict: MainMapping) -> Tuple[MonteCarloABC, RunDict]:
     for name, kwargs in pes.items():
         mc.add_pes_evaluator(name, **kwargs)
     return mc, run_kwargs
+
+
+def validate_atoms(
+    param: ParamMapping,
+    psf_list: Optional[Iterable[PSFContainer]],
+    mol_list: Iterable[MultiMolecule],
+    allow_non_existent: bool = False,
+) -> None:
+    """Check if all atom types specified in **param** are actually present.
+
+    If not :data:`None` use the psf containers for cross referencing;
+    use the molecule otherwise.
+
+    """
+    iterator1 = chain.from_iterable(at.split() for at in param['param'].index.levels[2])
+    atoms = dict.fromkeys(iterator1, False)
+
+    if psf_list is None:
+        iterator2 = (at for mol in mol_list for at in mol.atoms)
+    else:
+        iterator2 = (at for psf in psf_list for at in set(psf.atom_type))
+    for key in iterator2:
+        atoms[key] = True
+
+    if all(atoms.values()):
+        return None
+
+    unknows = sorted(k for k, v in atoms.items() if not v)
+    msg = f"Found {len(unknows)} explicitly specified parameters for non-existent atoms: {unknows}"
+    if allow_non_existent:
+        warnings.warn(msg, category=RuntimeWarning, stacklevel=3)
+    else:
+        raise RuntimeError(msg)
 
 
 def _guess_param(mc: MonteCarloABC, prm: dict,
@@ -216,7 +254,7 @@ def get_package(dct: JobMapping, phi: Iterable) -> Tuple[PackageManager, Tuple[M
     return pkg_type(data), job_dict['molecule']
 
 
-def get_param(dct: ParamMapping_) -> Tuple[ParamMapping, dict, dict]:
+def get_param(dct: ParamMapping_) -> Tuple[ParamMapping, dict, dict, ValidationDict]:
     """Construct a :class:`ParamMapping` instance from **dct**.
 
     Returns
@@ -228,12 +266,14 @@ def get_param(dct: ParamMapping_) -> Tuple[ParamMapping, dict, dict]:
     """
     _prm_dict = dct
     _sub_prm_dict = split_dict(
-        _prm_dict, preserve_order=True, keep_keys={'type', 'move_range', 'func', 'kwargs'}
+        _prm_dict, preserve_order=True,
+        keep_keys={'type', 'move_range', 'func', 'kwargs', 'allow_non_existent'}
     )
     _sub_prm_dict_frozen = _get_prm_frozen(_sub_prm_dict)
 
     prm_dict = validate_param(_prm_dict)
     kwargs = prm_dict.pop('kwargs')
+    validation_dict = validation_schema.validate(prm_dict.pop('validation'))
     data = _get_param_df(_sub_prm_dict)
     constraints, min_max = _get_prm_constraints(_sub_prm_dict)
     data[['min', 'max']] = min_max
@@ -249,6 +289,7 @@ def get_param(dct: ParamMapping_) -> Tuple[ParamMapping, dict, dict]:
         param_type(data, constraints=constraints, **prm_dict, **kwargs),
         _sub_prm_dict,
         _sub_prm_dict_frozen,
+        validation_dict,
     )
 
 
