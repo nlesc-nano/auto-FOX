@@ -190,11 +190,14 @@ class ParamMappingABC(AbstractDataClass, ABC, _ParamMappingABC):
 
     _PRIVATE_ATTR = frozenset({'_net_charge'})  # type: ignore
 
-    def __init__(self, data: Union[InputMapping, pd.DataFrame],
-                 move_range: Iterable[float],
-                 func: MoveFunc,
-                 constraints: Optional[Mapping[Tup2, Iterable[Mapping[str, float]]]] = None,
-                 **kwargs: Any) -> None:
+    def __init__(
+        self,
+        data: Union[InputMapping, pd.DataFrame],
+        move_range: Iterable[float],
+        func: MoveFunc,
+        constraints: Optional[Mapping[Tup2, Optional[Iterable[Mapping[str, float]]]]] = None,
+        **kwargs: Any,
+    ) -> None:
         r"""Initialize an :class:`ParamMappingABC` instance.
 
         Parameters
@@ -236,23 +239,26 @@ class ParamMappingABC(AbstractDataClass, ABC, _ParamMappingABC):
         self._data = cast(Data, data)
         self.move_range = cast(np.ndarray, move_range)
         self.func: Callable[[float, float], float] = wraps(func)(partial(func, **kwargs))
-        self.constraints = cast(Dict[Tup2, Tuple[pd.Series, ...]], constraints)
+        self.constraints = cast(Dict[Tup2, Optional[Tuple[pd.Series, ...]]], constraints)
 
     # Properties
 
     @property
-    def constraints(self) -> Dict[Tup2, Tuple[pd.Series, ...]]:
+    def constraints(self) -> Dict[Tup2, Optional[Tuple[pd.Series, ...]]]:
         return self._constraints
 
     @constraints.setter
-    def constraints(self, value: Optional[Mapping[Tup2, Iterable[Mapping[str, float]]]]) -> None:
-        if value is not None:
-            dct = {k: tuple(pd.Series(i) for i in v) for k, v in value.items()}
+    def constraints(
+        self, value: Optional[Mapping[Tup2, Optional[Iterable[Mapping[str, float]]]]]
+    ) -> None:
+        if value is None:
+            dct: Dict[Tup2, Optional[Tuple[pd.Series, ...]]] = {}
         else:
-            dct = {}
+            func = lambda v: tuple(pd.Series(i) for i in v) if v is not None else None  # noqa: E731,E501
+            dct = {k: func(v) for k, v in value.items()}
 
         for key in self['param'].index:
-            dct.setdefault(key[:2], ())
+            dct.setdefault(key[:2], None)
         self._constraints = dct
 
     @property
@@ -499,7 +505,7 @@ class ParamMappingABC(AbstractDataClass, ABC, _ParamMappingABC):
         """Convert the constraints into a human-readably :class:`pandas.Series`."""
         dct = {k: '' for k in self.constraints}
         for key, tup in self.constraints.items():
-            if not len(tup):
+            if tup is None:
                 continue
             dct[key] += ' == '.join(
                 ' + '.join(f'{v}*{k}' for k, v in series.items()) for series in tup
@@ -600,6 +606,9 @@ class ParamMapping(ParamMappingABC):
         atom = idx[2]
         charge = self._net_charge if key[1] in self.CHARGE_LIKE else None
 
+        frozen_idx = self['frozen'].loc[key]
+        frozen = frozen_idx.index[frozen_idx] if frozen_idx.any() else None
+
         return update_charge(
             atom, value,
             param=self['param'].loc[key, param_idx],
@@ -607,5 +616,6 @@ class ParamMapping(ParamMappingABC):
             atom_coefs=self.constraints[key],
             prm_min=self['min'].loc[key],
             prm_max=self['max'].loc[key],
-            net_charge=charge
+            net_charge=charge,
+            exclude=frozen,
         )
