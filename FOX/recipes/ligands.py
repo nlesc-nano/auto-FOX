@@ -116,7 +116,7 @@ API
 
 """
 
-from typing import Optional, Iterable, Sequence
+from typing import Optional, Iterable, Sequence, List
 
 import numpy as np
 
@@ -198,7 +198,7 @@ def get_multi_lig_center(mol: MultiMolecule, idx_iter: Iterable[Sequence[int]],
 
     """  # noqa
     mass_ = mol.mass
-    ret = []
+    ret: List[MultiMolecule] = []
     ret_append = ret.append
 
     for idx in idx_iter:

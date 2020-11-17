@@ -95,7 +95,7 @@ API
 import math
 import warnings
 from types import MappingProxyType
-from typing import (Union, Iterable, Optional, TypeVar, Callable, Mapping, Type, Iterator,
+from typing import (Union, Iterable, Optional, Callable, Mapping, Type, Iterator,
                     Hashable, Any, Tuple, MutableMapping, List)
 from itertools import chain
 from collections import abc
@@ -203,8 +203,10 @@ def generate_psf(qd: Union[str, Molecule], ligand: Union[str, Molecule],
     psf.generate_dihedrals(qd)
     psf.generate_impropers(qd)
     psf.generate_atoms(qd)
-    overlay_rtf_file(psf, rtf_file) if rtf_file is not None else None
-    overlay_str_file(psf, str_file) if str_file is not None else None
+    if rtf_file is not None:
+        overlay_rtf_file(psf, rtf_file)
+    if str_file is not None:
+        overlay_str_file(psf, str_file)
 
     # Set the charge to zero and return
     psf.charge = 0.0
@@ -313,7 +315,7 @@ def generate_psf2(qd: Union[str, Molecule],
         if at.atnum in ligand_atoms:
             break
     else:
-        raise MoleculeError(f'No atoms {tuple(PT[i] for i in ligand_atoms)} found '
+        raise MoleculeError(f'No atoms {tuple(PT.get_symbol(i) for i in ligand_atoms)} found '
                             f'within {qd.get_formula()}')
 
     # Identify all bonds and residues
@@ -347,7 +349,7 @@ def generate_psf2(qd: Union[str, Molecule],
                 raise MoleculeError(err)
             else:
                 warnings.warn(err, category=MoleculeWarning)
-                return _return_failed_ligs(qd, rdmol_dict, i)
+                return _return_failed_ligs(qd, rdmol_dict, i)  # type: ignore
         i += j
 
     # Create the .psf file
@@ -402,6 +404,8 @@ def _update_lig(ligand: Molecule, k: int, copy: bool = False) -> Molecule:
 def _return_failed_ligs(qd: Molecule, rdmol_dict: Mapping[Mol, int], i: int) -> List[Molecule]:
     """Return a list of failed ligands in case :func:`generate_psf2` fails to identify ligands."""
     new, j = _get_initial_lig(qd, rdmol_dict, i)
+    if new is None:
+        raise MoleculeError
     ret = []
 
     ref0, _ = next(iter(rdmol_dict.items()))
@@ -417,24 +421,21 @@ class MoleculeWarning(RuntimeWarning):  # Molecule related warnings
     pass
 
 
-MolType = TypeVar('MolType', Molecule, str, Mol)
+MolType = Union[Molecule, str, Mol]
 
-try:
-    #: Map a :class:`type` object to a callable for creating :class:`rdkit.Chem.Mol` instances.
-    MOL_MAPPING: Mapping[Type[MolType], Callable[[MolType], Mol]] = MappingProxyType({
-        str: lambda mol: to_rdmol(from_smiles(mol)),
-        Molecule: to_rdmol,
-        Mol: lambda mol: mol
-    })
-except NameError:
-    MOL_MAPPING = None  # rdkit is not installed
+#: Map a :class:`type` object to a callable for creating :class:`rdkit.Chem.Mol` instances.
+MOL_MAPPING: Mapping[Type[MolType], Callable[[Any], Mol]] = MappingProxyType({
+    str: lambda mol: to_rdmol(from_smiles(mol)),
+    Molecule: to_rdmol,
+    Mol: lambda mol: mol
+})
 
 
 def _overlay(psf: PSFContainer, mode: str, id_ranges: Iterable[Iterable[int]],
              files: Union[PathType, Iterable[PathType]]) -> None:
     """Overlay one or more .str or .rtf files."""
     if not isinstance(files, abc.Iterable) or isinstance(files, (str, bytes)):
-        files_iter = (files,)
+        files_iter: Iterable[PathType] = (files,)
     else:
         files_iter = files
 

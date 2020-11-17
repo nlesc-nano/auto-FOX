@@ -24,7 +24,7 @@ API
 import os
 import argparse
 from os.path import isfile, join
-from typing import Optional
+from typing import Optional, List
 
 import yaml
 import h5py
@@ -100,7 +100,7 @@ def main_armc2yaml(args: Optional[list] = None) -> None:
         _output: str = join(os.getcwd(), 'armc.{:d}.yaml')
         i = 0
         while True:
-            output: str = _output.format(i)
+            output = _output.format(i)
             if not isfile(output):
                 break
             i += 1
@@ -148,7 +148,7 @@ def main_plot_pes(args: Optional[list] = None) -> None:
         raise ValueError('The "--datasets" argument expects one or more PES descriptor names')
 
     with h5py.File(input_, 'r', libver='latest') as f:
-        datasets_ = []
+        datasets_: List[str] = []
         datasets_append = datasets_.append
         for key in datasets:
             if key in f.keys():

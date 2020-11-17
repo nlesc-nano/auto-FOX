@@ -448,7 +448,7 @@ class PRMContainer(AbstractFileContainer):
         for index, values in param_df.iterrows():
             df.loc[index, columns] = values
 
-    def overlay_cp2k_settings(self, cp2k_settings: Mapping) -> None:
+    def overlay_cp2k_settings(self, cp2k_settings: Settings) -> None:
         """Extract forcefield information from PLAMS-style CP2K settings.
 
         Performs an inplace update of this instance.
@@ -476,7 +476,7 @@ class PRMContainer(AbstractFileContainer):
 
         """
         if 'input' not in cp2k_settings:
-            cp2k_settings = {'input': cp2k_settings}
+            cp2k_settings = Settings({'input': cp2k_settings})
 
         # If cp2k_settings is a Settings instance enable the supress_missing() context manager
         # In this manner normal KeyErrors will be raised, just like with dict
@@ -499,7 +499,7 @@ class PRMContainer(AbstractFileContainer):
                                             name, columns, key_path, key, unit,
                                             default_unit, post_process)
 
-    def _overlay_cp2k_settings(self, cp2k_settings: Mapping,
+    def _overlay_cp2k_settings(self, cp2k_settings: Settings,
                                name: str, columns: MutableSequence[int],
                                key_path: Sequence[str], key: Iterable[str],
                                unit: Iterable[str], default_unit: Iterable[Optional[str]],

@@ -13,13 +13,16 @@ API
 """
 
 from types import MappingProxyType
-from typing import Collection, Mapping, Callable, Set
+from typing import Collection, Mapping, Callable, Set, Sequence, TypeVar, Any
 from itertools import product, permutations
 
 import numpy as np
 import pandas as pd
 
 __all__ = ['parse_wildcards']
+
+_T = TypeVar("_T")
+_IntersectionFunc = Callable[[Sequence[Any], Set[Sequence[Any]]], bool]
 
 
 def parse_wildcards(df: pd.DataFrame, symbols: Collection[str], prm_type: str) -> None:
@@ -64,19 +67,19 @@ def parse_wildcards(df: pd.DataFrame, symbols: Collection[str], prm_type: str) -
                 index.add(i)
 
 
-def _invert(tup: tuple, tup_set: Set[tuple]) -> bool:
+def _invert(tup: Sequence[_T], tup_set: Set[Sequence[_T]]) -> bool:
     """Check if **tup_set** contains ``tup`` or ``tup[::-1]``."""
     return bool(tup_set.intersection([tup, tup[::-1]]))
 
 
-def _all_comb(tup: tuple, tup_set: Set[tuple]) -> bool:
+def _all_comb(tup: Sequence[_T], tup_set: Set[Sequence[_T]]) -> bool:
     """Check if **tup_set** any combination of ``tup[0]`` and a permutation of ``tup[1:]``."""
     i_0, *i_n = tup
     iterable = ((i_0,) + i for i in permutations(i_n))
     return bool(tup_set.intersection(iterable))
 
 
-INTERSECTION_MAPPING: Mapping[str, Callable[[tuple, Set[tuple]], None]] = MappingProxyType({
+INTERSECTION_MAPPING: Mapping[str, _IntersectionFunc] = MappingProxyType({
     'bonds': _invert,
     'angles': _invert,
     'urey_bradley': _invert,

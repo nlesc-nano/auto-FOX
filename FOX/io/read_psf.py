@@ -18,9 +18,8 @@ import sys
 import reprlib
 import inspect
 from os import PathLike
-from io import TextIOBase
-from typing import (Dict, Optional, Any, Set, Iterator, Iterable, TypeVar,
-                    AnyStr, List, Mapping, Hashable, Union, Collection, Generic)
+from typing import (Dict, Optional, Any, Set, Iterator, Iterable, TypeVar, Tuple, cast,
+                    List, Mapping, Union, Collection, Generic, IO, Callable)
 from itertools import chain
 from types import MappingProxyType
 
@@ -29,7 +28,7 @@ import pandas as pd
 
 from scm.plams import Molecule, Atom, Bond
 from assertionlib.dataclass import AbstractDataClass
-from nanoutils import group_by_values, raise_if, AbstractFileContainer, set_docstring
+from nanoutils import group_by_values, raise_if, AbstractFileContainer, set_docstring, TypedDict
 
 from ..utils import read_str_file, read_rtf_file
 from ..functions.molecule_utils import get_bonds, get_angles, get_dihedrals, get_impropers
@@ -54,6 +53,15 @@ class DummyGetter(Generic[T]):
 
     def get(self, key: Any, default: Optional[Any] = None) -> T:
         return self.return_value
+
+
+class _ShapeDictBase(TypedDict):
+    shape: int
+
+
+class _ShapeDict(_ShapeDictBase, total=False):
+    row_len: int
+    header: str
 
 
 class PSFContainer(AbstractDataClass, AbstractFileContainer):
@@ -141,10 +149,10 @@ class PSFContainer(AbstractDataClass, AbstractFileContainer):
 
     #: A :class:`from` with the names of private instance attributes.
     #: These attributes will be excluded whenever calling :meth:`PSF.as_dict`.
-    _PRIVATE_ATTR: Set[str] = frozenset({'_pd_printoptions', '_np_printoptions'})
+    _PRIVATE_ATTR: Set[str] = frozenset({'_pd_printoptions', '_np_printoptions'})  # type: ignore[assignment]  # noqa: E501
 
     #: A dictionary containg array shapes among other things
-    _SHAPE_DICT = MappingProxyType({
+    _SHAPE_DICT: Mapping[str, _ShapeDict] = MappingProxyType({
         'filename': {'shape': 1},
         'title': {'shape': 1},
         'atoms': {'shape': 8},
@@ -236,19 +244,25 @@ class PSFContainer(AbstractDataClass, AbstractFileContainer):
 
         # Print options for NumPy ndarrays and Pandas DataFrames
         self.np_printoptions: Dict[str, Any] = {'threshold': 20, 'edgeitems': 5}
-        self.pd_printoptions: Dict[str, Any] = {'display.max_rows': 10}
+        self.pd_printoptions: Dict[str, Any] = cast(
+            Iterator[Tuple[str, Any]], {'display.max_rows': 10}
+        )
 
     @property
-    def np_printoptions(self) -> Dict[str, Any]: return self._np_printoptions
+    def np_printoptions(self) -> Dict[str, Any]:
+        return self._np_printoptions
 
     @np_printoptions.setter
-    def np_printoptions(self, value: dict) -> None: self._np_printoptions = self._is_dict(value)
+    def np_printoptions(self, value: Dict[str, Any]) -> None:
+        self._np_printoptions = self._is_dict(value)
 
     @property
-    def pd_printoptions(self) -> Iterator: return chain.from_iterable(self._pd_printoptions.items())
+    def pd_printoptions(self) -> Iterator[Tuple[str, Any]]:
+        return chain.from_iterable(self._pd_printoptions.items())
 
     @pd_printoptions.setter
-    def pd_printoptions(self, value: dict) -> None: self._pd_printoptions = self._is_dict(value)
+    def pd_printoptions(self, value: Dict[str, Any]) -> None:
+        self._pd_printoptions = self._is_dict(value)
 
     @staticmethod
     def _is_dict(value: Any) -> dict:
@@ -302,7 +316,7 @@ class PSFContainer(AbstractDataClass, AbstractFileContainer):
     @property
     def filename(self) -> str:
         """Get :attr:`PSFContainer.filename` as string or assign an array-like object as a 1D array."""  # noqa
-        filename = self._filename
+        filename = self._filename  # type: ignore[attr-defined]
         return str(filename[0]) if len(filename) else str(filename)
 
     @filename.setter
@@ -311,15 +325,15 @@ class PSFContainer(AbstractDataClass, AbstractFileContainer):
     @property
     def title(self) -> np.ndarray:
         """Get :attr:`PSFContainer.title` or assign an array-like object as a 1D array."""
-        return self._title
+        return self._title  # type: ignore[attr-defined]
 
     @title.setter
     def title(self, value: Iterable):
         if value is not None:
             self._set_nd_array('_title', value, 1, str)
         else:
-            self._title = np.array(['PSF file generated with Auto-FOX',
-                                    'https://github.com/nlesc-nano/Auto-FOX'])
+            self._title: np.ndarray = np.array(['PSF file generated with Auto-FOX',
+                                                'https://github.com/nlesc-nano/Auto-FOX'])
 
     @property
     def atoms(self) -> pd.DataFrame:
@@ -327,63 +341,71 @@ class PSFContainer(AbstractDataClass, AbstractFileContainer):
         return self._atoms
 
     @atoms.setter
-    def atoms(self, value: Iterable): self._atoms = value if value is not None else pd.DataFrame()
+    def atoms(self, value: Iterable):
+        self._atoms = value if value is not None else pd.DataFrame()
 
     @property
     def bonds(self) -> np.ndarray:
         """Get :attr:`PSFContainer.bonds` or assign an array-like object as a 2D array."""
-        return self._bonds
+        return self._bonds  # type: ignore[attr-defined]
 
     @bonds.setter
-    def bonds(self, value: Iterable): self._set_nd_array('_bonds', value, 2, int)
+    def bonds(self, value: Iterable):
+        self._set_nd_array('_bonds', value, 2, int)
 
     @property
     def angles(self) -> np.ndarray:
         """Get :attr:`PSFContainer.angles` or assign an array-like object as a 2D array."""
-        return self._angles
+        return self._angles  # type: ignore[attr-defined]
 
     @angles.setter
-    def angles(self, value: Iterable): self._set_nd_array('_angles', value, 2, int)
+    def angles(self, value: Iterable):
+        self._set_nd_array('_angles', value, 2, int)
 
     @property
     def dihedrals(self) -> np.ndarray:
         """Get :attr:`PSFContainer.dihedrals` or assign an array-like object as a 2D array."""
-        return self._dihedrals
+        return self._dihedrals  # type: ignore[attr-defined]
 
     @dihedrals.setter
-    def dihedrals(self, value: Iterable): self._set_nd_array('_dihedrals', value, 2, int)
+    def dihedrals(self, value: Iterable):
+        self._set_nd_array('_dihedrals', value, 2, int)
 
     @property
     def impropers(self) -> np.ndarray:
         """Get :attr:`PSFPSFContainerimpropers` or assign an array-like object as a 2D array."""
-        return self._impropers
+        return self._impropers  # type: ignore[attr-defined]
 
     @impropers.setter
-    def impropers(self, value: Iterable): self._set_nd_array('_impropers', value, 2, int)
+    def impropers(self, value: Iterable):
+        self._set_nd_array('_impropers', value, 2, int)
 
     @property
     def donors(self) -> np.ndarray:
         """Get :attr:`PSFContainer.donors` or assign an array-like object as a 2D array."""
-        return self._donors
+        return self._donors  # type: ignore[attr-defined]
 
     @donors.setter
-    def donors(self, value: Iterable): self._set_nd_array('_donors', value, 2, int)
+    def donors(self, value: Iterable):
+        self._set_nd_array('_donors', value, 2, int)
 
     @property
     def acceptors(self) -> np.ndarray:
         """Get :attr:`PSFContainer.acceptors` or assign an array-like object as a 2D array."""
-        return self._acceptors
+        return self._acceptors  # type: ignore[attr-defined]
 
     @acceptors.setter
-    def acceptors(self, value: Iterable): self._set_nd_array('_acceptors', value, 2, int)
+    def acceptors(self, value: Iterable):
+        self._set_nd_array('_acceptors', value, 2, int)
 
     @property
     def no_nonbonded(self) -> np.ndarray:
         """Get :attr:`PSFContainer.no_nonbonded` or assign an array-like object as a 2D array."""
-        return self._no_nonbonded
+        return self._no_nonbonded  # type: ignore[attr-defined]
 
     @no_nonbonded.setter
-    def no_nonbonded(self, value: Iterable): self._set_nd_array('_no_nonbonded', value, 2, int)
+    def no_nonbonded(self, value: Iterable):
+        self._set_nd_array('_no_nonbonded', value, 2, int)
 
     def _set_nd_array(self, name: str, value: Optional[np.ndarray],
                       ndmin: int, dtype: type) -> None:
@@ -767,7 +789,7 @@ class PSFContainer(AbstractDataClass, AbstractFileContainer):
         self.impropers = get_impropers(mol)
 
     def generate_atoms(self, mol: Molecule,
-                       id_map: Optional[Mapping[int, Hashable]] = None) -> None:
+                       id_map: Optional[Mapping[int, Any]] = None) -> None:
         """Update :attr:`PSFContainer.atoms` with the all properties from **mol**.
 
         DataFrame keys in :attr:`PSFContainer.atoms` are set based on the following values in **mol**:
@@ -830,13 +852,16 @@ class PSFContainer(AbstractDataClass, AbstractFileContainer):
 
         df['segment name'] = self._construct_segment_name(id_map)
 
-    def _construct_segment_name(self, id_map: Optional[Mapping[int, str]] = None) -> List[str]:
+    def _construct_segment_name(self, id_map: Optional[Mapping[int, Any]] = None) -> List[str]:
         """Generate a list for the :attr:`PSF.atoms` ``["segment name"]`` column."""
-        ret = []
+        ret: List[str] = []
         ret_append = ret.append
 
-        type_dict = {}
-        id_map_get = id_map.get if id_map is not None else DummyGetter('LIG').get
+        type_dict: Dict[str, str] = {}
+        id_map_get = cast(
+            Callable[[int, str], str],
+            id_map.get if id_map is not None else DummyGetter('LIG').get
+        )
 
         iterator = zip(self.atom_type, self.residue_name, self.residue_id)
         for at_type, res_name, res_id in iterator:
@@ -866,7 +891,7 @@ class PSFContainer(AbstractDataClass, AbstractFileContainer):
 
     @raise_if(RDKIT_EX)
     def write_pdb(self, mol: Molecule,
-                  pdb_file: Union[str, PathLike, TextIOBase] = sys.stdout,
+                  pdb_file: Union[str, PathLike, IO[str]] = sys.stdout,
                   copy_mol: bool = True) -> None:
         """Construct a .pdb file from this instance and **mol**.
 
@@ -882,7 +907,7 @@ class PSFContainer(AbstractDataClass, AbstractFileContainer):
             A filename or a file-like object.
 
         """
-        if isinstance(pdb_file, PathLike):
+        if hasattr(pdb_file, '__fspath__'):
             pdb_file = str(pdb_file)
         if copy_mol:
             mol = mol.copy()
@@ -905,7 +930,7 @@ class PSFContainer(AbstractDataClass, AbstractFileContainer):
         writepdb(mol, pdb_file)
 
 
-def overlay_str_file(psf: PSFContainer, filename: Union[AnyStr, PathLike],
+def overlay_str_file(psf: PSFContainer, filename: Union[str, bytes, PathLike],
                      id_range: Optional[Iterable[int]] = None) -> None:
     """Update all ligand atom types and atomic charges in :attr:`PSF.atoms`.
 
@@ -932,7 +957,7 @@ def overlay_str_file(psf: PSFContainer, filename: Union[AnyStr, PathLike],
     _overlay(psf, atoms, charge, id_range)
 
 
-def overlay_rtf_file(psf: PSFContainer, filename: Union[AnyStr, PathLike],
+def overlay_rtf_file(psf: PSFContainer, filename: Union[str, bytes, PathLike],
                      id_range: Optional[Iterable[int]] = None) -> None:
     """Update all ligand atom types and atomic charges in :attr:`PSF.atoms`.
 

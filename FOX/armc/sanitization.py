@@ -19,8 +19,9 @@ from pathlib import Path
 from itertools import chain
 from collections import abc, Counter
 from typing import (
-    Union, Iterable, Tuple, Optional, Mapping, Any, MutableMapping, Hashable,
-    Dict, TYPE_CHECKING, Generator, List, Collection, TypeVar, overload, cast
+    Union, Iterable, Tuple, Optional, Mapping, Any, MutableMapping,
+    Dict, TYPE_CHECKING, Generator, List, Collection, TypeVar, overload, cast,
+    Sequence,
 )
 
 import numpy as np
@@ -57,7 +58,7 @@ else:
 __all__ = ['dict_to_armc']
 
 T = TypeVar('T')
-KT = TypeVar('KT', bound=Hashable)
+KT = TypeVar('KT')
 MT = TypeVar('MT', bound=Mapping[Any, Any])
 
 
@@ -102,9 +103,9 @@ def dict_to_armc(input_dict: MainMapping) -> Tuple[MonteCarloABC, RunDict]:
     run_kwargs['psf'] = psf_list
     _parse_ligand_alias(psf_list, prm=param)
     if psf_list is not None:
-        mc.pes_post_process = [AtomsFromPSF.from_psf(*psf_list)]
+        mc.pes_post_process = [AtomsFromPSF.from_psf(*psf_list)]  # type: ignore[assignment]
         workdir = Path(run_kwargs['path']) / run_kwargs['folder']
-        _update_psf_settings(package.values(), phi.phi, workdir)
+        _update_psf_settings(package.values(), phi.phi, workdir)  # type: ignore[arg-type]
 
     # Guess parameters
     if _param_frozen is not None:
@@ -130,7 +131,7 @@ def dict_to_armc(input_dict: MainMapping) -> Tuple[MonteCarloABC, RunDict]:
     # Add PES evaluators
     pes = get_pes(dct['pes'])
     for name, kwargs in pes.items():
-        mc.add_pes_evaluator(name, **kwargs)
+        mc.add_pes_evaluator(name, **kwargs)  # type: ignore[call-overload]
     return mc, run_kwargs
 
 
@@ -217,9 +218,9 @@ def get_phi(dct: PhiMapping) -> PhiUpdater:
 
     """
     phi_dict = validate_phi(dct)
-    phi_type = phi_dict.pop('type')  # type: ignore
-    kwargs = phi_dict.pop('kwargs')  # type: ignore
-    return phi_type(**phi_dict, **kwargs)
+    phi_type = phi_dict.pop('type')  # type: ignore[misc]
+    kwargs = phi_dict.pop('kwargs')  # type: ignore[misc]
+    return phi_type(**phi_dict, **kwargs)  # type: ignore[return-value]
 
 
 def get_package(dct: JobMapping, phi: Iterable) -> Tuple[PackageManager, Tuple[MultiMolecule, ...]]:
@@ -231,7 +232,7 @@ def get_package(dct: JobMapping, phi: Iterable) -> Tuple[PackageManager, Tuple[M
         A PackageManager and a tuple of MultiMolecules.
 
     """
-    _sub_pkg_dict: Dict[str, Any] = split_dict(
+    _sub_pkg_dict: Dict[str, Any] = split_dict(  # type: ignore[call-overload]
         dct, preserve_order=True, keep_keys={'type', 'molecule'}
     )
 
@@ -244,14 +245,14 @@ def get_package(dct: JobMapping, phi: Iterable) -> Tuple[PackageManager, Tuple[M
         for _ in phi:
             for mol in mol_list:
                 kwargs = validate_sub_job(v)
-                kwargs['molecule'] = mol.copy()
+                kwargs['molecule'] = mol.copy()  # type: ignore[misc]
 
                 pkg_name = kwargs['type'].pkg_name
-                kwargs['settings'].specific[pkg_name].soft_update(kwargs.pop('template'))
-                data[k].append(kwargs)
+                kwargs['settings'].specific[pkg_name].soft_update(kwargs.pop('template'))  # type: ignore[misc] # noqa: E501
+                data[k].append(kwargs)  # type: ignore[arg-type]
 
     pkg_type = job_dict['type']
-    return pkg_type(data), job_dict['molecule']
+    return pkg_type(data), job_dict['molecule']  # type: ignore[return-value]
 
 
 def get_param(dct: ParamMapping_) -> Tuple[ParamMapping, dict, dict, ValidationDict]:
@@ -265,15 +266,15 @@ def get_param(dct: ParamMapping_) -> Tuple[ParamMapping, dict, dict, ValidationD
 
     """
     _prm_dict = dct
-    _sub_prm_dict = split_dict(
+    _sub_prm_dict = split_dict(  # type: ignore[call-overload]
         _prm_dict, preserve_order=True,
         keep_keys={'type', 'move_range', 'func', 'kwargs', 'allow_non_existent'}
     )
     _sub_prm_dict_frozen = _get_prm_frozen(_sub_prm_dict)
 
     prm_dict = validate_param(_prm_dict)
-    kwargs = prm_dict.pop('kwargs')
-    validation_dict = validation_schema.validate(prm_dict.pop('validation'))
+    kwargs = prm_dict.pop('kwargs')  # type: ignore[misc]
+    validation_dict = validation_schema.validate(prm_dict.pop('validation'))  # type: ignore[misc]
     data = _get_param_df(_sub_prm_dict)
     constraints, min_max = _get_prm_constraints(_sub_prm_dict)
     data[['min', 'max']] = min_max
@@ -285,7 +286,7 @@ def get_param(dct: ParamMapping_) -> Tuple[ParamMapping, dict, dict, ValidationD
     data.sort_index(inplace=True)
 
     param_type = prm_dict.pop('type')  # type: ignore
-    return (
+    return (  # type: ignore[return-value]
         param_type(data, constraints=constraints, **prm_dict, **kwargs),
         _sub_prm_dict,
         _sub_prm_dict_frozen,
@@ -407,7 +408,7 @@ def _update_psf_settings(job_lists: Iterable[Iterable[MutableMapping[str, Any]]]
     """Set the .psf path in all job settings."""
     for job_list in job_lists:
         if len(phi) == 1:
-            iterator = enumerate(job_list)
+            iterator: Iterable[Tuple[int, MutableMapping[str, Any]]] = enumerate(job_list)
         else:
             iterator = ((0, job) for job in job_list)
 
@@ -432,7 +433,7 @@ def prm_iter(dct: Mapping[KT, Union[MT, Iterable[MT]]]
 
         # Ensure that we're dealing with a list of dicts
         if isinstance(_dct_list, abc.Mapping):
-            dct_list: Iterable[MT] = [_dct_list]
+            dct_list: Iterable[MT] = [_dct_list]  # type: ignore[list-item]
         else:
             dct_list = _dct_list
 
@@ -610,11 +611,11 @@ def _get_prm_constraints(
     return constraints_dict, min_max
 
 
-def _parse_ligand_alias(psf_list: Optional[List[PSFContainer]], prm: ParamMapping) -> None:
+def _parse_ligand_alias(psf_list: Optional[Sequence[PSFContainer]], prm: ParamMapping) -> None:
     """Replace ``$LIGAND`` constraints with explicit ligands."""
     not_implemented = psf_list is None or len(psf_list) != 1
     if not not_implemented:
-        psf: PSFContainer = psf_list[0]
+        psf: PSFContainer = psf_list[0]  # type: ignore[index]
         lig_id = psf.residue_id.iloc[-1]
         df = psf.atoms[psf.residue_id == lig_id]
 
@@ -632,6 +633,8 @@ def _parse_ligand_alias(psf_list: Optional[List[PSFContainer]], prm: ParamMappin
                 prm['count'][key] = 0
 
     for lst in prm.constraints.values():
+        if lst is None:
+            continue
         for series in lst:
             if "$LIGAND" not in series:
                 continue
@@ -647,7 +650,9 @@ def _parse_ligand_alias(psf_list: Optional[List[PSFContainer]], prm: ParamMappin
 
 
 @overload
-def update_count(param: ParamMapping, psf: Iterable[PSFContainer], mol: None) -> None: ...
+def update_count(
+    param: ParamMapping, psf: Iterable[PSFContainer], mol: Optional[Iterable[MultiMolecule]]
+) -> None: ...
 @overload
 def update_count(param: ParamMapping, psf: None, mol: Iterable[MultiMolecule]) -> None: ...
 def update_count(param, psf=None, mol=None):  # noqa: E302

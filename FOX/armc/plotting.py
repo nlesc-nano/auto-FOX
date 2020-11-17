@@ -16,7 +16,7 @@ API
 
 """
 
-from typing import Optional, Iterable, Union, Hashable, Mapping, Any
+from typing import Optional, Iterable, Union, Mapping, Any
 
 import pandas as pd
 from nanoutils import raise_if, PathType
@@ -172,7 +172,7 @@ def plot_param(filename_in: PathType,
 
 @raise_if(PLT_ERROR)
 def plot_dset(filename_in: PathType,
-              datasets: Union[Hashable, Iterable[Hashable]],
+              datasets: Union[str, Iterable[str]],
               filename_out: Optional[PathType] = None,
               savefig_kwarg: Optional[Mapping[str, Any]] = None) -> Figure:
     """Create and save a figure from an arbitrary hdf5 dataset in **filename_in**.

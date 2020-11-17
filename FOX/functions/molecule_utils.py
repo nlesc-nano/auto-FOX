@@ -20,7 +20,7 @@ API
 
 """
 
-from typing import List, overload
+from typing import List, overload, Callable, Tuple
 
 import numpy as np
 
@@ -71,23 +71,23 @@ def separate_mod(mol: Molecule) -> List[List[int]]:
     # Mark atoms
     for i, at in enumerate(mol.atoms):
         at.id = i
-        at._visited = False
+        at._visited = False  # type: ignore[attr-defined]
 
     # Loop through atoms
-    def dfs(at1: Atom, m_append: list.append):
-        at1._visited = True
+    def dfs(at1: Atom, m_append: Callable[[int], None]):
+        at1._visited = True  # type: ignore[attr-defined]
         m_append(at1.id)
         for bond in at1.bonds:
             at2 = bond.other_end(at1)
-            if not at2._visited:
+            if not at2._visited:  # type: ignore[attr-defined]
                 dfs(at2, m_append)
 
     # Create a nested list of atomic indices
-    indices = []
+    indices: List[List[int]] = []
     indices_append = indices.append
     for at in mol.atoms:
-        if not at._visited:
-            m = []
+        if not at._visited:  # type: ignore[attr-defined]
+            m: List[int] = []
             dfs(at, m.append)
             indices_append(m)
 
@@ -141,7 +141,7 @@ def get_angles(mol: Molecule) -> np.ndarray:
 
     """
     mol.set_atoms_id()
-    angle = []
+    angle: List[Tuple[int, int, int]] = []
     angle_append = angle.append
 
     for at2 in mol.atoms:
@@ -183,7 +183,7 @@ def get_dihedrals(mol: Molecule) -> np.ndarray:
 
     """
     mol.set_atoms_id()
-    dihed = []
+    dihed: List[Tuple[int, int, int, int]] = []
     dihed_append = dihed.append
 
     for b1 in mol.bonds:
@@ -232,7 +232,7 @@ def get_impropers(mol: Molecule) -> np.ndarray:
 
     """
     mol.set_atoms_id()
-    impropers = []
+    impropers: List[Tuple[int, int, int, int]] = []
     impropers_append = impropers.append
 
     for at1 in mol.atoms:

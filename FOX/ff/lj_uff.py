@@ -63,8 +63,7 @@ def combine_sigma(at1: str, at2: str) -> float:
         sigma1 = UFF_DF.at[at1, 'sigma']
         sigma2 = UFF_DF.at[at2, 'sigma']
     except KeyError as ex:
-        err = f"No UFF parameters available for atom type '{repr(ex.args[0])}'"
-        raise ValueError(err).with_traceback(ex.__traceback__)
+        raise ValueError(f"No UFF parameters available for atom type {ex}") from None
     return (sigma1 + sigma2) / 2
 
 
@@ -96,6 +95,5 @@ def combine_epsilon(at1: str, at2: str) -> float:
         epsilon1 = UFF_DF.at[at1, 'epsilon']
         epsilon2 = UFF_DF.at[at2, 'epsilon']
     except KeyError as ex:
-        err = f"No UFF parameters available for atom type '{repr(ex.args[0])}'"
-        raise ValueError(err).with_traceback(ex.__traceback__)
+        raise ValueError(f"No UFF parameters available for atom type {ex}") from None
     return (epsilon1 * epsilon2)**0.5

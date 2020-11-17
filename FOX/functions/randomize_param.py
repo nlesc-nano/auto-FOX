@@ -68,7 +68,7 @@ OrFunc = Callable[[np.ndarray, np.ndarray], np.ndarray]
 
 
 def _parse_extremite(val: np.ndarray, val_extreme: Optional[np.ndarray],
-                     n: int = 2.0, or_func: OrFunc = np.minimum) -> np.ndarray:
+                     n: float = 2.0, or_func: OrFunc = np.minimum) -> np.ndarray:
     """Parse the **val_min** and **val_max** parameters of :func:`randomize`."""
     if val_extreme is None:
         return val * n
