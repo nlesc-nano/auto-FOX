@@ -600,6 +600,9 @@ class ParamMapping(ParamMappingABC):
         atom = idx[2]
         charge = self._net_charge if key[1] in self.CHARGE_LIKE else None
 
+        frozen_idx = self['frozen'].loc[key]
+        frozen = frozen_idx.index[frozen_idx] if frozen_idx.any() else None
+
         return update_charge(
             atom, value,
             param=self['param'].loc[key, param_idx],
@@ -607,5 +610,6 @@ class ParamMapping(ParamMappingABC):
             atom_coefs=self.constraints[key],
             prm_min=self['min'].loc[key],
             prm_max=self['max'].loc[key],
-            net_charge=charge
+            net_charge=charge,
+            exclude=frozen,
         )
