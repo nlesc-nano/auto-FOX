@@ -55,7 +55,8 @@ def wrap_plams_logger(logfile: Union[None, str, os.PathLike] = None,
     config.log.file = 0
 
     # Replace the plams logger with a proper logging.Logger instance
-    os.remove(plams_logfile)
+    if os.path.isfile(plams_logfile):
+        os.remove(plams_logfile)
     logger = get_logger(name, handlers=[FileHandler(logfile), StreamHandler()], **kwargs)
     if plams_logfile != logfile:
         try:
