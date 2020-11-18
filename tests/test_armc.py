@@ -46,11 +46,9 @@ def test_armc_guess() -> None:
         2.53727955,
         2.07044862,
         2.7831676,
-        0.2471,
         3.14175433,
         2.6749234,
         3.38764238,
-        0.3526,
         3.74622911,
     ])
     np.testing.assert_allclose(param.values, ref)
@@ -92,7 +90,7 @@ def test_armc() -> None:
 
     hdf5 = PATH / '_ARMC' / 'armc.hdf5'
     hdf5_ref = ARMC_REF / 'armc.hdf5'
-    with h5py.File(hdf5, 'r') as f1, h5py.File(hdf5_ref, 'r') as f2:
+    with h5py.File(hdf5, 'r') as f1, h5py.File(hdf5_ref, 'r+') as f2:
         compare_hdf5(f1, f2, skip={'param', 'aux_error_mod'})
 
 
@@ -118,7 +116,7 @@ def test_armcpt() -> None:
 
     hdf5 = PATH / '_ARMCPT' / 'armc.hdf5'
     hdf5_ref = ARMCPT_REF / 'armc.hdf5'
-    with h5py.File(hdf5, 'r') as f1, h5py.File(hdf5_ref, 'r') as f2:
+    with h5py.File(hdf5, 'r') as f1, h5py.File(hdf5_ref, 'r+') as f2:
         compare_hdf5(f1, f2, skip={'param', 'aux_error_mod'})
 
 

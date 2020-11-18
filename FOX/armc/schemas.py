@@ -41,7 +41,8 @@ from ..utils import get_move_range
 
 __all__ = [
     'validate_phi', 'validate_monte_carlo', 'validate_psf', 'validate_pes',
-    'validate_job', 'validate_sub_job', 'validate_param', 'validate_main'
+    'validate_job', 'validate_sub_job', 'validate_param', 'validate_main',
+    'validation_schema',
 ]
 
 T = TypeVar('T')
@@ -407,6 +408,28 @@ class SubJobDict(TypedDict):
     template: QmSettings
 
 
+#: A schema for validating the "param.validation" block.
+validation_schema = Schema({
+    Optional_('allow_non_existent', default=False): Or(
+        And(None, Default(False)),
+        bool,
+        error=Formatter(f"'param.validation.allow_non_existent' expected a boolean{EPILOG}")
+    ),
+}, name='validation_schema', description='Schema for validating the "param.validation" block.')
+
+
+class ValidationMapping(TypedDict, total=False):
+    """A :class:`~typing.TypedDict` representing the input of :data:`validation_schema`."""
+
+    allow_non_existent: Optional[bool]
+
+
+class ValidationDict(TypedDict):
+    """A :class:`~typing.TypedDict` representing the output of :data:`validation_schema`."""
+
+    allow_non_existent: bool
+
+
 MOVE_DEFAULT = np.array([
     0.900, 0.905, 0.910, 0.915, 0.920, 0.925, 0.930, 0.935, 0.940,
     0.945, 0.950, 0.955, 0.960, 0.965, 0.970, 0.975, 0.980, 0.985,
@@ -445,7 +468,13 @@ param_schema = Schema({
         And(abc.Mapping, lambda n: {'start', 'stop', 'step', 'ratio'}.issuperset(n.keys()),
             Use(lambda n: get_move_range(**n))),
         error=Formatter(f"'param.move_range' expected a Mapping or array-like object{EPILOG}")
-    )
+    ),
+
+    Optional_('validation', default=dict): Or(
+        And(None, Default(dict)),
+        And(abc.Mapping, Use(dict)),
+        error=Formatter(f"'param.validation' expected a dictionary{EPILOG}")
+    ),
 }, name='param_schema', description='Schema for validating the "param" block.')
 
 
@@ -464,6 +493,7 @@ class ParamMapping_(TypedDict, total=False):
     func: Union[None, str, Callable[[float, float], float]]
     kwargs: Optional[Mapping[str, Any]]
     move_range: Union[None, ArrayLike, MoveRange]
+    validation: Optional[ValidationMapping]
 
 
 class ParamDict(TypedDict):
@@ -473,6 +503,8 @@ class ParamDict(TypedDict):
     func: Callable[[float, float], float]
     kwargs: Mapping[str, Any]
     move_range: np.ndarray
+    allow_non_existent: bool
+    validation: ValidationMapping
 
 
 #: Schema for validating the main input blocks.

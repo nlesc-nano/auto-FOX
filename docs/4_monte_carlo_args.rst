@@ -16,6 +16,7 @@ Index
     :attr:`param.move_range`                    The parameter move range.
     :attr:`param.func`                          The callable for performing the Monte Carlo moves.
     :attr:`param.kwargs`                        A dictionary with keyword arguments for :attr:`param.func`.
+    :attr:`param.validation.allow_non_existent` Whether to allow parameters, that are explicitly specified, for absent atoms.
     :attr:`param.block.param`                   The name of the forcefield parameter.
     :attr:`param.block.unit`                    The unit in which the forcefield parameters are expressed.
     :attr:`param.block.constraints`             A string or list of strings with parameter constraints.
@@ -112,6 +113,8 @@ This settings block accepts an arbitrary number of sub-blocks.
                 ratio: null
             func: numpy.multiply
             kwargs: {}
+            validation:
+                allow_non_existent: False
 
             charge:
                 param: charge
@@ -196,6 +199,14 @@ This settings block accepts an arbitrary number of sub-blocks.
                         * **Default Value** - ``{}``
 
         A dictionary with keyword arguments for :attr:`param.func`.
+
+
+    .. attribute:: param.validation.allow_non_existent
+
+        :Parameter:     * **Type** - :class:`bool`
+                        * **Default Value** - :data:`False`
+
+        Whether to allow parameters, that are explicitly specified, for absent atoms.
 
 
     .. attribute:: param.block.param
