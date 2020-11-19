@@ -41,7 +41,7 @@ import numpy as np
 import pandas as pd
 from scipy.spatial import cKDTree
 
-from scm.plams import Units
+from scm.plams import Units, Settings
 from nanoutils import fill_diagonal_blocks
 
 from . import LJDataFrame
@@ -157,7 +157,7 @@ def get_non_bonded(mol: Union[str, MultiMolecule],
         prm_df.overlay_prm(prm)
     prm_df.overlay_psf(psf)
     if cp2k_settings is not None:
-        prm_df.overlay_cp2k_settings(cp2k_settings, psf)
+        prm_df.overlay_cp2k_settings(Settings(cp2k_settings), psf)
     mol.atoms = psf.to_atom_dict()
 
     # Delete all rows from prm_df whose indices are not in **atom_pairs**
@@ -186,7 +186,7 @@ def get_non_bonded(mol: Union[str, MultiMolecule],
 def get_V(mol: MultiMolecule, slice_mapping: SliceMapping,
           prm_mapping: PrmMapping, ligand_count: int,
           core_atoms: Optional[Iterable[str]] = None,
-          distance_upper_bound: float = np.inf, k: int = 20,
+          distance_upper_bound: float = np.inf, k: Optional[int] = 20,
           shift_cutoff: bool = True) -> Tuple[pd.DataFrame, pd.DataFrame]:
     r"""Calculate all non-covalent interactions averaged over all molecules in **mol**.
 
@@ -231,7 +231,7 @@ def get_V(mol: MultiMolecule, slice_mapping: SliceMapping,
 
     """
     core_atoms = set(core_atoms) if core_atoms is not None else set()
-    mol = mol * Units.conversion_ratio('Angstrom', 'au')
+    mol = mol * Units.conversion_ratio('Angstrom', 'au')  # type: ignore[assignment]
 
     index = pd.RangeIndex(0, len(mol), name='MD Iteration')
     columns = pd.MultiIndex.from_tuples(sorted(slice_mapping.keys()), names=['atom1', 'atom2'])
@@ -247,7 +247,7 @@ def get_V(mol: MultiMolecule, slice_mapping: SliceMapping,
         dist_func = functools.partial(_get_kd_dist, k=k, distance_upper_bound=distance_upper_bound)
 
     if distance_upper_bound < np.inf and shift_cutoff:
-        shift = distance_upper_bound * Units.conversion_ratio('angstrom', 'au')
+        shift: Optional[float] = distance_upper_bound * Units.conversion_ratio('angstrom', 'au')
     else:
         shift = None
 

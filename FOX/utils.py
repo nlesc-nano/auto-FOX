@@ -44,7 +44,7 @@ from typing import (
 import numpy as np
 import pandas as pd
 
-from nanoutils import PathType, SupportsIndex
+from nanoutils import PathType
 
 __all__ = [
     'get_move_range', 'array_to_index', 'serialize_array', 'read_str_file',
@@ -135,7 +135,7 @@ def serialize_array(array: np.ndarray, items_per_row: int = 4) -> str:
     return ret
 
 
-def read_str_file(filename: PathType) -> Optional[Tuple[Sequence, Sequence]]:
+def read_str_file(filename: PathType) -> Optional[Tuple[Sequence[str], Sequence[float]]]:
     """Read atomic charges from CHARMM-compatible stream files (.str).
 
     Returns a settings object with atom types and (atomic) charges.
@@ -164,7 +164,7 @@ def read_str_file(filename: PathType) -> Optional[Tuple[Sequence, Sequence]]:
     with open(filename, 'r') as f:
         for i in f:
             if 'GROUP' in i:
-                return zip(*inner_loop(f))
+                return cast(Tuple[Sequence[str], Sequence[float]], zip(*inner_loop(f)))
         else:
             raise RuntimeError(f"Failed to parse {filename!r}")
 
@@ -381,7 +381,11 @@ def read_rtf_file(filename: PathType) -> Optional[Tuple[Sequence[str], Sequence[
             ret = [_parse_item(item) for item in f if item[:i] == 'ATOM']
         except Exception as ex:
             raise RuntimeError(f"Failed to parse {filename!r}") from ex
-    return zip(*ret) if ret else None
+
+    if ret:
+        return cast(Tuple[Sequence[str], Sequence[float]], tuple(zip(*ret)))
+    else:
+        return None
 
 
 def prepend_exception(msg: str, exception: ExcType = Exception) -> Callable[[FT], FT]:
@@ -430,7 +434,7 @@ def prepend_exception(msg: str, exception: ExcType = Exception) -> Callable[[FT]
     return _decorator
 
 
-def log_traceback_locals(logger: Logger, level: SupportsIndex = -1,
+def log_traceback_locals(logger: Logger, level: int = -1,
                          str_func: Callable[[object], str] = pformat) -> None:
     """Log all local variables at the specified traceback level.
 

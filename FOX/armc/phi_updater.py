@@ -225,7 +225,7 @@ class PhiUpdater(PhiUpdaterABC):
     def __init__(self, phi=1.0, gamma=2.0, a_target=0.25, func=np.add, **kwargs) -> None:
         super().__init__(phi, gamma, a_target, func, **kwargs)
 
-    def update(self, acceptance: ArrayLike, *, logger: Optional[Logger] = None) -> None:
+    def update(self, acceptance: ArrayLike, *, logger: Optional[Logger] = None) -> None:  # type: ignore[override] # noqa: E501
         r"""Update the variable :math:`\phi`.
 
         :math:`\phi` is updated based on the target accepatance rate, :math:`\alpha_{t}`, and the

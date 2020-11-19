@@ -71,20 +71,20 @@ def get_bonded(mol: Union[str, MultiMolecule], psf: Union[str, PSFContainer],
     """
     # Read the .psf file and switch from 1- to 0-based atomic indices
     if not isinstance(psf, PSFContainer):
-        psf = PSFContainer.read(psf)
+        psf_ = PSFContainer.read(psf)
     else:
-        psf = psf.copy()
-    psf.bonds -= 1
-    psf.angles -= 1
-    psf.dihedrals -= 1
-    psf.impropers -= 1
+        psf_ = psf.copy()
+    psf_.bonds -= 1
+    psf_.angles -= 1
+    psf_.dihedrals -= 1
+    psf_.impropers -= 1
 
     # Read the molecule
     if not isinstance(mol, MultiMolecule):
         mol = MultiMolecule.from_xyz(mol)
     else:
         mol = mol.copy(deep=False)
-    mol.atoms = psf.to_atom_dict()
+    mol.atoms = psf_.to_atom_dict()
     symbols = sorted(mol.atoms.keys())
 
     # Extract parameters from the .prm file
@@ -95,27 +95,27 @@ def get_bonded(mol: Union[str, MultiMolecule], psf: Union[str, PSFContainer],
     # Calculate the various potential energies
     if bonds is not None:
         parse_wildcards(bonds, symbols, prm_type='bonds')
-        bonds = get_V_bonds(bonds, mol, psf.bonds)
+        bonds = get_V_bonds(bonds, mol, psf_.bonds)
         bonds *= kcal2au
 
     if angles is not None:
         parse_wildcards(angles, symbols, prm_type='angles')
-        angles = get_V_angles(angles, mol, psf.angles)
+        angles = get_V_angles(angles, mol, psf_.angles)
         angles *= kcal2au
 
     if urey_bradley is not None:
         parse_wildcards(urey_bradley, symbols, prm_type='urey_bradley')
-        urey_bradley = get_V_UB(urey_bradley, mol, psf.angles)
+        urey_bradley = get_V_UB(urey_bradley, mol, psf_.angles)
         urey_bradley *= kcal2au
 
     if dihedrals is not None:
         parse_wildcards(dihedrals, symbols, prm_type='dihedrals')
-        dihedrals = get_V_dihedrals(dihedrals, mol, psf.dihedrals)
+        dihedrals = get_V_dihedrals(dihedrals, mol, psf_.dihedrals)
         dihedrals *= kcal2au
 
     if impropers is not None:
         parse_wildcards(impropers, symbols, prm_type='impropers')
-        impropers = get_V_impropers(impropers, mol, psf.impropers)
+        impropers = get_V_impropers(impropers, mol, psf_.impropers)
         impropers *= kcal2au
 
     return bonds, angles, urey_bradley, dihedrals, impropers
@@ -124,16 +124,16 @@ def get_bonded(mol: Union[str, MultiMolecule], psf: Union[str, PSFContainer],
 def process_prm(prm: Union[PRMContainer, str]) -> tuple:
     """Extract all bond, angle, dihedral and improper parameters from **prm**."""
     if not isinstance(prm, PRMContainer):
-        prm = PRMContainer.read(prm)
+        prm_ = PRMContainer.read(prm)
     else:
-        prm = prm.copy()
+        prm_ = prm.copy()
 
-    bonds = prm.bonds
+    bonds = prm_.bonds
     if bonds is not None:
         bonds = bonds[[2, 3]].copy()
         bonds['V'] = np.nan
 
-    angles = prm.angles
+    angles = prm_.angles
     if angles is not None:
         urey_bradley = angles[[5, 6]].copy()
         urey_bradley.index = urey_bradley.index.droplevel(1)
@@ -148,13 +148,13 @@ def process_prm(prm: Union[PRMContainer, str]) -> tuple:
         angles[4] *= np.radians(1)
         angles['V'] = np.nan
 
-    dihedrals = prm.dihedrals
+    dihedrals = prm_.dihedrals
     if dihedrals is not None:
         dihedrals = dihedrals[[4, 5, 6]].copy()
         dihedrals[6] *= np.radians(1)
         dihedrals['V'] = np.nan
 
-    impropers = prm.impropers
+    impropers = prm_.impropers
     if impropers is not None:
         impropers = impropers[[4, 6]].copy()
         impropers[6] *= np.radians(1)

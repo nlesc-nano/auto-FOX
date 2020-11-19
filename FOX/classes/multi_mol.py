@@ -25,7 +25,7 @@ from itertools import (
 )
 from typing import (
     Sequence, Optional, Union, List, Hashable, Callable, Iterable, Dict, Tuple, Any, Mapping,
-    AnyStr, overload, TypeVar, Type, Container
+    overload, TypeVar, Type, Container
 )
 
 import numpy as np
@@ -112,7 +112,7 @@ class MultiMolecule(_MultiMolecule):
     """
 
     @overload
-    def round(self: MT, decimals: int = ..., inplace: Literal[False] = ...) -> MT: ...
+    def round(self: MT, decimals: int = ..., inplace: Literal[False] = ...) -> MT: ...  # type: ignore[misc] # noqa: E501
     @overload
     def round(self, decimals: int = ..., inplace: Literal[True] = ...) -> None: ...
     def round(self, decimals=0, inplace=False):  # noqa: E301
@@ -271,7 +271,7 @@ class MultiMolecule(_MultiMolecule):
         self.bonds = self.bonds[idx]
 
     @overload
-    def random_slice(self: MT, start: int = ..., stop: Optional[int] = ..., p: float = ..., inplace: Literal[False] = ...) -> MT: ...  # noqa: E501
+    def random_slice(self: MT, start: int = ..., stop: Optional[int] = ..., p: float = ..., inplace: Literal[False] = ...) -> MT: ...  # type: ignore[misc] # noqa: E501
     @overload
     def random_slice(self, start: int = ..., stop: Optional[int] = ..., p: float = ..., inplace: Literal[True] = ...) -> None: ...  # noqa: E501
     def random_slice(self, start=0, stop=None, p=0.5, inplace=False):  # noqa: E301
@@ -321,7 +321,7 @@ class MultiMolecule(_MultiMolecule):
             return self[idx].copy()
 
     @overload
-    def reset_origin(self, mol_subset: MolSubset = ..., atom_subset: AtomSubset = ..., inplace: Literal[True] = ...) -> None: ...  # noqa: E501
+    def reset_origin(self, mol_subset: MolSubset = ..., atom_subset: AtomSubset = ..., inplace: Literal[True] = ...) -> None: ...  # type: ignore[misc] # noqa: E501
     @overload
     def reset_origin(self: MT, mol_subset: MolSubset = ..., atom_subset: AtomSubset = ..., inplace: Literal[False] = ...) -> MT: ...  # noqa: E501
     def reset_origin(self, mol_subset=None, atom_subset=None, inplace=True):  # noqa: E301
@@ -378,7 +378,7 @@ class MultiMolecule(_MultiMolecule):
             return coords @ rotmat
 
     @overload
-    def sort(self, sort_by: Union[str, Sequence[int]] = ..., reverse: bool = ..., inplace: Literal[True] = ...) -> None: ...  # noqa: E501
+    def sort(self, sort_by: Union[str, Sequence[int]] = ..., reverse: bool = ..., inplace: Literal[True] = ...) -> None: ...  # type: ignore[misc] # noqa: E501
     @overload
     def sort(self: MT, sort_by: Union[str, Sequence[int]] = ..., reverse: bool = ..., inplace: Literal[False] = ...) -> MT: ...  # noqa: E501
     def sort(self, sort_by='symbol', reverse=False, inplace=True):  # noqa: E301
@@ -956,9 +956,18 @@ class MultiMolecule(_MultiMolecule):
         displacement = np.linalg.norm(self[i, j, :] - mean_coords, axis=2)**2
         return np.mean(displacement, axis=0)
 
+    @overload
     @staticmethod
-    def _get_rmsd_columns(loop: bool,
-                          atom_subset: AtomSubset = None) -> Sequence[Hashable]:
+    def _get_rmsd_columns(
+        loop: Literal[False], atom_subset: Union[None, str, int, slice, Sequence[int]] = ...
+    ) -> Sequence[Hashable]: ...
+    @overload  # noqa: E301
+    @staticmethod
+    def _get_rmsd_columns(
+        loop: Literal[True], atom_subset: Union[slice, Sequence[int]]
+    ) -> Sequence[Hashable]: ...
+    @staticmethod  # noqa: E301
+    def _get_rmsd_columns(loop, atom_subset=None):
         """Return the columns for the RMSD dataframe.
 
         Parameters
@@ -991,11 +1000,23 @@ class MultiMolecule(_MultiMolecule):
 
         return columns
 
-    def _get_rmsf_columns(self, rmsf: np.ndarray,
-                          index: Sequence[Hashable],
-                          loop: bool,
-                          atom_subset: AtomSubset = None
-                          ) -> Tuple[Sequence[Hashable], np.ndarray]:
+    @overload
+    def _get_rmsf_columns(
+        self,
+        rmsf: np.ndarray,
+        index: Union[pd.Index, pd.Series, np.ndarray],
+        loop: Literal[False],
+        atom_subset: Union[None, int, slice, str, Sequence[int]] = ...,
+    ) -> Tuple[Sequence[Hashable], np.ndarray]: ...
+    @overload  # noqa: E301
+    def _get_rmsf_columns(
+        self,
+        rmsf: np.ndarray,
+        index: Union[pd.Index, pd.Series, np.ndarray],
+        loop: Literal[False],
+        atom_subset: Union[Sequence[str], Sequence[Sequence[int]]],
+    ) -> Tuple[Sequence[Hashable], np.ndarray]: ...
+    def _get_rmsf_columns(self, rmsf, index, loop, atom_subset=None):  # noqa: E301
         """Return the columns and data for the RMSF dataframe.
 
         Parameters
@@ -1050,7 +1071,15 @@ class MultiMolecule(_MultiMolecule):
         return columns, data
 
     # TODO remove this method in favor of MultiMolecule._get_at_iterable()
-    def _get_loop(self, atom_subset: AtomSubset) -> Tuple[bool, AtomSubset]:
+    @overload
+    def _get_loop(
+        self, atom_subset: Union[None, range, slice, int, Sequence[int]]
+    ) -> Tuple[Literal[False], Union[Sequence[int], slice]]: ...
+    @overload  # noqa: E301
+    def _get_loop(
+        self, atom_subset: Union[Sequence[str], Sequence[Sequence[int]]]
+    ) -> Tuple[Literal[True], Sequence[Sequence[int]]]: ...
+    def _get_loop(self, atom_subset):  # noqa: E301
         """Figure out if the supplied subset warrants a for loop or not.
 
         Parameters
@@ -1164,9 +1193,9 @@ class MultiMolecule(_MultiMolecule):
         at_dummy = np.zeros_like(mol_cp[:, 0, :])[:, None, :]
         mol_cp = MultiMolecule(np.hstack((mol_cp, at_dummy)), atoms=mol_cp.atoms)
         mol_cp.atoms['origin'] = [mol_cp.shape[1] - 1]
-        at_subset = ('origin', ) + at_subset
+        at_subset2 = ('origin',) + at_subset
         with np.errstate(divide='ignore', invalid='ignore'):
-            rdf = mol_cp.init_rdf(atom_subset=at_subset)
+            rdf = mol_cp.init_rdf(atom_subset=at_subset2)
         del rdf['origin origin']
         rdf = rdf.loc[rdf.index >= rdf_cutoff, [i for i in rdf.columns if 'origin' in i]]
 
@@ -1338,7 +1367,7 @@ class MultiMolecule(_MultiMolecule):
         return df
 
     def get_dist_mat(self, mol_subset: MolSubset = None,
-                     atom_subset: Tuple[AtomSubset] = (None, None)) -> np.ndarray:
+                     atom_subset: Tuple[AtomSubset, AtomSubset] = (None, None)) -> np.ndarray:
         """Create and return a distance matrix for all molecules and atoms in this instance.
 
         Parameters
@@ -1553,13 +1582,13 @@ class MultiMolecule(_MultiMolecule):
         if atom_subset is None:
             return self.atoms.items()
         elif isinstance(atom_subset, (range, slice)):
-            return enumerate((atom_subset))
+            return enumerate((atom_subset,))
         elif isinstance(atom_subset, str):
-            return ((atom_subset, self.atoms[atom_subset]))
+            return [(atom_subset, self.atoms[atom_subset])]
         elif isinstance(atom_subset, int):
-            return False, enumerate(([atom_subset]))
+            return [(False, (atom_subset,))]
         elif isinstance(atom_subset[0], (int, np.integer)):
-            return enumerate((atom_subset))
+            return enumerate(atom_subset)
         elif isinstance(atom_subset[0], str):
             return [(at, self.atoms[at]) for at in atom_subset]
         elif isinstance(atom_subset[0][0], (int, np.integer)):
@@ -1625,8 +1654,8 @@ class MultiMolecule(_MultiMolecule):
 
         """
         # Identify the maximum to-be considered radius
-        r_max_ = 0.0 if float(r_max) == np.inf else r_max
-        n = int((1 + r_max_ / 4.0)**3)
+        r_max_ = 0 if float(r_max) == np.inf else float(r_max)
+        n = int((1 + r_max_ / 4)**3)
 
         # Identify atom and molecule subsets
         m_subset = self._get_mol_subset(mol_subset)
@@ -2060,7 +2089,7 @@ class MultiMolecule(_MultiMolecule):
                 np.savetxt(file, np.hstack((at, xyz)), header=header.format(i), **kwargs)
 
     @overload
-    def as_mass_weighted(self: MT, mol_subset: MolSubset = ..., atom_subset: AtomSubset = ..., inplace: Literal[False] = ...) -> MT: ...  # noqa: E501
+    def as_mass_weighted(self: MT, mol_subset: MolSubset = ..., atom_subset: AtomSubset = ..., inplace: Literal[False] = ...) -> MT: ...  # type: ignore[misc] # noqa: E501
     @overload
     def as_mass_weighted(self, mol_subset: MolSubset = ..., atom_subset: AtomSubset = ..., inplace: Literal[True] = ...) -> None: ...  # noqa: E501
     def as_mass_weighted(self, mol_subset=None, atom_subset=None, inplace=False):  # noqa: E301
@@ -2175,7 +2204,7 @@ class MultiMolecule(_MultiMolecule):
                     add_bond(Bond(atom1=at1, atom2=at2, order=order/10.0))
 
         # Create copies of the template molecule; update their cartesian coordinates
-        ret = []
+        ret: List[Molecule] = []
         ret_append = ret.append
         for i, xyz in enumerate(self[m_subset]):
             mol = mol_template.copy()
@@ -2186,7 +2215,7 @@ class MultiMolecule(_MultiMolecule):
         return ret
 
     @classmethod
-    def from_Molecule(cls: Type[MT], mol_list: Union[Molecule, Iterable[Molecule]],
+    def from_Molecule(cls: Type[MT], mol_list: Union[Molecule, Sequence[Molecule]],
                       subset: Container[str] = frozenset({'atoms'})) -> MT:
         """Construct a :class:`.MultiMolecule` instance from one or more PLAMS molecules.
 
@@ -2242,7 +2271,7 @@ class MultiMolecule(_MultiMolecule):
         return cls(coords, **kwargs)
 
     @classmethod
-    def from_xyz(cls: Type[MT], filename: Union[AnyStr, PathLike],
+    def from_xyz(cls: Type[MT], filename: Union[str, bytes, PathLike],
                  bonds: Optional[np.ndarray] = None,
                  properties: Optional[dict] = None,
                  read_comment: bool = False) -> MT:
@@ -2288,7 +2317,7 @@ class MultiMolecule(_MultiMolecule):
         return ret
 
     @classmethod
-    def from_kf(cls: Type[MT], filename: Union[str, bytes, PathLike],
+    def from_kf(cls: Type[MT], filename: Union[str, 'PathLike[str]'],
                 bonds: Optional[np.ndarray] = None,
                 properties: Optional[dict] = None) -> MT:
         """Construct a :class:`.MultiMolecule` instance from a KF binary file.

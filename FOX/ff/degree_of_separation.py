@@ -14,7 +14,7 @@ API
 
 """
 
-from typing import Type, Union, Optional, Any, TypeVar, Tuple, Generator
+from typing import Type, Union, Optional, Any, TypeVar, Tuple, Generator, overload
 from itertools import chain
 
 import numpy as np
@@ -85,8 +85,23 @@ def degree_of_separation(mol: Molecule, limit: float = np.inf,
 S = TypeVar('S', bound=spmatrix)
 
 
-def sparse_bond_matrix(mol: Molecule, dtype: Union[None, type, str, np.dtype] = bool,
-                       sparse_type: Type[S] = csr_matrix, **kwargs: Any) -> S:
+@overload
+def sparse_bond_matrix(
+    mol: Molecule,
+    dtype: Union[None, type, str, np.dtype] = ...,
+    sparse_type: Type[csr_matrix] = ...,
+    **kwargs: Any,
+) -> csr_matrix:
+    ...
+@overload  # noqa: E302
+def sparse_bond_matrix(  # type: ignore[misc]
+    mol: Molecule,
+    dtype: Union[None, type, str, np.dtype] = ...,
+    sparse_type: Type[S] = ...,
+    **kwargs: Any,
+) -> S:
+    ...
+def sparse_bond_matrix(mol, dtype=bool, sparse_type=csr_matrix, **kwargs):  # noqa: E302
     r"""Create a sparse bond-matrix of a user-specified data type.
 
     Parameters

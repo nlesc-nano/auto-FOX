@@ -38,7 +38,8 @@ import pandas as pd
 
 from scm.plams import Units, PT
 
-from . import LJDataFrame, degree_of_separation
+from . import LJDataFrame
+from .degree_of_separation import degree_of_separation
 from .lj_calculate import get_V_elstat, get_V_lj, _get_slice_iterator
 from .bonded_calculate import _dist
 from ..classes import MultiMolecule
@@ -104,27 +105,27 @@ def get_intra_non_bonded(mol: Union[str, MultiMolecule], psf: Union[str, PSFCont
         psf = PSFContainer.read(psf)
 
     if not isinstance(mol, MultiMolecule):
-        mol = MultiMolecule.from_xyz(mol)
+        mol_ = MultiMolecule.from_xyz(mol)
     else:
-        mol = mol.copy(deep=False)
+        mol_ = mol.copy(deep=False)
 
     # Define the various non-bonded atom-pairs
     core_atoms = psf.atoms.index[psf.residue_id == 1] - 1
     lig_atoms = psf.atoms.index[psf.residue_id != 1] - 1
-    mol.bonds = psf.bonds - 1
+    mol_.bonds = psf.bonds - 1
 
     # Ensure that PLAMS more or less recognizes the new (custom) atomic symbols
     values = psf.atoms[['atom type', 'atom name']].values
     PT.symtonum.update({k.capitalize(): PT.get_atomic_number(v) for k, v in values})
 
     # Construct the parameter DataFrames
-    mol.atoms = psf.to_atom_dict()
-    prm_df = _construct_df(mol, lig_atoms, psf, prm, pairs14=False)
-    prm_df14 = _construct_df(mol, lig_atoms, psf, prm, pairs14=True)
-    mol.atoms = psf.to_atom_dict()
+    mol_.atoms = psf.to_atom_dict()
+    prm_df = _construct_df(mol_, lig_atoms, psf, prm, pairs14=False)
+    prm_df14 = _construct_df(mol_, lig_atoms, psf, prm, pairs14=True)
+    mol_.atoms = psf.to_atom_dict()
 
     # Convert Angstroem to bohr
-    mol *= Units.conversion_ratio('angstrom', 'au')
+    mol_ *= Units.conversion_ratio('angstrom', 'au')  # type: ignore[assignment]
     distance_upper_bound *= Units.conversion_ratio('angstrom', 'au')
 
     # The .prm format allows one to specify special non-bonded interactions between
@@ -135,13 +136,13 @@ def get_intra_non_bonded(mol: Union[str, MultiMolecule], psf: Union[str, PSFCont
 
     elif el_scale14 == lj_scale14 == 1:
         # Don't bother with a separate calculation for 1,4-nonbonded interactions
-        return _get_V(prm_df, mol, core_atoms,
+        return _get_V(prm_df, mol_, core_atoms,
                       shift_cutoff=shift_cutoff,
                       distance_upper_bound=distance_upper_bound,
                       depth_comparison=operator.__ge__)
 
     # Calculate the 1,4 - potential energies
-    elstat14_df, lj14_df = _get_V(prm_df14, mol, core_atoms,
+    elstat14_df, lj14_df = _get_V(prm_df14, mol_, core_atoms,
                                   shift_cutoff=shift_cutoff,
                                   distance_upper_bound=distance_upper_bound,
                                   depth_comparison=operator.__eq__)
@@ -149,7 +150,7 @@ def get_intra_non_bonded(mol: Union[str, MultiMolecule], psf: Union[str, PSFCont
     lj14_df *= lj_scale14
 
     # Calculate the total potential energies
-    elstat_df, lj_df = _get_V(prm_df, mol, core_atoms,
+    elstat_df, lj_df = _get_V(prm_df, mol_, core_atoms,
                               shift_cutoff=shift_cutoff,
                               distance_upper_bound=distance_upper_bound,
                               depth_comparison=operator.__gt__)
@@ -187,7 +188,7 @@ def _get_V(prm_df: pd.DataFrame, mol: MultiMolecule, core_atoms: np.ndarray,
     slice_iterator = _get_slice_iterator(len_mol, dmat_size)
 
     if distance_upper_bound < np.inf and shift_cutoff:
-        shift = distance_upper_bound
+        shift: Optional[float] = distance_upper_bound
     else:
         shift = None
 

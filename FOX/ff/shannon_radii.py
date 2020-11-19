@@ -81,6 +81,5 @@ del _CSV
 #: R. D. Shannon, Revised effective ionic radii and systematic studies of
 #: interatomic distances in halides and chalcogenides, *Acta Cryst.* (1976). A32, 751-767.
 SIGMA_DF: pd.DataFrame = RADII_DF[['crystal_radius', 'ionic_radius']].groupby(RADII_DF.index).mean()
-SIGMA_DF.columns = [i.replace('radius', 'sigma') for i in SIGMA_DF.columns]
-SIGMA_DF.columns.name = 'Å'
+SIGMA_DF.columns = pd.Index([i.replace('radius', 'sigma') for i in SIGMA_DF.columns], name='Å')
 SIGMA_DF *= 2 / 2**(1/6)  # Conversion factor between R / 2 and the Lennard-Jones sigma parameter

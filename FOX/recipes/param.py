@@ -117,7 +117,7 @@ API
 
 """
 
-from typing import Dict, Union, Iterable, Any, FrozenSet, Tuple, Iterator, Hashable, Optional
+from typing import Dict, Union, Iterable, Any, FrozenSet, Tuple, Iterator, cast, Optional, Mapping
 from collections import abc
 
 import h5py
@@ -298,7 +298,7 @@ def plot_descriptor(descriptor: Union[NDFrame, Iterable[NDFrame]],
 
 #: A :class:`frozenset` with valid values for the **kind** parameter in :func:`plot_descriptor`.
 VALID_KIND: FrozenSet[str] = frozenset(
-    PlotAccessor._all_kinds + tuple(PlotAccessor._kind_aliases.values())
+    PlotAccessor._all_kinds + tuple(PlotAccessor._kind_aliases.values())  # type: ignore[attr-defined] # noqa: E501
 )
 
 
@@ -315,18 +315,18 @@ def _validate_kind(kind: str) -> str:
     return ret
 
 
-def _get_df_iterator(descriptor: Union[NDFrame, Iterable[NDFrame]]
-                     ) -> Tuple[int, Iterator[Tuple[Hashable, NDFrame]]]:
+def _get_df_iterator(descriptor: Union[NDFrame, Mapping[Any, NDFrame], Iterable[NDFrame]]
+                     ) -> Tuple[int, Iterator[Tuple[Any, NDFrame]]]:
     """Return the number of plots and a DataFrame enumerator for :func:`plot_descriptor`."""
     if isinstance(descriptor, pd.Series):
         descriptor = descriptor.to_frame()
 
     # Figure out the number of plots
     try:
-        ncols = len(descriptor.keys())
+        ncols: int = len(descriptor.keys())  # type: ignore[union-attr]
     except AttributeError:
         try:
-            ncols = len(descriptor)
+            ncols = len(descriptor)  # type: ignore
         except TypeError as ex:
             if not isinstance(descriptor, abc.Iterable):
                 tb = ex.__traceback__
@@ -337,7 +337,7 @@ def _get_df_iterator(descriptor: Union[NDFrame, Iterable[NDFrame]]
 
     # Construct an iterator of 2-tuples
     try:
-        iterator = descriptor.items()
+        iterator = cast(Iterator[Tuple[Any, NDFrame]], descriptor.items())  # type: ignore[union-attr] # noqa: E501
     except (AttributeError, TypeError):
         iterator = enumerate(descriptor)
 

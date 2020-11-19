@@ -121,7 +121,7 @@ def create_hdf5(filename: PathType, armc: ARMC) -> None:
     }
 
     for key, partial in armc.pes.items():
-        ref = partial.ref
+        ref: pd.DataFrame = partial.ref  # type: ignore[attr-defined]
         pd_dict[key] = ref
         pd_dict[key + '.ref'] = ref
     index_to_hdf5(filename, pd_dict)
@@ -251,7 +251,7 @@ def _get_kwarg_dict(armc: ARMC) -> Settings:
     shape = armc.iter_len // armc.sub_iter_len, armc.sub_iter_len
     param_shape = armc.param['param'].T.shape
 
-    ret = Settings()
+    ret = Settings()  # type: ignore[var-annotated]
     ret.phi.shape = (shape[0], ) + armc.phi.shape
     ret.phi.dtype = float
     ret.phi.fillvalue = np.nan
@@ -271,7 +271,7 @@ def _get_kwarg_dict(armc: ARMC) -> Settings:
     ret.aux_error_mod.fillvalue = np.nan
 
     for key, partial in armc.pes.items():
-        ref = partial.ref
+        ref: pd.DataFrame = partial.ref  # type: ignore[attr-defined]
 
         ret[key].shape = shape + get_shape(ref)
         ret[key].dtype = float
@@ -619,7 +619,7 @@ def _get_filename_xyz(filename: PathType, **kwargs: Any) -> str:
     """
     if isinstance(filename, bytes):
         filename_ = filename.decode(**kwargs)
-    elif isinstance(filename, PathLike):
+    elif isinstance(filename, PathLike):  # type: ignore[misc]
         filename_ = str(filename)
     else:
         filename_ = filename

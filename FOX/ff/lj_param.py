@@ -40,7 +40,7 @@ API
 """
 
 import reprlib
-from typing import TypeVar, Optional, Mapping, Sequence, Dict, Generator
+from typing import TypeVar, Optional, Mapping, MutableSequence, Dict, Generator
 
 import numpy as np
 import pandas as pd
@@ -170,7 +170,7 @@ def estimate_lj(rdf: pd.DataFrame, temperature: float = 298.15,
                          f"{reprlib.repr(sigma_estimate)}")
 
     # Prepare the parameter sigma
-    lj_dict: Dict[str, Sequence[float]] = {}
+    lj_dict: Dict[str, MutableSequence[float]] = {}
     lj_dict['epsilon'] = -1 * G.min()
     lj_dict['sigma'] = []
     sigma_append = lj_dict['sigma'].append

@@ -77,7 +77,7 @@ class LJDataFrame(pd.DataFrame):
 
         if callable(getattr(data, 'items', None)):
             column_set = set(self.columns)
-            for k, v in data.items():
+            for k, v in data.items():  # type: ignore[union-attr]
                 if k not in column_set:
                     raise KeyError(f"Invalid key {k!r}; allowed keys: {tuple(column_set)}")
                 self[k] = v
@@ -117,8 +117,8 @@ class LJDataFrame(pd.DataFrame):
                 if k not in charge_dict:
                     charge_dict[k] = v
 
-        epsilon_s = Settings()
-        sigma_s = Settings()
+        epsilon_s = Settings()  # type: ignore[var-annotated]
+        sigma_s = Settings()  # type: ignore[var-annotated]
 
         # Check if the settings are qmflows-style generic settings
         lj = cp2k_settings.get('lennard-jones') or cp2k_settings.get('lennard_jones')
@@ -139,7 +139,7 @@ class LJDataFrame(pd.DataFrame):
                          epsilon_dict: MutableMapping) -> None:
         """Extract PLAMS-style settings from **lj** and put them in **sigma_dict** and **epsilon_dict**."""  # noqa: E501
         for block in lj:
-            with Settings.supress_missing():
+            with Settings.suppress_missing():
                 atoms = tuple(block['atoms'].split())
 
                 try:
@@ -170,7 +170,7 @@ class LJDataFrame(pd.DataFrame):
                            sigma_dict: MutableMapping,
                            epsilon_dict: MutableMapping) -> None:
         """Extract QMFlows-style settings from **lj** and put them in **sigma_dict** and **epsilon_dict**."""  # noqa: E501
-        lj = lj.copy()
+        lj = lj.copy()  # type: ignore[attr-defined]
         prm_to_df(lj)
 
         if 'lennard_jones' in lj:
@@ -226,7 +226,7 @@ class LJDataFrame(pd.DataFrame):
 
     def overlay_rtf(self, rtf: Union[str, bytes, PathLike]) -> None:
         r"""Overlay **df** with all :math:`q` values from **rtf**."""
-        charge_dict: Dict[str, float] = dict(zip(*read_rtf_file(rtf)))
+        charge_dict: Dict[str, float] = dict(zip(*read_rtf_file(rtf)))  # type: ignore
         self.set_charge(charge_dict)
 
     def overlay_psf(self, psf: Union[str, bytes, PathLike, PSFContainer]) -> None:

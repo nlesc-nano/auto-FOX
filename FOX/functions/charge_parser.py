@@ -13,7 +13,7 @@ API
 """
 
 from types import MappingProxyType
-from typing import Optional, Dict, Union, Iterable, Tuple,  Generator, overload, List
+from typing import Optional, Dict, Union, Iterable, Tuple,  Generator, List, cast
 
 __all__ = ["assign_constraints"]
 
@@ -48,23 +48,23 @@ def assign_constraints(constraints: Union[str, Iterable[str]]
         for i in operator_set:  # Sanitize all operators; ensure they are surrounded by spaces
             item = item.replace(i, f'~{i}~')
 
-        item_list = [i.strip().rstrip() for i in item.split('~')]
+        item_list: List[Union[str, float]] = [i.strip().rstrip() for i in item.split('~')]
         if len(item_list) == 1:
             continue
 
-        for i, j in enumerate(item_list):  # Convert strings to floats where possible
+        for j, k in enumerate(item_list):  # Convert strings to floats where possible
             try:
-                float_j = float(j)
+                float_k = float(k)
             except ValueError:
                 pass
             else:
-                item_list[i] = float_j
+                item_list[j] = float_k
 
         constrain_list.append(item_list)
 
     # Set values in **param**
     extremite_dict: ExtremiteDict = {}
-    constraints_ = None
+    constraints_: Optional[ConstrainList] = None
     for constrain in constrain_list:
         if '==' in constrain:
             constraints_ = _eq_constraints(constrain)
@@ -73,11 +73,11 @@ def assign_constraints(constraints: Union[str, Iterable[str]]
     return extremite_dict, constraints_
 
 
-def _gt_lt_constraints(constrain: List[str]
+def _gt_lt_constraints(constrain: List[Union[str, float]]
                        ) -> Generator[Tuple[Tuple[str, str], float], None, None]:
     r"""Parse :math:`>`, :math:`<`, :math:`\ge` and :math:`\le`-type constraints."""
     minus = False
-    for i, j in enumerate(constrain):
+    for i, j in enumerate(constrain):  # type: int, str  # type: ignore[assignment]
         if j == '-':
             minus = True
             continue
@@ -91,17 +91,13 @@ def _gt_lt_constraints(constrain: List[str]
         if minus:
             value *= -1
             minus = False
-        yield (atom, operator), value
+        yield (atom, operator), value  # type: ignore[misc]
 
 
-@overload
-def _find_float(iterable: Tuple[str]) -> Tuple[str, float]: ...
-@overload
-def _find_float(iterable: Tuple[str, str]) -> Tuple[str, float]: ...
-def _find_float(iterable):  # noqa: E302
+def _find_float(iterable: Union[Tuple[str], Tuple[str, str]]) -> Tuple[str, float]:
     """Take an iterable of 2 strings and identify which element can be converted into a float."""
     try:
-        i, j = iterable
+        i, j = iterable  # type: ignore[misc]
     except ValueError:
         return iterable[0], 1.0
 
@@ -116,7 +112,7 @@ def _find_float(iterable):  # noqa: E302
         return i, float(j)
 
 
-def _eq_constraints(constrain_: List[str]) -> ConstrainList:
+def _eq_constraints(constrain_: List[Union[str, float]]) -> ConstrainList:
     """Parse :math:`a = i * b`-type constraints."""
     constrain = ''.join(str(i) for i in constrain_).split('==')
     # import pdb; pdb.set_trace()
@@ -130,7 +126,7 @@ def _eq_constraints(constrain_: List[str]) -> ConstrainList:
 
         item_split = _split_operator(_item)
         for item in item_split:
-            item_list = item.split('*')
+            item_list = cast(Tuple[str, str], item.split('*'))
             atom, i = _find_float(item_list)
             dct[atom] = i
 

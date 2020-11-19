@@ -12,20 +12,21 @@ API
 
 """
 
+from os import PathLike
 from itertools import chain
-from typing import Tuple, Dict, List
+from typing import Tuple, Dict, List, Union
 
 import numpy as np
 
 from scm.plams import KFReader
-from nanoutils import group_by_values, PathType
+from nanoutils import group_by_values
 
 __all__ = ['read_kf']
 
 IdxDict = Dict[str, List[int]]
 
 
-def read_kf(filename: PathType) -> Tuple[np.ndarray, IdxDict]:
+def read_kf(filename: Union[str, 'PathLike[str]']) -> Tuple[np.ndarray, IdxDict]:
     """Read a KF binary file containing a potential energy surface.
 
     Returns the following items:

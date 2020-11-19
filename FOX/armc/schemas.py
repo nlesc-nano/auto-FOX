@@ -242,7 +242,7 @@ psf_schema = Schema({
     Optional_('str_file', default=None): Or(
         None,
         And(Or(str, bytes, os.PathLike), Use(lambda n: (abspath(n),))),
-        And(abc.Sequence, lambda n: all(isinstance(i, (os.PathLike, bytes, str)) for i in n),
+        And(abc.Sequence, lambda n: all(isinstance(i, (os.PathLike, bytes, str)) for i in n),  # type: ignore[misc] # noqa: E501
             Use(lambda n: tuple(abspath(i) for i in n))),
         error=Formatter(f"'psf.str_file' expected None or one or more path-like objects{EPILOG}")
     ),
@@ -250,7 +250,7 @@ psf_schema = Schema({
     Optional_('rtf_file', default=None): Or(
         None,
         And(Or(str, bytes, os.PathLike), Use(lambda n: (abspath(n),))),
-        And(abc.Sequence, lambda n: all(isinstance(i, (os.PathLike, bytes, str)) for i in n),
+        And(abc.Sequence, lambda n: all(isinstance(i, (os.PathLike, bytes, str)) for i in n),  # type: ignore[misc] # noqa: E501
             Use(lambda n: tuple(abspath(i) for i in n))),
         error=Formatter(f"'psf.rtf_file' expected None or one or more path-like objects{EPILOG}")
     ),
@@ -258,7 +258,7 @@ psf_schema = Schema({
     Optional_('psf_file', default=None): Or(
         None,
         And(Or(str, bytes, os.PathLike), Use(lambda n: (abspath(n),))),
-        And(abc.Sequence, lambda n: all(isinstance(i, (os.PathLike, bytes, str)) for i in n),
+        And(abc.Sequence, lambda n: all(isinstance(i, (os.PathLike, bytes, str)) for i in n),  # type: ignore[misc] # noqa: E501
             Use(lambda n: tuple(abspath(i) for i in n))),
         error=Formatter(f"'psf.psf_file' expected None or one or more path-like objects{EPILOG}")
     ),
@@ -344,7 +344,7 @@ job_schema = Schema({
         And(os.PathLike, Use(lambda n: (MultiMolecule.from_xyz(n),))),
         And(
             abc.Sequence,
-            lambda n: all(isinstance(i, (str, os.PathLike, MultiMolecule)) for i in n),
+            lambda n: all(isinstance(i, (str, os.PathLike, MultiMolecule)) for i in n),  # type: ignore[misc] # noqa: E501
             Use(lambda n: tuple(
                 (i if isinstance(i, MultiMolecule) else MultiMolecule.from_xyz(i)) for i in n
             ))

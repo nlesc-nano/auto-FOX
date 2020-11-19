@@ -20,7 +20,7 @@ from abc import ABC, abstractmethod
 from types import MappingProxyType
 from logging import Logger
 from functools import wraps, partial
-from typing import (Any, TypeVar, Optional, Hashable, Tuple, Mapping, Iterable, ClassVar, Union,
+from typing import (Any, TypeVar, Optional, Tuple, Mapping, Iterable, ClassVar, Union,
                     Iterator, KeysView, ItemsView, ValuesView, overload, Callable, FrozenSet, cast,
                     MutableMapping, TYPE_CHECKING, Dict)
 
@@ -43,8 +43,8 @@ __all__ = ['ParamMappingABC', 'ParamMapping']
 T = TypeVar('T')
 
 # MultiIndex keys
-Tup3 = Tuple[Hashable, Hashable, Hashable]
-Tup2 = Tuple[Hashable, Hashable]
+Tup3 = Tuple[Any, Any, Any]
+Tup2 = Tuple[Any, Any]
 
 # All dict keys in ParamMappingABC
 SeriesKeys = Literal['min', 'max', 'count', 'frozen', 'guess']
@@ -57,7 +57,7 @@ MoveFunc = Callable[[float, float], float]
 # A Mapping representing the conent of ParamMappingABC
 _ParamMappingABC = Mapping[ValidKeys, NDFrame]
 
-_KeysView = KeysView[ValidKeys]
+_KeysView = KeysView[ValidKeys]  # type: ignore[misc]
 _ItemsView = ItemsView[ValidKeys, NDFrame]
 
 
@@ -385,9 +385,9 @@ class ParamMappingABC(AbstractDataClass, ABC, _ParamMappingABC):
     @overload
     def get(self, key: ValidKeys, default: Any) -> NDFrame: ...
     @overload
-    def get(self, key: Hashable) -> Optional[NDFrame]: ...
+    def get(self, key: Any) -> Optional[NDFrame]: ...
     @overload
-    def get(self, key: Hashable, default: T) -> Union[NDFrame, T]: ...
+    def get(self, key: Any, default: T) -> Union[NDFrame, T]: ...
     def get(self, key, default=None):  # noqa: E301
         """Return the value for **key** if it's available; return **default** otherwise."""
         return self._data.get(key, default)
