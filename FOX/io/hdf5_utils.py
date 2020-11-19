@@ -468,8 +468,10 @@ def from_hdf5(filename, datasets=None):  # noqa: E302
         i = kappa * omega_max + omega
 
         # Identify the to-be returned datasets
+        as_dict = True
         if isinstance(datasets, str):
-            datasets_: Iterable[Hashable] = (datasets, )
+            as_dict = False
+            datasets_: Iterable[str] = (datasets,)
         elif datasets is None:
             datasets_ = f.keys()
         else:
@@ -482,7 +484,7 @@ def from_hdf5(filename, datasets=None):  # noqa: E302
             raise KeyError(f"No dataset {ex} in {filename!r}") from None
 
     # Return a DataFrame/Series or dictionary of DataFrames/Series
-    if len(ret) == 1:
+    if not as_dict:
         for i in ret.values():
             return i
     return ret
