@@ -513,13 +513,13 @@ def _get_dset(f: File, key: str) -> Union[pd.Series, pd.DataFrame, List[pd.DataF
 
     """
     if key == 'phi':
-        return dset_to_series(f, key).T
-
-    if key == 'aux_error':
+        return _phi_to_df(f, key)
+    elif key == 'aux_error':
         return _aux_err_to_df(f, key)
-
-    if key == 'param_metadata':
+    elif key == 'param_metadata':
         return _metadata_to_df(f, key)
+    elif key == 'acceptance':
+        return _acceptance_to_df(f, key)
 
     elif 'columns' in f[key].attrs.keys():
         return dset_to_df(f, key)
@@ -574,7 +574,28 @@ def _metadata_to_df(f: File, key: str) -> pd.DataFrame:
     _index = f[key].attrs['index']
     idx_gen = (_index[k].astype(str) for k in _index.dtype.names)
     index = pd.MultiIndex.from_tuples(zip(*idx_gen), names=_index.dtype.names)
-    return pd.DataFrame.from_records(f[key][:], index=index)
+    df = pd.DataFrame.from_records(f[key][:], index=index)
+    df.sort_index(axis='columns', inplace=True)
+    return df
+
+
+def _phi_to_df(f: File, key: str) -> pd.DataFrame:
+    """Convert the ``phi`` dataset into a :class:`~pandas.DataFrame`."""
+    dset = f[key]
+    index = pd.Index(dset.attrs['index'], name='kappa')
+    df = pd.DataFrame(dset[:], index=index)
+    df.columns.name = dset.attrs['name'].item().decode()
+    return df
+
+
+def _acceptance_to_df(f: File, key: str) -> pd.DataFrame:
+    """Convert the ``acceptance`` dataset into a :class:`~pandas.DataFrame`."""
+    array = f[key][:]
+    array.shape = -1, array.shape[-1]
+    df = pd.DataFrame(array)
+    df.index.name = 'iteration'
+    df.columns.name = 'acceptance'
+    return df
 
 
 """###################################### hdf5 utilities #######################################"""
