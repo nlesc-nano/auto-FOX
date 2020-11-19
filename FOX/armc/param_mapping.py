@@ -16,6 +16,7 @@ API
 
 """
 
+import warnings
 from abc import ABC, abstractmethod
 from types import MappingProxyType
 from logging import Logger
@@ -307,15 +308,12 @@ class ParamMappingABC(AbstractDataClass, ABC, _ParamMappingABC):
             dtype = type(fill_value) if fill_value is not None else object
             dct[name] = pd.Series(fill_value, index=prm.index, name=name, dtype=dtype)
 
-        # Set the total charge of the system
-        if 'charge' in prm:
-            self._net_charge = get_net_charge(prm['charge'], dct['count']['charge'])
-        else:
-            self._net_charge = None
-
         # Construct a dictionary to contain the old parameter
         dct['param_old'] = param.copy()
         self._data_dict = cast(Data, dct)
+
+        # Cache the total charge of the system
+        self._set_net_charge()
 
     # Magic methods and Mapping implementation
 
@@ -341,6 +339,16 @@ class ParamMappingABC(AbstractDataClass, ABC, _ParamMappingABC):
     @AbstractDataClass.inherit_annotations()
     def _str_iterator(self):
         return ((k.strip('_'), v) for k, v in super()._str_iterator())
+
+    def _set_net_charge(self) -> None:
+        """Set the total charge of the system."""
+        with warnings.catch_warnings():
+            warnings.simplefilter('ignore', pd.errors.PerformanceWarning)
+            if 'charge' in self['param'].index:
+                self._net_charge = get_net_charge(self['param'].loc['charge', 0],
+                                                  self['count'].loc['charge'])
+            else:
+                self._net_charge = None
 
     @overload
     def __getitem__(self, key: SeriesKeys) -> pd.Series: ...

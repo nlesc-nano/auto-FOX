@@ -16,7 +16,7 @@ import os
 from functools import partial
 from collections import abc
 from typing import (
-    Any, SupportsInt, Type, Mapping, Collection, Sequence,
+    Any, SupportsInt, Type, Mapping, Collection, Sequence, SupportsFloat,
     Callable, Union, Optional, Tuple, FrozenSet, Iterable, Dict, TypeVar
 )
 
@@ -26,8 +26,8 @@ from schema import And, Or, Schema, Use, Optional as Optional_
 from qmflows import cp2k_mm, Settings as QmSettings
 from qmflows.packages import Package
 from nanoutils import (
-    Default, Formatter, supports_int, isinstance_factory, issubclass_factory, import_factory,
-    as_nd_array, TypedDict
+    Default, Formatter, supports_int, supports_float, isinstance_factory,
+    issubclass_factory, import_factory, as_nd_array, TypedDict
 )
 
 from .armc import ARMC
@@ -215,8 +215,8 @@ class MCMapping(TypedDict, total=False):
     """A :class:`~typing.TypedDict` representing the input of :data:`mc_schema`."""
 
     type: Union[None, str, Type[MonteCarloABC]]
-    iter_len: Optional[SupportsInt]
-    sub_iter_len:  Optional[SupportsInt]
+    iter_len: Union[None, str, bytes, SupportsInt]
+    sub_iter_len:  Union[None, str, bytes, SupportsInt]
     hdf5_file: Union[None, str, bytes, os.PathLike]
     logfile: Union[None, str, bytes, os.PathLike]
     path: Union[None, str, bytes, os.PathLike]
@@ -415,6 +415,12 @@ validation_schema = Schema({
         bool,
         error=Formatter(f"'param.validation.allow_non_existent' expected a boolean{EPILOG}")
     ),
+
+    Optional_('charge_tolerance', default=0.01): Or(
+        And(None, Default(0.01)),
+        And(supports_float, lambda n: float(n) > 0, Use(float)),
+        error=Formatter(f"'param.validation.charge_tolerance' expected a positive float{EPILOG}")
+    ),
 }, name='validation_schema', description='Schema for validating the "param.validation" block.')
 
 
@@ -422,12 +428,14 @@ class ValidationMapping(TypedDict, total=False):
     """A :class:`~typing.TypedDict` representing the input of :data:`validation_schema`."""
 
     allow_non_existent: Optional[bool]
+    charge_tolerance: Union[str, bytes, SupportsFloat]
 
 
 class ValidationDict(TypedDict):
     """A :class:`~typing.TypedDict` representing the output of :data:`validation_schema`."""
 
     allow_non_existent: bool
+    charge_tolerance: float
 
 
 MOVE_DEFAULT = np.array([
