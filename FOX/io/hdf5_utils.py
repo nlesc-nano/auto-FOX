@@ -465,7 +465,7 @@ def from_hdf5(filename, datasets=None):  # noqa: E302
         kappa = f.attrs['super-iteration']
         omega = f.attrs['sub-iteration']
         omega_max = f['param'].shape[1]
-        i = kappa * omega_max + omega
+        i = kappa * omega_max + omega + 1
 
         # Identify the to-be returned datasets
         as_dict = True
@@ -479,14 +479,17 @@ def from_hdf5(filename, datasets=None):  # noqa: E302
 
         # Retrieve the datasets
         try:
-            ret = {key: _get_dset(f, key)[:i+1] for key in datasets_}
+            ret = {key: _get_dset(f, key) for key in datasets_}
         except KeyError as ex:
             raise KeyError(f"No dataset {ex} in {filename!r}") from None
+        for k, v in ret.items():
+            if k != 'param_metadata':
+                ret[k] = v[:i]
 
     # Return a DataFrame/Series or dictionary of DataFrames/Series
     if not as_dict:
-        for i in ret.values():
-            return i
+        for df in ret.values():
+            return df
     return ret
 
 
