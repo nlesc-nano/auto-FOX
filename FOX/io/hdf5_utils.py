@@ -32,7 +32,7 @@ from os import remove, PathLike
 from time import sleep
 from os.path import isfile
 from typing import (
-    Dict, Iterable, Optional, Union, Hashable, List, Tuple, TYPE_CHECKING, Mapping, Any
+    Dict, Iterable, Optional, Union, List, Tuple, TYPE_CHECKING, Mapping, Any, overload,
 )
 
 import h5py
@@ -432,12 +432,16 @@ def _xyz_to_hdf5(filename: PathType, omega: int,
 
 """#################################### Reading .hdf5 files ####################################"""
 
-DataSets = Union[Hashable, Iterable[Hashable]]
 
-
-def from_hdf5(filename: PathType,
-              datasets: Optional[DataSets] = None
-              ) -> Union[NDFrame, Dict[Hashable, NDFrame]]:
+@overload
+def from_hdf5(filename: PathType, datasets: str) -> Union[pd.DataFrame, pd.Series]:
+    ...
+@overload  # noqa: E302
+def from_hdf5(
+    filename: PathType, datasets: Union[None, Iterable[str]] = ...
+) -> Dict[str, Union[pd.DataFrame, pd.Series]]:
+    ...
+def from_hdf5(filename, datasets=None):  # noqa: E302
     """Retrieve all user-specified datasets from **name**.
 
     Values are returned in dictionary of DataFrames and/or Series.
@@ -485,7 +489,7 @@ def from_hdf5(filename: PathType,
     return ret
 
 
-def _get_dset(f: File, key: Hashable) -> Union[pd.Series, pd.DataFrame, List[pd.DataFrame]]:
+def _get_dset(f: File, key: str) -> Union[pd.Series, pd.DataFrame, List[pd.DataFrame]]:
     """Take a h5py dataset and convert it into either a Series or DataFrame.
 
     See :func:`FOX.dset_to_df` and :func:`FOX.dset_to_series` for more details.
@@ -639,7 +643,7 @@ def _attr_to_array(index: Union[str, pd.Index]) -> np.ndarray:
     return ret
 
 
-def dset_to_series(f: File, key: Hashable) -> Union[pd.Series, pd.DataFrame]:
+def dset_to_series(f: File, key: str) -> Union[pd.Series, pd.DataFrame]:
     """Take a h5py dataset and convert it into a Pandas Series (if 1D) or Pandas DataFrame (if 2D).
 
     Parameters
@@ -675,7 +679,7 @@ def dset_to_series(f: File, key: Hashable) -> Union[pd.Series, pd.DataFrame]:
         return df
 
 
-def dset_to_df(f: File, key: Hashable) -> Union[pd.DataFrame, List[pd.DataFrame]]:
+def dset_to_df(f: File, key: str) -> Union[pd.DataFrame, List[pd.DataFrame]]:
     """Take a h5py dataset and create a DataFrame (if 2D) or list of DataFrames (if 3D).
 
     Parameters
@@ -704,7 +708,7 @@ def dset_to_df(f: File, key: Hashable) -> Union[pd.DataFrame, List[pd.DataFrame]
         return [pd.DataFrame(i, index=index, columns=columns) for i in data]
 
 
-def _aux_err_to_df(f: File, key: Hashable) -> Union[pd.DataFrame, List[pd.DataFrame]]:
+def _aux_err_to_df(f: File, key: str) -> Union[pd.DataFrame, List[pd.DataFrame]]:
     """Take a h5py dataset and create a DataFrame (if 2D) or list of DataFrames (if 3D).
 
     Parameters
