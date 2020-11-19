@@ -479,8 +479,7 @@ def from_hdf5(filename, datasets=None):  # noqa: E302
         try:
             ret = {key: _get_dset(f, key)[:i+1] for key in datasets_}
         except KeyError as ex:
-            raise KeyError(f"No dataset {ex} in {filename!r}. The following datasets are "
-                           f"available: {list(f.keys())!r}") from ex
+            raise KeyError(f"No dataset {ex} in {filename!r}") from None
 
     # Return a DataFrame/Series or dictionary of DataFrames/Series
     if len(ret) == 1:
