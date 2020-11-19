@@ -54,6 +54,39 @@ def test_armc_guess() -> None:
     np.testing.assert_allclose(param.values, ref)
 
 
+def test_allow_non_existent() -> None:
+    """Test ``param.validation.allow_non_existent``."""
+    file = PATH / 'armc_ref.yaml'
+    with open(file, 'r') as f:
+        dct = yaml.load(f.read(), Loader=yaml.FullLoader)
+
+    # Test `param.validation.allow_non_existent`
+    dct['param']['charge']['Cl'] = -1
+    assertion.assert_(dict_to_armc, dct, exception=RuntimeError)
+
+    del dct['psf']
+    del dct['param']['charge']['constraints'][0]
+    assertion.assert_(dict_to_armc, dct, exception=RuntimeError)
+
+    dct['param']['validation']['allow_non_existent'] = True
+    dct['param']['validation']['charge_tolerance'] = 'inf'
+    assertion.assert_(dict_to_armc, dct)
+
+
+def test_charge_tolerance() -> None:
+    """Test ``param.validation.charge_tolerance``."""
+    file = PATH / 'armc_ref.yaml'
+    with open(file, 'r') as f:
+        dct = yaml.load(f.read(), Loader=yaml.FullLoader)
+
+    dct = dct.copy()
+    dct['param']['charge']['Cd'] = 2
+    assertion.assert_(dict_to_armc, dct, exception=ValueError)
+
+    dct['param']['validation']['charge_tolerance'] = 'inf'
+    assertion.assert_(dict_to_armc, dct)
+
+
 def compare_hdf5(f1: h5py.Group, f2: h5py.Group, skip: Container[str] = frozenset({})) -> None:
     """Check if the two passed hdf5 files are equivalent."""
     assertion.eq(f1.keys(), f2.keys())
