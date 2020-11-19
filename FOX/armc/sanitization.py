@@ -19,7 +19,7 @@ from pathlib import Path
 from itertools import chain
 from collections import abc, Counter
 from typing import (
-    Union, Iterable, Tuple, Optional, Mapping, Any, MutableMapping,
+    Union, Iterable, Tuple, Optional, Mapping, Any, MutableMapping, Iterator,
     Dict, TYPE_CHECKING, Generator, List, Collection, TypeVar, overload, cast,
     Sequence,
 )
@@ -116,6 +116,8 @@ def dict_to_armc(input_dict: MainMapping) -> Tuple[MonteCarloABC, RunDict]:
     # Perform validation checks
     validate_atoms(param, psf_list, mol_list,
                    allow_non_existent=validation_dict['allow_non_existent'])
+    param._set_net_charge()
+    validate_charge(param._net_charge, tolerance=validation_dict['charge_tolerance'])
 
     mc.param['param'].sort_index(inplace=True)
     mc.param['param_old'].sort_index(inplace=True)
@@ -166,6 +168,16 @@ def validate_atoms(
         warnings.warn(msg, category=RuntimeWarning, stacklevel=3)
     else:
         raise RuntimeError(msg)
+
+
+def validate_charge(charge: Optional[float], tolerance: float = 0.01) -> None:
+    """Check if the net **charge** is integer within a given **tolerance**."""
+    if charge is None:
+        return
+
+    delta = abs(charge - round(charge))
+    if delta > tolerance:
+        raise ValueError(f'Net charge {charge} not integer within a tolerance {tolerance}')
 
 
 def _guess_param(mc: MonteCarloABC, prm: dict,
@@ -268,7 +280,7 @@ def get_param(dct: ParamMapping_) -> Tuple[ParamMapping, dict, dict, ValidationD
     _prm_dict = dct
     _sub_prm_dict = split_dict(  # type: ignore[call-overload]
         _prm_dict, preserve_order=True,
-        keep_keys={'type', 'move_range', 'func', 'kwargs', 'allow_non_existent'}
+        keep_keys={'type', 'move_range', 'func', 'kwargs', 'validation'}
     )
     _sub_prm_dict_frozen = _get_prm_frozen(_sub_prm_dict)
 
@@ -659,9 +671,9 @@ def update_count(param, psf=None, mol=None):  # noqa: E302
     """Assign atom-counts to the passed :class:`ParamMapping`."""
     # Construct a generator
     if psf is not None:
-        count_iter = (pd.value_counts(p.atom_type) for p in psf)
+        count_iter: Iterator[Mapping[str, int]] = (pd.value_counts(p.atom_type) for p in psf)
     elif mol is not None:
-        count_iter = (m.atoms for m in mol)
+        count_iter = ({k: len(v) for k, v in m.atoms.items()} for m in mol)
     else:
         raise TypeError("'psf' and 'mol' cannot be both 'None'")
 

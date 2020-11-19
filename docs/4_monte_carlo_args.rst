@@ -17,6 +17,7 @@ Index
     :attr:`param.func`                          The callable for performing the Monte Carlo moves.
     :attr:`param.kwargs`                        A dictionary with keyword arguments for :attr:`param.func`.
     :attr:`param.validation.allow_non_existent` Whether to allow parameters, that are explicitly specified, for absent atoms.
+    :attr:`param.validation.charge_tolerance`   Check whether the net charge of the system is integer within a given tolerance.
     :attr:`param.block.param`                   The name of the forcefield parameter.
     :attr:`param.block.unit`                    The unit in which the forcefield parameters are expressed.
     :attr:`param.block.constraints`             A string or list of strings with parameter constraints.
@@ -115,6 +116,7 @@ This settings block accepts an arbitrary number of sub-blocks.
             kwargs: {}
             validation:
                 allow_non_existent: False
+                charge_tolerance: 0.01
 
             charge:
                 param: charge
@@ -207,6 +209,19 @@ This settings block accepts an arbitrary number of sub-blocks.
                         * **Default Value** - :data:`False`
 
         Whether to allow parameters, that are explicitly specified, for absent atoms.
+
+        This check is performed once, before the start of the ARMC procedure.
+
+
+    .. attribute:: param.validation.charge_tolerance
+
+        :Parameter:     * **Type** - :class:`float`
+                        * **Default Value** - ``0.01``
+
+        Check whether the net charge of the system is integer within a given tolerance.
+
+        This check is performed once, before the start of the ARMC procedure.
+        Setting this parameter to ``inf`` disables the check.
 
 
     .. attribute:: param.block.param
