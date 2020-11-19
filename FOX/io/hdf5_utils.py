@@ -510,6 +510,9 @@ def _get_dset(f: File, key: Hashable) -> Union[pd.Series, pd.DataFrame, List[pd.
     if key == 'aux_error':
         return _aux_err_to_df(f, key)
 
+    if key == 'param_metadata':
+        return _metadata_to_df(f, key)
+
     elif 'columns' in f[key].attrs.keys():
         return dset_to_df(f, key)
 
@@ -556,6 +559,14 @@ def _get_xyz_dset(f: File) -> Tuple[np.ndarray, Dict[str, List[int]]]:
     ret[:j] = f[key][i:]
     ret[j:] = f[key][:i]
     return ret, idx_dict
+
+
+def _metadata_to_df(f: File, key: str) -> pd.DataFrame:
+    """Convert the ``param_metadata`` dataset into a :class:`~pandas.DataFrame`."""
+    _index = f[key].attrs['index']
+    idx_gen = (_index[k].astype(str) for k in _index.dtype.names)
+    index = pd.MultiIndex.from_tuples(zip(*idx_gen), names=_index.dtype.names)
+    return pd.DataFrame.from_records(f[key][:], index=index)
 
 
 """###################################### hdf5 utilities #######################################"""
