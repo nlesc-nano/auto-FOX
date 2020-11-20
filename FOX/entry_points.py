@@ -71,11 +71,9 @@ def main_armc(args: Optional[list] = None) -> None:
 
 def main_armc2yaml(args: Optional[list] = None) -> None:
     """Entrypoint for :meth:`FOX.classes.armc.ARMC.to_yaml`."""
-    raise NotImplementedError
-
     parser = argparse.ArgumentParser(
          prog='FOX',
-         usage='init_armc filename -o output',
+         usage='armc2yaml filename -o output',
          description=("Convert an ARMC .yaml file into a pre-processed .yaml file")
     )
 
@@ -92,9 +90,9 @@ def main_armc2yaml(args: Optional[list] = None) -> None:
     args_parsed = parser.parse_args(args)
     filename: str = args_parsed.filename[0]
     if not isfile(filename):
-        raise FileNotFoundError("[Errno 2] No such file: '{}'".format(filename))
+        raise FileNotFoundError(f"[Errno 2] No such file: {filename!r}")
 
-    if args_parsed.filename[0] is not None:
+    if args_parsed.output[0] is not None:
         output: str = args_parsed.output[0]
     else:  # Avoid duplicate names
         _output: str = join(os.getcwd(), 'armc.{:d}.yaml')
@@ -104,6 +102,19 @@ def main_armc2yaml(args: Optional[list] = None) -> None:
             if not isfile(output):
                 break
             i += 1
+
+    with open(filename, 'r') as f:
+        dct_inp = yaml.safe_load(f.read())
+    armc, kwargs = dict_to_armc(dct_inp)
+
+    dct_out = armc.to_yaml_dict(
+        path=kwargs['path'],
+        folder=kwargs['folder'],
+        logfile=kwargs['logfile'],
+        psf=kwargs['psf'],
+    )
+    with open(output, 'w') as f:
+        f.write(yaml.dump(dct_out))
 
 
 def main_plot_pes(args: Optional[list] = None) -> None:
