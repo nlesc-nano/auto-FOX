@@ -16,11 +16,10 @@ API
 from __future__ import annotations
 
 import os
-import io
 from pathlib import Path
 from collections import abc
 from typing import (
-    Tuple, TYPE_CHECKING, Any, Optional, Iterable, Mapping, Union, AnyStr, Callable,
+    Tuple, TYPE_CHECKING, Any, Optional, Iterable, Mapping, Callable,
     overload, Dict, List
 )
 

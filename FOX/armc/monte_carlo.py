@@ -17,11 +17,11 @@ from os import PathLike
 from abc import ABC, abstractmethod
 from logging import Logger
 from functools import wraps, partial
-from itertools import repeat, cycle, chain, zip_longest
+from itertools import repeat, cycle, chain
 from collections import abc
 from typing import (
     Tuple, List, Dict, Optional, Union, Iterable, Hashable, Iterator, Any, Mapping, Callable,
-    KeysView, ValuesView, ItemsView, Sequence, TypeVar, overload, TYPE_CHECKING, AnyStr, cast
+    KeysView, ValuesView, ItemsView, Sequence, TypeVar, overload, TYPE_CHECKING, cast
 )
 
 import numpy as np
