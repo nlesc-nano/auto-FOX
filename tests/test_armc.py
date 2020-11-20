@@ -1,5 +1,6 @@
 """Tests for various ARMC jobs."""
 
+import warnings
 from pathlib import Path
 from typing import Tuple, Generator, Any, cast, Container, List
 from itertools import combinations_with_replacement
@@ -68,9 +69,11 @@ def test_allow_non_existent() -> None:
     del dct['param']['charge']['constraints'][0]
     assertion.assert_(dict_to_armc, dct, exception=RuntimeError)
 
-    dct['param']['validation']['allow_non_existent'] = True
-    dct['param']['validation']['charge_tolerance'] = 'inf'
-    assertion.assert_(dict_to_armc, dct)
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore", RuntimeWarning)
+        dct['param']['validation']['allow_non_existent'] = True
+        dct['param']['validation']['charge_tolerance'] = 'inf'
+        assertion.assert_(dict_to_armc, dct)
 
 
 def test_charge_tolerance() -> None:
@@ -123,8 +126,12 @@ def test_armc() -> None:
 
     hdf5 = PATH / '_ARMC' / 'armc.hdf5'
     hdf5_ref = ARMC_REF / 'armc.hdf5'
-    with h5py.File(hdf5, 'r') as f1, h5py.File(hdf5_ref, 'r+') as f2:
+    with h5py.File(hdf5, 'r') as f1, h5py.File(hdf5_ref, 'r') as f2:
         compare_hdf5(f1, f2, skip={'param', 'aux_error_mod'})
+        assertion.shape_eq(f1['param'], f2['param'])
+        assertion.shape_eq(f1['aux_error_mod'], f2['aux_error_mod'])
+        assertion.eq(f1['param'].dtype, f2['param'].dtype)
+        assertion.eq(f1['aux_error_mod'].dtype, f2['aux_error_mod'].dtype)
 
 
 def _get_phi_iter(n: int = 3) -> Generator[List[Tuple[int, int]], None, None]:
@@ -158,6 +165,10 @@ def test_armcpt() -> None:
     hdf5_ref = ARMCPT_REF / 'armc.hdf5'
     with h5py.File(hdf5, 'r') as f1, h5py.File(hdf5_ref, 'r+') as f2:
         compare_hdf5(f1, f2, skip={'param', 'aux_error_mod'})
+        assertion.shape_eq(f1['param'], f2['param'])
+        assertion.shape_eq(f1['aux_error_mod'], f2['aux_error_mod'])
+        assertion.eq(f1['param'].dtype, f2['param'].dtype)
+        assertion.eq(f1['aux_error_mod'].dtype, f2['aux_error_mod'].dtype)
 
 
 def test_param_sorting() -> None:
