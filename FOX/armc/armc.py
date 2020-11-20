@@ -28,7 +28,6 @@ import numpy as np
 from nanoutils import Literal
 
 from .monte_carlo import MonteCarloABC
-from .armc_to_yaml import to_yaml
 from ..type_hints import ArrayLikeOrScalar, ArrayOrScalar
 from ..io.hdf5_utils import (
     create_hdf5, to_hdf5, create_xyz_hdf5, _get_filename_xyz, hdf5_clear_status
