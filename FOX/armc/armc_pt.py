@@ -103,14 +103,12 @@ def swap_random(acceptance: np.ndarray, armcpt: "ARMCPT",
 class ARMCPT(ARMC):
     """An :class:`ARMC` subclass implementing a parallel tempering procedure."""
 
-    swap_phi: SwapFunc
-
     def __init__(self, swapper: SwapFunc = swap_random, **kwargs: Any) -> None:
         r"""Initialize an :class:`ARMCPT` instance.
 
         Parameters
         ----------
-        swapper : :data:`Callable[[ndarray,ARMCPT], Iterable[Tuple[int, int]]<typing.Callable>`
+        swapper : :data:`Callable[[ndarray, ARMCPT], Iterable[Tuple[int, int]]<typing.Callable>`
             A callable for identifying the to-be swapped parameter.
             Should return an iterable with 2-tuples of to-be swapped indices.
         \**kwargs : :data:`~typing.Any`
@@ -119,7 +117,7 @@ class ARMCPT(ARMC):
 
         """
         super().__init__(**kwargs)
-        self.swap_phi = swapper
+        self.swap_phi: SwapFunc = swapper
         if len(self.phi.phi) <= 1:
             raise ValueError("{self.__class__.__name__!r} requires 'phi.phi' to "
                              "contain more than 1 element")
@@ -163,7 +161,8 @@ class ARMCPT(ARMC):
             for omega in range(self.sub_iter_len):
                 key_new = self.do_inner(kappa, omega, acceptance, key_new)
             self.phi.update(acceptance)
-            self.swap_phi(acceptance, self)
+            idx_iter = self.swap_phi(acceptance, self)
+            self._swap_phi(idx_iter)
 
     def do_inner(self, kappa: int, omega: int, acceptance: np.ndarray,
                  key_old: Sequence[Key]) -> List[Key]:

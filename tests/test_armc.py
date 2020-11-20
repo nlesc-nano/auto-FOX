@@ -1,7 +1,7 @@
 """Tests for various ARMC jobs."""
 
 from pathlib import Path
-from typing import Tuple, Generator, Any, cast, Container
+from typing import Tuple, Generator, Any, cast, Container, List
 from itertools import combinations_with_replacement
 
 import numpy as np
@@ -127,11 +127,18 @@ def test_armc() -> None:
         compare_hdf5(f1, f2, skip={'param', 'aux_error_mod'})
 
 
-def swap_phi(*args: Any, n: int = 3, **kwargs: Any) -> Generator[Tuple[int, int], None, None]:
+def _get_phi_iter(n: int = 3) -> Generator[List[Tuple[int, int]], None, None]:
     while True:
         iterator = combinations_with_replacement(range(n), r=2)
         for i in iterator:
-            yield cast(Tuple[int, int], i)
+            yield cast(List[Tuple[int, int]], [i])
+
+
+ITERATOR = _get_phi_iter()
+
+
+def swap_phi(*args: Any, **kwargs: Any) -> List[Tuple[int, int]]:
+    return next(ITERATOR)
 
 
 @delete_finally(PATH / '_ARMCPT')
