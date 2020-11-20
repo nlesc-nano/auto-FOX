@@ -485,9 +485,9 @@ class ARMC(MonteCarloABC):
                              f'{i} & sub-iteration {j}')
 
             # Set the (to-be incremented) auxiliary error for each parameter
-            param = f['param'][:]
+            param = f['param'][:i+1]
             param.shape = (-1,) + param.shape[2:]
-            aux_error = f['aux_error'][:]
+            aux_error = f['aux_error'][:i+1]
             aux_error.shape = (-1,) + aux_error.shape[2:]
             aux_error = np.swapaxes(aux_error, -2, -1)
             for keys, err in zip(param[:ij], aux_error[:ij]):
@@ -515,15 +515,13 @@ class ARMC(MonteCarloABC):
         return i, j, final_key, acceptance[i]
 
     @staticmethod
-    def _find_restart_key(f: Mapping[str, np.ndarray], i: int) -> List[Key]:
+    def _find_restart_key(acceptance: np.ndarray, param: np.ndarray) -> List[Key]:
         """Construct a key for the last parameter that was accepted."""
-        while i >= 0:
-            accept: np.ndarray = f['acceptance'][i]
-            if accept.any():
-                j = -accept[:, ::-1].argmax(axis=0).take(0)
-                j -= 1
-                return [tuple(k) for k in f['param'][i, j]]
-            i -= 1
-        else:
+        accept = acceptance.reshape(-1, *acceptance.shape[2:])[:len(param)]
+        if not accept.any():
             raise RuntimeError('Not a single successful MD-calculation was found; '
                                'restarting is not possible')
+
+        j_array = -accept[::-1].argmax(axis=0)
+        j_array -= 1
+        return [tuple(param[i, j]) for j, i in enumerate(j_array)]
