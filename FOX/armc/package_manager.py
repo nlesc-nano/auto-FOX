@@ -266,6 +266,24 @@ class PackageManagerABC(ABC, Mapping[str, Value]):
         """Update the Settings embedded in this instance using **dct**."""
         raise NotImplementedError('Trying to call an abstract method')
 
+    def to_yaml_dict(self) -> Dict[str, Any]:
+        if self.hook is not None:
+            raise NotImplementedError
+
+        cls = type(self)
+        ret: Dict[str, Any] = {
+            'type': f'{cls.__module__}.{cls.__name__}',
+            'molecule': [],
+        }
+
+        for k, (v, *_) in self.items():
+            dct = v['settings'].as_dict()
+            for k_param in set(dct.keys()):
+                if isinstance(dct[k_param], pd.DataFrame):
+                    del dct[k_param]
+            ret[k] = {'type': f'qmflows.{v["type"].pkg_name}', 'settings': dct}
+        return ret
+
 
 @set_docstring(PackageManagerABC.__doc__)
 @has_scheduled_methods

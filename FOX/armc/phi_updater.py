@@ -17,14 +17,14 @@ API
 """
 
 from abc import ABC, abstractmethod
-from typing import Callable, Any, Optional, Union, Iterable, cast, Sized, Tuple
+from typing import Callable, Any, Optional, Union, Iterable, cast, Sized, Tuple, List, Dict
 from logging import Logger
 from functools import partial, wraps
 
 import numpy as np
 
 from assertionlib.dataclass import AbstractDataClass
-from nanoutils import set_docstring, SupportsIndex, as_nd_array
+from nanoutils import set_docstring, SupportsIndex, as_nd_array, TypedDict
 
 from ..type_hints import ArrayLike, ArrayLikeOrScalar, Scalar, DtypeLike
 
@@ -34,6 +34,15 @@ _PhiFunc = Callable[..., np.ndarray]
 PhiFunc = Callable[[ArrayLikeOrScalar, np.ndarray], np.ndarray]
 
 IterOrArrayLike = Union[Scalar, Iterable[Scalar], ArrayLike]
+
+
+class _PhiDict(TypedDict):
+    type: str
+    phi: List[float]
+    gamma: List[float]
+    a_target: List[float]
+    func: str
+    kwargs: Dict[str, Any]
 
 
 class PhiUpdaterABC(AbstractDataClass, ABC, Sized):
@@ -201,6 +210,28 @@ class PhiUpdaterABC(AbstractDataClass, ABC, Sized):
             return self.func(ar, phi)
         else:
             return self.func(ar, phi[idx])
+
+    def to_yaml_dict(self) -> _PhiDict:
+        """Convert this instance into a .yaml-compatible dictionary."""
+        cls = type(self)
+        func = cast('partial[np.ndarray]', self.func)
+        try:
+            if isinstance(func.func, np.ufunc):
+                module = 'numpy'
+            else:
+                module = func.func.__module__
+            name = getattr(func.func, '__qualname__', func.func.__name__)
+        except AttributeError as ex:
+            raise TypeError(f"Failed to parse {cls.__name__}.func.func: {func.func!r}") from ex
+
+        return {
+            'type': f'{cls.__module__}.{cls.__name__}',
+            'phi': self.phi.tolist(),
+            'gamma': self.gamma.tolist(),
+            'a_target': self.a_target.tolist(),
+            'func': f'{module}.{name}',
+            'kwargs': func.keywords,
+        }
 
     @abstractmethod
     def update(self, acceptance: ArrayLike, **kwargs: Any) -> None:

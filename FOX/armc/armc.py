@@ -16,10 +16,10 @@ API
 from __future__ import annotations
 
 import os
-import io
+from pathlib import Path
 from collections import abc
 from typing import (
-    Tuple, TYPE_CHECKING, Any, Optional, Iterable, Mapping, Union, AnyStr, Callable,
+    Tuple, TYPE_CHECKING, Any, Optional, Iterable, Mapping, Callable,
     overload, Dict, List
 )
 
@@ -27,17 +27,18 @@ import numpy as np
 from nanoutils import Literal
 
 from .monte_carlo import MonteCarloABC
-from .armc_to_yaml import to_yaml
 from ..type_hints import ArrayLikeOrScalar, ArrayOrScalar
 from ..io.hdf5_utils import (
     create_hdf5, to_hdf5, create_xyz_hdf5, _get_filename_xyz, hdf5_clear_status
 )
 
 if TYPE_CHECKING:
+    import functools
     from .phi_updater import PhiUpdater
+    from ..io.read_psf import PSFContainer
     from ..classes import MultiMolecule
 else:
-    from ..type_alias import MultiMolecule, PhiUpdater
+    from ..type_alias import MultiMolecule, PhiUpdater, PSFContainer
 
 __all__ = ['ARMC']
 
@@ -117,26 +118,76 @@ class ARMC(MonteCarloABC):
         self.iter_len = iter_len
         self.sub_iter_len = sub_iter_len
 
-    def to_yaml(self, filename: Union[AnyStr, os.PathLike, io.IOBase],
-                logfile: Optional[str] = None, path: Optional[str] = None,
-                folder: Optional[str] = None) -> None:
+    def to_yaml_dict(  # type: ignore[override]
+        self, *,
+        path: str = '.',
+        folder: str = 'MM_MD_workdir',
+        logfile: str = 'armc.log',
+        psf: Optional[Iterable[PSFContainer]] = None,
+    ) -> Dict[str, Any]:
         """Convert an :class:`ARMC` instance into a .yaml readable by :class:`ARMC.from_yaml`.
 
-        Parameters
-        ----------
-        filename : :class:`str`, :class:`bytes`, :class:`os.pathlike` or :class:`io.IOBase`
-            A filename or a file-like object.
+        Returns
+        -------
+        :data:`Dict[str, Any]<typing.Dict>`
+            A dictionary.
 
         """
-        to_yaml(self, filename, logfile, path, folder)
+        cls = type(self)
+        ret: Dict[str, Any] = {}  # type: ignore[typeddict-item]
+        ret['param'] = self.param.to_yaml_dict()
+        ret['phi'] = self.phi.to_yaml_dict()
+        ret['job'] = self.package_manager.to_yaml_dict()
+        ret['job']['molecule'] = [m.properties.filename for m in self.molecule]
 
+        ret['monte_carlo'] = {
+            'type': f'{cls.__module__}.{cls.__name__}',
+            'iter_len': self.iter_len,
+            'sub_iter_len': self.sub_iter_len,
+            'keep_files': self.keep_files,
+            'path': path,
+            'folder': folder,
+            'logfile': logfile,
+            'hdf5_file': self.hdf5_file,
+        }
+
+        # Parse the `pes` block
+        pes: Dict[str, Any] = {}
+        ret['pes'] = pes
+        i_max = 1 + max(int(k.split('.')[-1]) for k in self.pes.keys())
+        for _k, v in self.pes.items():  # type: str, functools.partial # type: ignore[assignment]
+            k, _i = _k.split('.')
+            i = int(_i)
+            try:
+                pes[k]['kwargs'][i] = v.keywords
+            except KeyError:
+                pes[k] = {
+                    'func': f'{v.func.__module__}.{v.func.__qualname__}',
+                    'kwargs': i_max * [None],
+                }
+                pes[k]['kwargs'][i] = v.keywords
+
+        # Parse the `psf` block
+        if psf is None:
+            ret['psf'] = {'psf_file': None}
+        else:
+            workdir = Path(path, folder)
+            if not os.path.isdir(workdir):
+                os.mkdir(workdir)
+
+            ret['psf'] = {'psf_file': []}
+            psf_lst = ret['psf']['psf_file']
+            for i, psf_obj in enumerate(psf):
+                name = str(workdir / f'mol.{i}.psf')
+                psf_lst.append(name)
+                psf_obj.write(name)
+        return ret
+
+    @overload  # type: ignore[override]
+    def __call__(self, *, start: None = ..., key_new: None = ...) -> None: ...
     @overload
-    def __call__(self) -> None: ...
-    @overload
-    def __call__(self, start: None, key_new: None) -> None: ...
-    @overload
-    def __call__(self, start: int, key_new: Key) -> None: ...
-    def __call__(self, start=None, key_new=None):  # noqa: E301
+    def __call__(self, *, start: int, key_new: Key) -> None: ...
+    def __call__(self, *, start=None, key_new=None):  # noqa: E301
         """Initialize the Addaptive Rate Monte Carlo procedure."""
         key_new = self._parse_call(start, key_new)
         start_ = start if start is not None else 0
@@ -153,9 +204,7 @@ class ARMC(MonteCarloABC):
             self.phi.update(acceptance)
 
     @overload
-    def _parse_call(self) -> Key: ...
-    @overload
-    def _parse_call(self, start: None, key_new: None) -> Key: ...
+    def _parse_call(self, start: None = ..., key_new: None = ...) -> Key: ...
     @overload
     def _parse_call(self, start: int, key_new: Key) -> Key: ...
     def _parse_call(self, start=None, key_new=None):  # noqa: E301
@@ -397,7 +446,7 @@ class ARMC(MonteCarloABC):
         # Validate the xyz .hdf5 file; create a new one if required
         xyz = _get_filename_xyz(self.hdf5_file)
         if not os.path.isfile(xyz):
-            create_xyz_hdf5(self.hdf5_file, self.molecule, iter_len=self.sub_iter_len)
+            create_xyz_hdf5(self.hdf5_file, self.molecule, self.sub_iter_len, self.phi)
 
         # Check that both .hdf5 files can be opened; clear their status if not
         closed1 = hdf5_clear_status(xyz)

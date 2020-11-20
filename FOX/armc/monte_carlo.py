@@ -21,7 +21,7 @@ from itertools import repeat, cycle, chain
 from collections import abc
 from typing import (
     Tuple, List, Dict, Optional, Union, Iterable, Hashable, Iterator, Any, Mapping, Callable,
-    KeysView, ValuesView, ItemsView, Sequence, TypeVar, overload, TYPE_CHECKING, AnyStr, cast
+    KeysView, ValuesView, ItemsView, Sequence, TypeVar, overload, TYPE_CHECKING, cast
 )
 
 import numpy as np
@@ -53,7 +53,7 @@ class MonteCarloABC(AbstractDataClass, ABC, Mapping[Key, np.ndarray]):
     param: ParamMapping
     package_manager: PackageManager
     keep_files: bool
-    hdf5_file: Union[str, PathLike]
+    hdf5_file: Union[str, 'PathLike[str]']
     pes: Dict[str, GetPesDescriptor]
     swap_phi: Optional[Callable[..., Any]]
 
@@ -133,14 +133,22 @@ class MonteCarloABC(AbstractDataClass, ABC, Mapping[Key, np.ndarray]):
             return False
         elif self.keys() != value.keys():
             return False
-        elif not (self.package_manager == value.package_manager and self.param == value.param):
+
+        names = ('package_manager', 'param', 'phi')
+        for name in names:
+            if getattr(self, name) != getattr(value, name):
+                return False
+
+        if not np.allclose(self.molecule, value.molecule):
             return False
 
-        ret = True
-        for k, v1 in self.items():
-            v2 = value[k]
-            ret &= (v1 == v2).all()
-        return ret
+        iterator1 = ((v, value.pes[k]) for k, v in self.pes.items())
+        for p1, p2 in iterator1:  # type: partial, partial  # type: ignore
+            if p1.func != p2.func or p1.keywords != p2.keywords:
+                return False
+
+        iterator2 = ((v, value[k]) for k, v in self.items())
+        return all((v1 == v2).all() for v1, v2 in iterator2)
 
     # Implementation of the Mapping protocol
 
@@ -232,8 +240,8 @@ class MonteCarloABC(AbstractDataClass, ABC, Mapping[Key, np.ndarray]):
 
         """
         mol_list = [m.copy() for _ in self.param.move_range for m in self.molecule]
-        for f in self.pes_post_process:
-            f(mol_list, self)
+        for f1 in self.pes_post_process:
+            f1(mol_list, self)
 
         if not isinstance(kwargs, abc.Mapping):
             iterator: Iterator[Tuple[MultiMolecule, Mapping[str, Any]]] = zip(mol_list, kwargs)
@@ -241,9 +249,9 @@ class MonteCarloABC(AbstractDataClass, ABC, Mapping[Key, np.ndarray]):
             iterator = zip(mol_list, repeat(kwargs, len(mol_list)))
 
         for i, (mol, kwarg) in enumerate(iterator):
-            func = wraps(func)(partial(func, *args, **kwarg))
-            func.ref = func(mol)
-            self.pes[f'{name}.{i}'] = func
+            f2 = wraps(func)(partial(func, *args, **kwarg))
+            f2.ref = f2(mol)
+            self.pes[f'{name}.{i}'] = f2
 
     @abstractmethod
     def __call__(self, **kwargs: Any) -> None:
@@ -252,7 +260,7 @@ class MonteCarloABC(AbstractDataClass, ABC, Mapping[Key, np.ndarray]):
     def restart(self, **kwargs: Any) -> None:
         raise NotImplementedError('Method not implemented')
 
-    def to_yaml(self, filename: Union[AnyStr, PathLike], **kwargs: Any) -> None:
+    def to_yaml_dict(self, **kwargs: Any) -> Dict[str, Any]:
         raise NotImplementedError('Method not implemented')
 
     @property
