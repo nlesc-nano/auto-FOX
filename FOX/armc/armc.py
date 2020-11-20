@@ -20,9 +20,10 @@ from pathlib import Path
 from collections import abc
 from typing import (
     Tuple, TYPE_CHECKING, Any, Optional, Iterable, Mapping, Callable,
-    overload, Dict, List
+    overload, Dict, List, ClassVar
 )
 
+import h5py
 import numpy as np
 from nanoutils import Literal
 
@@ -78,6 +79,7 @@ class ARMC(MonteCarloABC):
     iter_len: int
     sub_iter_len: int
     phi: PhiUpdater
+    HAS_LOOP: ClassVar[Literal[False]] = False
 
     @property
     def super_iter_len(self) -> int:
@@ -443,10 +445,15 @@ class ARMC(MonteCarloABC):
         r"""Restart a previously started Addaptive Rate Monte Carlo procedure."""
         i, j, key, acceptance = self._restart_from_hdf5()
 
+        cls = type(self)
+        if not cls.HAS_LOOP:
+            key = key[0]
+            acceptance = acceptance[..., 0]
+
         # Validate the xyz .hdf5 file; create a new one if required
         xyz = _get_filename_xyz(self.hdf5_file)
         if not os.path.isfile(xyz):
-            create_xyz_hdf5(self.hdf5_file, self.molecule, self.sub_iter_len, self.phi)
+            create_xyz_hdf5(self.hdf5_file, self.molecule, self.sub_iter_len, self.phi.phi)
 
         # Check that both .hdf5 files can be opened; clear their status if not
         closed1 = hdf5_clear_status(xyz)
@@ -467,40 +474,56 @@ class ARMC(MonteCarloABC):
         # And continue
         self(start=i, key_new=key)
 
-    def _restart_from_hdf5(self) -> Tuple[int, int, Key, np.ndarray]:
+    def _restart_from_hdf5(self) -> Tuple[int, int, List[Key], np.ndarray]:
         """Read and process the .hdf5 file for :meth:`ARMC.restart`."""
-        import h5py
-
         with h5py.File(self.hdf5_file, 'r', libver='latest') as f:
             i, j = f.attrs['super-iteration'], f.attrs['sub-iteration']
+            ij = j + 1 + i * len(f['param'])
             if i < 0:
                 raise ValueError(f'i: {i.__class__.__name__} = {i}')
             self.logger.info('Restarting ARMC procedure from super-iteration '
                              f'{i} & sub-iteration {j}')
 
-            self.phi.phi = f['phi'][i]
-            self.param['param'] = self.param['param_old'] = f['param'][i, j]
-            for key, err in zip(f['param'][i], f['aux_error'][i]):
-                key = tuple(key)
-                self[key] = err
-            acceptance = f['acceptance'][i]
+            # Set the (to-be incremented) auxiliary error for each parameter
+            param = f['param'][:]
+            param.shape = (-1,) + param.shape[2:]
+            aux_error = f['aux_error'][:]
+            aux_error.shape = (-1,) + aux_error.shape[2:]
+            aux_error = np.swapaxes(aux_error, -2, -1)
+            for keys, err in zip(param[:ij], aux_error[:ij]):
+                for _k, _err in zip(keys, err):
+                    self[tuple(_k)] = _err
 
-            # Find the last error which is not np.nan
-            final_key: Key = self._find_restart_key(f, i)
-        return i, j, final_key, acceptance
+            # Apply aforementioned increments
+            aux_error_mod = f['aux_error_mod'][:i+1]
+            aux_error_mod.shape = (-1,) + aux_error_mod.shape[2:]
+            for _arr in aux_error_mod[:ij]:
+                for arr in _arr:
+                    *_k, err = arr
+                    try:
+                        self[tuple(_k)] += err
+                    except KeyError:
+                        pass
+
+            self.phi.phi = f['phi'][i]
+            self.param['param'][:] = f['param'][i, j].T
+            self.param['param_old'][:] = self.param['param']
+            acceptance = f['acceptance'][:i+1]
+
+            # Find the last iteration that is not np.nan
+            final_key: List[Key] = self._find_restart_key(acceptance, param[:ij])
+        return i, j, final_key, acceptance[i]
 
     @staticmethod
-    def _find_restart_key(f: Mapping[str, np.ndarray], i: int) -> Key:
-        """Construct a key for the parameter which is not ``nan``."""
+    def _find_restart_key(f: Mapping[str, np.ndarray], i: int) -> List[Key]:
+        """Construct a key for the last parameter that was accepted."""
         while i >= 0:
-            aux_error: np.ndarray = f['aux_error'][i]
-            param_old: np.ndarray = f['param'][i]
-            aux_nan: np.ndarray = np.isnan(aux_error).any(axis=(1, 2))
-
-            try:  # Its no longer np.nan
-                return tuple(param_old[~aux_nan][-1])
-            except IndexError:
-                i -= 1
+            accept: np.ndarray = f['acceptance'][i]
+            if accept.any():
+                j = -accept[:, ::-1].argmax(axis=0).take(0)
+                j -= 1
+                return [tuple(k) for k in f['param'][i, j]]
+            i -= 1
         else:
             raise RuntimeError('Not a single successful MD-calculation was found; '
                                'restarting is not possible')
