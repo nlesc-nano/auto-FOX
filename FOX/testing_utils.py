@@ -6,11 +6,13 @@ Index
 .. autosummary::
     validate_mapping
     load_results
+    compare_hdf5
 
 API
 ---
 .. autofunction:: validate_mapping
 .. autofunction:: load_results
+.. autofunction:: compare_hdf5
 
 """
 
@@ -22,8 +24,11 @@ from pathlib import Path
 from collections import abc
 from typing import (
     Mapping, Optional, TypeVar, Type, Dict, Callable, Any, Union, Tuple, List,
-    overload, TYPE_CHECKING
+    overload, TYPE_CHECKING, Container
 )
+
+import h5py
+import numpy as np
 
 from assertionlib import assertion
 from scm.plams import Molecule
@@ -38,7 +43,7 @@ if TYPE_CHECKING:
 else:
     from .type_alias import Result
 
-__all__ = ['validate_mapping', 'load_results']
+__all__ = ['validate_mapping', 'load_results', 'compare_hdf5']
 
 KT = TypeVar('KT')
 VT = TypeVar('VT')
@@ -277,3 +282,47 @@ def load_results(workdir, *, result_type=CP2KMM_Result, n=1):  # noqa: E302
         m = len(ret[-1])
         raise ValueError(f"len(ret[-1]) == {m}; {m} != {n!r}")
     return ret
+
+
+def compare_hdf5(f1: h5py.Group, f2: h5py.Group, skip: Container[str] = frozenset({})) -> None:
+    """Check if the datasets and attributes passed hdf5 groups are equivalent.
+
+    The passed groups will be traversed recursively if necessary.
+
+    Parameters
+    ----------
+    f1/f2 : :class:`h5py.Group`
+        The to-be compared h5py groups.
+    skip : :class:`Container[str]<collections.abc.Container>`
+        A container with the names (:attr:`h5py.Dataset.name`) of to-be ignored datasets.
+
+    Raises
+    ------
+    AssertionError
+        Raised if a comparison evaluates to :data:`False`.
+
+    """
+    __tracebackhide__ = True
+    assertion.eq(f1.keys(), f2.keys())
+
+    iterator1 = ((f1[k].name, f1[k], f2[k]) for k in f2.keys() if f1[k].name not in skip)
+    for k1, dset1, dset2 in iterator1:
+        if isinstance(dset1, h5py.Group):
+            compare_hdf5(dset1, dset2, skip=skip)
+            continue
+        ar1, ar2 = dset1[:], dset2[:]
+        _compare_arrays(ar1, ar2, err_msg=f'dataset {k1!r}\n')
+
+        # Compare attributes
+        assertion.eq(dset1.attrs.keys(), dset2.attrs.keys())
+        iterator2 = ((k2, dset1.attrs[k2], dset1.attrs[k2]) for k2 in dset1.attrs.keys())
+        for k2, attr1, attr2 in iterator2:
+            _compare_arrays(attr1, attr2, err_msg=f'dataset {k1!r}; attribute {k2!r}')
+
+
+def _compare_arrays(ar1: np.ndarray, ar2: np.ndarray, err_msg: str) -> None:
+    __tracebackhide__ = True
+    if issubclass(ar1.dtype.type, np.inexact):
+        np.testing.assert_allclose(ar1, ar2, err_msg=err_msg)
+    else:
+        np.testing.assert_array_equal(ar1, ar2, err_msg=err_msg)

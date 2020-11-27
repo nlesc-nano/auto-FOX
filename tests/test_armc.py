@@ -2,8 +2,10 @@
 
 import warnings
 import pytest
+import shutil
+from os import PathLike
 from pathlib import Path
-from typing import Tuple, Generator, Any, cast, Container, List
+from typing import Tuple, Generator, Any, cast, List, Optional, Union
 from itertools import combinations_with_replacement
 
 import numpy as np
@@ -13,7 +15,7 @@ import yaml
 from nanoutils import delete_finally
 from assertionlib import assertion
 
-from FOX.testing_utils import load_results
+from FOX.testing_utils import load_results, compare_hdf5
 from FOX.armc import dict_to_armc, run_armc
 from FOX.armc.sanitization import _sort_atoms
 from FOXdata import (
@@ -27,6 +29,61 @@ DF = pd.DataFrame({
     "param_type": ['charge', 'charge', 'charge', 'charge', 'epsilon', 'epsilon', 'epsilon', 'epsilon', 'epsilon', 'sigma', 'sigma', 'sigma', 'sigma', 'sigma'],  # noqa: E501
     "atoms": ['Cd', 'Se', 'O_1', 'C_1', 'Cd Cd', 'Se Se', 'Cd Se', 'Cd O_1', 'O_1 Se', 'Cd Cd', 'Se Se', 'Cd Se', 'Cd O_1', 'O_1 Se'],  # noqa: E501
 })
+
+
+def _prepare_restart(
+    inp: Union[str, "PathLike[str]"],
+    out: Union[str, "PathLike[str]"],
+    super_iter: Optional[int] = None,
+    sub_iter: Optional[int] = None
+) -> None:
+    shutil.copytree(inp, out)
+    hdf5 = Path(out) / 'armc.hdf5'
+    with h5py.File(hdf5, 'r+') as f:
+        if super_iter is not None:
+            f.attrs['super-iteration'] = super_iter
+        if sub_iter is not None:
+            f.attrs['sub-iteration'] = sub_iter
+
+
+@delete_finally(PATH / '_ARMC')
+@pytest.mark.parametrize('name', ['armc_ref.yaml'])
+def test_armc_restart(name: str) -> None:
+    """Test the restart functionality of :class:`ARMC` and :class:`ARMCPT`."""
+    file = PATH / name
+    with open(file, 'r') as f:
+        dct = yaml.load(f.read(), Loader=yaml.FullLoader)
+
+    sub_iter = 5
+    super_iter = 8
+    i = 2 + (super_iter * 10 + sub_iter)
+
+    armc, job_kwargs = dict_to_armc(dct)
+    if name == 'armc_ref.yaml':
+        REF = ARMC_REF
+        armc.package_manager.hook = iter(load_results(ARMC_REF, n=1)[i:])
+    else:
+        iterator = _get_phi_iter()
+
+        def swap_phi(*args: Any, **kwargs: Any) -> List[Tuple[int, int]]:
+            return next(iterator)
+
+        REF = ARMCPT_REF
+        armc.swap_phi = swap_phi
+        armc.package_manager.hook = iter(load_results(ARMCPT_REF, n=3)[i:])
+
+    _prepare_restart(REF, PATH / job_kwargs['folder'], super_iter, sub_iter)
+    hdf5_ref = REF / 'armc.hdf5'
+    hdf5 = PATH / job_kwargs['folder'] / 'armc.hdf5'
+
+    run_armc(armc, restart=True, **job_kwargs)
+    assertion.assert_(next, armc.package_manager.hook, exception=StopIteration)
+    with h5py.File(hdf5, 'r') as f1, h5py.File(hdf5_ref, 'r') as f2:
+        compare_hdf5(f1, f2, skip={'/param', '/aux_error_mod'})
+        assertion.shape_eq(f1['param'], f2['param'])
+        assertion.shape_eq(f1['aux_error_mod'], f2['aux_error_mod'])
+        assertion.eq(f1['param'].dtype, f2['param'].dtype)
+        assertion.eq(f1['aux_error_mod'].dtype, f2['aux_error_mod'].dtype)
 
 
 def test_armc_guess() -> None:
@@ -91,40 +148,11 @@ def test_charge_tolerance() -> None:
     assertion.assert_(dict_to_armc, dct)
 
 
-def compare_hdf5(f1: h5py.Group, f2: h5py.Group, skip: Container[str] = frozenset({})) -> None:
-    """Check if the two passed hdf5 files are equivalent."""
-    assertion.eq(f1.keys(), f2.keys())
-
-    iterator1 = ((k, f1[k], f2[k]) for k in f2.keys() if k not in skip)
-    for k1, dset1, dset2 in iterator1:
-        if issubclass(dset1.dtype.type, np.inexact):
-            np.testing.assert_allclose(dset1[:], dset2[:], err_msg=f'dataset {k1!r}\n')
-        else:
-            np.testing.assert_array_equal(dset1[:], dset2[:], err_msg=f'dataset {k1!r}\n')
-
-        # Compare attributes
-        assertion.eq(dset1.attrs.keys(), dset2.attrs.keys())
-        iterator2 = ((k2, dset1.attrs[k2], dset1.attrs[k2]) for k2 in dset1.attrs.keys())
-        for k2, attr1, attr2 in iterator2:
-            err_msg = f'dataset {k1!r}; attribute {k2!r}'
-            if issubclass(attr1.dtype.type, np.inexact):
-                np.testing.assert_allclose(attr1, attr2, err_msg=err_msg)
-            else:
-                np.testing.assert_array_equal(attr1, attr2, err_msg=err_msg)
-
-
 def _get_phi_iter(n: int = 3) -> Generator[List[Tuple[int, int]], None, None]:
     while True:
         iterator = combinations_with_replacement(range(n), r=2)
         for i in iterator:
             yield cast(List[Tuple[int, int]], [i])
-
-
-ITERATOR = _get_phi_iter()
-
-
-def swap_phi(*args: Any, **kwargs: Any) -> List[Tuple[int, int]]:
-    return next(ITERATOR)
 
 
 @delete_finally(PATH / '_ARMC', PATH / '_ARMCPT')
@@ -137,17 +165,25 @@ def test_armc(name: str) -> None:
 
     armc, job_kwargs = dict_to_armc(dct)
     if name == 'armc_ref.yaml':
-        hdf5_ref = ARMC_REF / 'armc.hdf5'
+        REF = ARMC_REF
         armc.package_manager.hook = iter(load_results(ARMC_REF, n=1))
     else:
-        hdf5_ref = ARMCPT_REF / 'armc.hdf5'
+        iterator = _get_phi_iter()
+
+        def swap_phi(*args: Any, **kwargs: Any) -> List[Tuple[int, int]]:
+            return next(iterator)
+
+        REF = ARMCPT_REF
         armc.swap_phi = swap_phi
         armc.package_manager.hook = iter(load_results(ARMCPT_REF, n=3))
 
+    hdf5_ref = REF / 'armc.hdf5'
     hdf5 = PATH / job_kwargs['folder'] / 'armc.hdf5'
+
     run_armc(armc, restart=False, **job_kwargs)
+    assertion.assert_(next, armc.package_manager.hook, exception=StopIteration)
     with h5py.File(hdf5, 'r') as f1, h5py.File(hdf5_ref, 'r') as f2:
-        compare_hdf5(f1, f2, skip={'param', 'aux_error_mod'})
+        compare_hdf5(f1, f2, skip={'/param', '/aux_error_mod'})
         assertion.shape_eq(f1['param'], f2['param'])
         assertion.shape_eq(f1['aux_error_mod'], f2['aux_error_mod'])
         assertion.eq(f1['param'].dtype, f2['param'].dtype)

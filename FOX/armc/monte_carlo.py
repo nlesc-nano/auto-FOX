@@ -21,7 +21,7 @@ from itertools import repeat, cycle, chain
 from collections import abc
 from typing import (
     Tuple, List, Dict, Optional, Union, Iterable, Hashable, Iterator, Any, Mapping, Callable,
-    KeysView, ValuesView, ItemsView, Sequence, TypeVar, overload, TYPE_CHECKING, cast
+    KeysView, ValuesView, ItemsView, Sequence, TypeVar, overload, TYPE_CHECKING, cast, ClassVar
 )
 
 import numpy as np
@@ -56,6 +56,7 @@ class MonteCarloABC(AbstractDataClass, ABC, Mapping[Key, np.ndarray]):
     hdf5_file: Union[str, 'PathLike[str]']
     pes: Dict[str, GetPesDescriptor]
     swap_phi: Optional[Callable[..., Any]]
+    HAS_LOOP: ClassVar[bool] = False
 
     @property
     def molecule(self) -> Tuple[MultiMolecule, ...]:

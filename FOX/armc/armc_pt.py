@@ -14,11 +14,13 @@ API
 """  # noqa: E501
 
 from typing import (
-    Tuple, Dict, Mapping, Iterable, List, Sequence, overload, Any, TYPE_CHECKING, Callable
+    Tuple, Dict, Mapping, Iterable, List, Sequence, overload, Any, TYPE_CHECKING, Callable,
+    ClassVar
 )
 
 import numpy as np
 
+from nanoutils import Literal
 from .armc import ARMC
 from ..type_hints import ArrayOrScalar
 from ..io.hdf5_utils import create_xyz_hdf5
@@ -102,6 +104,8 @@ def swap_random(acceptance: np.ndarray, armcpt: "ARMCPT",
 
 class ARMCPT(ARMC):
     """An :class:`ARMC` subclass implementing a parallel tempering procedure."""
+
+    HAS_LOOP: ClassVar[Literal[True]] = True
 
     def __init__(self, swapper: SwapFunc = swap_random, **kwargs: Any) -> None:
         r"""Initialize an :class:`ARMCPT` instance.
