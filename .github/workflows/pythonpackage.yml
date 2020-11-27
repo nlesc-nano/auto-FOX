@@ -54,7 +54,7 @@ jobs:
               run: conda list
 
             - name: Run tests
-              run: pytest -m "not slow"
+              run: pytest -m "not slow" --flake8
               env:
                 CONDA_PREFIX: /usr/share/miniconda
 
