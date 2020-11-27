@@ -6,6 +6,20 @@ All notable changes to this project will be documented in this file.
 This project adheres to `Semantic Versioning <http://semver.org/>`_.
 
 
+0.8.9
+*****
+* Fixed an issue where frozen parameters were not respected when performing
+  contrained parameter updates.
+* Fixed an issue where the ARMCPT parameters weren't properly swapped.
+* Added two new ARMC options: ``param.validation.allow_non_existent``
+  and ``param.validation.charge_tolerance``.
+* Update the type hints within Auto-FOX.
+* Allow the ARMC(PT) input to, once again, be dumped to a .yaml file via
+  the ``armc2yaml`` command.
+* Dump more information into the ARMC logger.
+* Re-enable the ARMC restart option.
+
+
 0.8.8
 *****
 * Added recipes for calculating time-resolved angular/radial distribution functions.

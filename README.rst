@@ -15,7 +15,7 @@
 
 
 #################################################
-Automated Forcefield Optimization Extension 0.8.8
+Automated Forcefield Optimization Extension 0.8.9
 #################################################
 
 **Auto-FOX** is a library for analyzing potential energy surfaces (PESs) and
@@ -90,7 +90,7 @@ Installing **Auto-FOX**
 
 - If using Conda, enable the environment: ``conda activate FOX``
 
-- Install **Auto-FOX** with PyPi: ``pip install git+https://github.com/nlesc-nano/auto-FOX@master --upgrade``
+- Install **Auto-FOX** with PyPi: ``pip install git+https://github.com/nlesc-nano/auto-FOX@0.8 --upgrade``
 
 - Congratulations, **Auto-FOX** is now installed and ready for use!
 
