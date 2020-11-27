@@ -285,6 +285,8 @@ class ARMC(MonteCarloABC):
 
     def _do_inner3(self, pes_new: PesMapping, key_old: Key) -> Tuple[float, np.ndarray]:
         """Evaluate the auxiliary error; accept if the new parameter set lowers the error."""
+        self.logger.debug("Calculating auxiliary error")
+
         aux_new = self.get_aux_error(pes_new)
         aux_old = self[key_old]
         error_change = (aux_new - aux_old).sum()
@@ -378,6 +380,8 @@ class ARMC(MonteCarloABC):
             A dictionary with the **hdf5_kwarg** argument for :func:`.to_hdf5`.
 
         """
+        self.logger.debug(f"Exporting results to {os.path.basename(self.hdf5_file)!r}")
+
         phi = self.phi.phi
         if not isinstance(accept, abc.Iterable):
             param_key: Literal['param', 'param_old'] = 'param' if accept else 'param_old'
