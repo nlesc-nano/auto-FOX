@@ -3,8 +3,8 @@
     :target: https://github.com/nlesc-nano/auto-FOX/actions?query=workflow%3A%22Build+with+Conda%22
 .. image:: https://readthedocs.org/projects/auto-fox/badge/?version=latest
     :target: https://auto-fox.readthedocs.io/en/latest/
-.. image:: https://zenodo.org/badge/DOI/10.5281/zenodo.3988143.svg
-    :target: https://doi.org/10.5281/zenodo.3988143
+.. image:: https://zenodo.org/badge/DOI/10.5281/zenodo.3988142.svg
+    :target: https://doi.org/10.5281/zenodo.3988142
 
 |
 
