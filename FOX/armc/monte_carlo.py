@@ -387,18 +387,18 @@ class MonteCarloABC(AbstractDataClass, ABC, Mapping[Key, np.ndarray]):
         if mol_list is None:  # The MD simulation crashed
             ret = {key: np.inf for key in self.pes.keys()}
         else:
-            self.logger.debug("Applying PES post-processing")
+            self.logger.info("Applying PES post-processing")
             for func1 in self.pes_post_process:
                 func1(mol_list, self)  # Post-process the MultiMolecules
 
             ret = {}
             for (k, func2), mol in zip(self.pes.items(), cycle(mol_list)):
                 _k, i = k.rsplit(".", maxsplit=1)
-                self.logger.debug(f"Calculating descriptor {_k} for PES {i}")
+                self.logger.info(f"Calculating descriptor {_k!r} for PES {i}")
                 ret[k] = func2(mol)
 
         if not (get_first_key or self.keep_files):
-            self.logger.debug("Clearing jobs")
+            self.logger.info("Clearing jobs")
             self.clear_jobs()
 
         return ret, mol_list

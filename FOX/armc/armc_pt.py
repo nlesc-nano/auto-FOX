@@ -229,8 +229,7 @@ class ARMCPT(ARMC):
         for i, (k_new, k_old, acc, err_change, _aux_new) in enumerator:
             err_round = round(err_change, 4)
             aux_round = round(_aux_new.sum(), 4)
-            newline = '\n' if i == len(self.phi) - 1 else ''
-            epilog = f'error_change = {err_round}; error = {aux_round}{newline}'
+            epilog = f'error_change = {err_round}; error = {aux_round}'
 
             if acc:
                 self.logger.info(f"Accepting move {(kappa, omega)}: {epilog}")
