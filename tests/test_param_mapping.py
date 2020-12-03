@@ -7,7 +7,6 @@ import pandas as pd
 from assertionlib import assertion
 
 from FOX.armc import ParamMapping
-from FOX.testing_utils import validate_mapping
 
 _DATA = {
     ('charge', 'charge', 'C'): 0.4524,
@@ -35,15 +34,10 @@ _CONSTRAINTS = {
 PARAM = ParamMapping(_DF, constraints=_CONSTRAINTS)
 
 
-def test_mapping():
-    """Test the :class:`~collections.abc.Mapping` implementation of :class:`ParamMapping`."""
-    validate_mapping(PARAM, key_type=str, value_type=(pd.DataFrame, pd.Series))
-
-
 def test_call():
     """Test :meth:`ParamMapping.__call__`."""
     param = PARAM.copy(deep=True)
-    ref = sum(param['param'][0].loc['charge'] * param['count'].loc['charge'])
+    ref = sum(param.param.loc['charge', 0] * param.metadata.loc['charge', 'count'])
 
     failed_iterations = []
     for i in range(1000):
@@ -52,20 +46,20 @@ def test_call():
             failed_iterations.append(i)
             ex_backup = ex
 
-        value = sum(param['param'][0].loc['charge'] * param['count'].loc['charge'])
+        value = sum(param.param.loc['charge', 0] * param.metadata.loc['charge', 'count'])
         assertion.isclose(value, ref, abs_tol=0.001)
 
         try:
-            assertion.le(param['param'][0], param['max'], post_process=np.all)
+            assertion.le(param.param[0], param.metadata['max'], post_process=np.all)
         except AssertionError as ex:
-            df = pd.DataFrame({'param': param['param'][0], 'max': param['max']})
+            df = pd.DataFrame({'param': param.param[0], 'max': param.metadata['max']})
             msg = f"iteration{i}\n{df.round(2)}"
             raise AssertionError(msg) from ex
 
         try:
-            assertion.ge(param['param'][0], param['min'], post_process=np.all)
+            assertion.ge(param.param[0], param.metadata['min'], post_process=np.all)
         except AssertionError as ex:
-            df = pd.DataFrame({'param': param['param'][0], 'max': param['min']})
+            df = pd.DataFrame({'param': param.param[0], 'max': param.metadata['min']})
             msg = f"iteration{i}\n{df.round(2)}"
             raise AssertionError(msg) from ex
 

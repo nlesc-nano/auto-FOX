@@ -94,7 +94,7 @@ def create_hdf5(filename: PathType, armc: ARMC) -> None:
         f.attrs['__version__'] = np.fromiter(__version__.split('.'), count=3, dtype=int)
 
         str_dtype = h5py.string_dtype(encoding='ascii')
-        index: pd.MultiIndex = armc.param['param'].index
+        index: pd.MultiIndex = armc.param.param.index
         index_dtype = np.dtype(list((k, str_dtype) for k in index.names))
 
         dset = f.create_dataset(name='param_metadata', data=armc.param.to_struct_array())
@@ -110,11 +110,11 @@ def create_hdf5(filename: PathType, armc: ARMC) -> None:
 
     # Store the *index*, *column* and *name* attributes of dataframes/series in the hdf5 file
     kappa = armc.iter_len // armc.sub_iter_len
-    idx = armc.param['param'][0].index.append(pd.MultiIndex.from_tuples([('', 'phi', '')]))
+    idx = armc.param.param[0].index.append(pd.MultiIndex.from_tuples([('', 'phi', '')]))
     aux_error_idx = list(armc.pes.keys())
 
     pd_dict = {
-        'param': armc.param['param'][0],
+        'param': armc.param.param[0],
         'phi': pd.Series(np.nan, index=np.arange(kappa), name='phi'),
         'aux_error': pd.Series(np.nan, index=aux_error_idx, name='aux_error'),
         'aux_error_mod': pd.Series(np.nan, index=idx, name='aux_error_mod')
@@ -249,7 +249,7 @@ def _get_kwarg_dict(armc: ARMC) -> Settings:
 
     """
     shape = armc.iter_len // armc.sub_iter_len, armc.sub_iter_len
-    param_shape = armc.param['param'].T.shape
+    param_shape = armc.param.param.T.shape
 
     ret = Settings()  # type: ignore[var-annotated]
     ret.phi.shape = (shape[0], ) + armc.phi.shape
