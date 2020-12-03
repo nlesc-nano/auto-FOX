@@ -142,7 +142,7 @@ class ARMCPT(ARMC):
         ret = super()._parse_call(start, key_new)
         if start is key_new is None:
             self[ret] = self[ret][0]
-            i = len(self.param['param'].columns)
+            i = len(self.param.param.columns)
             return i * [ret]
         else:
             return list(ret)
@@ -235,7 +235,7 @@ class ARMCPT(ARMC):
             if acc:
                 self.logger.info(f"Accepting move {(kappa, omega)}: {epilog}")
                 self[k_new] = self.apply_phi(_aux_new, idx=i)
-                self.param['param_old'][i] = self.param['param'][i]
+                self.param.param_old[i] = self.param.param[i]
                 ret.append(k_new)
             else:
                 self.logger.info(f"Rejecting move {(kappa, omega)}: {epilog}")

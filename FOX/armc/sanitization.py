@@ -119,16 +119,9 @@ def dict_to_armc(input_dict: MainMapping) -> Tuple[MonteCarloABC, RunDict]:
     param._set_net_charge()
     validate_charge(param._net_charge, tolerance=validation_dict['charge_tolerance'])
 
-    mc.param['param'].sort_index(inplace=True)
-    mc.param['param_old'].sort_index(inplace=True)
-    mc.param['min'].sort_index(inplace=True)
-    mc.param['max'].sort_index(inplace=True)
-    mc.param['count'].sort_index(inplace=True)
-    mc.param['frozen'].sort_index(inplace=True)
-    mc.param['guess'].sort_index(inplace=True)
-    mc.param._data['count'] = mc.param['count'].astype(int, copy=False)
-    mc.param._data['frozen'] = mc.param['frozen'].astype(bool, copy=False)
-    mc.param._data['guess'] = mc.param['guess'].astype(bool, copy=False)
+    mc.param.param.sort_index(inplace=True)
+    mc.param.param_old.sort_index(inplace=True)
+    mc.param.metadata.sort_index(inplace=True)
 
     # Add PES evaluators
     pes = get_pes(dct['pes'])
@@ -149,7 +142,7 @@ def validate_atoms(
     use the molecule otherwise.
 
     """
-    iterator1 = chain.from_iterable(at.split() for at in param['param'].index.levels[2])
+    iterator1 = chain.from_iterable(at.split() for at in param.param.index.levels[2])
     atoms = dict.fromkeys(iterator1, False)
 
     if psf_list is None:
@@ -206,17 +199,11 @@ def _guess_param(mc: MonteCarloABC, prm: dict,
     package.update_settings(seq, new_keys=True)
 
     # Update the variable parameters
-    param_mapping = mc.param
+    metadata = {'min': -np.inf, 'max': np.inf, 'count': 0, 'guess': True}
     for k, v in seq:
         iterator = (((k, v['param'], at), value) for at, value in v.items() if at != 'param')
         for key, value in iterator:
-            param_mapping['param'].loc[key] = value
-            param_mapping['param_old'].loc[key] = value
-            param_mapping['min'][key] = -np.inf
-            param_mapping['max'][key] = np.inf
-            param_mapping['count'][key] = 0
-            param_mapping['frozen'][key] = frozen
-            param_mapping['guess'][key] = True
+            mc.param.add_param(key, value, frozen=frozen, **metadata)
     return
 
 
@@ -633,16 +620,12 @@ def _parse_ligand_alias(psf_list: Optional[Sequence[PSFContainer]], prm: ParamMa
 
         atom_types: Iterable[str] = df['atom type'].values
         atom_counter = Counter(atom_types)
+        metadata = {'min': -np.inf, 'max': np.inf, 'count': 0, 'frozen': True, 'guess': False}
         for k in atom_counter:
             key = ('charge', 'charge', k)
-            if key not in prm['param'].index:
-                prm['param'].loc[key] = df.loc[df['atom type'] == k, 'charge'].iloc[0]
-                prm['param_old'].loc[key] = prm['param'].loc[key]
-                prm['min'][key] = -np.inf
-                prm['max'][key] = np.inf
-                prm['frozen'][key] = True
-                prm['guess'][key] = False
-                prm['count'][key] = 0
+            if key not in prm.param.index:
+                value = df.loc[df['atom type'] == k, 'charge'].iloc[0]
+                prm.add_param(key, value, **metadata)
 
     for lst in prm.constraints.values():
         if lst is None:
@@ -677,7 +660,7 @@ def update_count(param, psf=None, mol=None):  # noqa: E302
     else:
         raise TypeError("'psf' and 'mol' cannot be both 'None'")
 
-    prm_count = param['count']
+    prm_count = param.metadata['count']
     at_sequence = [atoms.split() for *_, atoms in prm_count.index]
     for count in count_iter:
         data = get_atom_count(at_sequence, count)
