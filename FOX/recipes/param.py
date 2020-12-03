@@ -117,6 +117,7 @@ API
 
 """
 
+from os import PathLike
 from typing import Dict, Union, Iterable, Any, FrozenSet, Tuple, Iterator, cast, Optional, Mapping
 from collections import abc
 
@@ -142,7 +143,8 @@ __all__ = ['get_best', 'overlay_descriptor', 'plot_descriptor']
 PlotAccessor: type = pd.DataFrame.plot  # A class used by Pandas for plotting stuff
 
 
-def get_best(hdf5_file: str, name: str = 'rdf', i: int = 0) -> pd.DataFrame:
+def get_best(hdf5_file: Union[str, 'PathLike[str]'],
+             name: str = 'rdf', i: int = 0) -> pd.DataFrame:
     """Return the PES descriptor or ARMC property which yields the lowest error.
 
     Parameters
@@ -170,9 +172,11 @@ def get_best(hdf5_file: str, name: str = 'rdf', i: int = 0) -> pd.DataFrame:
         if full_name not in f.keys():  # i.e. if **name** does not belong to a PE descriptor
             full_name = name
         shape = f['aux_error'].shape[:2]
+    if full_name.startswith('/'):
+        full_name = full_name.strip('/')
 
     # Load the DataFrames
-    if full_name == 'aux_error':
+    if full_name in '/aux_error':
         aux_error = prop = from_hdf5(hdf5_file, 'aux_error')
     else:
         hdf5_dict = from_hdf5(hdf5_file, ['aux_error', full_name])
@@ -190,7 +194,8 @@ def get_best(hdf5_file: str, name: str = 'rdf', i: int = 0) -> pd.DataFrame:
     return df
 
 
-def overlay_descriptor(hdf5_file: str, name: str = 'rdf', i: int = 0) -> Dict[str, pd.DataFrame]:
+def overlay_descriptor(hdf5_file: Union[str, 'PathLike[str]'], name: str = 'rdf',
+                       i: int = 0) -> Dict[str, pd.DataFrame]:
     """Return the PES descriptor which yields the lowest error and overlay it with the reference PES descriptor.
 
     Parameters

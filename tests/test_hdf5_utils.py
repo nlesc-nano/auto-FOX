@@ -14,7 +14,7 @@ from nanoutils import delete_finally
 
 import FOX
 from FOX.armc import dict_to_armc
-from FOX.io.hdf5_utils import create_hdf5, to_hdf5, from_hdf5, create_xyz_hdf5
+from FOX.io.hdf5_utils import create_hdf5, to_hdf5, from_hdf5, create_xyz_hdf5, recursive_items
 
 PATH = Path('tests') / 'test_files'
 
@@ -28,28 +28,30 @@ def test_create_hdf5():
     armc.hdf5_file = hdf5_file = PATH / 'test.hdf5'
 
     ref_dict = Settings()
-    ref_dict.acceptance.shape = 500, 100, 1
-    ref_dict.acceptance.dtype = np.bool_
-    ref_dict.aux_error.shape = 500, 100, 1, 1
-    ref_dict.aux_error.dtype = np.float64
-    ref_dict.aux_error_mod.shape = 500, 100, 1, 16
-    ref_dict.aux_error_mod.dtype = np.float64
-    ref_dict.param.shape = 500, 100, 1, 15
-    ref_dict.param.dtype = np.float64
-    ref_dict.param_metadata.shape = (15,)
-    ref_dict.param_metadata.dtype = np.void
-    ref_dict.phi.shape = 500, 1
-    ref_dict.phi.dtype = np.float64
-    ref_dict['rdf.0'].shape = 500, 100, 241, 6
-    ref_dict['rdf.0'].dtype = np.float64
-    ref_dict['rdf.0.ref'].shape = 241, 6
-    ref_dict['rdf.0.ref'].dtype = np.float64
+    ref_dict['/acceptance'].shape = 500, 100, 1
+    ref_dict['/acceptance'].dtype = np.bool_
+    ref_dict['/aux_error'].shape = 500, 100, 1, 1
+    ref_dict['/aux_error'].dtype = np.float64
+    ref_dict['/validation/aux_error'].shape = 500, 100, 1, 0
+    ref_dict['/validation/aux_error'].dtype = np.float64
+    ref_dict['/aux_error_mod'].shape = 500, 100, 1, 16
+    ref_dict['/aux_error_mod'].dtype = np.float64
+    ref_dict['/param'].shape = 500, 100, 1, 15
+    ref_dict['/param'].dtype = np.float64
+    ref_dict['/param_metadata'].shape = (15,)
+    ref_dict['/param_metadata'].dtype = np.void
+    ref_dict['/phi'].shape = 500, 1
+    ref_dict['/phi'].dtype = np.float64
+    ref_dict['/rdf.0'].shape = 500, 100, 241, 6
+    ref_dict['/rdf.0'].dtype = np.float64
+    ref_dict['/rdf.0.ref'].shape = 241, 6
+    ref_dict['/rdf.0.ref'].dtype = np.float64
 
     create_hdf5(hdf5_file, armc)
     with h5py.File(hdf5_file, 'r') as f:
-        for key, value in f.items():
+        for key, value in recursive_items(f):
             assertion.shape_eq(value, ref_dict[key].shape, message=key)
-            assertion.isinstance(value[:].take(0), ref_dict[key].dtype, message=key)
+            assertion.eq(value.dtype.type, ref_dict[key].dtype, message=key)
 
 
 @delete_finally(PATH / 'test.hdf5', PATH / 'test.xyz.hdf5')
@@ -213,7 +215,7 @@ def test_from_hdf5():
 
     assertion.eq(hdf5_dict['acceptance'], out['acceptance'].loc[0, 0])
     assertion.eq(hdf5_dict['aux_error'], out['aux_error']['rdf.0'][0])
-    assertion.eq(hdf5_dict['phi'], out['aux_error_mod'].values[0])
+    assertion.eq(hdf5_dict['phi'], out['aux_error_mod'].values[:, -1])
     assertion.eq(hdf5_dict['phi'][0], out['phi'].loc[0, 0])
     np.testing.assert_allclose(hdf5_dict['param'], out['param'].values)
     np.testing.assert_allclose(hdf5_dict['rdf.0'], out['rdf.0'][0].values)

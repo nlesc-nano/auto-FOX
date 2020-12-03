@@ -36,6 +36,7 @@ from qmflows import Settings as QmSettings
 from qmflows.packages.cp2k_mm import CP2KMM_Result
 from nanoutils import Literal, PathType
 
+from .io.hdf5_utils import recursive_keys
 from .functions.cp2k_utils import get_xyz_path
 
 if TYPE_CHECKING:
@@ -303,13 +304,10 @@ def compare_hdf5(f1: h5py.Group, f2: h5py.Group, skip: Container[str] = frozense
 
     """
     __tracebackhide__ = True
-    assertion.eq(f1.keys(), f2.keys())
+    assertion.eq(set(recursive_keys(f1)), set(recursive_keys(f2)))
 
-    iterator1 = ((f1[k].name, f1[k], f2[k]) for k in f2.keys() if f1[k].name not in skip)
+    iterator1 = ((k, f1[k], f2[k]) for k in recursive_keys(f2) if k not in skip)
     for k1, dset1, dset2 in iterator1:
-        if isinstance(dset1, h5py.Group):
-            compare_hdf5(dset1, dset2, skip=skip)
-            continue
         ar1, ar2 = dset1[:], dset2[:]
         _compare_arrays(ar1, ar2, err_msg=f'dataset {k1!r}\n')
 

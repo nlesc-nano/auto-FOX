@@ -52,7 +52,8 @@ if TYPE_CHECKING:
 else:
     from ..type_alias import File, NDFrame, MultiMolecule, ARMC
 
-__all__ = ['create_hdf5', 'create_xyz_hdf5', 'to_hdf5', 'from_hdf5']
+__all__ = ['create_hdf5', 'create_xyz_hdf5', 'to_hdf5', 'from_hdf5',
+           'recursive_keys', 'recursive_values', 'recursive_items']
 
 """################################### Creating .hdf5 files ####################################"""
 
@@ -174,7 +175,7 @@ def create_xyz_hdf5(filename: PathType,
             f[key].attrs['bonds'] = mol.bonds
 
 
-def index_to_hdf5(filename: PathType, pd_dict: Dict[str, NDFrame]) -> None:
+def index_to_hdf5(f: h5py.Group, pd_dict: Dict[str, NDFrame]) -> None:
     """Store the ``index`` and ``columns`` / ``name`` attributes of **pd_dict** in hdf5 format.
 
     Attributes are exported for all dataframes/series in **pd_dict** and skipped otherwise.
@@ -434,6 +435,28 @@ def _xyz_to_hdf5(filename: PathType, omega: int,
 """#################################### Reading .hdf5 files ####################################"""
 
 
+def recursive_keys(f: h5py.Group) -> Generator[str, None, None]:
+    """Recursively iterate through all keys in **f**."""
+    for k, v in f.items():
+        if isinstance(v, h5py.Dataset):
+            yield v.name
+        else:
+            for _v in recursive_keys(v):
+                yield _v
+
+
+def recursive_values(f: h5py.Group) -> Generator[h5py.Dataset, None, None]:
+    """Recursively iterate through all values in **f**."""
+    for k in recursive_keys(f):
+        yield f[k]
+
+
+def recursive_items(f: h5py.Group) -> Generator[Tuple[str, h5py.Dataset], None, None]:
+    """Recursively iterate through all key/value pairs in **f**."""
+    for k in recursive_keys(f):
+        yield k, f[k]
+
+
 @overload
 def from_hdf5(filename: PathType, datasets: str) -> Union[pd.DataFrame, pd.Series]:
     ...
@@ -470,19 +493,22 @@ def from_hdf5(filename, datasets=None):  # noqa: E302
 
         # Identify the to-be returned datasets
         as_dict = True
-        if isinstance(datasets, str):
-            as_dict = False
-            datasets_: Iterable[str] = (datasets,)
-        elif datasets is None:
-            datasets_ = f.keys()
-        else:
-            datasets_ = datasets  # type: ignore
+        try:
+            if isinstance(datasets, str):
+                as_dict = False
+                datasets_: Iterable[str] = (f[datasets].name,)
+            elif datasets is None:
+                datasets_ = recursive_keys(f)
+            else:
+                datasets_ = [f[k].name for k in datasets]  # type: ignore
+        except KeyError as ex:
+            raise KeyError(f"No dataset {ex} in {filename!r}") from None
 
         # Retrieve the datasets
         try:
-            ret = {key: _get_dset(f, key) for key in datasets_}
-        except KeyError as ex:
-            raise KeyError(f"No dataset {ex} in {filename!r}") from None
+            ret = {key.strip('/'): _get_dset(f, key) for key in datasets_}
+        except AttributeError:
+            raise ValueError('Illegal "Group" key; only "Dataset" keys are accepted') from None
         for k, v in ret.items():
             if k != 'param_metadata':
                 ret[k] = v[:i]
@@ -513,13 +539,13 @@ def _get_dset(f: File, key: str) -> Union[pd.Series, pd.DataFrame, List[pd.DataF
         A NumPy array or a Pandas DataFrame or Series retrieved from **key** in **f**.
 
     """
-    if key == 'phi':
+    if key == '/phi':
         return _phi_to_df(f, key)
-    elif key == 'aux_error':
+    elif key == '/aux_error':
         return _aux_err_to_df(f, key)
-    elif key == 'param_metadata':
+    elif key == '/param_metadata':
         return _metadata_to_df(f, key)
-    elif key == 'acceptance':
+    elif key == '/acceptance':
         return _acceptance_to_df(f, key)
 
     elif 'columns' in f[key].attrs.keys():
@@ -687,7 +713,7 @@ def dset_to_series(f: File, key: str) -> Union[pd.Series, pd.DataFrame]:
 
     """
     name = f[key].attrs['name'][0].decode()
-    index = array_to_index(f[key].attrs['index'][:])
+    index = array_to_index(f[key].attrs['index'])
     data = f[key][:]
     data.shape = np.product(data.shape[:-1], dtype=int), -1
 
