@@ -96,7 +96,7 @@ def test_armc_guess() -> None:
     sigma['frozen'] = {'guess': 'uff'}
 
     armc, job_kwargs = dict_to_armc(dct)
-    param = armc.param['param'].loc[('lennard_jones', 'sigma'), 0]
+    param = armc.param.param.loc[('lennard_jones', 'sigma'), 0]
 
     # The expected `sigma` parameters
     ref = np.array([

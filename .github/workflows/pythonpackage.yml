@@ -40,7 +40,7 @@ jobs:
               run: conda install -c anaconda python=3.7.9 --force-reinstall
 
             - name: Install conda-based dependencies
-              run: conda install -c conda-forge h5py rdkit numpy
+              run: conda install -c conda-forge "h5py>=2.10" rdkit numpy
 
             - name: Install dependencies
               run: pip install -e .[test]

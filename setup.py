@@ -104,6 +104,7 @@ setup(
         'schema',
         'AssertionLib>=2.2',
         'noodles>=0.3.3',
+        'h5py>=2.10',
         'qmflows@git+https://github.com/SCM-NV/qmflows@master',
         'plams@git+https://github.com/SCM-NV/PLAMS@master',
     ],

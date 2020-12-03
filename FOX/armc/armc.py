@@ -305,7 +305,7 @@ class ARMC(MonteCarloABC):
         if accept:
             self.logger.info(f"Accepting move {(kappa, omega)}: {epilog}")
             self[key_new] = self.apply_phi(aux_new)
-            self.param['param_old'][:] = self.param['param']
+            self.param.param_old[:] = self.param.param
             return key_new
         else:
             self.logger.info(f"Rejecting move {(kappa, omega)}: {epilog}")
@@ -319,7 +319,7 @@ class ARMC(MonteCarloABC):
         self.to_hdf5(mol_list, accept, aux_new, pes_new, kappa, omega)
 
         not_accept = ~np.array(accept, ndmin=1, dtype=bool, copy=False)
-        self.param['param'].loc[:, not_accept] = self.param['param_old'].loc[:, not_accept]
+        self.param.param.loc[:, not_accept] = self.param.param_old.loc[:, not_accept]
 
     @property
     def apply_phi(self) -> Callable[..., np.ndarray]:
@@ -343,11 +343,11 @@ class ARMC(MonteCarloABC):
             A tuple of Numpy arrays.
 
         """
-        key: Key = tuple(self.param['param'][idx].values)
+        key: Key = tuple(self.param.param[idx].values)
         pes, _ = self.get_pes_descriptors(get_first_key=True)
 
         self[key] = self.get_aux_error(pes)
-        self.param['param_old'][idx] = self.param['param'][idx]
+        self.param.param_old[idx] = self.param.param[idx]
         return key
 
     def to_hdf5(self, mol_list: Optional[MolIter],
@@ -387,15 +387,15 @@ class ARMC(MonteCarloABC):
         phi = self.phi.phi
         if not isinstance(accept, abc.Iterable):
             param_key: Literal['param', 'param_old'] = 'param' if accept else 'param_old'
-            aux_error_mod = np.append(self.param[param_key].values, phi)
+            aux_error_mod = np.append(getattr(self.param, param_key).values, phi)
         else:
-            _aux_error_mod = [self.param['param' if acc else 'param_old'][i].values for
+            _aux_error_mod = [getattr(self.param, 'param' if acc else 'param_old')[i].values for
                               i, acc in enumerate(accept)]
             aux_error_mod = np.append(_aux_error_mod, phi)
             aux_error_mod.shape = len(self.phi), -1
 
         hdf5_kwarg = {
-            'param': self.param['param'].values.T,
+            'param': self.param.param.values.T,
             'xyz': mol_list,
             'phi': phi,
             'acceptance': accept,
@@ -510,8 +510,8 @@ class ARMC(MonteCarloABC):
                         pass
 
             self.phi.phi = f['phi'][i]
-            self.param['param'][:] = f['param'][i, j].T
-            self.param['param_old'][:] = self.param['param']
+            self.param.param[:] = f['param'][i, j].T
+            self.param.param_old[:] = self.param.param
             acceptance = f['acceptance'][:i+1]
 
             # Find the last iteration that is not np.nan

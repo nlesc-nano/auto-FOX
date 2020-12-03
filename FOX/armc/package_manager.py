@@ -348,7 +348,7 @@ class PackageManager(PackageManagerABC):
 
         job_name: str = name if name is not None else ''
         obj_type: Package = kwargs.pop('type')  # type: ignore
-        return obj_type(mol=mol, job_name=job_name, **kwargs)
+        return obj_type(mol=mol, job_name=job_name, validate_output=False, **kwargs)
 
     @staticmethod
     def clear_jobs() -> None:

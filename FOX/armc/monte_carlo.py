@@ -344,7 +344,7 @@ class MonteCarloABC(AbstractDataClass, ABC, Mapping[Key, np.ndarray]):
         else:
             key, prm_name, _ = ret
 
-        prm_update = self.param['param'][idx_].loc[(key, prm_name)].to_frame().T
+        prm_update = self.param.param.loc[(key, prm_name), idx_].to_frame().T
         prm_update.index = [prm_name]
         if idx is None:
             _iterator = chain.from_iterable(self.package_manager.values())
@@ -356,7 +356,7 @@ class MonteCarloABC(AbstractDataClass, ABC, Mapping[Key, np.ndarray]):
         for settings in iterator:
             settings[key].update(prm_update)
 
-        return cast(Key, tuple(self.param['param'][idx_].values))
+        return cast(Key, tuple(self.param.param[idx_].values))
 
     def get_pes_descriptors(self, get_first_key: bool = False,
                             ) -> Tuple[Dict[str, ArrayOrScalar], Optional[List[MultiMolecule]]]:

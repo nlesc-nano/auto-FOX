@@ -22,9 +22,10 @@ from abc import ABC, abstractmethod
 from types import MappingProxyType
 from logging import Logger
 from functools import wraps, partial
-from typing import (Any, TypeVar, Optional, Tuple, Mapping, Iterable, ClassVar, Union,
-                    Iterator, KeysView, ItemsView, ValuesView, overload, Callable, FrozenSet, cast,
-                    MutableMapping, TYPE_CHECKING, Dict)
+from typing import (
+    Any, TypeVar, Optional, Tuple, Mapping, Iterable, ClassVar, Union, Sequence,
+    Callable, FrozenSet, cast, MutableMapping, TYPE_CHECKING, Dict
+)
 
 import numpy as np
 import pandas as pd
@@ -49,18 +50,10 @@ Tup3 = Tuple[Any, Any, Any]
 Tup2 = Tuple[Any, Any]
 
 # All dict keys in ParamMappingABC
-SeriesKeys = Literal['min', 'max', 'count', 'frozen', 'guess']
-DFKeys = Literal['param', 'param_old']
-ValidKeys = Union[SeriesKeys, DFKeys]
+MetadataKeys = Literal['min', 'max', 'count', 'frozen', 'guess']
 
 # A function for moving parameters
 MoveFunc = Callable[[float, float], float]
-
-# A Mapping representing the conent of ParamMappingABC
-_ParamMappingABC = Mapping[ValidKeys, NDFrame]
-
-_KeysView = KeysView[ValidKeys]  # type: ignore[misc]
-_ItemsView = ItemsView[ValidKeys, NDFrame]
 
 
 class _InputMapping(TypedDict):
@@ -70,18 +63,6 @@ class _InputMapping(TypedDict):
 class InputMapping(_InputMapping, total=False):
     """A :class:`~typing.TypedDict` representing the :class:`ParamMappingABC` input."""
 
-    min: pd.Series
-    max: pd.Series
-    count: pd.Series
-    frozen: pd.Series
-    guess: pd.Series
-
-
-class Data(TypedDict):
-    """A :class:`~typing.TypedDict` representing :attr:`ParamMappingABC._data`."""
-
-    param: pd.DataFrame
-    param_old: pd.DataFrame
     min: pd.Series
     max: pd.Series
     count: pd.Series
@@ -119,7 +100,7 @@ def _parse_param(dct: MutableMapping[str, Any]) -> pd.DataFrame:
     return param
 
 
-class ParamMappingABC(AbstractDataClass, ABC, _ParamMappingABC):
+class ParamMappingABC(AbstractDataClass, ABC):
     r"""A :class:`~collections.abc.Mapping` for storing and updating forcefield parameters.
 
     Besides the implementation of the :class:`~collections.abc.Mapping` protocol,
@@ -179,10 +160,9 @@ class ParamMappingABC(AbstractDataClass, ABC, _ParamMappingABC):
 
     _net_charge: Optional[float]
     _move_range: np.ndarray
-    _data_dict: Data
 
     #: Fill values for when optional keys are absent.
-    FILL_VALUE: ClassVar[Mapping[ValidKeys, np.generic]] = MappingProxyType({
+    FILL_VALUE: ClassVar[Mapping[MetadataKeys, np.generic]] = MappingProxyType({
         'min': np.float64(-np.inf),
         'max': np.float64(np.inf),
         'count': np.int64(-1),
@@ -238,7 +218,7 @@ class ParamMappingABC(AbstractDataClass, ABC, _ParamMappingABC):
 
         """  # noqa
         super().__init__()
-        self._data = cast(Data, data)
+        self._set_data(data)
         self.move_range = cast(np.ndarray, move_range)
         self.func: Callable[[float, float], float] = wraps(func)(partial(func, **kwargs))
         self.constraints = cast(Dict[Tup2, Optional[Tuple[pd.Series, ...]]], constraints)
@@ -259,7 +239,7 @@ class ParamMappingABC(AbstractDataClass, ABC, _ParamMappingABC):
             func = lambda v: tuple(pd.Series(i) for i in v) if v is not None else None  # noqa: E731,E501
             dct = {k: func(v) for k, v in value.items()}
 
-        for key in self['param'].index:
+        for key in self.param.index:
             dct.setdefault(key[:2], None)
         self._constraints = dct
 
@@ -270,14 +250,14 @@ class ParamMappingABC(AbstractDataClass, ABC, _ParamMappingABC):
     @move_range.setter
     def move_range(self, value: ArrayLike) -> None:
         _ar = np.array(value, dtype=float, ndmin=1, copy=False)
-        prm_len = len(self._data['param'].columns)
+        prm_len = len(self.param.columns)
 
         if _ar.ndim == 2:
             if len(_ar) != prm_len:
                 if prm_len == 1:
                     for i in range(1, len(_ar)):
-                        self['param'][i] = self['param'][0].copy()
-                        self['param_old'][i] = self['param_old'][0].copy()
+                        self.param[i] = self.param[0].copy()
+                        self.param_old[i] = self.param_old[0].copy()
                 else:
                     raise ValueError(f"Expected 'move_range' length: {prm_len}; "
                                      f"observed length: {len(_ar)}")
@@ -290,28 +270,24 @@ class ParamMappingABC(AbstractDataClass, ABC, _ParamMappingABC):
                              f"observed dimensionality: {_ar.ndim}")
         self._move_range: np.ndarray = ar
 
-    @property
-    def _data(self) -> Data:
-        return self._data_dict
-
-    @_data.setter
-    def _data(self, value: Union[InputMapping, pd.DataFrame]) -> None:
+    def _set_data(self, value: Union[InputMapping, pd.DataFrame]) -> None:
         dct = dict(value)
 
         # Check that the 'param' key is present
         param = _parse_param(dct)
-        _, prm = next(iter(param.items()))
 
         # Fill in the defaults
+        metadata = pd.DataFrame(index=param.index)
         for name, fill_value in self.FILL_VALUE.items():
-            if name in dct:
-                continue
-            dtype = type(fill_value) if fill_value is not None else object
-            dct[name] = pd.Series(fill_value, index=prm.index, name=name, dtype=dtype)
+            if name not in dct:
+                metadata[name] = fill_value
+            else:
+                metadata[name] = np.asarray(dct[name], dtype=fill_value.dtype)
 
         # Construct a dictionary to contain the old parameter
-        dct['param_old'] = param.copy()
-        self._data_dict = cast(Data, dct)
+        self.param = param
+        self.param_old = param.copy()
+        self.metadata = metadata
 
         # Cache the total charge of the system
         self._set_net_charge()
@@ -323,19 +299,18 @@ class ParamMappingABC(AbstractDataClass, ABC, _ParamMappingABC):
         if type(self) is not type(value):
             return False
 
-        ret = True
-        ret &= np.all(self.move_range == value.move_range)
-        ret &= cast(bool, self._net_charge == value._net_charge)
+        ret = np.all(self.move_range == value.move_range)
+        ret &= self._net_charge == value._net_charge
+        if not ret:
+            return False
 
         names = ("func", "args", "keywords")
         v1, v2 = self.func, value.func
-        ret &= all([getattr(v1, n, np.nan) == getattr(v2, n, np.nan) for n in names])
+        if not all(getattr(v1, n, None) == getattr(v2, n, None) for n in names):
+            return False
 
-        ret &= cast(bool, self.keys() == value.keys())
-        iterator = ((v, value[k]) for k, v in self.items())
-        for v1, v2 in iterator:
-            ret &= np.all(v1 == v2)
-        return ret
+        names = ("param", "param_old", "metadata")
+        return all(np.array_equal(getattr(self, n, None), getattr(value, n, None)) for n in names)
 
     @AbstractDataClass.inherit_annotations()
     def _str_iterator(self):
@@ -345,63 +320,37 @@ class ParamMappingABC(AbstractDataClass, ABC, _ParamMappingABC):
         """Set the total charge of the system."""
         with warnings.catch_warnings():
             warnings.simplefilter('ignore', pd.errors.PerformanceWarning)
-            if 'charge' in self['param'].index:
-                self._net_charge = get_net_charge(self['param'].loc['charge', 0],
-                                                  self['count'].loc['charge'])
+            if 'charge' in self.param.index:
+                self._net_charge = get_net_charge(
+                    self.param.loc['charge', 0], self.metadata.loc['charge', 'count']
+                )
             else:
                 self._net_charge = None
 
-    @overload
-    def __getitem__(self, key: SeriesKeys) -> pd.Series: ...
-    @overload
-    def __getitem__(self, key: DFKeys) -> pd.DataFrame: ...
-    @overload
-    def __getitem__(self, key: Any) -> Any: ...
-    def __getitem__(self, key):  # noqa: E301
-        """Implement :code:`self[key]`."""
-        return self._data[key]
-
-    def __iter__(self) -> Iterator[ValidKeys]:
-        """Implement :code:`iter(self)`."""
-        return cast(Iterator[ValidKeys], iter(self._data))
-
-    def __len__(self) -> int:
-        """Implement :code:`len(self)`."""
-        return len(self._data)
-
-    @overload
-    def __contains__(self, key: ValidKeys) -> Literal[True]: ...
-    @overload
-    def __contains__(self, key: Any) -> bool: ...
-    def __contains__(self, key):  # noqa: E301
-        """Implement :code:`key in self`."""
-        return key in self._data
-
-    def keys(self) -> _KeysView:
-        """Return a set-like object providing a view of this instance's keys."""
-        return cast(_KeysView, self._data.keys())
-
-    def items(self) -> _ItemsView:
-        """Return a set-like object providing a view of this instance's key/value pairs."""
-        return cast(_ItemsView, self._data.items())
-
-    def values(self) -> ValuesView[NDFrame]:
-        """Return an object providing a view of this instance's values."""
-        return self._data.values()
-
-    @overload
-    def get(self, key: ValidKeys) -> NDFrame: ...
-    @overload
-    def get(self, key: ValidKeys, default: Any) -> NDFrame: ...
-    @overload
-    def get(self, key: Any) -> Optional[NDFrame]: ...
-    @overload
-    def get(self, key: Any, default: T) -> Union[NDFrame, T]: ...
-    def get(self, key, default=None):  # noqa: E301
-        """Return the value for **key** if it's available; return **default** otherwise."""
-        return self._data.get(key, default)
-
     # The actual meat of the class
+
+    def add_param(self, idx: Tup3, value: float,
+                  columns: Union[str, Sequence[str], slice] = slice(None),
+                  **kwargs: Any) -> None:
+        r"""Add a new parameter to this instance.
+
+        Parameters
+        ----------
+        idx
+            The index of the new parameter.
+            Must be compatible with ``pd.DataFrame.loc``.
+        value
+            The value of the new parameter.
+        \**kwargs
+            Values for :class:`ParamMappingABC.metadata`.
+
+        """
+        self.param.loc[idx] = value
+        self.param_old.loc[idx] = value
+
+        metadata: Dict[str, Any] = self.FILL_VALUE.copy()  # type: ignore[attr-defined]
+        metadata.update(kwargs)
+        self.metadata.loc[idx] = metadata
 
     def __call__(self, logger: Optional[Logger] = None,
                  param_idx: int = 0) -> Union[Exception, Tup3]:
@@ -442,7 +391,7 @@ class ParamMappingABC(AbstractDataClass, ABC, _ParamMappingABC):
         if ex is not None:
             return ex
 
-        self['param'].loc[idx, param_idx] = value
+        self.param.loc[idx, param_idx] = value
         return idx
 
     @abstractmethod
@@ -507,8 +456,8 @@ class ParamMappingABC(AbstractDataClass, ABC, _ParamMappingABC):
         """Stack all :class:`~pandas.Series` in this instance into a single structured array."""
         cls = type(self)
         dtype = np.dtype(list((k, type(v)) for k, v in cls.FILL_VALUE.items()))
-        data = [self[k].values for k in cls.FILL_VALUE]
-        return np.fromiter(zip(*data), dtype=dtype)
+        iterator = (v for _, v in self.metadata.items())
+        return np.rec.fromarrays(iterator, dtype=dtype)
 
     def constraints_to_str(self) -> pd.Series:
         """Convert the constraints into a human-readably :class:`pandas.Series`."""
@@ -521,7 +470,7 @@ class ParamMappingABC(AbstractDataClass, ABC, _ParamMappingABC):
             )
         ret = pd.Series(dct)
         ret.name = 'constraints'
-        ret.index.names = self['param'].index.names[:2]
+        ret.index.names = self.param.index.names[:2]
         return ret
 
     def to_yaml_dict(self) -> Dict[str, Any]:
@@ -554,7 +503,7 @@ class ParamMappingABC(AbstractDataClass, ABC, _ParamMappingABC):
         }
         idx_dict = {}
 
-        index = self['param'].index
+        index = self.param.index
         constraints = self.constraints_to_str()
         for key, param, _ in index:
             if (key, param) in idx_dict:
@@ -570,14 +519,13 @@ class ParamMappingABC(AbstractDataClass, ABC, _ParamMappingABC):
             idx_dict[key, param] = len(lst) - 1
 
         # Set the extremites
-        iterator1 = ((k, self['min'].at[k], self['max'].at[k]) for k in index)
-        for (key, param, atom), min_, max_ in iterator1:
+        for (key, param, atom), (min_, max_) in self.metadata[['min', 'max']].iterrows():
             i = idx_dict[key, param]
             ret[key][i]['constraints'].append(f'{min_} < {atom} < {max_}')
 
         # Set the parameters
-        iterator2 = ((k, self['param'].at[k, 0], self['frozen'].at[k]) for k in index)
-        for (key, param, atom), value, frozen in iterator2:
+        iterator = ((k, self.param.at[k, 0], self.metadata.at[k, 'frozen']) for k in index)
+        for (key, param, atom), value, frozen in iterator:
             i = idx_dict[key, param]
             if frozen:
                 ret[key][i]['frozen'][atom] = value.item()
@@ -623,8 +571,8 @@ class ParamMapping(ParamMappingABC):
 
         """  # noqa
         # Define a random parameter
-        variable = ~self['frozen']
-        random_prm: pd.Series = self['param'].loc[variable, param_idx].sample()
+        variable = ~self.metadata['frozen']
+        random_prm: pd.Series = self.param.loc[variable, param_idx].sample()
         idx, x1 = next(random_prm.items())  # Type: Tup3, float
 
         # Define a random move size
@@ -648,8 +596,7 @@ class ParamMapping(ParamMappingABC):
             The newly clipped value of the moved parameter.
 
         """  # noqa
-        prm_min: float = self['min'][idx]
-        prm_max: float = self['max'][idx]
+        prm_min, prm_max = self.metadata.loc[idx, ['min', 'max']]
         return np.clip(value, prm_min, prm_max)
 
     def apply_constraints(self, idx: Tup3, value: float, param_idx: int) -> Optional[ChargeError]:
@@ -676,16 +623,16 @@ class ParamMapping(ParamMappingABC):
         atom = idx[2]
         charge = self._net_charge if key[1] in self.CHARGE_LIKE else None
 
-        frozen_idx = self['frozen'].loc[key]
+        frozen_idx = self.metadata.loc[key, 'frozen']
         frozen = frozen_idx.index[frozen_idx] if frozen_idx.any() else None
 
         return update_charge(
             atom, value,
-            param=self['param'].loc[key, param_idx],
-            count=self['count'].loc[key],
+            param=self.param.loc[key, param_idx],
+            count=self.metadata.loc[key, 'count'],
             atom_coefs=self.constraints[key],
-            prm_min=self['min'].loc[key],
-            prm_max=self['max'].loc[key],
+            prm_min=self.metadata.loc[key, 'min'],
+            prm_max=self.metadata.loc[key, 'max'],
             net_charge=charge,
             exclude=frozen,
         )

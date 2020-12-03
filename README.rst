@@ -79,7 +79,7 @@ Anaconda environments
 - Anaconda environments can be created, enabled and disabled by,
   respectively, typing:
 
-  - Create environment: ``conda create -n FOX -c conda-forge python rdkit h5py``
+  - Create environment: ``conda create -n FOX -c conda-forge python rdkit "h5py>=2.10"``
 
   - Enable environment: ``conda activate FOX``
 
