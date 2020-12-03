@@ -143,23 +143,24 @@ __all__ = ['get_best', 'overlay_descriptor', 'plot_descriptor']
 PlotAccessor: type = pd.DataFrame.plot  # A class used by Pandas for plotting stuff
 
 
-def get_best(hdf5_file: Union[str, 'PathLike[str]'],
-             name: str = 'rdf', i: int = 0) -> pd.DataFrame:
+def get_best(hdf5_file: Union[str, 'PathLike[str]'], name: str,
+             i: int = 0, err_dset: str = 'aux_error') -> pd.DataFrame:
     """Return the PES descriptor or ARMC property which yields the lowest error.
 
     Parameters
     ----------
     hdf5_file : :class:`str`
         The path+filename of the ARMC .hdf5 file.
-
     name : :class:`str`
         The name of the PES descriptor, *e.g.* ``"rdf"``.
         Alternatively one can supply an ARMC property such as ``"acceptance"``,
         ``"param"`` or ``"aux_error"``.
-
     i : :class:`int`
         The index of the desired PES.
         Only relevant for PES-descriptors of state-averaged ARMCs.
+    err_dset : :class:`str`
+        The name of the dataset containing the errors.
+        Generally speaking one should pick either ``"aux_error"`` or ``"validation/aux_error"``.
 
     Returns
     -------
@@ -167,20 +168,19 @@ def get_best(hdf5_file: Union[str, 'PathLike[str]'],
         A DataFrame of the optimal PES descriptor or other (user-specified) ARMC property.
 
     """
+    name = name.strip('/')
     full_name = f'{name}.{i}'
     with h5py.File(hdf5_file, 'r', libver='latest') as f:
         if full_name not in f.keys():  # i.e. if **name** does not belong to a PE descriptor
             full_name = name
-        shape = f['aux_error'].shape[:2]
-    if full_name.startswith('/'):
-        full_name = full_name.strip('/')
+        shape = f[err_dset].shape[:2]
 
     # Load the DataFrames
-    if full_name in '/aux_error':
-        aux_error = prop = from_hdf5(hdf5_file, 'aux_error')
+    if full_name in err_dset:
+        aux_error = prop = from_hdf5(hdf5_file, err_dset)
     else:
-        hdf5_dict = from_hdf5(hdf5_file, ['aux_error', full_name])
-        aux_error, prop = hdf5_dict['aux_error'], hdf5_dict[full_name]
+        hdf5_dict = from_hdf5(hdf5_file, [err_dset, full_name])
+        aux_error, prop = hdf5_dict[err_dset], hdf5_dict[full_name]
 
     # Return the best DataFrame (or Series)
     j: int = aux_error.sum(axis=1, skipna=False).idxmin()
@@ -195,20 +195,21 @@ def get_best(hdf5_file: Union[str, 'PathLike[str]'],
 
 
 def overlay_descriptor(hdf5_file: Union[str, 'PathLike[str]'], name: str = 'rdf',
-                       i: int = 0) -> Dict[str, pd.DataFrame]:
+                       i: int = 0, err_dset: str = 'aux_error') -> Dict[str, pd.DataFrame]:
     """Return the PES descriptor which yields the lowest error and overlay it with the reference PES descriptor.
 
     Parameters
     ----------
     hdf5_file : :class:`str`
         The path+filename of the ARMC .hdf5 file.
-
     name : :class:`str`
         The name of the PES descriptor, *e.g.* ``"rdf"``.
-
     i : :class:`int`
         The index of desired PES.
         Only relevant for state-averaged ARMCs.
+    err_dset : :class:`str`
+        The name of the dataset containing the errors.
+        Generally speaking one should pick either ``"aux_error"`` or ``"validation/aux_error"``.
 
     Returns
     -------
@@ -219,12 +220,12 @@ def overlay_descriptor(hdf5_file: Union[str, 'PathLike[str]'], name: str = 'rdf'
 
     """  # noqa
     with h5py.File(hdf5_file, 'r', libver='latest') as f:
-        shape = f['aux_error'].shape[:2]
+        shape = f[err_dset].shape[:2]
 
     mm_name = f'{name}.{i}'
     qm_name = f'{name}.{i}.ref'
-    hdf5_dict = from_hdf5(hdf5_file, ['aux_error', mm_name, qm_name])
-    aux_error, mm, qm = hdf5_dict['aux_error'], hdf5_dict[mm_name], hdf5_dict[qm_name]
+    hdf5_dict = from_hdf5(hdf5_file, [err_dset, mm_name, qm_name])
+    aux_error, mm, qm = hdf5_dict[err_dset], hdf5_dict[mm_name], hdf5_dict[qm_name]
 
     j: int = aux_error.sum(axis=1, skipna=False).idxmin()
     logger.debug(f"Optimum ARMC cycle: {np.unravel_index(j, shape)}")
@@ -254,16 +255,12 @@ def plot_descriptor(descriptor: Union[NDFrame, Iterable[NDFrame]],
     ----------
     descriptor : :class:`pandas.DataFrame` or :class:`Iterable<collections.abc.Iterable>` [:class:`pandas.DataFrame`]
         A DataFrame or an iterable consisting of DataFrames.
-
     show_fig : :class:`bool`
         Whether to show the figure or not.
-
     kind : :class:`str`
         The plot kind to-be passed to :meth:`pandas.DataFrame.plot`.
-
     sharex/sharey : :class:`bool`
         Whether or not the to-be created plots should share their x/y-axes.
-
     \**kwargs : :data:`Any<typing.Any>`
         Further keyword arguments for the :meth:`pandas.DataFrame.plot` method.
 
@@ -276,7 +273,6 @@ def plot_descriptor(descriptor: Union[NDFrame, Iterable[NDFrame]],
     --------
     :func:`get_best`
         Return the PES descriptor or ARMC property which yields the lowest error.
-
     :func:`overlay_descriptor`
         Return the PES descriptor which yields the lowest error and
         overlay it with the reference PES descriptor.
