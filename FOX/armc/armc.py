@@ -153,21 +153,23 @@ class ARMC(MonteCarloABC):
             'hdf5_file': self.hdf5_file,
         }
 
-        # Parse the `pes` block
-        pes: Dict[str, Any] = {}
-        ret['pes'] = pes
-        i_max = 1 + max(int(k.split('.')[-1]) for k in self.pes.keys())
-        for _k, v in self.pes.items():  # type: str, functools.partial # type: ignore[assignment]
-            k, _i = _k.split('.')
-            i = int(_i)
-            try:
-                pes[k]['kwargs'][i] = v.keywords
-            except KeyError:
-                pes[k] = {
-                    'func': f'{v.func.__module__}.{v.func.__qualname__}',
-                    'kwargs': i_max * [None],
-                }
-                pes[k]['kwargs'][i] = v.keywords
+        # Parse the `pes` and `pes_validation` blocks
+        iterator = ((k, getattr(self, k)) for k in ('pes', 'pes_validation'))
+        for name, attr in iterator:
+            pes: Dict[str, Any] = {}
+            ret[name] = pes
+            i_max = 1 + max((int(k.split('.')[-1]) for k in attr.keys()), default=0)
+            for _k, v in attr.items():  # type: str, functools.partial # type: ignore[assignment]
+                k, _i = _k.split('.')
+                i = int(_i)
+                try:
+                    pes[k]['kwargs'][i] = v.keywords
+                except KeyError:
+                    pes[k] = {
+                        'func': f'{v.func.__module__}.{v.func.__qualname__}',
+                        'kwargs': i_max * [None],
+                    }
+                    pes[k]['kwargs'][i] = v.keywords
 
         # Parse the `psf` block
         if psf is None:
@@ -252,10 +254,10 @@ class ARMC(MonteCarloABC):
         _key_new = self._do_inner1(key_old)
 
         # Step 2: Calculate PES descriptors
-        pes_new, mol_list = self._do_inner2()
+        pes_new, pes_validation, mol_list = self._do_inner2()
 
         # Step 3: Evaluate the auxiliary error; accept if the new parameter set lowers the error
-        error_change, aux_new = self._do_inner3(pes_new, key_old)
+        error_change, aux_new, aux_validation = self._do_inner3(pes_new, pes_validation, key_old)
         accept = error_change < 0
 
         # Step 4: Update the auxiliary error history, apply phi & update job settings
@@ -264,7 +266,8 @@ class ARMC(MonteCarloABC):
                                   _key_new, key_old, kappa, omega)
 
         # Step 5: Export the results to HDF5
-        self._do_inner5(mol_list, accept, aux_new, pes_new, kappa, omega)
+        self._do_inner5(mol_list, accept, aux_new, aux_validation,
+                        pes_new, pes_validation, kappa, omega)
         return key_new
 
     def _do_inner1(self, key_old: Key, idx: int = 0) -> Key:
@@ -281,22 +284,23 @@ class ARMC(MonteCarloABC):
 
         return key_new
 
-    def _do_inner2(self) -> Tuple[PesDict, Optional[MolList]]:
+    def _do_inner2(self) -> Tuple[PesDict, PesDict, Optional[MolList]]:
         """Calculate PES-descriptors."""
         return self.get_pes_descriptors()
 
-    def _do_inner3(self, pes_new: PesMapping, key_old: Key) -> Tuple[float, np.ndarray]:
+    def _do_inner3(self, pes_new: PesMapping, pes_validation: PesMapping,
+                   key_old: Key) -> Tuple[float, np.ndarray, np.ndarray]:
         """Evaluate the auxiliary error; accept if the new parameter set lowers the error."""
         self.logger.info("Calculating auxiliary error")
 
         aux_new = self.get_aux_error(pes_new)
+        aux_validation = self.get_aux_error(pes_validation)
         aux_old = self[key_old]
         error_change = (aux_new - aux_old).sum()
-        return error_change, aux_new
+        return error_change, aux_new, aux_validation
 
     def _do_inner4(self, accept: bool, error_change: float, aux_new: np.ndarray,
-                   key_new: Key, key_old: Key,
-                   kappa: int, omega: int) -> Key:
+                   key_new: Key, key_old: Key, kappa: int, omega: int) -> Key:
         """Update the auxiliary error history, apply phi & update job settings."""
         err_round = round(error_change, 4)
         aux_round = round(aux_new.sum(), 4)
@@ -313,10 +317,13 @@ class ARMC(MonteCarloABC):
             self[key_old] = self.apply_phi(self[key_old])
             return key_old
 
-    def _do_inner5(self, mol_list: Optional[MolIter], accept: bool, aux_new: np.ndarray,
-                   pes_new: PesMapping, kappa: int, omega: int) -> None:
+    def _do_inner5(self, mol_list: Optional[MolIter], accept: bool,
+                   aux_new: np.ndarray, aux_validation: np.ndarray,
+                   pes_new: PesMapping, pes_validation: PesMapping,
+                   kappa: int, omega: int) -> None:
         """Export the results to HDF5."""
-        self.to_hdf5(mol_list, accept, aux_new, pes_new, kappa, omega)
+        self.to_hdf5(mol_list, accept, aux_new, aux_validation,
+                     pes_new, pes_validation, kappa, omega)
 
         not_accept = ~np.array(accept, ndmin=1, dtype=bool, copy=False)
         self.param.param.loc[:, not_accept] = self.param.param_old.loc[:, not_accept]
@@ -344,15 +351,15 @@ class ARMC(MonteCarloABC):
 
         """
         key: Key = tuple(self.param.param[idx].values)
-        pes, _ = self.get_pes_descriptors(get_first_key=True)
+        pes, _, _ = self.get_pes_descriptors(get_first_key=True)
 
         self[key] = self.get_aux_error(pes)
         self.param.param_old[idx] = self.param.param[idx]
         return key
 
     def to_hdf5(self, mol_list: Optional[MolIter],
-                accept: bool, aux_new: np.ndarray,
-                pes_new: PesMapping,
+                accept: bool, aux_new: np.ndarray, aux_validation: np.ndarray,
+                pes_new: PesMapping, pes_validation: PesMapping,
                 kappa: int, omega: int) -> None:
         r"""Construct a dictionary with the **hdf5_kwarg** and pass it to :func:`.to_hdf5`.
 
@@ -360,19 +367,18 @@ class ARMC(MonteCarloABC):
         ----------
         mol_list : |List|_ [|FOX.MultiMolecule|_]
             An iterable consisting of :class:`.MultiMolecule` instances (or ``None``).
-
         accept : bool
             Whether or not the latest set of parameters was accepted.
-
         aux_new : |np.ndarray|_
             The latest auxiliary error.
-
+        aux_validation : |np.ndarray|_
+            The latest auxiliary error from the validation.
         pes_new : |dict|_ [|str|_, |np.ndarray|_]
             A dictionary of PES descriptors.
-
+        pes_validation : |dict|_ [|str|_, |np.ndarray|_]
+            A dictionary of PES descriptors from the validation.
         kappa : int
             The super-iteration, :math:`\kappa`, in :meth:`ARMC.__call__`.
-
         omega : int
             The sub-iteration, :math:`\omega`, in :meth:`ARMC.__call__`.
 
@@ -400,9 +406,12 @@ class ARMC(MonteCarloABC):
             'phi': phi,
             'acceptance': accept,
             'aux_error': aux_new,
-            'aux_error_mod': aux_error_mod
+            'aux_error_mod': aux_error_mod,
+            'validation/aux_error': aux_validation,
         }
         hdf5_kwarg.update(pes_new)
+        for k, v in pes_validation.items():
+            hdf5_kwarg[f'validation/{k}'] = v
 
         to_hdf5(self.hdf5_file, hdf5_kwarg, kappa, omega)
 
@@ -438,7 +447,7 @@ class ARMC(MonteCarloABC):
             ret: np.ndarray = (QM - MM)**2
             return ret.sum() / QM.sum()
 
-        length = 1 + max(int(k.rsplit('.')[-1]) for k in pes_dict.keys())
+        length = 1 + max((int(k.rsplit('.')[-1]) for k in pes_dict.keys()), default=0)
 
         generator = (norm_mean(k, v) for k, v in pes_dict.items())
         ret = np.fromiter(generator, dtype=float, count=len(pes_dict))

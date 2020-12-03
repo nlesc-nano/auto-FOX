@@ -54,6 +54,17 @@ Index
     :widths: 30 70
 
     =========================================== =========================================================================================================
+    pes_validation_                             Description
+    =========================================== =========================================================================================================
+    :attr:`pes_validation.block.func`           The callable for performing the Monte Carlo validation.
+    :attr:`pes_validation.block.kwargs`         A dictionary with keyword arguments for :attr:`pes_validation.block.func`.
+    =========================================== =========================================================================================================
+
+.. table::
+    :width: 100%
+    :widths: 30 70
+
+    =========================================== =========================================================================================================
     job_                                        Description
     =========================================== =========================================================================================================
     :attr:`job.type`                            The type of package manager.
@@ -74,6 +85,7 @@ Index
     :attr:`monte_carlo.iter_len`                The total number of ARMC iterations :math:`\kappa \omega`.
     :attr:`monte_carlo.sub_iter_len`            The length of each ARMC subiteration :math:`\omega`.
     :attr:`monte_carlo.logfile`                 The name of the ARMC logfile.
+    :attr:`monte_carlo.hdf5_file`               The name of the ARMC .hdf5 file.
     :attr:`monte_carlo.path`                    The path to the ARMC working directory.
     :attr:`monte_carlo.folder`                  The name of the ARMC working directory.
     :attr:`monte_carlo.keep_files`              Whether to keep *all* raw output files or not.
@@ -391,6 +403,69 @@ each containg the :attr:`func<pes.block.func>` and, optionally,
                         * **Default Value** - ``{}``
 
         A dictionary with keyword arguments for :attr:`func<pes.block.func>`.
+
+
+pes_validation
+~~~~~~~~~~~~~~
+Settings to the construction of potentialy energy surface (PES) validators.
+
+Functions identically w.r.t. to the pes_ block, the exception being that PES descriptors
+calculated herein are do *not* affect the error;
+they are only calculated for the purpose of validation.
+
+This settings block accepts an arbitrary number of sub-blocks,
+each containg the :attr:`func<pes_validation.block.func>` and, optionally,
+:attr:`kwargs<pes_validation.block.kwargs>` keys.
+
+.. admonition:: Examples
+
+    .. code:: yaml
+
+        pes_validation:
+            adf:
+                func: FOX.MultiMolecule.init_adf
+                kwargs:
+                    atom_subset: [Cd, Se]
+                    mol_subset: !!python/object:builtins.slice  # i.e. slice(None, None, 10)
+                    - null
+                    - null
+                    - 10
+
+|
+
+    .. attribute:: pes_validation.block.func
+
+        :Parameter:     * **Type** - :class:`str` or :class:`~collections.abc.Callable`
+
+        A callable for constructing a PES validators.
+
+        The callable should take a :class:`~FOX.classes.multi_mol.MultiMolecule` instance
+        as sole (positional) argument and return an array-like object.
+
+        The structure of this block is identintical to its counterpart in :attr:`pes.block.func`.
+
+        .. important::
+
+            Note that this option has no default value;
+            one *must* be provided by the user.
+
+        .. admonition:: See Also
+
+            :meth:`FOX.MultiMolecule.init_rdf<FOX.classes.multi_mol.MultiMolecule.init_rdf>`
+                Initialize the calculation of radial distribution functions (RDFs).
+
+            :meth:`FOX.MultiMolecule.init_adf<FOX.classes.multi_mol.MultiMolecule.init_adf>`
+                Initialize the calculation of angular distribution functions (ADFs).
+
+
+    .. attribute:: pes_validation.block.kwargs
+
+        :Parameter:     * **Type** - :class:`dict`
+                        * **Default Value** - ``{}``
+
+        A dictionary with keyword arguments for :attr:`func<pes_validation.block.func>`.
+
+        The structure of this block is identintical to its counterpart in :attr:`pes.block.kwargs`.
 
 
 job

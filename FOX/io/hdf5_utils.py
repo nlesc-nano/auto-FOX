@@ -33,6 +33,7 @@ from time import sleep
 from os.path import isfile
 from typing import (
     Dict, Iterable, Optional, Union, List, Tuple, TYPE_CHECKING, Mapping, Any, overload,
+    Generator,
 )
 
 import h5py
@@ -85,11 +86,17 @@ def create_hdf5(filename: PathType, armc: ARMC) -> None:
     """
     # Create a Settings object with the shape and dtype of all datasets
     kwarg_dict = _get_kwarg_dict(armc)
+    kwarg_dict2 = _get_kwarg_dict2(armc)
 
     # Create a hdf5 file with *n* datasets
     with h5py.File(filename, 'w-', libver='latest') as f:
-        for key, kwargs in kwarg_dict.items():
+        for key, kwargs in sorted(kwarg_dict.items(), key=lambda tup: tup[0]):
             f.create_dataset(name=key, compression='gzip', **kwargs)
+
+        group = f.create_group('validation')
+        for key, kwargs in sorted(kwarg_dict2.items(), key=lambda tup: tup[0]):
+            group.create_dataset(name=key, compression='gzip', **kwargs)
+
         f.attrs['super-iteration'] = -1
         f.attrs['sub-iteration'] = -1
         f.attrs['__version__'] = np.fromiter(__version__.split('.'), count=3, dtype=int)
@@ -112,20 +119,28 @@ def create_hdf5(filename: PathType, armc: ARMC) -> None:
     # Store the *index*, *column* and *name* attributes of dataframes/series in the hdf5 file
     kappa = armc.iter_len // armc.sub_iter_len
     idx = armc.param.param[0].index.append(pd.MultiIndex.from_tuples([('', 'phi', '')]))
-    aux_error_idx = list(armc.pes.keys())
+    aux_error_idx = sorted(armc.pes.keys())
 
     pd_dict = {
+        'aux_error': pd.Series(np.nan, index=aux_error_idx, name='aux_error'),
+        'aux_error_mod': pd.Series(np.nan, index=idx, name='aux_error_mod'),
         'param': armc.param.param[0],
         'phi': pd.Series(np.nan, index=np.arange(kappa), name='phi'),
-        'aux_error': pd.Series(np.nan, index=aux_error_idx, name='aux_error'),
-        'aux_error_mod': pd.Series(np.nan, index=idx, name='aux_error_mod')
+    }
+    pd_dict2 = {
+        'aux_error': pd.Series(np.nan, index=sorted(armc.pes_validation.keys()), name='aux_error'),
     }
 
-    for key, partial in armc.pes.items():
-        ref: pd.DataFrame = partial.ref  # type: ignore[attr-defined]
-        pd_dict[key] = ref
-        pd_dict[key + '.ref'] = ref
-    index_to_hdf5(filename, pd_dict)
+    lst = [(armc.pes, pd_dict), (armc.pes_validation, pd_dict2)]
+    for attr, dct in lst:
+        for key, partial in attr.items():
+            ref: pd.DataFrame = partial.ref  # type: ignore[attr-defined]
+            dct[key] = ref
+            dct[key + '.ref'] = ref
+
+    with h5py.File(filename, 'r+', libver='latest') as f:
+        index_to_hdf5(f, pd_dict)
+        index_to_hdf5(f['validation'], pd_dict2)
 
 
 def create_xyz_hdf5(filename: PathType,
@@ -205,15 +220,14 @@ def index_to_hdf5(f: h5py.Group, pd_dict: Dict[str, NDFrame]) -> None:
     """
     attr_tup = ('index', 'columns', 'name')
 
-    with h5py.File(filename, 'r+', libver='latest') as f:
-        for key, value in pd_dict.items():
-            for attr_name in attr_tup:
-                if not hasattr(value, attr_name):
-                    continue
+    for key, value in pd_dict.items():
+        for attr_name in attr_tup:
+            if not hasattr(value, attr_name):
+                continue
 
-                attr = getattr(value, attr_name)
-                i = _attr_to_array(attr).T
-                f[key].attrs.create(attr_name, i)
+            attr = getattr(value, attr_name)
+            i = _attr_to_array(attr).T
+            f[key].attrs.create(attr_name, i)
 
 
 def _get_kwarg_dict(armc: ARMC) -> Settings:
@@ -254,36 +268,59 @@ def _get_kwarg_dict(armc: ARMC) -> Settings:
 
     ret = Settings()  # type: ignore[var-annotated]
     ret.phi.shape = (shape[0], ) + armc.phi.shape
-    ret.phi.dtype = float
+    ret.phi.dtype = np.float64
     ret.phi.fillvalue = np.nan
 
     ret.param.shape = shape + param_shape
-    ret.param.dtype = float
+    ret.param.dtype = np.float64
     ret.param.fillvalue = np.nan
 
     ret.acceptance.shape = shape + armc.phi.shape
-    ret.acceptance.dtype = bool
+    ret.acceptance.dtype = np.bool_
     ret.acceptance.fillvalue = False
 
     ret.aux_error.shape = shape + (len(armc.molecule), len(armc.pes) // len(armc.molecule))
-    ret.aux_error.dtype = float
+    ret.aux_error.dtype = np.float64
     ret.aux_error.fillvalue = np.nan
     ret.aux_error_mod.shape = shape + (param_shape[0], 1 + param_shape[1])
-    ret.aux_error_mod.dtype = float
+    ret.aux_error_mod.dtype = np.float64
     ret.aux_error_mod.fillvalue = np.nan
 
     for key, partial in armc.pes.items():
         ref: pd.DataFrame = partial.ref  # type: ignore[attr-defined]
 
         ret[key].shape = shape + get_shape(ref)
-        ret[key].dtype = float
+        ret[key].dtype = np.float64
         ret[key].fillvalue = np.nan
 
         ret[f'{key}.ref'].shape = get_shape(ref)
-        ret[f'{key}.ref'].dtype = float
+        ret[f'{key}.ref'].dtype = np.float64
         ret[f'{key}.ref'].data = ref
         ret[f'{key}.ref'].fillvalue = np.nan
 
+    return ret
+
+
+def _get_kwarg_dict2(armc: ARMC) -> Settings:
+    ret = Settings()  # type: ignore[var-annotated]
+    shape = armc.iter_len // armc.sub_iter_len, armc.sub_iter_len
+
+    err_shape = shape + (len(armc.molecule), len(armc.pes_validation) // len(armc.molecule))
+    ret.aux_error.shape = err_shape
+    ret.aux_error.dtype = np.float64
+    ret.aux_error.fillvalue = np.nan
+
+    for key, partial in armc.pes_validation.items():
+        ref: pd.DataFrame = partial.ref  # type: ignore[attr-defined]
+
+        ret[key].shape = shape + get_shape(ref)
+        ret[key].dtype = np.float64
+        ret[key].fillvalue = np.nan
+
+        ret[f'{key}.ref'].shape = get_shape(ref)
+        ret[f'{key}.ref'].dtype = np.float64
+        ret[f'{key}.ref'].data = ref
+        ret[f'{key}.ref'].fillvalue = np.nan
     return ret
 
 
