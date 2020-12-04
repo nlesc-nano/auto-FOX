@@ -141,10 +141,12 @@ Parameters
         geometry_opt:
             template: qmflows.templates.geometry.specific.cp2k_mm
             settings:
+                cell_parameters: [50, 50, 50]
                 prm: .../ligand.prm
         md:
             template: qmflows.templates.md.specific.cp2k_mm
             settings:
+                cell_parameters: [50, 50, 50]
                 prm: .../ligand.prm
 
 
