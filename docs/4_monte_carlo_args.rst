@@ -492,11 +492,13 @@ Note that these jobs are executed in the order as provided by the user-input.
                 type: qmflows.cp2k_mm
                 settings:
                     prm: .../ligand.prm
+                    cell_parameters: [50, 50, 50]
                 template: qmflows.templates.geometry.specific.cp2k_mm
             md:
                 type: qmflows.cp2k_mm
                 settings:
                     prm: .../ligand.prm
+                    cell_parameters: [50, 50, 50]
                 template: qmflows.templates.md.specific.cp2k_mm
 
 |
