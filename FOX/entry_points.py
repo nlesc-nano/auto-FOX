@@ -27,12 +27,9 @@ from os.path import isfile, join
 from typing import Optional, List
 
 import yaml
-try:
-    from yaml import CLoader as Loader
-except ImportError:
-    from yaml import Loader
 import h5py
 
+from .yaml import UniqueLoader
 from .armc import dict_to_armc, run_armc
 from .armc.csv_utils import dset_to_csv
 from .armc.plotting import plot_pes_descriptors, plot_param, plot_dset
@@ -68,7 +65,7 @@ def main_armc(args: Optional[list] = None) -> None:
     restart: bool = args_parsed.restart[0]
 
     with open(filename, 'r') as f:
-        dct = yaml.load(f.read(), Loader=Loader)
+        dct = yaml.load(f.read(), Loader=UniqueLoader)
     armc, kwargs = dict_to_armc(dct)
     run_armc(armc, restart=restart, **kwargs)
 

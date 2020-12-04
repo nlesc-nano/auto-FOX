@@ -15,6 +15,7 @@ import yaml
 from nanoutils import delete_finally
 from assertionlib import assertion
 
+from FOX.yaml import UniqueLoader
 from FOX.testing_utils import load_results, compare_hdf5
 from FOX.armc import dict_to_armc, run_armc
 from FOX.armc.sanitization import _sort_atoms
@@ -52,7 +53,7 @@ def test_armc_restart(name: str) -> None:
     """Test the restart functionality of :class:`ARMC` and :class:`ARMCPT`."""
     file = PATH / name
     with open(file, 'r') as f:
-        dct = yaml.load(f.read(), Loader=yaml.FullLoader)
+        dct = yaml.load(f.read(), Loader=UniqueLoader)
 
     sub_iter = 5
     super_iter = 8
@@ -89,7 +90,7 @@ def test_armc_restart(name: str) -> None:
 def test_armc_guess() -> None:
     file = PATH / 'armc_ref.yaml'
     with open(file, 'r') as f:
-        dct = yaml.load(f.read(), Loader=yaml.FullLoader)
+        dct = yaml.load(f.read(), Loader=UniqueLoader)
 
     sigma = dct['param']['lennard_jones'][1]
     del sigma['Cd Cd']
@@ -117,7 +118,7 @@ def test_allow_non_existent() -> None:
     """Test ``param.validation.allow_non_existent``."""
     file = PATH / 'armc_ref.yaml'
     with open(file, 'r') as f:
-        dct = yaml.load(f.read(), Loader=yaml.FullLoader)
+        dct = yaml.load(f.read(), Loader=UniqueLoader)
 
     # Test `param.validation.allow_non_existent`
     dct['param']['charge']['Cl'] = -1
@@ -138,7 +139,7 @@ def test_charge_tolerance() -> None:
     """Test ``param.validation.charge_tolerance``."""
     file = PATH / 'armc_ref.yaml'
     with open(file, 'r') as f:
-        dct = yaml.load(f.read(), Loader=yaml.FullLoader)
+        dct = yaml.load(f.read(), Loader=UniqueLoader)
 
     dct = dct.copy()
     dct['param']['charge']['Cd'] = 2
@@ -161,7 +162,7 @@ def test_armc(name: str) -> None:
     """Test :class:`ARMC` and :class:`ARMCPT`."""
     file = PATH / name
     with open(file, 'r') as f:
-        dct = yaml.load(f.read(), Loader=yaml.FullLoader)
+        dct = yaml.load(f.read(), Loader=UniqueLoader)
 
     armc, job_kwargs = dict_to_armc(dct)
     if name == 'armc_ref.yaml':
@@ -211,7 +212,7 @@ def test_yaml_armc(name: str) -> None:
     """Tests for :meth:`FOX.armc.ARMC.to_yaml_dict`."""
     file = PATH / name
     with open(file, 'r') as f:
-        _dct = yaml.load(f.read(), Loader=yaml.FullLoader)
+        _dct = yaml.load(f.read(), Loader=UniqueLoader)
 
     armc1, job_kwargs1 = dict_to_armc(_dct)
     dct1 = armc1.to_yaml_dict(
