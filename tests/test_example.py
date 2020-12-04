@@ -23,7 +23,7 @@ def test_cp2k_md():
     file = join(PATH, 'armc.yaml')
 
     with open(file, 'r') as f:
-        dct = yaml.load(f.read(), Loader=yaml.FullLoader)
+        dct = yaml.load(f.read(), Loader=yaml.SafeLoader)
     armc, job_kwarg = dict_to_armc(dct)
 
     assertion.isinstance(armc, ARMC)
