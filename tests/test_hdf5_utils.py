@@ -13,6 +13,7 @@ from assertionlib import assertion
 from nanoutils import delete_finally
 
 import FOX
+from FOX.yaml import UniqueLoader
 from FOX.armc import dict_to_armc
 from FOX.io.hdf5_utils import create_hdf5, to_hdf5, from_hdf5, create_xyz_hdf5, recursive_items
 
@@ -24,7 +25,7 @@ def test_create_hdf5():
     """Test :meth:`FOX.io.hdf5_utils.create_hdf5`."""
     yaml_file = PATH / 'armc.yaml'
     with open(yaml_file, 'r') as f:
-        armc, _ = dict_to_armc(yaml.load(f.read(), Loader=yaml.FullLoader))
+        armc, _ = dict_to_armc(yaml.load(f.read(), Loader=UniqueLoader))
     armc.hdf5_file = hdf5_file = PATH / 'test.hdf5'
 
     ref_dict = Settings()
@@ -59,7 +60,7 @@ def test_to_hdf5():
     """Test :meth:`FOX.io.hdf5_utils.to_hdf5`."""
     yaml_file = PATH / 'armc.yaml'
     with open(yaml_file, 'r') as f:
-        armc, _ = dict_to_armc(yaml.load(f.read(), Loader=yaml.FullLoader))
+        armc, _ = dict_to_armc(yaml.load(f.read(), Loader=UniqueLoader))
     armc.hdf5_file = hdf5_file = PATH / 'test.hdf5'
 
     kappa = 5
@@ -192,7 +193,7 @@ def test_from_hdf5():
     """Test :meth:`FOX.io.hdf5_utils.from_hdf5`."""
     yaml_file = PATH / 'armc.yaml'
     with open(yaml_file, 'r') as f:
-        armc, _ = dict_to_armc(yaml.load(f.read(), Loader=yaml.FullLoader))
+        armc, _ = dict_to_armc(yaml.load(f.read(), Loader=UniqueLoader))
     armc.hdf5_file = hdf5_file = PATH / 'test.hdf5'
 
     kappa = 0
