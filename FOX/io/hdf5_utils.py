@@ -33,6 +33,7 @@ from time import sleep
 from os.path import isfile
 from typing import (
     Dict, Iterable, Optional, Union, List, Tuple, TYPE_CHECKING, Mapping, Any, overload,
+    Generator,
 )
 
 import h5py
@@ -52,7 +53,8 @@ if TYPE_CHECKING:
 else:
     from ..type_alias import File, NDFrame, MultiMolecule, ARMC
 
-__all__ = ['create_hdf5', 'create_xyz_hdf5', 'to_hdf5', 'from_hdf5']
+__all__ = ['create_hdf5', 'create_xyz_hdf5', 'to_hdf5', 'from_hdf5',
+           'recursive_keys', 'recursive_values', 'recursive_items']
 
 """################################### Creating .hdf5 files ####################################"""
 
@@ -84,11 +86,17 @@ def create_hdf5(filename: PathType, armc: ARMC) -> None:
     """
     # Create a Settings object with the shape and dtype of all datasets
     kwarg_dict = _get_kwarg_dict(armc)
+    kwarg_dict2 = _get_kwarg_dict2(armc)
 
     # Create a hdf5 file with *n* datasets
     with h5py.File(filename, 'w-', libver='latest') as f:
-        for key, kwargs in kwarg_dict.items():
+        for key, kwargs in sorted(kwarg_dict.items(), key=lambda tup: tup[0]):
             f.create_dataset(name=key, compression='gzip', **kwargs)
+
+        group = f.create_group('validation')
+        for key, kwargs in sorted(kwarg_dict2.items(), key=lambda tup: tup[0]):
+            group.create_dataset(name=key, compression='gzip', **kwargs)
+
         f.attrs['super-iteration'] = -1
         f.attrs['sub-iteration'] = -1
         f.attrs['__version__'] = np.fromiter(__version__.split('.'), count=3, dtype=int)
@@ -111,20 +119,28 @@ def create_hdf5(filename: PathType, armc: ARMC) -> None:
     # Store the *index*, *column* and *name* attributes of dataframes/series in the hdf5 file
     kappa = armc.iter_len // armc.sub_iter_len
     idx = armc.param.param[0].index.append(pd.MultiIndex.from_tuples([('', 'phi', '')]))
-    aux_error_idx = list(armc.pes.keys())
+    aux_error_idx = sorted(armc.pes.keys())
 
     pd_dict = {
+        'aux_error': pd.Series(np.nan, index=aux_error_idx, name='aux_error'),
+        'aux_error_mod': pd.Series(np.nan, index=idx, name='aux_error_mod'),
         'param': armc.param.param[0],
         'phi': pd.Series(np.nan, index=np.arange(kappa), name='phi'),
-        'aux_error': pd.Series(np.nan, index=aux_error_idx, name='aux_error'),
-        'aux_error_mod': pd.Series(np.nan, index=idx, name='aux_error_mod')
+    }
+    pd_dict2 = {
+        'aux_error': pd.Series(np.nan, index=sorted(armc.pes_validation.keys()), name='aux_error'),
     }
 
-    for key, partial in armc.pes.items():
-        ref: pd.DataFrame = partial.ref  # type: ignore[attr-defined]
-        pd_dict[key] = ref
-        pd_dict[key + '.ref'] = ref
-    index_to_hdf5(filename, pd_dict)
+    lst = [(armc.pes, pd_dict), (armc.pes_validation, pd_dict2)]
+    for attr, dct in lst:
+        for key, partial in attr.items():
+            ref: pd.DataFrame = partial.ref  # type: ignore[attr-defined]
+            dct[key] = ref
+            dct[key + '.ref'] = ref
+
+    with h5py.File(filename, 'r+', libver='latest') as f:
+        index_to_hdf5(f, pd_dict)
+        index_to_hdf5(f['validation'], pd_dict2)
 
 
 def create_xyz_hdf5(filename: PathType,
@@ -174,7 +190,7 @@ def create_xyz_hdf5(filename: PathType,
             f[key].attrs['bonds'] = mol.bonds
 
 
-def index_to_hdf5(filename: PathType, pd_dict: Dict[str, NDFrame]) -> None:
+def index_to_hdf5(f: h5py.Group, pd_dict: Dict[str, NDFrame]) -> None:
     """Store the ``index`` and ``columns`` / ``name`` attributes of **pd_dict** in hdf5 format.
 
     Attributes are exported for all dataframes/series in **pd_dict** and skipped otherwise.
@@ -204,15 +220,14 @@ def index_to_hdf5(filename: PathType, pd_dict: Dict[str, NDFrame]) -> None:
     """
     attr_tup = ('index', 'columns', 'name')
 
-    with h5py.File(filename, 'r+', libver='latest') as f:
-        for key, value in pd_dict.items():
-            for attr_name in attr_tup:
-                if not hasattr(value, attr_name):
-                    continue
+    for key, value in pd_dict.items():
+        for attr_name in attr_tup:
+            if not hasattr(value, attr_name):
+                continue
 
-                attr = getattr(value, attr_name)
-                i = _attr_to_array(attr).T
-                f[key].attrs.create(attr_name, i)
+            attr = getattr(value, attr_name)
+            i = _attr_to_array(attr).T
+            f[key].attrs.create(attr_name, i)
 
 
 def _get_kwarg_dict(armc: ARMC) -> Settings:
@@ -253,36 +268,59 @@ def _get_kwarg_dict(armc: ARMC) -> Settings:
 
     ret = Settings()  # type: ignore[var-annotated]
     ret.phi.shape = (shape[0], ) + armc.phi.shape
-    ret.phi.dtype = float
+    ret.phi.dtype = np.float64
     ret.phi.fillvalue = np.nan
 
     ret.param.shape = shape + param_shape
-    ret.param.dtype = float
+    ret.param.dtype = np.float64
     ret.param.fillvalue = np.nan
 
     ret.acceptance.shape = shape + armc.phi.shape
-    ret.acceptance.dtype = bool
+    ret.acceptance.dtype = np.bool_
     ret.acceptance.fillvalue = False
 
     ret.aux_error.shape = shape + (len(armc.molecule), len(armc.pes) // len(armc.molecule))
-    ret.aux_error.dtype = float
+    ret.aux_error.dtype = np.float64
     ret.aux_error.fillvalue = np.nan
     ret.aux_error_mod.shape = shape + (param_shape[0], 1 + param_shape[1])
-    ret.aux_error_mod.dtype = float
+    ret.aux_error_mod.dtype = np.float64
     ret.aux_error_mod.fillvalue = np.nan
 
     for key, partial in armc.pes.items():
         ref: pd.DataFrame = partial.ref  # type: ignore[attr-defined]
 
         ret[key].shape = shape + get_shape(ref)
-        ret[key].dtype = float
+        ret[key].dtype = np.float64
         ret[key].fillvalue = np.nan
 
         ret[f'{key}.ref'].shape = get_shape(ref)
-        ret[f'{key}.ref'].dtype = float
+        ret[f'{key}.ref'].dtype = np.float64
         ret[f'{key}.ref'].data = ref
         ret[f'{key}.ref'].fillvalue = np.nan
 
+    return ret
+
+
+def _get_kwarg_dict2(armc: ARMC) -> Settings:
+    ret = Settings()  # type: ignore[var-annotated]
+    shape = armc.iter_len // armc.sub_iter_len, armc.sub_iter_len
+
+    err_shape = shape + (len(armc.molecule), len(armc.pes_validation) // len(armc.molecule))
+    ret.aux_error.shape = err_shape
+    ret.aux_error.dtype = np.float64
+    ret.aux_error.fillvalue = np.nan
+
+    for key, partial in armc.pes_validation.items():
+        ref: pd.DataFrame = partial.ref  # type: ignore[attr-defined]
+
+        ret[key].shape = shape + get_shape(ref)
+        ret[key].dtype = np.float64
+        ret[key].fillvalue = np.nan
+
+        ret[f'{key}.ref'].shape = get_shape(ref)
+        ret[f'{key}.ref'].dtype = np.float64
+        ret[f'{key}.ref'].data = ref
+        ret[f'{key}.ref'].fillvalue = np.nan
     return ret
 
 
@@ -434,6 +472,28 @@ def _xyz_to_hdf5(filename: PathType, omega: int,
 """#################################### Reading .hdf5 files ####################################"""
 
 
+def recursive_keys(f: h5py.Group) -> Generator[str, None, None]:
+    """Recursively iterate through all keys in **f**."""
+    for k, v in f.items():
+        if isinstance(v, h5py.Dataset):
+            yield v.name
+        else:
+            for _v in recursive_keys(v):
+                yield _v
+
+
+def recursive_values(f: h5py.Group) -> Generator[h5py.Dataset, None, None]:
+    """Recursively iterate through all values in **f**."""
+    for k in recursive_keys(f):
+        yield f[k]
+
+
+def recursive_items(f: h5py.Group) -> Generator[Tuple[str, h5py.Dataset], None, None]:
+    """Recursively iterate through all key/value pairs in **f**."""
+    for k in recursive_keys(f):
+        yield k, f[k]
+
+
 @overload
 def from_hdf5(filename: PathType, datasets: str) -> Union[pd.DataFrame, pd.Series]:
     ...
@@ -470,19 +530,22 @@ def from_hdf5(filename, datasets=None):  # noqa: E302
 
         # Identify the to-be returned datasets
         as_dict = True
-        if isinstance(datasets, str):
-            as_dict = False
-            datasets_: Iterable[str] = (datasets,)
-        elif datasets is None:
-            datasets_ = f.keys()
-        else:
-            datasets_ = datasets  # type: ignore
+        try:
+            if isinstance(datasets, str):
+                as_dict = False
+                datasets_: Iterable[str] = (f[datasets].name,)
+            elif datasets is None:
+                datasets_ = recursive_keys(f)
+            else:
+                datasets_ = [f[k].name for k in datasets]  # type: ignore
+        except KeyError as ex:
+            raise KeyError(f"No dataset {ex} in {filename!r}") from None
 
         # Retrieve the datasets
         try:
-            ret = {key: _get_dset(f, key) for key in datasets_}
-        except KeyError as ex:
-            raise KeyError(f"No dataset {ex} in {filename!r}") from None
+            ret = {key.strip('/'): _get_dset(f, key) for key in datasets_}
+        except AttributeError:
+            raise ValueError('Illegal "Group" key; only "Dataset" keys are accepted') from None
         for k, v in ret.items():
             if k != 'param_metadata':
                 ret[k] = v[:i]
@@ -513,13 +576,13 @@ def _get_dset(f: File, key: str) -> Union[pd.Series, pd.DataFrame, List[pd.DataF
         A NumPy array or a Pandas DataFrame or Series retrieved from **key** in **f**.
 
     """
-    if key == 'phi':
+    if key == '/phi':
         return _phi_to_df(f, key)
-    elif key == 'aux_error':
+    elif key == '/aux_error':
         return _aux_err_to_df(f, key)
-    elif key == 'param_metadata':
+    elif key == '/param_metadata':
         return _metadata_to_df(f, key)
-    elif key == 'acceptance':
+    elif key == '/acceptance':
         return _acceptance_to_df(f, key)
 
     elif 'columns' in f[key].attrs.keys():
@@ -687,7 +750,7 @@ def dset_to_series(f: File, key: str) -> Union[pd.Series, pd.DataFrame]:
 
     """
     name = f[key].attrs['name'][0].decode()
-    index = array_to_index(f[key].attrs['index'][:])
+    index = array_to_index(f[key].attrs['index'])
     data = f[key][:]
     data.shape = np.product(data.shape[:-1], dtype=int), -1
 

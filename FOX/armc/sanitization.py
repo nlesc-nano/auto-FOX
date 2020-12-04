@@ -127,6 +127,10 @@ def dict_to_armc(input_dict: MainMapping) -> Tuple[MonteCarloABC, RunDict]:
     pes = get_pes(dct['pes'])
     for name, kwargs in pes.items():
         mc.add_pes_evaluator(name, **kwargs)  # type: ignore[call-overload]
+
+    pes2 = get_pes(dct['pes_validation'])
+    for name, kwargs in pes2.items():
+        mc.add_pes_evaluator(name, validation=True, **kwargs)  # type: ignore[call-overload]
     return mc, run_kwargs
 
 

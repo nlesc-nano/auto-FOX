@@ -535,6 +535,12 @@ main_schema = Schema({
         error=Formatter(f"'job' expected a Mapping{EPILOG}")
     ),
 
+    Optional_('pes_validation', default=dict): Or(
+        abc.MutableMapping,
+        And(abc.Mapping, Use(dict)),
+        error=Formatter(f"'pes_validation' expected a Mapping{EPILOG}")
+    ),
+
     Optional_('monte_carlo', default=dict): Or(
         And(None, Default(dict)),
         abc.MutableMapping,
@@ -567,6 +573,7 @@ class _MainMapping(TypedDict):
 class MainMapping(_MainMapping, total=False):
     """A :class:`~typing.TypedDict` representing the input of :data:`main_schema`."""
 
+    pes_validation: Mapping[str, PESMapping]
     monte_carlo: Optional[MCMapping]
     phi: Optional[PhiMapping]
     psf: Optional[PSFMapping]
@@ -577,6 +584,7 @@ class MainDict(TypedDict):
 
     param: ParamMapping_
     pes: Dict[str, PESMapping]
+    pes_validation: Dict[str, PESMapping]
     job: JobMapping
     monte_carlo: MCMapping
     phi: PhiMapping

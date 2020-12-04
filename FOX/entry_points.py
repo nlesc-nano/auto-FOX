@@ -27,6 +27,10 @@ from os.path import isfile, join
 from typing import Optional, List
 
 import yaml
+try:
+    from yaml import CLoader as Loader
+except ImportError:
+    from yaml import Loader
 import h5py
 
 from .armc import dict_to_armc, run_armc
@@ -64,7 +68,7 @@ def main_armc(args: Optional[list] = None) -> None:
     restart: bool = args_parsed.restart[0]
 
     with open(filename, 'r') as f:
-        dct = yaml.safe_load(f.read())
+        dct = yaml.load(f.read(), Loader=Loader)
     armc, kwargs = dict_to_armc(dct)
     run_armc(armc, restart=restart, **kwargs)
 

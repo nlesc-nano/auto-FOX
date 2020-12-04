@@ -55,6 +55,7 @@ class MonteCarloABC(AbstractDataClass, ABC, Mapping[Key, np.ndarray]):
     keep_files: bool
     hdf5_file: Union[str, 'PathLike[str]']
     pes: Dict[str, GetPesDescriptor]
+    pes_validation: Dict[str, GetPesDescriptor]
     swap_phi: Optional[Callable[..., Any]]
     HAS_LOOP: ClassVar[bool] = False
 
@@ -121,6 +122,7 @@ class MonteCarloABC(AbstractDataClass, ABC, Mapping[Key, np.ndarray]):
 
         # Internally set attributes
         self.pes = {}
+        self.pes_validation = {}
         self._data: Dict[Key, np.ndarray] = {}
 
     @AbstractDataClass.inherit_annotations()
@@ -197,11 +199,11 @@ class MonteCarloABC(AbstractDataClass, ABC, Mapping[Key, np.ndarray]):
 
     @overload
     def add_pes_evaluator(self, name: str, func: GetPesDescriptor, args: Sequence,
-                          kwargs: Mapping[str, Any]) -> None: ...
+                          kwargs: Mapping[str, Any], validation: bool = ...) -> None: ...
     @overload  # noqa: E301
     def add_pes_evaluator(self, name: str, func: GetPesDescriptor, args: Sequence,
-                          kwargs: Iterable[Mapping[str, Any]]) -> None: ...
-    def add_pes_evaluator(self, name, func, args=(), kwargs=EMPTY_MAPPING) -> None:  # noqa: E301
+                          kwargs: Iterable[Mapping[str, Any]], validation: bool = ...) -> None: ...
+    def add_pes_evaluator(self, name, func, args=(), kwargs=EMPTY_MAPPING, validation=False):  # noqa: E301, E501
         r"""Add a callable to this instance for constructing PES-descriptors.
 
         Examples
@@ -225,19 +227,18 @@ class MonteCarloABC(AbstractDataClass, ABC, Mapping[Key, np.ndarray]):
         ----------
         name : str
             The name under which the PES-descriptor will be stored (*e.g.* ``"RDF"``).
-
         func : Callable
             The callable for constructing the PES-descriptor.
             The callable should take an array-like object as input and
             return a new array-like object as output.
-
         args : :class:`~collections.abc.Sequence`
             A sequence of positional arguments.
-
         kwargs : :class:`dict` or :class:`~collections.abc.Iterable` [:class:`dict`]
             A dictionary or an iterable of dictionaries with keyword arguments.
             Providing an iterable allows one to use a unique set of keyword arguments for each
             molecule in :attr:`MonteCarlo.molecule`.
+        validation : :class:`bool`
+            Whether the PES-descriptor is used exclusively for validation or not.
 
         """
         mol_list = [m.copy() for _ in self.param.move_range for m in self.molecule]
@@ -252,7 +253,10 @@ class MonteCarloABC(AbstractDataClass, ABC, Mapping[Key, np.ndarray]):
         for i, (mol, kwarg) in enumerate(iterator):
             f2 = wraps(func)(partial(func, *args, **kwarg))
             f2.ref = f2(mol)
-            self.pes[f'{name}.{i}'] = f2
+            if validation:
+                self.pes_validation[f'{name}.{i}'] = f2
+            else:
+                self.pes[f'{name}.{i}'] = f2
 
     @abstractmethod
     def __call__(self, **kwargs: Any) -> None:
@@ -358,8 +362,13 @@ class MonteCarloABC(AbstractDataClass, ABC, Mapping[Key, np.ndarray]):
 
         return cast(Key, tuple(self.param.param[idx_].values))
 
-    def get_pes_descriptors(self, get_first_key: bool = False,
-                            ) -> Tuple[Dict[str, ArrayOrScalar], Optional[List[MultiMolecule]]]:
+    def get_pes_descriptors(
+        self, get_first_key: bool = False,
+    ) -> Tuple[
+        Dict[str, ArrayOrScalar],
+        Dict[str, ArrayOrScalar],
+        Optional[List[MultiMolecule]],
+    ]:
         """Check if a **key** is already present in **history_dict**.
 
         If ``True``, return the matching list of PES descriptors;
@@ -385,20 +394,27 @@ class MonteCarloABC(AbstractDataClass, ABC, Mapping[Key, np.ndarray]):
         mol_list = self.run_jobs()
 
         if mol_list is None:  # The MD simulation crashed
-            ret = {key: np.inf for key in self.pes.keys()}
+            ret1 = {key: np.inf for key in self.pes.keys()}
+            ret2 = ret1.copy()
         else:
             self.logger.info("Applying PES post-processing")
             for func1 in self.pes_post_process:
                 func1(mol_list, self)  # Post-process the MultiMolecules
 
-            ret = {}
+            ret1 = {}
             for (k, func2), mol in zip(self.pes.items(), cycle(mol_list)):
                 _k, i = k.rsplit(".", maxsplit=1)
-                self.logger.info(f"Calculating descriptor {_k!r} for PES {i}")
-                ret[k] = func2(mol)
+                self.logger.info(f"Calculating descriptor {_k} for PES {i}")
+                ret1[k] = func2(mol)
+
+            ret2 = {}
+            for (k, func2), mol in zip(self.pes_validation.items(), cycle(mol_list)):
+                _k, i = k.rsplit(".", maxsplit=1)
+                self.logger.debug(f"Calculating validation descriptor {_k} for PES {i}")
+                ret2[k] = func2(mol)
 
         if not (get_first_key or self.keep_files):
             self.logger.info("Clearing jobs")
             self.clear_jobs()
 
-        return ret, mol_list
+        return ret1, ret2, mol_list

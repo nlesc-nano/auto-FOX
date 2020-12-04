@@ -20,10 +20,7 @@ def test_get_best() -> None:
     for name in keys:
         ref = np.load(PATH / f'{name}.npy')
         value = get_best(HDF5, name=name)
-        try:
-            np.testing.assert_allclose(value.values, ref)
-        except AttributeError:  # value is a float
-            np.testing.assert_allclose(value, ref)
+        np.testing.assert_allclose(value, ref, err_msg=name)
 
     assertion.assert_(get_best, HDF5, name='bob', exception=KeyError)
     assertion.assert_(get_best, HDF5, name='rdf', i=1, exception=KeyError)

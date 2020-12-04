@@ -196,10 +196,10 @@ class ARMCPT(ARMC):
         _key_new = [self._do_inner1(key, i) for i, key in enumerate(key_old)]
 
         # Step 2: Calculate PES descriptors
-        pes_new, mol_list = self._do_inner2()
+        pes_new, pes_validation, mol_list = self._do_inner2()
 
         # Step 3: Evaluate the auxiliary error; accept if the new parameter set lowers the error
-        error_change, aux_new = self._do_inner3(pes_new, key_old)
+        error_change, aux_new, aux_validation = self._do_inner3(pes_new, pes_validation, key_old)
         accept: np.ndarray = error_change < 0
 
         # Step 4: Update the auxiliary error history, apply phi & update job settings
@@ -208,16 +208,18 @@ class ARMCPT(ARMC):
                                   _key_new, key_old, kappa, omega)
 
         # Step 5: Export the results to HDF5
-        self._do_inner5(mol_list, accept, aux_new.T, pes_new, kappa, omega)
+        self._do_inner5(mol_list, accept, aux_new.T, aux_validation.T,
+                        pes_new, pes_validation, kappa, omega)
         return key_new
 
-    def _do_inner3(self, pes_new: PesMapping,
-                   key_old: Iterable[Key]) -> Tuple[np.ndarray, np.ndarray]:
+    def _do_inner3(self, pes_new: PesMapping, pes_validation: PesMapping,
+                   key_old: Iterable[Key]) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
         """Evaluate the auxiliary error; accept if the new parameter set lowers the error."""
         aux_new = self.get_aux_error(pes_new)
+        aux_validation = self.get_aux_error(pes_validation)
         aux_old = np.array([self[k] for k in key_old])
         error_change = (aux_new - aux_old).sum(axis=-1)
-        return error_change, aux_new
+        return error_change, aux_new, aux_validation
 
     def _do_inner4(self, accept: Iterable[bool], error_change: Iterable[bool],
                    aux_new: Iterable[np.ndarray],
