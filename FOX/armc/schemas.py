@@ -16,8 +16,8 @@ import os
 from functools import partial
 from collections import abc
 from typing import (
-    Any, SupportsInt, Type, Mapping, Collection, Sequence, SupportsFloat,
-    Callable, Union, Optional, Tuple, FrozenSet, Iterable, Dict, TypeVar
+    Any, SupportsInt, Type, Mapping, Collection, Sequence, SupportsFloat, Generator,
+    Callable, Union, Optional, Tuple, FrozenSet, Iterable, Dict, TypeVar, List
 )
 
 import numpy as np
@@ -368,6 +368,14 @@ class JobDict(TypedDict):
     molecule: Tuple[MultiMolecule, ...]
 
 
+def _parse_settings_sequence(seq: Sequence[Mapping]) -> Generator[QmSettings, None, None]:
+    for n in seq:
+        if isinstance(n, abc.Mapping):
+            yield QmSettings(n)
+        else:
+            raise TypeError(f"Expected a Mapping; observed type: {n.__class__.__name__}")
+
+
 #: Schema for validating sub blocks within the ``"job"`` block.
 sub_job_schema = Schema({
     Optional_('type', default=lambda: cp2k_mm): Or(
@@ -377,9 +385,10 @@ sub_job_schema = Schema({
         error=Formatter(f"'job.*.type' expected a Package instance{EPILOG}")
     ),
 
-    Optional_('settings', default=QmSettings): Or(
-        And(None, Default(QmSettings)),
-        And(abc.Mapping, Use(QmSettings)),
+    Optional_('settings', default=[QmSettings()]): Or(
+        And(None, Default([QmSettings()])),
+        And(abc.Mapping, Use(lambda n: list(_parse_settings_sequence([n])))),
+        And(abc.Sequence, Use(lambda seq: list(_parse_settings_sequence(seq)))),
         error=Formatter(f"'job.*.settings' expected a Mapping{EPILOG}")
     ),
 
@@ -387,7 +396,7 @@ sub_job_schema = Schema({
         And(None, Default(QmSettings)),
         And(str, Use(lambda n: QmSettings(import_mapping(n)))),
         And(abc.Mapping, Use(QmSettings)),
-        error=Formatter(f"'job.*.template' expected a Mapping{EPILOG}")
+        error=Formatter(f"'job.*.template' expected a string or a Mapping{EPILOG}")
     )
 }, name='sub_job_schema', description='Schema for validating sub blocks within the "job" block.')
 
@@ -396,7 +405,7 @@ class SubJobMapping(TypedDict, total=False):
     """A :class:`~typing.TypedDict` representing the input of :data:`sub_job_schema`."""
 
     type: Union[None, str, Type[Package]]
-    settings: Optional[Mapping]
+    settings: Union[None, Mapping, Sequence[Mapping]]
     template: Union[None, str, Mapping]
 
 
@@ -404,7 +413,7 @@ class SubJobDict(TypedDict):
     """A :class:`~typing.TypedDict` representing the output of :data:`sub_job_schema`."""
 
     type: Type[Package]
-    settings: QmSettings
+    settings: List[QmSettings]
     template: QmSettings
 
 

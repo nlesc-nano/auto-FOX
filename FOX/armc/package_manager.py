@@ -276,12 +276,15 @@ class PackageManagerABC(ABC, Mapping[str, Value]):
             'molecule': [],
         }
 
-        for k, (v, *_) in self.items():
-            dct = v['settings'].as_dict()
-            for k_param in set(dct.keys()):
-                if isinstance(dct[k_param], pd.DataFrame):
-                    del dct[k_param]
-            ret[k] = {'type': f'qmflows.{v["type"].pkg_name}', 'settings': dct}
+        for k, v_tup in self.items():
+            lst: List[Dict[Any, Any]] = []
+            for v in v_tup:
+                dct = v['settings'].as_dict()
+                for k_param, v_param in list(dct.items()):
+                    if isinstance(v_param, pd.DataFrame):
+                        del dct[k_param]
+                lst.append(dct)
+            ret[k] = {'type': f'qmflows.{v["type"].pkg_name}', 'settings': lst}
         return ret
 
 
@@ -411,6 +414,3 @@ class PackageManager(PackageManagerABC):
                 logger.warning(ex)
                 return None
         return ret
-
-
-PackageManager.__doc__ = PackageManagerABC.__doc__

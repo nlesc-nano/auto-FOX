@@ -36,7 +36,7 @@ from .schemas import (
     validate_phi, validate_pes, validate_monte_carlo, validate_psf,
     validate_job, validate_sub_job, validate_param, validate_main,
     PESDict, PESMapping, PhiMapping, MainMapping, ParamMapping_, MCMapping,
-    PSFMapping, JobMapping, ValidationDict, validation_schema
+    PSFMapping, JobMapping, ValidationDict, validation_schema, SubJobMapping
 )
 
 from ..utils import get_atom_count
@@ -235,7 +235,7 @@ def get_package(dct: JobMapping, phi: Iterable) -> Tuple[PackageManager, Tuple[M
         A PackageManager and a tuple of MultiMolecules.
 
     """
-    _sub_pkg_dict: Dict[str, Any] = split_dict(  # type: ignore[call-overload]
+    _sub_pkg_dict: Dict[str, SubJobMapping] = split_dict(  # type: ignore[call-overload]
         dct, preserve_order=True, keep_keys={'type', 'molecule'}
     )
 
@@ -245,14 +245,23 @@ def get_package(dct: JobMapping, phi: Iterable) -> Tuple[PackageManager, Tuple[M
     data: Dict[str, List[PkgDict]] = {}
     for k, v in _sub_pkg_dict.items():
         data[k] = []
-        for _ in phi:
-            for mol in mol_list:
-                kwargs = validate_sub_job(v)
-                kwargs['molecule'] = mol.copy()  # type: ignore[misc]
+        kwargs = validate_sub_job(v)
 
-                pkg_name = kwargs['type'].pkg_name
-                kwargs['settings'].specific[pkg_name].soft_update(kwargs.pop('template'))  # type: ignore[misc] # noqa: E501
-                data[k].append(kwargs)  # type: ignore[arg-type]
+        s_list = kwargs['settings']
+        if len(s_list) == 1:
+            kwargs['settings'] = [s_list[0].copy() for _ in mol_list]
+        else:
+            assert len(s_list) == len(mol_list)
+
+        for _ in phi:
+            for i, mol in enumerate(mol_list):
+                kwargs2 = kwargs.copy()
+                kwargs2['molecule'] = mol.copy()  # type: ignore[misc]
+
+                pkg_name = kwargs2['type'].pkg_name
+                kwargs2['settings'] = s_list[i]
+                kwargs2['settings'].specific[pkg_name].soft_update(kwargs2.pop('template'))  # type: ignore[misc] # noqa: E501
+                data[k].append(kwargs2)  # type: ignore[arg-type]
 
     pkg_type = job_dict['type']
     return pkg_type(data), job_dict['molecule']  # type: ignore[return-value]
