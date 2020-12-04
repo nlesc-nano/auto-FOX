@@ -19,6 +19,11 @@ jobs:
             matrix:
                 os: [ubuntu-latest, macos-latest, windows-latest]
                 version: [3.7, 3.8]
+                pre: [false]
+                include:
+                    - os: ubuntu-latest
+                      pre: true
+                      version: 3.8
 
         steps:
             - name: Cancel Previous Runs
@@ -43,7 +48,14 @@ jobs:
               run: conda install -c conda-forge "h5py>=2.10" rdkit numpy
 
             - name: Install dependencies
+              if: matrix.pre == false
               run: pip install -e .[test]
+              env:
+                CONDA_PREFIX: /usr/share/miniconda
+
+            - name: Install dependencies (pre-release)
+              if: matrix.pre == true
+              run: pip install --pre -e .[test]
               env:
                 CONDA_PREFIX: /usr/share/miniconda
 
