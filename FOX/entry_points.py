@@ -28,8 +28,8 @@ from typing import Optional, List
 
 import yaml
 import h5py
+from nanoutils import UniqueLoader
 
-from .yaml import UniqueLoader
 from .armc import dict_to_armc, run_armc
 from .armc.csv_utils import dset_to_csv
 from .armc.plotting import plot_pes_descriptors, plot_param, plot_dset
