@@ -34,9 +34,8 @@ from assertionlib import assertion
 from scm.plams import Molecule
 from qmflows import Settings as QmSettings
 from qmflows.packages.cp2k_mm import CP2KMM_Result
-from nanoutils import Literal, PathType
+from nanoutils import Literal, PathType, recursive_keys
 
-from .io.hdf5_utils import recursive_keys
 from .functions.cp2k_utils import get_xyz_path
 
 if TYPE_CHECKING:

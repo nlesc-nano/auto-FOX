@@ -96,7 +96,7 @@ setup(
     ],
     python_requires='>=3.7',
     install_requires=[
-        'Nano-Utils>=1.1',
+        'Nano-Utils>=1.2',
         'pyyaml>=5.1',
         'numpy',
         'scipy',

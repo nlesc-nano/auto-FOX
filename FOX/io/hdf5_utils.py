@@ -33,14 +33,13 @@ from time import sleep
 from os.path import isfile
 from typing import (
     Dict, Iterable, Optional, Union, List, Tuple, TYPE_CHECKING, Mapping, Any, overload,
-    Generator,
 )
 
 import h5py
 import numpy as np
 import pandas as pd
 from scm.plams import Settings
-from nanoutils import PathType, group_by_values
+from nanoutils import PathType, group_by_values, recursive_keys
 
 from ..__version__ import __version__
 from ..utils import get_shape, array_to_index
@@ -53,8 +52,7 @@ if TYPE_CHECKING:
 else:
     from ..type_alias import File, NDFrame, MultiMolecule, ARMC
 
-__all__ = ['create_hdf5', 'create_xyz_hdf5', 'to_hdf5', 'from_hdf5',
-           'recursive_keys', 'recursive_values', 'recursive_items']
+__all__ = ['create_hdf5', 'create_xyz_hdf5', 'to_hdf5', 'from_hdf5']
 
 """################################### Creating .hdf5 files ####################################"""
 
@@ -470,28 +468,6 @@ def _xyz_to_hdf5(filename: PathType, omega: int,
 
 
 """#################################### Reading .hdf5 files ####################################"""
-
-
-def recursive_keys(f: h5py.Group) -> Generator[str, None, None]:
-    """Recursively iterate through all keys in **f**."""
-    for k, v in f.items():
-        if isinstance(v, h5py.Dataset):
-            yield v.name
-        else:
-            for _v in recursive_keys(v):
-                yield _v
-
-
-def recursive_values(f: h5py.Group) -> Generator[h5py.Dataset, None, None]:
-    """Recursively iterate through all values in **f**."""
-    for k in recursive_keys(f):
-        yield f[k]
-
-
-def recursive_items(f: h5py.Group) -> Generator[Tuple[str, h5py.Dataset], None, None]:
-    """Recursively iterate through all key/value pairs in **f**."""
-    for k in recursive_keys(f):
-        yield k, f[k]
 
 
 @overload

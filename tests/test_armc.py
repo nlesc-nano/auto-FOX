@@ -12,10 +12,9 @@ import numpy as np
 import pandas as pd
 import h5py
 import yaml
-from nanoutils import delete_finally
+from nanoutils import delete_finally, UniqueLoader
 from assertionlib import assertion
 
-from FOX.yaml import UniqueLoader
 from FOX.testing_utils import load_results, compare_hdf5
 from FOX.armc import dict_to_armc, run_armc
 from FOX.armc.sanitization import _sort_atoms

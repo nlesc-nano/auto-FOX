@@ -10,12 +10,11 @@ import pandas as pd
 
 from scm.plams import Settings
 from assertionlib import assertion
-from nanoutils import delete_finally
+from nanoutils import delete_finally, recursive_items, UniqueLoader
 
 import FOX
-from FOX.yaml import UniqueLoader
 from FOX.armc import dict_to_armc
-from FOX.io.hdf5_utils import create_hdf5, to_hdf5, from_hdf5, create_xyz_hdf5, recursive_items
+from FOX.io.hdf5_utils import create_hdf5, to_hdf5, from_hdf5, create_xyz_hdf5
 
 PATH = Path('tests') / 'test_files'
 

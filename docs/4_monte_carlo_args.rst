@@ -546,13 +546,16 @@ Note that these jobs are executed in the order as provided by the user-input.
 
     .. attribute:: job.block.settings
 
-        :Parameter:     * **Type** - :class:`dict`
+        :Parameter:     * **Type** - :class:`dict` or :class:`list` [:class:`dict`]
                         * **Default Value** - ``{}``
 
         The job settings as used by :class:`type<job.block.type>`.
 
-        If a :attr:`template<job.block.template>` then this block may or may not be redundant,
-        depending on its completeness.
+        In the case of PES-averaged ARMC one can supply a list of dictionaries,
+        each one representing the settings for its counterpart in :attr:`job.molecule`.
+
+        If a :attr:`template<job.block.template>` is specified then this block
+        may or may not be redundant, depending on its completeness.
 
 
     .. attribute:: job.block.template

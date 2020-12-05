@@ -15,7 +15,7 @@ API
 
 from typing import (
     Tuple, Dict, Mapping, Iterable, List, Sequence, overload, Any, TYPE_CHECKING, Callable,
-    ClassVar
+    ClassVar, Optional
 )
 
 import numpy as np
@@ -27,8 +27,9 @@ from ..io.hdf5_utils import create_xyz_hdf5
 
 if TYPE_CHECKING:
     from ..classes import MultiMolecule
+    from ..io import PSFContainer
 else:
-    from ..type_alias import MultiMolecule
+    from ..type_alias import MultiMolecule, PSFContainer
 
 __all__ = ['ARMCPT']
 
@@ -265,3 +266,27 @@ class ARMCPT(ARMC):
             self.phi.a_target[i] = self.phi.a_target[j]
             self.phi.gamma[i] = self.phi.gamma[j]
             self.param.move_range[i] = self.param.move_range[j]
+
+    def to_yaml_dict(  # type: ignore[override]
+        self, *,
+        path: str = '.',
+        folder: str = 'MM_MD_workdir',
+        logfile: str = 'armc.log',
+        psf: Optional[Iterable[PSFContainer]] = None,
+    ) -> Dict[str, Any]:
+        """Convert an :class:`ARMC` instance into a .yaml readable by :class:`ARMC.from_yaml`.
+
+        Returns
+        -------
+        :data:`Dict[str, Any]<typing.Dict>`
+            A dictionary.
+
+        """
+        ret = super().to_yaml_dict(path=path, folder=folder, logfile=logfile, psf=psf)
+
+        # Convert lists of settings into just settings
+        for k, v in ret['job'].items():
+            if k in {'molecule', 'type'}:
+                continue
+            v['settings'] = v['settings'][0]
+        return ret
