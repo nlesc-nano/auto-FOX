@@ -55,7 +55,6 @@ setup(
         'data/*.xyz',
         'data/*.yaml',
         'data/*.csv',
-        'armc/*.png',
         'py.typed',
         '*.pyi'
     ]},
@@ -63,10 +62,6 @@ setup(
     entry_points={'console_scripts': [
         'init_armc=FOX.entry_points:main_armc',
         'armc2yaml=FOX.entry_points:main_armc2yaml',
-        'plot_pes=FOX.entry_points:main_plot_pes',
-        'plot_param=FOX.entry_points:main_plot_param',
-        'plot_dset=FOX.entry_points:main_plot_dset',
-        'dset_to_csv=FOX.entry_points:main_dset_to_csv'
     ]},
     license="GNU General Public License v3 or later",
     zip_safe=False,
