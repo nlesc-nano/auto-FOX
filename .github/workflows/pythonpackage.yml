@@ -45,13 +45,13 @@ jobs:
 
             - name: Install dependencies
               if: matrix.pre == false
-              run: pip install -e .[test]
+              run: pip install .[test]
               env:
                 CONDA_PREFIX: /usr/share/miniconda
 
             - name: Install dependencies (pre-release)
               if: matrix.pre == true
-              run: pip install --pre -e .[test] --upgrade --force-reinstall
+              run: pip install --pre .[test] --upgrade --force-reinstall
               env:
                 CONDA_PREFIX: /usr/share/miniconda
 
