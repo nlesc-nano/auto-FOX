@@ -294,7 +294,7 @@ class ARMC(MonteCarloABC):
         self.logger.info("Calculating auxiliary error")
 
         aux_new = self.get_aux_error(pes_new)
-        aux_validation = self.get_aux_error(pes_validation)
+        aux_validation = self.get_aux_error(pes_validation, validation=True)
         aux_old = self[key_old]
         error_change = (aux_new - aux_old).sum()
         return error_change, aux_new, aux_validation
@@ -415,7 +415,7 @@ class ARMC(MonteCarloABC):
 
         to_hdf5(self.hdf5_file, hdf5_kwarg, kappa, omega)
 
-    def get_aux_error(self, pes_dict: PesMapping) -> np.ndarray:
+    def get_aux_error(self, pes_dict: PesMapping, validation: bool = False) -> np.ndarray:
         r"""Return the auxiliary error :math:`\Delta \varepsilon_{QM-MM}`.
 
         The auxiliary error is constructed using the PES descriptors in **values**
@@ -440,8 +440,10 @@ class ARMC(MonteCarloABC):
             An array with :math:`m*n` auxilary errors
 
         """
+        pes_dict_ref = self.pes if not validation else self.pes_validation
+
         def norm_mean(key: str, mm_pes: ArrayLikeOrScalar) -> float:
-            qm_pes = self.pes[key].ref  # type: ignore
+            qm_pes = pes_dict_ref[key].ref  # type: ignore
             QM = np.asarray(qm_pes, dtype=float)
             MM = np.asarray(mm_pes, dtype=float)
             ret: np.ndarray = (QM - MM)**2
