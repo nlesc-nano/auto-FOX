@@ -15,7 +15,7 @@ def test_td_rdf():
     mol = MOL.copy()
     rdf_list = time_resolved_rdf(mol, atom_subset=['Cd', 'Se'])
 
-    array = np.array(rdf_list)
+    array = np.array([i.values for i in rdf_list])
     array_ref = np.load(PATH / 'time_resolved_rdf.npy')
     np.testing.assert_allclose(array, array_ref)
 
@@ -25,6 +25,6 @@ def test_td_adf():
     mol = MOL.copy()
     adf_list = time_resolved_adf(mol, atom_subset=['Cd', 'Se'], r_max=6.0)
 
-    array = np.array(adf_list)
+    array = np.array([i.values for i in adf_list])
     array_ref = np.load(PATH / 'time_resolved_adf.npy')
     np.testing.assert_allclose(array, array_ref)
