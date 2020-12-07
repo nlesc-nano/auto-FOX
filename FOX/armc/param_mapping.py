@@ -511,8 +511,8 @@ class ParamMappingABC(AbstractDataClass, ABC):
 
             template = deepcopy(_template)
             template['param'] = param
-            if constraints.at[key, param]:
-                template['constraints'].append(constraints.at[key, param])
+            if constraints[key, param]:
+                template['constraints'].append(constraints[key, param])
 
             lst = ret.setdefault(key, [])
             lst.append(template)

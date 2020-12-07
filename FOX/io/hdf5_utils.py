@@ -702,7 +702,7 @@ def _attr_to_array(index: Union[str, pd.Index]) -> np.ndarray:
         return np.array(index, dtype='S', ndmin=1, copy=False)
 
     # Convert **item** into an array
-    ret = np.array(index.to_list())
+    ret = np.array(index.tolist())
     if 'str' in ret.dtype.name or ret.dtype == object:  # h5py does not support unicode strings
         return ret.astype('S', copy=False)  # Convert to byte strings
     return ret

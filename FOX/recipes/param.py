@@ -118,7 +118,7 @@ API
 """
 
 from os import PathLike
-from typing import Dict, Union, Iterable, Any, FrozenSet, Tuple, Iterator, cast, Optional, Mapping
+from typing import Dict, Union, Iterable, Any, Tuple, Iterator, cast, Optional, Mapping
 from collections import abc
 
 import h5py
@@ -297,12 +297,6 @@ def plot_descriptor(descriptor: Union[NDFrame, Iterable[NDFrame]],
     return fig
 
 
-#: A :class:`frozenset` with valid values for the **kind** parameter in :func:`plot_descriptor`.
-VALID_KIND: FrozenSet[str] = frozenset(
-    PlotAccessor._all_kinds + tuple(PlotAccessor._kind_aliases.values())  # type: ignore[attr-defined] # noqa: E501
-)
-
-
 def _validate_kind(kind: str) -> str:
     """Validate the **kind** parameter for :func:`plot_descriptor`."""
     try:
@@ -310,9 +304,6 @@ def _validate_kind(kind: str) -> str:
     except AttributeError as ex:
         raise TypeError("'kind' expected a 'str'; observed type: "
                         f"'{kind.__class__.__name__}'").with_traceback(ex.__traceback__)
-    if ret not in VALID_KIND:
-        raise ValueError(f"{repr(ret)} is not a valid value for 'kind'; "
-                         f"accepted values: {tuple(sorted(VALID_KIND))}")
     return ret
 
 
