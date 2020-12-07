@@ -36,7 +36,7 @@ def test_delete_atoms():
     ref = np.load(join(PATH, 'delete_atoms.npy'))
 
     assertion.eq(mol_new.shape, (4905, 123, 3))
-    assertion.assert_(set.isdisjoint, set(mol_new.symbol), atoms)
+    assertion.isdisjoint(mol_new.symbol, atoms)
     np.testing.assert_array_equal(mol_new.symbol, ref)
 
 
