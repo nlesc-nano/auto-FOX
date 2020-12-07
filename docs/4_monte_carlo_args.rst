@@ -426,7 +426,7 @@ each containg the :attr:`func<pes_validation.block.func>` and, optionally,
                 func: FOX.MultiMolecule.init_adf
                 kwargs:
                     atom_subset: [Cd, Se]
-                    mol_subset: !!python/object:builtins.slice  # i.e. slice(None, None, 10)
+                    mol_subset: !!python/object/apply:builtins.slice  # i.e. slice(None, None, 10)
                     - null
                     - null
                     - 10

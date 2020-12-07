@@ -217,7 +217,7 @@ class ARMCPT(ARMC):
                    key_old: Iterable[Key]) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
         """Evaluate the auxiliary error; accept if the new parameter set lowers the error."""
         aux_new = self.get_aux_error(pes_new)
-        aux_validation = self.get_aux_error(pes_validation)
+        aux_validation = self.get_aux_error(pes_validation, validation=True)
         aux_old = np.array([self[k] for k in key_old])
         error_change = (aux_new - aux_old).sum(axis=-1)
         return error_change, aux_new, aux_validation

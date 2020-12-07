@@ -169,8 +169,23 @@ class MultiMolecule(_MultiMolecule):
         ret.__dict__ = copy.deepcopy(self.__dict__)
 
         # Update :attr:`.MultiMolecule.atoms`
-        symbols = self.symbol[bool_ar]
-        ret.atoms = group_by_values(enumerate(symbols))
+        idx_all = np.fromiter(chain.from_iterable(lst for lst in self.atoms.values()), np.int64)
+        unique, counts = np.unique(idx_all, return_counts=True)
+
+        if len(unique) == len(idx_all):
+            symbols = self.symbol[bool_ar]
+            ret.atoms = group_by_values(enumerate(symbols))
+        else:
+            ret.atoms = {}
+            symbol_iter = iter(self.symbol)
+            for i, count in enumerate(counts[bool_ar]):
+                for j in range(count):
+                    symbol = next(symbol_iter)
+                    try:
+                        ret.atoms[symbol].append(i)
+                    except KeyError:
+                        ret.atoms[symbol] = [i]
+
         return ret
 
     def add_atoms(self: MT, coords: np.ndarray, symbols: Union[str, Iterable[str]] = 'Xx') -> MT:
