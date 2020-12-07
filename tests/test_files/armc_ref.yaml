@@ -40,6 +40,16 @@ pes:
         kwargs:
             atom_subset: [Cd, Se, O]
 
+pes_validation:
+    adf:
+        func: FOX.MultiMolecule.init_adf
+        kwargs:
+            atom_subset: [Cd, Se]
+            mol_subset: !!python/object/apply:builtins.slice
+            - null
+            - null
+            - 10
+
 job:
     type: FOX.armc.PackageManager
     molecule: tests/test_files/Cd68Se55_26COO_MD_trajec.xyz
