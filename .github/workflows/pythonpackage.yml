@@ -95,9 +95,8 @@ jobs:
             - name: Run tests (py 3.9)
               if: matrix.version == 3.9
               run: |
-                $CONDA/bin/conda create -n test -c conda-forge rdkit python=3.9
-                $CONDA/bin/conda init bash
-                $CONDA/bin/conda activate test
+                conda create -n test -c conda-forge rdkit python=3.9
+                source $CONDA/bin/activate test
                 $CONDA/bin/pip install .[test]
                 $CONDA/bin/pytest -m "not slow" --flake8
 
