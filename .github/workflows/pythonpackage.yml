@@ -95,10 +95,11 @@ jobs:
             - name: Run tests (py 3.9)
               if: matrix.version == 3.9
               run: |
-                conda create -n test -c conda-forge rdkit python=3.9
-                /usr/share/miniconda/bin/activate test
-                /usr/share/miniconda/envs/test/bin/pip install .[test]
-                /usr/share/miniconda/envs/test/bin/pytest -m "not slow" --flake8
+                $CONDA/bin/conda create -n test -c conda-forge rdkit python=3.9
+                $CONDA/bin/conda init bash
+                $CONDA/bin/conda activate test
+                $CONDA/bin/pip install .[test]
+                $CONDA/bin/pytest -m "not slow" --flake8
 
             - name: Run codecov
               uses: codecov/codecov-action@v1
