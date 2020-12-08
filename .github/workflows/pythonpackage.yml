@@ -80,11 +80,6 @@ jobs:
 
             - name: Run tests
               run: |
-                source $CONDA/bin/activate test
-                pytest -m "not slow" --flake8
-
-            - name: Run tests
-              run: |
                 if [ "${{ matrix.os }}" != "windows-latest" ]; then
                     source $CONDA/bin/activate test
                 else
