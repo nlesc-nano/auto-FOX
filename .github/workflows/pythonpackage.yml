@@ -42,16 +42,19 @@ jobs:
                 update-conda: false
                 conda-channels: anaconda
 
-            - name: Run conda init shell
-              if: matrix.os == 'windows-latest'
-              run: conda init powershell
-
             - name: Install dependencies
-              if: matrix.special == ''
+              if: matrix.special == '' && matrix.os != 'windows-latest'
+              run: |
+                conda init powershell
+                conda create -n test -c conda-forge python=${{ matrix.version }} rdkit
+                conda test
+                pip install .[test]
+
+            - name: Install dependencies (windows)
+              if: matrix.os == 'windows-latest'
               run: |
                 conda create -n test -c conda-forge python=${{ matrix.version }} rdkit
-                source $CONDA/bin/activate test
-                pip install --pre .[test]
+                pip install .[test]
 
             - name: Install dependencies (minimum version)
               if: matrix.special == '; minimum version'
