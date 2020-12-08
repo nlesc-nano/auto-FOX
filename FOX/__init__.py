@@ -6,10 +6,12 @@ https://auto-fox.readthedocs.io/en/latest/
 
 """  # noqa: E501
 
+import warnings
 from os.path import join, dirname
-from nanoutils import VersionInfo
 
 from scm.plams import Settings as _Settings
+import pandas as pd
+from nanoutils import VersionInfo
 
 from .__version__ import __version__
 
@@ -42,6 +44,9 @@ del join, dirname
 
 version_info = VersionInfo.from_str(__version__)
 del VersionInfo
+
+warnings.simplefilter(action='ignore', category=pd.errors.PerformanceWarning)
+del pd, warnings
 
 __all__ = [
     'example_xyz',

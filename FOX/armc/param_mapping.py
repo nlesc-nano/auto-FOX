@@ -16,7 +16,6 @@ API
 
 """
 
-import warnings
 from copy import deepcopy
 from abc import ABC, abstractmethod
 from types import MappingProxyType
@@ -295,14 +294,12 @@ class ParamMappingABC(AbstractDataClass, ABC):
 
     def _set_net_charge(self) -> None:
         """Set the total charge of the system."""
-        with warnings.catch_warnings():
-            warnings.simplefilter('ignore', pd.errors.PerformanceWarning)
-            if 'charge' in self.param.index:
-                self._net_charge = get_net_charge(
-                    self.param.loc['charge', 0], self.metadata.loc['charge', 'count']
-                )
-            else:
-                self._net_charge = None
+        if 'charge' in self.param.index:
+            self._net_charge = get_net_charge(
+                self.param.loc['charge', 0], self.metadata.loc['charge', 'count']
+            )
+        else:
+            self._net_charge = None
 
     # The actual meat of the class
 
