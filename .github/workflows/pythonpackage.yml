@@ -96,8 +96,7 @@ jobs:
               if: matrix.version == 3.9
               run: |
                 conda create -n test -c conda-forge rdkit python=3.9
-                conda init bash
-                conda activate test
+                /usr/share/miniconda/bin/activate test
                 /usr/share/miniconda/envs/test/bin/pip install .[test]
                 /usr/share/miniconda/envs/test/bin/pytest -m "not slow" --flake8
 
