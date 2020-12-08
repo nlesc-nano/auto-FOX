@@ -39,21 +39,22 @@ jobs:
             - name: Set up Conda
               uses: s-weigand/setup-conda@v1
               with:
-                update-conda: false
+                update-conda: true
                 conda-channels: anaconda
 
             - name: Install dependencies
               if: matrix.special == '' && matrix.os != 'windows-latest'
               run: |
-                conda init powershell
                 conda create -n test -c conda-forge python=${{ matrix.version }} rdkit
-                conda test
+                source $CONDA/bin/activate test
                 pip install .[test]
 
             - name: Install dependencies (windows)
               if: matrix.special == '' && matrix.os == 'windows-latest'
               run: |
+                conda init powershell
                 conda create -n test -c conda-forge python=${{ matrix.version }} rdkit
+                conda activate test
                 pip install .[test]
 
             - name: Install dependencies (minimum version)
