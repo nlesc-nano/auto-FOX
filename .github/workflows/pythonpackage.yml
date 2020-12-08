@@ -79,6 +79,7 @@ jobs:
               run: conda list -n test
 
             - name: Run tests
+              shell: bash
               run: |
                 if [ "${{ matrix.os }}" != "windows-latest" ]; then
                     source $CONDA/bin/activate test
