@@ -395,7 +395,7 @@ class MonteCarloABC(AbstractDataClass, ABC, Mapping[Key, np.ndarray]):
 
         if mol_list is None:  # The MD simulation crashed
             ret1 = {key: np.inf for key in self.pes.keys()}
-            ret2 = ret1.copy()
+            ret2 = {key: np.inf for key in self.pes_validation.keys()}
         else:
             self.logger.info("Applying PES post-processing")
             for func1 in self.pes_post_process:
