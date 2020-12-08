@@ -27,6 +27,10 @@ jobs:
                     - os: ubuntu-latest
                       special: '; minimum version'
                       version: 3.7
+                exclude:
+                    - os: windows-latest
+                      special: ''
+                      version: 3.9
 
         steps:
             - name: Cancel Previous Runs
@@ -52,9 +56,7 @@ jobs:
             - name: Install dependencies (windows-latest)
               if: matrix.special == '' && matrix.os == 'windows-latest'
               run: |
-                conda init powershell
-                conda create -n test -c conda-forge python=${{ matrix.version }} rdkit
-                conda activate test
+                conda install windows=${{ matrix.version }} rdkit
                 pip install .[test]
 
             - name: Install dependencies (minimum version)
@@ -86,9 +88,7 @@ jobs:
 
             - name: Run tests (windows-latest)
               if: matrix.os == 'windows-latest'
-              run: |
-                conda activate test
-                pytest -m "not slow" --flake8
+              run: pytest -m "not slow" --flake8
 
             - name: Run codecov
               uses: codecov/codecov-action@v1
