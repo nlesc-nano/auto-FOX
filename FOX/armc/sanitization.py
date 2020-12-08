@@ -118,6 +118,7 @@ def dict_to_armc(input_dict: MainMapping) -> Tuple[MonteCarloABC, RunDict]:
                    allow_non_existent=validation_dict['allow_non_existent'])
     param._set_net_charge()
     validate_charge(param._net_charge, tolerance=validation_dict['charge_tolerance'])
+    validate_constraints(param, enforce_constraints=validation_dict['enforce_constraints'])
 
     mc.param.param.sort_index(inplace=True)
     mc.param.param_old.sort_index(inplace=True)
@@ -177,6 +178,42 @@ def validate_charge(charge: Optional[float], tolerance: float = 0.01) -> None:
         raise ValueError(f'Net charge {charge} not integer within a tolerance {tolerance}')
 
 
+def validate_constraints(param: ParamMapping, tolerance: float = 0.01,
+                         enforce_constraints: bool = False) -> None:
+    """Check that all user-specified parameters satisfy the user-specified constraints."""
+    msg = ""
+
+    # Check minima and maxima
+    min_ok = param.metadata['min'] <= param.param[0]
+    max_ok = param.metadata['max'] >= param.param[0]
+    if not min_ok.all():
+        msg += f"Parameters smaller then specified minima:\n    {param.param.loc[~min_ok, 0]}\n"
+    if not max_ok.all():
+        msg += f"Parameters larger then specified maxima:\n    {param.param.loc[~max_ok, 0]}\n"
+
+    # Check ratios
+    str_series = param.constraints_to_str()
+    for tup2, series_tup in param.constraints.items():
+        if series_tup is None or not len(series_tup):
+            continue
+        param_: pd.Series = param.param.loc[tup2, 0]
+
+        series_iter = iter(series_tup)
+        series = next(series_iter)
+        sum_ref = (param_.loc[series.index] * series).sum()
+        for series in series_iter:
+            sum_ = (param_.loc[series.index] * series).sum()
+            if not np.allclose(sum_, sum_ref, atol=tolerance):
+                msg += f"Parameters {tup2} failed to satisfy the ratio:\n    {str_series.loc[tup2]}\n"  # noqa: E501
+                break
+
+    if msg:
+        if enforce_constraints:
+            raise RuntimeError(msg)
+        else:
+            warnings.warn(msg, category=RuntimeWarning, stacklevel=3)
+
+
 def _guess_param(mc: MonteCarloABC, prm: dict,
                  frozen: bool = False,
                  psf: Optional[Iterable[PSFContainer]] = None) -> None:
@@ -204,10 +241,12 @@ def _guess_param(mc: MonteCarloABC, prm: dict,
 
     # Update the variable parameters
     metadata = {'min': -np.inf, 'max': np.inf, 'count': 0, 'guess': True}
+    _prm = mc.param.param
     for k, v in seq:
         iterator = (((k, v['param'], at), value) for at, value in v.items() if at != 'param')
         for key, value in iterator:
-            mc.param.add_param(key, value, frozen=frozen, **metadata)
+            if key not in _prm.index:
+                mc.param.add_param(key, value, frozen=frozen, **metadata)
     return
 
 

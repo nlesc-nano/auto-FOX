@@ -104,11 +104,11 @@ def test_armc_guess() -> None:
         3.65491199,
         2.53727955,
         2.07044862,
-        2.7831676,
-        3.14175433,
+        0.2471,
+        0.294,
         2.6749234,
-        3.38764238,
-        3.74622911,
+        0.3526,
+        0.4852,
     ])
     np.testing.assert_allclose(param.values, ref)
 
@@ -146,6 +146,29 @@ def test_charge_tolerance() -> None:
 
     dct['param']['validation']['charge_tolerance'] = 'inf'
     assertion.assert_(dict_to_armc, dct)
+
+
+def test_enforce_constraints() -> None:
+    """Test ``param.validation.enforce_constraints``."""
+    file = PATH / 'armc_ref.yaml'
+    with open(file, 'r') as f:
+        dct = yaml.load(f.read(), Loader=UniqueLoader)
+        dct['param']['validation']['enforce_constraints'] = True
+        dct['param']['validation']['charge_tolerance'] = 'inf'
+
+    dct['param']['charge']['CG2O3'] = 10
+    assertion.assert_(dict_to_armc, dct, exception=RuntimeError)
+
+    dct['param']['charge']['CG2O3'] = -10
+    assertion.assert_(dict_to_armc, dct, exception=RuntimeError)
+
+    dct['param']['charge']['CG2O3'] = 0.4524
+    dct['param']['charge']['Cd'] = 2
+    assertion.assert_(dict_to_armc, dct, exception=RuntimeError)
+
+    with pytest.warns(RuntimeWarning):
+        dct['param']['validation']['enforce_constraints'] = False
+        _ = dict_to_armc(dct)
 
 
 def _get_phi_iter(n: int = 3) -> Generator[List[Tuple[int, int]], None, None]:

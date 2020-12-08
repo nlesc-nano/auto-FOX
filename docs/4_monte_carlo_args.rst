@@ -9,21 +9,22 @@ Index
     :width: 100%
     :widths: 30 70
 
-    =========================================== =========================================================================================================
-    param_                                      Description
-    =========================================== =========================================================================================================
-    :attr:`param.type`                          The type of parameter mapping.
-    :attr:`param.move_range`                    The parameter move range.
-    :attr:`param.func`                          The callable for performing the Monte Carlo moves.
-    :attr:`param.kwargs`                        A dictionary with keyword arguments for :attr:`param.func`.
-    :attr:`param.validation.allow_non_existent` Whether to allow parameters, that are explicitly specified, for absent atoms.
-    :attr:`param.validation.charge_tolerance`   Check whether the net charge of the system is integer within a given tolerance.
-    :attr:`param.block.param`                   The name of the forcefield parameter.
-    :attr:`param.block.unit`                    The unit in which the forcefield parameters are expressed.
-    :attr:`param.block.constraints`             A string or list of strings with parameter constraints.
-    :attr:`param.block.guess`                   Estimate all non-specified forcefield parameters.
-    :attr:`param.block.frozen`                  A sub-block with to-be frozen parameters.
-    =========================================== =========================================================================================================
+    ============================================ =========================================================================================================
+    param_                                       Description
+    ============================================ =========================================================================================================
+    :attr:`param.type`                           The type of parameter mapping.
+    :attr:`param.move_range`                     The parameter move range.
+    :attr:`param.func`                           The callable for performing the Monte Carlo moves.
+    :attr:`param.kwargs`                         A dictionary with keyword arguments for :attr:`param.func`.
+    :attr:`param.validation.allow_non_existent`  Whether to allow parameters, that are explicitly specified, for absent atoms.
+    :attr:`param.validation.charge_tolerance`    Check whether the net charge of the system is integer within a given tolerance.
+    :attr:`param.validation.enforce_constraints` Whether to enforce the constraints for the initial user-specified parameters.
+    :attr:`param.block.param`                    The name of the forcefield parameter.
+    :attr:`param.block.unit`                     The unit in which the forcefield parameters are expressed.
+    :attr:`param.block.constraints`              A string or list of strings with parameter constraints.
+    :attr:`param.block.guess`                    Estimate all non-specified forcefield parameters.
+    :attr:`param.block.frozen`                   A sub-block with to-be frozen parameters.
+    ============================================ =========================================================================================================
 
 .. table::
     :width: 100%
@@ -129,6 +130,7 @@ This settings block accepts an arbitrary number of sub-blocks.
             validation:
                 allow_non_existent: False
                 charge_tolerance: 0.01
+                enforce_constraints: False
 
             charge:
                 param: charge
@@ -235,6 +237,19 @@ This settings block accepts an arbitrary number of sub-blocks.
 
         This check is performed once, before the start of the ARMC procedure.
         Setting this parameter to ``inf`` disables the check.
+
+
+    .. attribute:: param.validation.enforce_constraints
+
+        :Parameter:     * **Type** - :class:`bool`
+                        * **Default Value** - :data:`False`
+
+        Whether to enforce the constraints for the initial user-specified parameters.
+
+        This option checks if the initially supplied parameters are compatible with all
+        the supplied constraints; an error will be raised if this is not the case.
+        Note that the constraints will always be enforced once the actual ARMC procedure
+        starts.
 
 
     .. attribute:: param.block.param

@@ -430,6 +430,12 @@ validation_schema = Schema({
         And(supports_float, lambda n: float(n) > 0, Use(float)),
         error=Formatter(f"'param.validation.charge_tolerance' expected a positive float{EPILOG}")
     ),
+
+    Optional_('enforce_constraints', default=False): Or(
+        And(None, Default(False)),
+        bool,
+        error=Formatter(f"'param.validation.enforce_constraints' expected a boolean{EPILOG}")
+    ),
 }, name='validation_schema', description='Schema for validating the "param.validation" block.')
 
 
@@ -437,7 +443,8 @@ class ValidationMapping(TypedDict, total=False):
     """A :class:`~typing.TypedDict` representing the input of :data:`validation_schema`."""
 
     allow_non_existent: Optional[bool]
-    charge_tolerance: Union[str, bytes, SupportsFloat]
+    charge_tolerance: Union[None, str, bytes, SupportsFloat]
+    enforce_constraints: Optional[bool]
 
 
 class ValidationDict(TypedDict):
@@ -445,6 +452,7 @@ class ValidationDict(TypedDict):
 
     allow_non_existent: bool
     charge_tolerance: float
+    enforce_constraints: bool
 
 
 MOVE_DEFAULT = np.array([

@@ -16,14 +16,13 @@ API
 
 """
 
-import warnings
 from copy import deepcopy
 from abc import ABC, abstractmethod
 from types import MappingProxyType
 from logging import Logger
 from functools import wraps, partial
 from typing import (
-    Any, TypeVar, Optional, Tuple, Mapping, Iterable, ClassVar, Union, Sequence,
+    Any, TypeVar, Optional, Tuple, Mapping, Iterable, ClassVar, Union,
     Callable, FrozenSet, cast, MutableMapping, TYPE_CHECKING, Dict
 )
 
@@ -295,20 +294,16 @@ class ParamMappingABC(AbstractDataClass, ABC):
 
     def _set_net_charge(self) -> None:
         """Set the total charge of the system."""
-        with warnings.catch_warnings():
-            warnings.simplefilter('ignore', pd.errors.PerformanceWarning)
-            if 'charge' in self.param.index:
-                self._net_charge = get_net_charge(
-                    self.param.loc['charge', 0], self.metadata.loc['charge', 'count']
-                )
-            else:
-                self._net_charge = None
+        if 'charge' in self.param.index:
+            self._net_charge = get_net_charge(
+                self.param.loc['charge', 0], self.metadata.loc['charge', 'count']
+            )
+        else:
+            self._net_charge = None
 
     # The actual meat of the class
 
-    def add_param(self, idx: Tup3, value: float,
-                  columns: Union[str, Sequence[str], slice] = slice(None),
-                  **kwargs: Any) -> None:
+    def add_param(self, idx: Tup3, value: float, **kwargs: Any) -> None:
         r"""Add a new parameter to this instance.
 
         Parameters

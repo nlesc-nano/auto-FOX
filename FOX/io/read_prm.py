@@ -476,10 +476,10 @@ class PRMContainer(AbstractFileContainer):
         if 'input' not in cp2k_settings:
             cp2k_settings = Settings({'input': cp2k_settings})
 
-        # If cp2k_settings is a Settings instance enable the supress_missing() context manager
+        # If cp2k_settings is a Settings instance enable the `suppress_missing` context manager
         # In this manner normal KeyErrors will be raised, just like with dict
         if isinstance(cp2k_settings, Settings):
-            context_manager = cp2k_settings.supress_missing
+            context_manager = cp2k_settings.suppress_missing
         else:
             context_manager = nullcontext
 
