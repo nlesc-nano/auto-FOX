@@ -9,7 +9,6 @@ https://auto-fox.readthedocs.io/en/latest/
 import warnings
 from os.path import join, dirname
 
-from scm.plams import Settings as _Settings
 import pandas as pd
 from nanoutils import VersionInfo
 
@@ -34,9 +33,6 @@ from .ff import (
 
 __author__ = "Bas van Beek"
 __email__ = 'b.f.van.beek@vu.nl'
-
-if hasattr(_Settings, 'suppress_missing'):
-    _Settings.supress_missing = _Settings.suppress_missing  # type: ignore[attr-defined]
 
 #: The path+filename of the example multi-xyz file.
 example_xyz: str = join(dirname(__file__), 'data', 'Cd68Se55_26COO_MD_trajec.xyz')
