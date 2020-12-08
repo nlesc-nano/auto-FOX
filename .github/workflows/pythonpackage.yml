@@ -18,7 +18,7 @@ jobs:
             fail-fast: false
             matrix:
                 os: [ubuntu-latest, macos-latest, windows-latest]
-                version: [3.7, 3.8]
+                version: [3.7, 3.8, 3.9]
                 special: ['']
                 include:
                     - os: ubuntu-latest
@@ -36,15 +36,24 @@ jobs:
 
             - uses: actions/checkout@v2
 
-            - name: Set up Conda with Python ${{ matrix.version }} on ${{ matrix.os }}
+            - name: Set up Conda with Python
+              if: matrix.version != 3.9
               uses: s-weigand/setup-conda@v1
               with:
                 update-conda: true
                 python-version: ${{ matrix.version }}
                 conda-channels: anaconda
 
+            - name: Set up Conda with Python (3.9)
+              if: matrix.version == 3.9
+              uses: s-weigand/setup-conda@v1
+              with:
+                update-conda: true
+                python-version: 3.8
+                conda-channels: anaconda
+
             - name: Install conda-based dependencies
-              if: matrix.special != '; minimum version'
+              if: matrix.special != '; minimum version' && matrix.version != 3.9
               run: conda install -c conda-forge rdkit
 
             - name: Install conda-based dependencies (minimum version)
@@ -52,7 +61,7 @@ jobs:
               run: conda install -c conda-forge pyyaml=5.1 rdkit=2018.09 numpy=1.15 h5py=2.10 pandas=0.23 scipy=1.2.0 matplotlib
 
             - name: Install dependencies
-              if: matrix.special == ''
+              if: matrix.special == '' && matrix.version != 3.9
               run: pip install .[test]
               env:
                 CONDA_PREFIX: /usr/share/miniconda
@@ -78,9 +87,19 @@ jobs:
               run: conda list
 
             - name: Run tests
+              if: matrix.version != 3.9
               run: pytest -m "not slow" --flake8
               env:
                 CONDA_PREFIX: /usr/share/miniconda
+
+            - name: Run tests (py 3.9)
+              if: matrix.version == 3.9
+              run: |
+                conda create -n test -c conda-forge rdkit python=3.9
+                conda init bash
+                conda activate test
+                /usr/share/miniconda/envs/test/bin/pip install .[test]
+                /usr/share/miniconda/envs/test/bin/pytest -m "not slow" --flake8
 
             - name: Run codecov
               uses: codecov/codecov-action@v1
