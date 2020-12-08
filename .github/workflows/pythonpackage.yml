@@ -23,7 +23,7 @@ jobs:
                 include:
                     - os: ubuntu-latest
                       special: '; pre-release'
-                      version: 3.8
+                      version: 3.9
                     - os: ubuntu-latest
                       special: '; minimum version'
                       version: 3.7
@@ -75,7 +75,9 @@ jobs:
               run: conda list -n test
 
             - name: Run tests
-              run: pytest -m "not slow" --flake8
+              run: |
+                source $CONDA/bin/activate test
+                pytest -m "not slow" --flake8
 
             - name: Run codecov
               uses: codecov/codecov-action@v1
