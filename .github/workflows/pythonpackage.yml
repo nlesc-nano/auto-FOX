@@ -49,7 +49,7 @@ jobs:
                 source $CONDA/bin/activate test
                 pip install .[test]
 
-            - name: Install dependencies (windows)
+            - name: Install dependencies (windows-latest)
               if: matrix.special == '' && matrix.os == 'windows-latest'
               run: |
                 conda init powershell
@@ -81,6 +81,15 @@ jobs:
             - name: Run tests
               run: |
                 source $CONDA/bin/activate test
+                pytest -m "not slow" --flake8
+
+            - name: Run tests
+              run: |
+                if [ "${{ matrix.os }}" == "windows-latest" ]; then
+                    source $CONDA/bin/activate test
+                else
+                    conda activate test
+                fi
                 pytest -m "not slow" --flake8
 
             - name: Run codecov
