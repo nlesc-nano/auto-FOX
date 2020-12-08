@@ -46,7 +46,7 @@ class AtomsFromPSF:
 
     Parameters
     ----------
-    \*atom_dict : :class:`dict` [:class:`str`, :class:`list` [:class:`int`]]
+    \*atom_dict : :class:`dict[str, list[int]] <dict>`
         One or more dictionaries with atomic symbols as keys and
         lists of matching atomic indices as values.
 

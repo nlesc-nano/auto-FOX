@@ -19,8 +19,8 @@ moleculair indices in a MD trajectory.
         )^2
     }
 
-Given a trajectory, ``mol``, stored as a :class:`.MultiMolecule` instance,
-the RMSD can be calculated with the :meth:`.MultiMolecule.init_rmsd`
+Given a trajectory, ``mol``, stored as a :class:`FOX.MultiMolecule` instance,
+the RMSD can be calculated with the :meth:`FOX.MultiMolecule.init_rmsd`
 method using the following command:
 
 .. code:: python
@@ -66,8 +66,8 @@ of atomic indices.
         \right\rangle
     }
 
-Given a trajectory, ``mol``, stored as a :class:`.MultiMolecule` instance,
-the RMSF can be calculated with the :meth:`.MultiMolecule.init_rmsf`
+Given a trajectory, ``mol``, stored as a :class:`FOX.MultiMolecule` instance,
+the RMSF can be calculated with the :meth:`FOX.MultiMolecule.init_rmsf`
 method using the following command:
 
 .. code:: python

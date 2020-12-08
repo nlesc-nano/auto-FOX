@@ -107,36 +107,28 @@ def guess_param(mol_list: Iterable[MultiMolecule], param: Param,
 
     Parameters
     ----------
-    mol_list : :class:`~collections.abc.Iterable` [:class:`~FOX.MultiMolecule`]
+    mol_list : :class:`Iterable[FOX.MultiMolecule] <collections.abc.Iterable>`
         An iterable of molecules.
-
     param : :class:`str`
         The to-be estimated parameter.
         Accepted values are ``"epsilon"`` and ``"sigma"``.
-
     mode : :class:`str`
         The procedure for estimating the parameters.
         Accepted values are ``"rdf"``, ``"uff"``, ``"crystal_radius"`` and ``"ion_radius"``.
-
     cp2k_settings : :class:`~collections.abc.MutableMapping`, optional
         The CP2K input settings.
-
-    prm : path-like_ or :class:`~FOX.PRMContainer`, optional
+    prm : :term:`python:path-like` or :class:`~FOX.PRMContainer`, optional
         An optional .prm file.
-
-    psf_list : :class:`~collections.abc.Iterable` [path-like_ or :class:`~FOX.PSFContainer`], optional
+    psf_list : :class:`Iterable[str|FOX.PSFContainer] <collections.abc.Iterable>`, optional
         An optional list of .psf files.
-
     unit : :class:`str`, optional
         The unit of the to-be returned quantity.
         If ``None``, default to kj/mol for :code:`param="epsilon"`
         and nm for :code:`param="sigma"`.
 
-    .. _`path-like`: https://docs.python.org/3/glossary.html#term-path-like-object
-
     Returns
     -------
-    :class:`dict` [:class:`tuple` [:class:`str`, :class:`str`], :class:`float`]
+    :class:`dict[tuple[str, str], float] <dict>`
         A dictionary with atom-pairs as keys and the estimated parameters as values.
 
     """  # noqa: E501
@@ -202,7 +194,7 @@ def _guess_param(series: pd.Series, mode: Mode,
 
     Returns
     -------
-    :class:`dict`
+    :class:`pd.Series <pandas.Series>`
         A dictionary with atom-pairs as keys (2-tuples) and the estimated parameters as values.
 
     """

@@ -86,12 +86,12 @@ class _MolLoc(Generic[MT]):
 
     Parameters
     ----------
-    mol : :class:`~FOX.MultiMolecule`
+    mol : :class:`FOX.MultiMolecule`
         A MultiMolecule instance; see :attr:`_MolLoc.mol`.
 
     Attributes
     ----------
-    mol : :class:`~FOX.MultiMolecule`
+    mol : :class:`FOX.MultiMolecule`
         A MultiMolecule instance.
     atoms_view : :class:`~collections.abc.Mapping`
         A read-only view of :attr:`_MolLoc.mol.atoms<FOX.MultiMolecule.atoms>`.
@@ -142,12 +142,12 @@ class _MolLoc(Generic[MT]):
 
         Parameter
         ---------
-        key : :class:`str` or :class:`Iterable[str]<collections.abc.Iterable>`
+        key : :class:`str` or :class:`Iterable[str] <collections.abc.Iterable>`
             An atom type or an iterable consisting of atom types.
 
         Returns
         -------
-        :class:`list` [:class:`int`]
+        :class:`list[int] <list>`
             A (flattened) list of atomic indices.
 
         """
@@ -353,7 +353,7 @@ class _MultiMolecule(np.ndarray):
 
         Parameters
         ----------
-        prop : str
+        prop : :class:`str`
             The name of the to be returned property.
             Accepted values: ``"symbol"``, ``"atnum"``, ``"mass"``, ``"radius"``
             or ``"connectors"``.
@@ -361,7 +361,7 @@ class _MultiMolecule(np.ndarray):
 
         Returns
         -------
-        :math:`n` |np.array|_ [|np.float64|_, |str|_ or |np.int64|_]:
+        :class:`np.ndarray[np.float64] <numpy.ndarray>`, shape :math:`(n,)`
             A 1D array with the user-specified properties of :math:`n` atoms.
 
         """
@@ -382,23 +382,20 @@ class _MultiMolecule(np.ndarray):
 
     """##################################  Magic methods  #################################### """
 
-    def copy(self: MT, order: str = 'C', deep: bool = True) -> MT:
+    def copy(self: MT, order: str = 'C', *, deep: bool = True) -> MT:
         """Create a copy of this instance.
-
-        .. _np.ndarray.copy: https://docs.scipy.org/doc/numpy/reference/generated/numpy.ndarray.copy.html  # noqa
 
         Parameters
         ----------
-        order : str
+        order : :class:`str`
             Controls the memory layout of the copy.
-            See np.ndarray.copy_ for details.
-
-        copy_attr : bool
+            See :meth:`ndarray.copy <numpy.ndarray.copy>` for details.
+        copy_attr : :class:`bool`
             Whether or not the attributes of this instance should be returned as copies or views.
 
         Returns
         -------
-        |FOX.MultiMolecule|_:
+        :class:`FOX.MultiMolecule`
             A copy of this instance.
 
         """

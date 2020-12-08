@@ -254,7 +254,7 @@ class PRMContainer(AbstractFileContainer):
 
         Returns
         -------
-        :class:`PRMContainer`
+        :class:`FOX.PRMContainer`
             A new prmcontainer.
 
         """
@@ -385,16 +385,14 @@ class PRMContainer(AbstractFileContainer):
         prm_name : :class:`str`
             The name of the parameter of interest.
             See the keys of :attr:`PRMContainer.CP2K_TO_PRM` for accepted values.
-
-        param : :class:`pandas.DataFrame` or nested :class:`Mapping<collections.abc.Mapping>`
+        param : :class:`pandas.DataFrame` or nested :class:`~collections.abc.Mapping`
             A DataFrame or nested mapping with the to-be added parameters.
             The keys should be a subset of
             :attr:`PRMContainer.CP2K_TO_PRM[prm_name]["columns"]<PRMContainer.CP2K_TO_PRM>`.
             If the index/nested sub-keys consist of strings then they'll be split and turned into
             a :class:`pandas.MultiIndex`.
             Note that the resulting values are *not* sorted.
-
-        units : :class:`Iterable<collections.abc.Iterable>` [:class:`str`], optional
+        units : :class:`Iterable[str] <collections.abc.Iterable>`, optional
             An iterable with the input units of each column in **param_df**.
             If ``None``, default to the defaults specified in
             :attr:`PRMContainer.CP2K_TO_PRM[prm_name]["unit"]<PRMContainer.CP2K_TO_PRM>`.
@@ -471,7 +469,7 @@ class PRMContainer(AbstractFileContainer):
 
         Parameters
         ----------
-        cp2k_settings : :class:`Mapping<collections.abc.Mapping>`
+        cp2k_settings : :class:`~collections.abc.Mapping`
             A Mapping with PLAMS-style CP2K settings.
 
         """

@@ -160,7 +160,7 @@ This settings block accepts an arbitrary number of sub-blocks.
 
     .. attribute:: param.type
 
-        :Parameter:     * **Type** - :class:`str` or :class:`FOX.armc.ParamMappingABC<FOX.armc.param_mapping.ParamMappingABC>` subclass
+        :Parameter:     * **Type** - :class:`str` or :class:`FOX.armc.ParamMappingABC` subclass
                         * **Default Value** - ``"FOX.armc.ParamMapping"``
 
         The type of parameter mapping.
@@ -169,7 +169,7 @@ This settings block accepts an arbitrary number of sub-blocks.
 
         .. admonition:: See Also
 
-            :class:`FOX.armc.ParamMapping<FOX.armc.param_mapping.ParamMapping>`
+            :class:`FOX.armc.ParamMapping`
                 A **ParamMappingABC** subclass.
 
 
@@ -194,12 +194,13 @@ This settings block accepts an arbitrary number of sub-blocks.
 
     .. attribute:: param.func
 
-        :Parameter:     * **Type** - :class:`str` or :class:`~collections.abc.Callable`
+        :Parameter:     * **Type** - :class:`str` or :class:`Callable[[np.ndarray, np.ndarray], np.ndarray] <collections.abc.Callable>`
                         * **Default Value** - ``"numpy.multiply"``
 
         The callable for performing the Monte Carlo moves.
 
         The passed callable should be able to take two NumPy arrays as a arguments and return
+        a new one.
 
         .. admonition:: See Also
 
@@ -209,7 +210,7 @@ This settings block accepts an arbitrary number of sub-blocks.
 
     .. attribute:: param.kwargs
 
-        :Parameter:     * **Type** - :class:`dict`
+        :Parameter:     * **Type** - :class:`dict[str, object] <dict>`
                         * **Default Value** - ``{}``
 
         A dictionary with keyword arguments for :attr:`param.func`.
@@ -260,7 +261,7 @@ This settings block accepts an arbitrary number of sub-blocks.
 
     .. attribute:: param.block.constraints
 
-        :Parameter:     * **Type** - :class:`str` or :class:`list` [:class:`str`]
+        :Parameter:     * **Type** - :class:`str` or :class:`list[str] <list>`
 
         A string or list of strings with parameter constraints.
         Accepted types of constraints are minima/maxima (*e.g.* ``2 > Cd > 0``)
@@ -272,7 +273,7 @@ This settings block accepts an arbitrary number of sub-blocks.
 
     .. attribute:: param.block.guess
 
-        :Parameter:     * **Type** - :class:`dict`
+        :Parameter:     * **Type** - :class:`dict[str, str] <dict>`
 
         Estimate all non-specified forcefield parameters.
 
@@ -312,7 +313,7 @@ Furthermore, this block is completelly optional.
 
     .. attribute:: psf.str_file
 
-        :Parameter:     * **Type** - :class:`str` or :class:`list` [:class:`str`]
+        :Parameter:     * **Type** - :class:`str` or :class:`list[str] <list>`
                         * **Default Value** - :data:`None`
 
         The path+filename to one or more stream files.
@@ -322,7 +323,7 @@ Furthermore, this block is completelly optional.
 
     .. attribute:: psf.rtf_file
 
-        :Parameter:     * **Type** - :class:`str` or :class:`list` [:class:`str`]
+        :Parameter:     * **Type** - :class:`str` or :class:`list[str] <list>`
                         * **Default Value** - :data:`None`
 
         The path+filename to one or more MATCH-produced rtf files.
@@ -332,7 +333,7 @@ Furthermore, this block is completelly optional.
 
     .. attribute:: psf.psf_file
 
-        :Parameter:     * **Type** - :class:`str` or :class:`list` [:class:`str`]
+        :Parameter:     * **Type** - :class:`str` or :class:`list[str] <list>`
                         * **Default Value** - :data:`None`
 
         The path+filename to one or more psf files.
@@ -342,7 +343,7 @@ Furthermore, this block is completelly optional.
 
     .. attribute:: psf.ligand_atoms
 
-        :Parameter:     * **Type** - :class:`str` or :class:`list` [:class:`str`]
+        :Parameter:     * **Type** - :class:`str` or :class:`list[str] <list>`
                         * **Default Value** - :data:`None`
 
         A list with all atoms within the organic ligands.
@@ -376,7 +377,7 @@ each containg the :attr:`func<pes.block.func>` and, optionally,
 
     .. attribute:: pes.block.func
 
-        :Parameter:     * **Type** - :class:`str` or :class:`~collections.abc.Callable`
+        :Parameter:     * **Type** - :class:`str` or :class:`Callable[[FOX.MultiMolecule], ArrayLike] <collections.abc.Callable>`
 
         A callable for constructing a PES descriptor.
 
@@ -390,16 +391,16 @@ each containg the :attr:`func<pes.block.func>` and, optionally,
 
         .. admonition:: See Also
 
-            :meth:`FOX.MultiMolecule.init_rdf<FOX.classes.multi_mol.MultiMolecule.init_rdf>`
+            :meth:`FOX.MultiMolecule.init_rdf`
                 Initialize the calculation of radial distribution functions (RDFs).
 
-            :meth:`FOX.MultiMolecule.init_adf<FOX.classes.multi_mol.MultiMolecule.init_adf>`
+            :meth:`FOX.MultiMolecule.init_adf`
                 Initialize the calculation of angular distribution functions (ADFs).
 
 
     .. attribute:: pes.block.kwargs
 
-        :Parameter:     * **Type** - :class:`dict`
+        :Parameter:     * **Type** - :class:`dict[str, object] <dict>`
                         * **Default Value** - ``{}``
 
         A dictionary with keyword arguments for :attr:`func<pes.block.func>`.
@@ -435,7 +436,7 @@ each containg the :attr:`func<pes_validation.block.func>` and, optionally,
 
     .. attribute:: pes_validation.block.func
 
-        :Parameter:     * **Type** - :class:`str` or :class:`~collections.abc.Callable`
+        :Parameter:     * **Type** - :class:`str` or :class:`Callable[[FOX.MultiMolecule], ArrayLike] <collections.abc.Callable>`
 
         A callable for constructing a PES validators.
 
@@ -451,16 +452,16 @@ each containg the :attr:`func<pes_validation.block.func>` and, optionally,
 
         .. admonition:: See Also
 
-            :meth:`FOX.MultiMolecule.init_rdf<FOX.classes.multi_mol.MultiMolecule.init_rdf>`
+            :meth:`FOX.MultiMolecule.init_rdf`
                 Initialize the calculation of radial distribution functions (RDFs).
 
-            :meth:`FOX.MultiMolecule.init_adf<FOX.classes.multi_mol.MultiMolecule.init_adf>`
+            :meth:`FOX.MultiMolecule.init_adf`
                 Initialize the calculation of angular distribution functions (ADFs).
 
 
     .. attribute:: pes_validation.block.kwargs
 
-        :Parameter:     * **Type** - :class:`dict`
+        :Parameter:     * **Type** - :class:`dict[str, object] <dict>`
                         * **Default Value** - ``{}``
 
         A dictionary with keyword arguments for :attr:`func<pes_validation.block.func>`.
@@ -505,7 +506,7 @@ Note that these jobs are executed in the order as provided by the user-input.
 
     .. attribute:: job.type
 
-        :Parameter:     * **Type** - :class:`str` or :class:`FOX.armc.PackageManagerABC<FOX.armc.package_manager.PackageManagerABC>` subclass
+        :Parameter:     * **Type** - :class:`str` or :class:`FOX.armc.PackageManagerABC` subclass
                         * **Default Value** - ``"FOX.armc.PackageManager"``
 
         The type of Auto-FOX package manager.
@@ -514,13 +515,13 @@ Note that these jobs are executed in the order as provided by the user-input.
 
         .. admonition:: See Also
 
-            :class:`FOX.armc.PackageManager<FOX.armc.package_manager.PackageManager>`
+            :class:`FOX.armc.PackageManager`
                 A **PackageManagerABC** subclass.
 
 
     .. attribute:: job.molecule
 
-        :Parameter:     * **Type** - :class:`str` or :class:`list` [:class:`str`]
+        :Parameter:     * **Type** - :class:`str` or :class:`list[str] <list>`
 
         One or more .xyz files with reference (QM) potential energy surfaces.
 
@@ -546,7 +547,7 @@ Note that these jobs are executed in the order as provided by the user-input.
 
     .. attribute:: job.block.settings
 
-        :Parameter:     * **Type** - :class:`dict` or :class:`list` [:class:`dict`]
+        :Parameter:     * **Type** - :class:`dict` or :class:`list[dict] <list>`
                         * **Default Value** - ``{}``
 
         The job settings as used by :class:`type<job.block.type>`.
@@ -601,18 +602,18 @@ Settings related to the Monte Carlo procedure itself.
 
     .. attribute:: monte_carlo.type
 
-        :Parameter:     * **Type** - :class:`str` or :class:`FOX.armc.MonteCarloABC<FOX.armc.monte_carlo.MonteCarloABC>` subclass
+        :Parameter:     * **Type** - :class:`str` or :class:`FOX.armc.MonteCarloABC` subclass
                         * **Default Value** - ``"FOX.armc.ARMC"``
 
         The type of Monte Carlo procedure.
 
         .. admonition:: See Also
 
-            :class:`FOX.armc.ARMC<FOX.armc.armc.ARMC>`
+            :class:`FOX.armc.ARMC`
                 The Addaptive Rate Monte Carlo class.
 
-            :class:`FOX.armc.ARMCPT<FOX.armc.armc_pt.ARMCPT>`
-                An :class:`~FOX.armc.armc.ARMC` subclass implementing a parallel tempering procedure.
+            :class:`FOX.armc.ARMCPT`
+                An :class:`~FOX.armc.ARMC` subclass implementing a parallel tempering procedure.
 
 
     .. attribute:: monte_carlo.iter_len
@@ -691,7 +692,7 @@ Settings related to the ARMC :math:`\phi` parameter.
 
     .. attribute:: phi.type
 
-        :Parameter:     * **Type** - :class:`str` or :class:`FOX.armc.PhiUpdaterABC<FOX.armc.phi.PhiUpdaterABC>` subclass
+        :Parameter:     * **Type** - :class:`str` or :class:`FOX.armc.PhiUpdaterABC` subclass
                         * **Default Value** - ``"FOX.armc.PhiUpdater"``
 
         The type of phi updater.
@@ -700,13 +701,13 @@ Settings related to the ARMC :math:`\phi` parameter.
 
         .. admonition:: See Also
 
-            :class:`FOX.armc.PhiUpdater<FOX.armc.phi.PhiUpdater>`
+            :class:`FOX.armc.PhiUpdater`
                 A class for applying and updating :math:`\phi`.
 
 
     .. attribute:: phi.gamma
 
-        :Parameter:     * **Type** - :class:`float` or :class:`list` [:class:`float`]
+        :Parameter:     * **Type** - :class:`float` or :class:`list[float] <list>`
                         * **Default Value** - ``2.0``
 
         The constant :math:`\gamma`.
@@ -718,7 +719,7 @@ Settings related to the ARMC :math:`\phi` parameter.
 
     .. attribute:: phi.a_target
 
-        :Parameter:     * **Type** - :class:`float` or :class:`list` [:class:`float`]
+        :Parameter:     * **Type** - :class:`float` or :class:`list[float] <list>`
                         * **Default Value** - ``0.25``
 
         The target acceptance rate :math:`\alpha_{t}`.
@@ -730,7 +731,7 @@ Settings related to the ARMC :math:`\phi` parameter.
 
     .. attribute:: phi.phi
 
-        :Parameter:     * **Type** - :class:`float` or :class:`list` [:class:`float`]
+        :Parameter:     * **Type** - :class:`float` or :class:`list[float] <list>`
                         * **Default Value** - ``1.0``
 
         The initial value of the variable :attr:`phi<phi.phi>`.
@@ -742,7 +743,7 @@ Settings related to the ARMC :math:`\phi` parameter.
 
     .. attribute:: phi.func
 
-        :Parameter:     * **Type** - :class:`str` or :class:`~collections.abc.Callable`
+        :Parameter:     * **Type** - :class:`str` or :class:`Callable[[float, float], float] <collections.abc.Callable>`
                         * **Default Value** - ``"numpy.add"``
 
         The callable for updating phi.

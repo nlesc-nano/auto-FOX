@@ -64,7 +64,7 @@ def swap_random(acceptance: np.ndarray, armcpt: "ARMCPT",
 
     Parameters
     ----------
-    acceptance : :class:`numpy.ndarray` [:class:`bool`], shape :math:`(n, m)`
+    acceptance : :class:`np.ndarray[np.bool_] <numpy.ndarray>`, shape :math:`(n, m)`
         A 2D boolean array with acceptance rates over
         the course of the last super-iteration.
     armc : :class:`FOX.armc.ARMCPT`
@@ -113,14 +113,14 @@ class ARMCPT(ARMC):
 
         Parameters
         ----------
-        swapper : :data:`Callable[[ndarray, ARMCPT], Iterable[Tuple[int, int]]<typing.Callable>`
+        swapper : :data:`Callable[[ndarray, ARMCPT], Iterable[Tuple[int, int]]<collections.abc.Callable>`
             A callable for identifying the to-be swapped parameter.
             Should return an iterable with 2-tuples of to-be swapped indices.
         \**kwargs : :data:`~typing.Any`
             Further keyword arguments for the :class:`ARMC` and
             :class:`MonteCarloABC` superclasses.
 
-        """
+        """  # noqa: E501
         super().__init__(**kwargs)
         self.swap_phi: SwapFunc = swapper
         if len(self.phi.phi) <= 1:
@@ -175,21 +175,18 @@ class ARMCPT(ARMC):
 
         Parameters
         ----------
-        kappa : int
+        kappa : :class:`int`
             The super-iteration, :math:`\kappa`, in :meth:`ARMC.__call__`.
-
-        omega : int
+        omega : :class:`int`
             The sub-iteration, :math:`\omega`, in :meth:`ARMC.__call__`.
-
-        history_dict : |dict|_ [|tuple|_ [|float|_], |np.ndarray|_ [|np.float64|_]]
-            A dictionary with parameters as keys and a list of PES descriptors as values.
-
-        key_new : tuple [float]
+        acceptance : :class:`np.ndarray[np.bool_] <numpy.ndarray>`
+            An array with the acceptance over the course of the latest super-iteration
+        key_new : :class:`tuple[float, ...]`
             A tuple with the latest set of forcefield parameters.
 
         Returns
         -------
-        |tuple|_ [|float|_]:
+        :class:`tuple[float, ...]`
             The latest set of parameters.
 
         """
@@ -278,7 +275,7 @@ class ARMCPT(ARMC):
 
         Returns
         -------
-        :data:`Dict[str, Any]<typing.Dict>`
+        :data:`dict[str, Any] <dict>`
             A dictionary.
 
         """

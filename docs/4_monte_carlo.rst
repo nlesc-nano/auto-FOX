@@ -214,7 +214,7 @@ as type object, as long as the following requirements are fulfilled:
   function, method or class.
   Auto-FOX will internally convert the string into a callable object.
 * The supplied callable *must* be able to operate on NumPy arrays or
-  instances of its :class:`.MultiMolecule` subclass.
+  instances of its :class:`FOX.MultiMolecule` subclass.
 * Keyword argument can be provided with the :attr:`kwargs<pes.block.kwargs>` key.
   The :attr:`kwargs<pes.block.kwargs>` key is entirely optional and can be skipped if desired.
 

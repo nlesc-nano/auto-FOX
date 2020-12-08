@@ -3,7 +3,7 @@
 Radial & Angular Distribution Function
 ======================================
 Radial and angular distribution function (RDF & ADF) generators have been
-implemented in the :class:`.MultiMolecule` class.
+implemented in the :class:`FOX.MultiMolecule` class.
 The radial distribution function, or pair correlation function, describes how
 the particale density in a system varies as a function of distance from a
 reference particle. The herein implemented function is designed for
@@ -15,7 +15,7 @@ constructing RDFs between all possible (user-defined) atom-pairs.
     \frac{V}{N_a*N_b} \sum_{i=1}^{N_a} \sum_{j=1}^{N_b} \left< *placeholder* \right>
 
 
-Given a trajectory, ``mol``, stored as a :class:`.MultiMolecule` instance, the RDF
+Given a trajectory, ``mol``, stored as a :class:`FOX.MultiMolecule` instance, the RDF
 can be calculated with the following
 command: ``rdf = mol.init_rdf(atom_subset=None, low_mem=False)``.
 The resulting ``rdf`` is a Pandas_ dataframe, an object which is effectively a

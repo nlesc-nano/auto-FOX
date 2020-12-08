@@ -79,7 +79,7 @@ class PSFContainer(AbstractDataClass, AbstractFileContainer):
         * :meth:`PSFContainer.update_atom_charge`
         * :meth:`PSFContainer.update_atom_type`
 
-    Methods for extracting bond, angle and dihedral-pairs from |plams.Molecule| instances:
+    Methods for extracting bond, angle and dihedral-pairs from :class:`plams.Molecule <scm.plams.mol.molecule.Molecule>` instances:
 
         * :meth:`PSFContainer.generate_bonds`
         * :meth:`PSFContainer.generate_angles`
@@ -419,14 +419,11 @@ class PSFContainer(AbstractDataClass, AbstractFileContainer):
         ----------
         name : :class:`str`
             The name of the to-be set attribute.
-
-        value : `array-like`_
+        value : :term:`numpy:array_like`
             The array-like object to-be assigned to **name**.
             The supplied object is converted into into an array beforehand.
-
         ndmin : :class:`int`
             The minimum number of dimensions of the to-be assigned array.
-
         dtype : :class:`type` or :class:`numpy.dtype`
             The desired datatype of the to-be assigned array.
 
@@ -557,12 +554,12 @@ class PSFContainer(AbstractDataClass, AbstractFileContainer):
 
         Parameters
         ----------
-        psf_dict : :class:`dict` [:class:`str`, :class:`numpy.ndarray`]
+        psf_dict : :class:`dict[str, np.ndarray] <dict>`
             A dictionary holding the content of a .psf file (see :func:`PSFContainer.read_psf`).
 
         Returns
         -------
-        :class:`dict` [:class:`str`, :class:`numpy.ndarray`]:
+        :class:`dict[str, np.ndarray|pd.DataFrame] <dict>`
             The .psf output, **psf_dict**, with properly formatted values.
 
         """
@@ -673,9 +670,8 @@ class PSFContainer(AbstractDataClass, AbstractFileContainer):
 
         Parameters
         ----------
-        array : :class:`numpy.ndarray`
+        array : :class:`np.ndarray[Any] <numpy.ndarray>`
             A 2D array.
-
         items_per_row : :class:`int`
             The number of values per row before switching to a new line.
 
@@ -714,7 +710,6 @@ class PSFContainer(AbstractDataClass, AbstractFileContainer):
         ----------
         atom_type : :class:`str`
             An atom type in :attr:`PSFContainer.atoms` ``["atom type"]``.
-
         charge : :class:`float`
             The new atomic charge to-be assigned to **atom_type**.
             See :attr:`PSFContainer.atoms` ``["charge"]``.
@@ -735,7 +730,6 @@ class PSFContainer(AbstractDataClass, AbstractFileContainer):
         ----------
         atom_type_old : :class:`str`
             An atom type in :attr:`PSFContainer.atoms` ``["atom type"]``.
-
         atom_type_new : :class:`str`
             The new atom type to-be assigned to **atom_type**.
             See :attr:`PSFContainer.atoms` ``["atom type"]``.
@@ -749,7 +743,7 @@ class PSFContainer(AbstractDataClass, AbstractFileContainer):
 
         Parameters
         ----------
-        mol : |plams.Molecule|
+        mol : :class:`plams.Molecule <scm.plams.mol.molecule.Molecule>`
             A PLAMS Molecule.
 
         """  # noqa
@@ -760,7 +754,7 @@ class PSFContainer(AbstractDataClass, AbstractFileContainer):
 
         Parameters
         ----------
-        mol : |plams.Molecule|
+        mol : :class:`plams.Molecule <scm.plams.mol.molecule.Molecule>`
             A PLAMS Molecule.
 
         """  # noqa
@@ -771,7 +765,7 @@ class PSFContainer(AbstractDataClass, AbstractFileContainer):
 
         Parameters
         ----------
-        mol : |plams.Molecule|
+        mol : :class:`plams.Molecule <scm.plams.mol.molecule.Molecule>`
             A PLAMS Molecule.
 
         """  # noqa
@@ -782,7 +776,7 @@ class PSFContainer(AbstractDataClass, AbstractFileContainer):
 
         Parameters
         ----------
-        mol : |plams.Molecule|
+        mol : :class:`plams.Molecule <scm.plams.mol.molecule.Molecule>`
             A PLAMS Molecule.
 
         """  # noqa
@@ -812,10 +806,9 @@ class PSFContainer(AbstractDataClass, AbstractFileContainer):
 
         Parameters
         ----------
-        mol : |plams.Molecule|
+        mol : :class:`plams.Molecule <scm.plams.mol.molecule.Molecule>`
             A PLAMS Molecule.
-
-        id_map : :class:`Mapping<collection.abc.Mapping>` [:class:`int`, :data:`Hashable<typing.Hashable>`], optional
+        id_map : :class:`Mapping[int, Any] <collection.abc.Mapping>`, optional
             A mapping of ligand residue ID's to a custom (Hashable) descriptor.
             Can be used for generating residue names for quantum dots with
             multiple different ligands.
@@ -882,7 +875,7 @@ class PSFContainer(AbstractDataClass, AbstractFileContainer):
 
         Returns
         -------
-        :class:`dict` [:class:`str`, :class:`list` [:class:`int`]]
+        :class:`dict[str, list[int]] <dict>`
             A dictionary with atom types as keys and lists of matching atomic indices as values.
             The indices are 0-based.
 
@@ -897,13 +890,11 @@ class PSFContainer(AbstractDataClass, AbstractFileContainer):
 
         Parameters
         ----------
-        mol : |plams.Molecule|
+        mol : :class:`plams.Molecule <scm.plams.mol.molecule.Molecule>`
             A PLAMS Molecule.
-
         copy_mol : :class:`bool`
             If ``True``, create a copy of **mol** instead of modifying it inplace.
-
-        pdb_file : :class:`str` ot :class:`TextIOBase<io.TextIOBase>`
+        pdb_file : :class:`str` ot :class:`IO[str] <io.TextIOBase>`
             A filename or a file-like object.
 
         """
@@ -939,13 +930,11 @@ def overlay_str_file(psf: PSFContainer, filename: Union[str, bytes, PathLike],
 
     Parameters
     ----------
-    psf : |FOX.PSFContainer|
+    psf : :class:`FOX.PSFContainer`
         A :class:`PSFContainer` instance.
-
-    filename : str
+    filename : :class:`str`
         The path+filename of a .str file containing ligand charges and atom types.
-
-    id_range : :class:`Iterable<collections.abc.Iterable>` [:class:`int`], optional
+    id_range : :class:`Iterable[int] <collections.abc.Iterable>`, optional
         An iterable with the residue IDs of to-be updated residues.
         If ``None``, update the atoms in all residues.
 
@@ -966,13 +955,11 @@ def overlay_rtf_file(psf: PSFContainer, filename: Union[str, bytes, PathLike],
 
     Parameters
     ----------
-    psf : |FOX.PSFContainer|
+    psf : :class:`FOX.PSFContainer`
         A :class:`PSFContainer` instance.
-
-    filename : str
+    filename : :class:`str`
         The path+filename of a .rtf file containing ligand charges and atom types.
-
-    id_range : :class:`Iterable<collections.abc.Iterable>` [:class:`int`], optional
+    id_range : :class:`Iterable[int] <collections.abc.Iterable>`, optional
         An iterable with the residue IDs of to-be updated residues.
         If ``None``, update the atoms in all residues.
 

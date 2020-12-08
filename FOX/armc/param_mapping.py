@@ -127,31 +127,11 @@ class ParamMappingABC(AbstractDataClass, ABC):
 
     Attributes
     ----------
-    move_range : :class:`numpy.ndarray` [:class:`float`], shape :math:`(n,)`
+    move_range : :class:`np.ndarray[np.float64] <numpy.ndarray>`, shape :math:`(n,)`
         An 1D array with all allowed move steps.
-
-    func : :class:`~Collections.abc.Callable`
+    func : :class:`~collections.abc.Callable`
         The callable used for applying :math:`\phi` to the auxiliary error.
         The callable should take an two floats as arguments and return a new float.
-
-    _data : :class:`dict` [:class:`str`, :class:`pandas.Series`], private
-        A dictionary of Series containing the forcefield parameters.
-        The index should be a 3-level :class:`~pandas.MultiIndex`,
-        the first level containg the key-alias, the second the parameter name and
-        the third the atom (pair).
-
-        Has access to the the following keys:
-
-        * ``"param"`` (:class:`float`): The current forcefield paramters.
-        * ``"param_old"`` (:class:`float`): Old paramters from a previous iteration.
-        * ``"min"`` (:class:`float`): The minimum value for each parameter.
-        * ``"max"`` (:class:`float`): The maximum value for each parameter.
-        * ``"count"`` (:class:`int`): The number of unique atom (pairs) assigned
-          to a given parameter.
-          Currently only important when updating the charge,
-          as the latter requires a charge renormalization after every move to ensure
-          the total molecular charge remains constant.
-
     _net_charge : :class:`float`, optional
         The net charge of the molecular system.
         Only applicable if the ``"charge"`` is among the passed parameters.
@@ -184,7 +164,7 @@ class ParamMappingABC(AbstractDataClass, ABC):
 
         Parameters
         ----------
-        _data : :class:`pandas.DataFrame` or :class:`~collections.abc.Mapping` [:class:`str`, :class:`pandas.Series`]
+        data : :class:`pandas.DataFrame` or :class:`Mapping[str, pd.Series] <collections.abc.Mapping>`
             A DataFrame (or dict of Series) containing the ``"param"`` key
             with the forcefield parameters.
             The index should be a 2-level :class:`~pandas.MultiIndex`,
@@ -203,16 +183,13 @@ class ParamMappingABC(AbstractDataClass, ABC):
               the total molecular charge remains constant.
 
             See :attr:`ParamMappingABC._data`.
-
-        move_range : :class:`~collections.abc.Iterable` [:class:`float`]
+        move_range : :class:`.Iterable[float] <collections.abc.Iterable>`
             An iterable with all allowed move steps.
             See :attr:`ParamMappingABC.move_range`.
-
-        func : :class:`~Collections.abc.Callable`
+        func : :class:`~Collections.abc.Callable[[float, float], float]`
             The callable used for applying :math:`\phi` to the auxiliary error.
             The callable should take an two floats as arguments and return a new float.
             See :attr:`ParamMappingABC.func`.
-
         \**kwargs : :data:`~typing.Any`
             Further keyword arguments for **func**.
 
@@ -295,7 +272,7 @@ class ParamMappingABC(AbstractDataClass, ABC):
     # Magic methods and Mapping implementation
 
     def __eq__(self, value: Any) -> bool:
-        """Implement :code:`self == value`."""
+        """Implement :meth:`self == value <object.__eq__>`."""
         if type(self) is not type(value):
             return False
 
@@ -336,12 +313,12 @@ class ParamMappingABC(AbstractDataClass, ABC):
 
         Parameters
         ----------
-        idx
+        idx : :class:`tuple[str, str, str] <tuple>`
             The index of the new parameter.
             Must be compatible with ``pd.DataFrame.loc``.
-        value
+        value : :class:`float`
             The value of the new parameter.
-        \**kwargs
+        \**kwargs : :data:`~typing.Any`
             Values for :class:`ParamMappingABC.metadata`.
 
         """
@@ -365,7 +342,6 @@ class ParamMappingABC(AbstractDataClass, ABC):
         ----------
         logger : :class:`logging.Logger`, optional
             A logger for reporting the updated value.
-
         param_idx : :class:`int`, optional
             The index of the parameter.
             Only relevant when multiple parameter sets have to be stored
@@ -373,7 +349,7 @@ class ParamMappingABC(AbstractDataClass, ABC):
 
         Returns
         -------
-        :class:`tuple` [:class:`~Collections.abc.Hashable`, :class:`~Collections.abc.Hashable`]
+        :class:`tuple[str, str] <tuple>`
             The index of the updated parameter.
 
         """
@@ -400,12 +376,12 @@ class ParamMappingABC(AbstractDataClass, ABC):
 
         Parameters
         ----------
-        param : :class:`~collections.abc.Hashable`
+        param : :class:`str`
             The name of the parameter-containg column.
 
         Returns
         -------
-        :class:`tuple` [:class:`~Collections.abc.Hashable`, :class:`~Collections.abc.Hashable`], :class:`float` and :class:`float`
+        :class:`tuple[tuple[str, str, str], float, float] <tuple>`
             The index of the to-be moved parameter, it's value and the size of the move.
 
         """  # noqa
@@ -416,9 +392,8 @@ class ParamMappingABC(AbstractDataClass, ABC):
 
         Parameters
         ----------
-        idx : :class:`tuple` [:class:`~Collections.abc.Hashable`, :class:`~Collections.abc.Hashable`]
+        idx : :class:`tuple[str, str, str] <tuple>`
             The index of the moved parameter.
-
         value : :class:`float`
             The value of the moved parameter.
 
@@ -437,17 +412,17 @@ class ParamMappingABC(AbstractDataClass, ABC):
 
         Parameters
         ----------
-        idx : :class:`tuple` [:class:`~Collections.abc.Hashable`, :class:`~Collections.abc.Hashable`]
+        idx : :class:`tuple[str, str, str] <tuple>`
             The index of the moved parameter.
-
         value : :class:`float`
             The value of the moved parameter.
-
-        param : :class:`~collections.abc.Hashable`
+        param : :class:`str`
             The name of the parameter-containg column.
 
-        idx : :class:`~collections.abc.Mapping`
-            A Mapping with the to-be applied constraints per atom (pair).
+        Returns
+        -------
+        :class:`Exception`, optional
+            Any exceptions raised during this functions' call.
 
         """  # noqa
         pass
@@ -561,12 +536,12 @@ class ParamMapping(ParamMappingABC):
 
         Parameters
         ----------
-        param_idx : :class:`~collections.abc.Hashable`
+        param_idx : :class:`int`
             The name of the parameter-containg column.
 
         Returns
         -------
-        :class:`tuple` [:class:`~Collections.abc.Hashable`, :class:`~Collections.abc.Hashable`], :class:`float` and :class:`float`
+        :class:`tuple[tuple[str, str, str], float, float] <tuple>`
             The index of the to-be moved parameter, it's value and the size of the move.
 
         """  # noqa
@@ -584,9 +559,8 @@ class ParamMapping(ParamMappingABC):
 
         Parameters
         ----------
-        idx : :class:`tuple` [:class:`~Collections.abc.Hashable`, :class:`~Collections.abc.Hashable`]
+        idx : :class:`tuple[str, str, str] <tuple>`
             The index of the moved parameter.
-
         value : :class:`float`
             The value of the moved parameter.
 
@@ -606,17 +580,12 @@ class ParamMapping(ParamMappingABC):
 
         Parameters
         ----------
-        idx : :class:`tuple` [:class:`~Collections.abc.Hashable`, :class:`~Collections.abc.Hashable`]
+        idx : :class:`tuple[str, str, str] <tuple>`
             The index of the moved parameter.
-
         value : :class:`float`
             The value of the moved parameter.
-
-        param_idx : :class:`~collections.abc.Hashable`
+        param_idx : :class:`int`
             The name of the parameter-containg column.
-
-        constraints : :class:`~collections.abc.Mapping`
-            A Mapping with the to-be applied constraints per atom (pair).
 
         """  # noqa
         key = idx[:2]

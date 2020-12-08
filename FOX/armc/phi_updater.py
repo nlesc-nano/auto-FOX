@@ -67,11 +67,11 @@ class PhiUpdaterABC(AbstractDataClass, ABC, Sized):
 
     Attributes
     ----------
-    phi : :class:`numpy.ndarray`
+    phi : :class:`np.ndarray[np.float64] <numpy.ndarray>`
         The variable :math:`\phi`.
-    gamma : :class:`numpy.ndarray`
+    gamma : :class:`np.ndarray[np.float64] <numpy.ndarray>`
         The constant :math:`\gamma`.
-    a_target : :class:`numpy.ndarray`
+    a_target : :class:`np.ndarray[np.float64] <numpy.ndarray>`
         The target acceptance rate :math:`\alpha_{t}`.
     func : :class:`Callable[[array-like, ndarray], ndarray]<collections.abc.Callable>`
         The callable used for applying :math:`\phi` to the auxiliary error.
@@ -110,24 +110,20 @@ class PhiUpdaterABC(AbstractDataClass, ABC, Sized):
 
         Parameters
         ----------
-        phi : array-like [:class:`float`]
+        phi : :term:`ArrayLike[np.float64] <numpy:array_like>`
             The variable :math:`\phi`.
             See :attr:`AbstractPhiUpdater.phi`.
-
-        gamma : array-like [:class:`float`]
+        gamma : :term:`ArrayLike[np.float64] <numpy:array_like>`
             The constant :math:`\gamma`.
             See :attr:`AbstractPhiUpdater.gamma`.
-
-        a_target : array-like [:class:`float`]
+        a_target : :term:`ArrayLike[np.float64] <numpy:array_like>`
             The target acceptance rate :math:`\alpha_{t}`.
             See :attr:`AbstractPhiUpdater.a_target`.
-
         func : :class:`Callable[[array-like, ndarray, **kwargs], ndarray]<collections.abc.Callable>`
             The callable used for applying :math:`\phi` to the auxiliary error.
             The callable should take an array-like object and a :class:`numpy.ndarray`
             as arguments and return a new array.
             See :attr:`AbstractPhiUpdater.func`.
-
         \**kwargs : :data:`~typing.Any`
             Further keyword arguments for **func**
 
@@ -184,18 +180,16 @@ class PhiUpdaterABC(AbstractDataClass, ABC, Sized):
 
     def __call__(self, value: ArrayLikeOrScalar, *,
                  idx: Optional[SupportsIndex] = None,
-                 dtype: DtypeLike = float) -> np.ndarray:
+                 dtype: DtypeLike = np.float64) -> np.ndarray:
         """Pass **value** and :attr:`phi` to :attr:`func`.
 
         Parameters
         ----------
-        value : array-like or scalar
+        value : :term:`ArrayLike[np.bool_] <numpy:array_like>`
             A array-like object or a scalar.
-
         idx : :class:`int`, optional
             If not :data:`None`, apply :attr:`func` to **value** using :attr:`phi[idx]<phi>`.
-
-        dtype : data-type, optional
+        dtype : :class:`numpy.dtype`, optional
             The desired data-type for the output array.
 
         Returns
@@ -239,9 +233,8 @@ class PhiUpdaterABC(AbstractDataClass, ABC, Sized):
 
         Parameters
         ----------
-        acceptance : array-like [:class:`bool`]
+        acceptance : :term:`ArrayLike[np.bool_] <numpy:array_like>`
             An array-like object consisting of booleans.
-
         \**kwargs : :data:`~typing.Any`
             Further keyword arguments which can be customized in the methods of subclasses.
 
@@ -271,9 +264,8 @@ class PhiUpdater(PhiUpdaterABC):
 
         Parameters
         ----------
-        acceptance : array-like [:class:`bool`]
+        acceptance : :term:`ArrayLike[np.bool_] <numpy:array_like>`
             An array-like object consisting of booleans.
-
         logger : :class:`logging.Logger`, optional
             A logger for reporting the updated value.
 

@@ -61,16 +61,12 @@ class ARMC(MonteCarloABC):
     ----------
     iter_len : :class:`int`
         The total number of ARMC iterations :math:`\kappa \omega`.
-
     super_iter_len : :class:`int`
         The length of each ARMC subiteration :math:`\kappa`.
-
     sub_iter_len : :class:`int`
         The length of each ARMC subiteration :math:`\omega`.
-
     phi : :class:`PhiUpdaterABC`
         A PhiUpdater instance.
-
     \**kwargs : :data:`~typing.Any`
         Keyword arguments for the :class:`MonteCarlo` superclass.
 
@@ -99,13 +95,10 @@ class ARMC(MonteCarloABC):
         ----------
         iter_len : :class:`int`
             The total number of ARMC iterations :math:`\kappa \omega`.
-
         sub_iter_len : :class:`int`
             The length of each ARMC subiteration :math:`\omega`.
-
         phi : :class:`PhiUpdaterABC`
             A PhiUpdater instance.
-
         \**kwargs : :data:`~typing.Any`
             Keyword arguments for the :class:`MonteCarlo` superclass.
 
@@ -131,7 +124,7 @@ class ARMC(MonteCarloABC):
 
         Returns
         -------
-        :data:`Dict[str, Any]<typing.Dict>`
+        :data:`dict[str, Any] <dict>`
             A dictionary.
 
         """
@@ -232,21 +225,18 @@ class ARMC(MonteCarloABC):
 
         Parameters
         ----------
-        kappa : int
+        kappa : :class:`int`
             The super-iteration, :math:`\kappa`, in :meth:`ARMC.__call__`.
-
-        omega : int
+        omega : :class:`int`
             The sub-iteration, :math:`\omega`, in :meth:`ARMC.__call__`.
-
-        history_dict : |dict|_ [|tuple|_ [|float|_], |np.ndarray|_ [|np.float64|_]]
-            A dictionary with parameters as keys and a list of PES descriptors as values.
-
-        key_new : tuple [float]
+        acceptance : :class:`np.ndarray[np.bool_] <numpy.ndarray>`
+            An array with the acceptance over the course of the latest super-iteration
+        key_new : :class:`tuple[float, ...]`
             A tuple with the latest set of forcefield parameters.
 
         Returns
         -------
-        |tuple|_ [|float|_]:
+        :class:`tuple[float, ...]`
             The latest set of parameters.
 
         """
@@ -346,7 +336,7 @@ class ARMC(MonteCarloABC):
 
         Returns
         -------
-        |tuple|_ [|np.ndarray|_ [|float|_]]
+        :class:`tuple[float, ...]`
             A tuple of Numpy arrays.
 
         """
@@ -365,26 +355,26 @@ class ARMC(MonteCarloABC):
 
         Parameters
         ----------
-        mol_list : |List|_ [|FOX.MultiMolecule|_]
-            An iterable consisting of :class:`.MultiMolecule` instances (or ``None``).
-        accept : bool
+        mol_list : :class:`list[FOX.MultiMolecule] <list>`, optional
+            An iterable consisting molecules instances (or ``None``).
+        accept : :class:`bool`
             Whether or not the latest set of parameters was accepted.
-        aux_new : |np.ndarray|_
+        aux_new : :class:`np.ndarray[np.float64] <numpy.ndarray>`
             The latest auxiliary error.
-        aux_validation : |np.ndarray|_
+        aux_validation : :class:`np.ndarray[np.float64] <numpy.ndarray>`
             The latest auxiliary error from the validation.
-        pes_new : |dict|_ [|str|_, |np.ndarray|_]
+        pes_new : :class:`dict[str, np.ndarray[np.float64]] <dict>`
             A dictionary of PES descriptors.
-        pes_validation : |dict|_ [|str|_, |np.ndarray|_]
+        pes_validation : :class:`dict[str, np.ndarray[np.float64]] <dict>`
             A dictionary of PES descriptors from the validation.
-        kappa : int
+        kappa : :class:`int`
             The super-iteration, :math:`\kappa`, in :meth:`ARMC.__call__`.
-        omega : int
+        omega : :class:`int`
             The sub-iteration, :math:`\omega`, in :meth:`ARMC.__call__`.
 
         Returns
         -------
-        |dict|_
+        :class:`dict[str, Any] <dict>`
             A dictionary with the **hdf5_kwarg** argument for :func:`.to_hdf5`.
 
         """
@@ -431,12 +421,12 @@ class ARMC(MonteCarloABC):
 
         Parameters
         ----------
-        pes_dict : [|dict|_ [str, |np.ndarray|_ [|np.float64|_]]
+        pes_dict : :class:`dict[str, np.ndarray[np.float64]] <dict>`
             An dictionary with :math:`m*n` PES descriptors each.
 
         Returns
         -------
-        :math:`m*n` |np.ndarray|_ [|np.float64|_]:
+        :class:`np.ndarray[np.float64] <numpy.ndarray>`, shape :math:`(m, n)`
             An array with :math:`m*n` auxilary errors
 
         """

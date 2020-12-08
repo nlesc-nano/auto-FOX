@@ -225,15 +225,15 @@ class MonteCarloABC(AbstractDataClass, ABC, Mapping[Key, np.ndarray]):
 
         Parameters
         ----------
-        name : str
+        name : :class:`str`
             The name under which the PES-descriptor will be stored (*e.g.* ``"RDF"``).
-        func : Callable
+        func : :class:`~Collections.abc.Callable`
             The callable for constructing the PES-descriptor.
             The callable should take an array-like object as input and
             return a new array-like object as output.
         args : :class:`~collections.abc.Sequence`
             A sequence of positional arguments.
-        kwargs : :class:`dict` or :class:`~collections.abc.Iterable` [:class:`dict`]
+        kwargs : :class:`dict` or :class:`Iterable[dict] <collections.abc.Iterable>`
             A dictionary or an iterable of dictionaries with keyword arguments.
             Providing an iterable allows one to use a unique set of keyword arguments for each
             molecule in :attr:`MonteCarlo.molecule`.
@@ -284,9 +284,9 @@ class MonteCarloABC(AbstractDataClass, ABC, Mapping[Key, np.ndarray]):
 
         Returns
         -------
-        :class:`list` [:class:`MultiMolecule`]
+        :class:`list[FOX.MultiMolecule] <list>`, optional
             A list of MultiMolecule instance(s) constructed from the MD trajectory.
-            Will return ``None`` if one of the jobs crashed
+            Will return :data:`None` if one of the jobs crashed
 
         """
         return self.package_manager(logger=self.logger)
@@ -335,7 +335,7 @@ class MonteCarloABC(AbstractDataClass, ABC, Mapping[Key, np.ndarray]):
 
         Returns
         -------
-        |tuple|_ [|float|_]:
+        :class:`tuple[float, ...] <float>`
             A tuple with the (new) values in the ``'param'`` column of **self.param**.
 
         """
@@ -371,8 +371,8 @@ class MonteCarloABC(AbstractDataClass, ABC, Mapping[Key, np.ndarray]):
     ]:
         """Check if a **key** is already present in **history_dict**.
 
-        If ``True``, return the matching list of PES descriptors;
-        If ``False``, construct and return a new list of PES descriptors.
+        If :data:`True`, return the matching list of PES descriptors;
+        If :data:`False`, construct and return a new list of PES descriptors.
 
         * The PES descriptors are constructed by the provided settings in **self.pes**.
 
@@ -384,12 +384,12 @@ class MonteCarloABC(AbstractDataClass, ABC, Mapping[Key, np.ndarray]):
 
         Returns
         -------
-        |dict|_ [|str|_, |np.ndarray|_ [|np.float64|_]) and |FOX.MultiMolecule|_
+        :class:`dict[str, np.ndarray[np.float64]] <dict>`, :class:`dict[str, np.ndarray[np.float64]] <dict>` and :class:`FOX.MultiMolecule`
             A previous value from **history_dict** or a new value from an MD calculation &
             a :class:`.MultiMolecule` instance constructed from the MD simulation.
             Values are set to ``np.inf`` if the MD job crashed.
 
-        """
+        """  # noqa: E501
         # Generate PES descriptors
         mol_list = self.run_jobs()
 
