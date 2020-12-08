@@ -1935,7 +1935,7 @@ class MultiMolecule(_MultiMolecule):
 
         Parameters
         ----------
-        filename : :term:`python:path-like`
+        filename : :term:`python:path-like object`
             The path+filename (including extension) of the to be created file.
         mol_subset : :class:`slice`, optional
             Perform the calculation on a subset of molecules in this instance, as
@@ -1953,7 +1953,7 @@ class MultiMolecule(_MultiMolecule):
 
         Parameters
         ----------
-        filename : :term:`python:path-like`
+        filename : :term:`python:path-like object`
             The path+filename (including extension) of the to be created file.
         mol_subset : :class:`slice`, optional
             Perform the calculation on a subset of molecules in this instance, as
@@ -1971,7 +1971,7 @@ class MultiMolecule(_MultiMolecule):
 
         Parameters
         ----------
-        filename : :term:`python:path-like`
+        filename : :term:`python:path-like object`
             The path+filename (including extension) of the to be created file.
         mol_subset : :class:`slice`, optional
             Perform the calculation on a subset of molecules in this instance, as
@@ -1993,7 +1993,7 @@ class MultiMolecule(_MultiMolecule):
 
         Parameters
         ----------
-        filename : :term:`python:path-like`
+        filename : :term:`python:path-like object`
             The path+filename (including extension) of the to be created file.
         mol_subset : :class:`slice`, optional
             Perform the calculation on a subset of molecules in this instance, as
@@ -2211,7 +2211,7 @@ class MultiMolecule(_MultiMolecule):
 
         Parameters
         ----------
-        filename : :term:`python:path-like`
+        filename : :term:`python:path-like object`
             The path+filename of an .xyz file.
         bonds : :class:`np.ndarray[np.int64] <numpy.ndarray>`, shape :math:`(k, 3)`
             An optional 2D array with indices of the atoms defining all :math:`k` bonds
@@ -2250,7 +2250,7 @@ class MultiMolecule(_MultiMolecule):
 
         Parameters
         ----------
-        filename : :term:`python:path-like`
+        filename : :term:`python:path-like object`
             The path+filename of an KF binary file.
         bonds : :class:`np.ndarray[np.int64] <numpy.ndarray>`, shape :math:`(k, 3)`
             An optional 2D array with indices of the atoms defining all :math:`k` bonds
