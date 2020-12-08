@@ -78,7 +78,12 @@ jobs:
               run: conda info
 
             - name: Info installed packages
+              if: matrix.os != 'windows-latest'
               run: conda list -n test
+
+            - name: Info installed packages (windows-latest)
+              if: matrix.os == 'windows-latest'
+              run: conda list
 
             - name: Run tests
               if: matrix.os != 'windows-latest'
