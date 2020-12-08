@@ -85,7 +85,7 @@ jobs:
 
             - name: Run tests
               run: |
-                if [ "${{ matrix.os }}" == "windows-latest" ]; then
+                if [ "${{ matrix.os }}" != "windows-latest" ]; then
                     source $CONDA/bin/activate test
                 else
                     conda activate test
