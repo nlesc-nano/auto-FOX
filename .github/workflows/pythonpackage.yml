@@ -97,8 +97,9 @@ jobs:
               run: |
                 conda create -n test -c conda-forge rdkit python=3.9
                 source $CONDA/bin/activate test
-                $CONDA/bin/pip install .[test]
-                $CONDA/bin/pytest -m "not slow" --flake8
+                conda list -n test
+                pip install .[test]
+                pytest -m "not slow" --flake8
 
             - name: Run codecov
               uses: codecov/codecov-action@v1
