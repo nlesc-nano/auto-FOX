@@ -56,7 +56,7 @@ jobs:
             - name: Install dependencies (windows-latest)
               if: matrix.special == '' && matrix.os == 'windows-latest'
               run: |
-                conda install windows=${{ matrix.version }} rdkit
+                conda install -c conda-forge windows=${{ matrix.version }} rdkit
                 pip install .[test]
 
             - name: Install dependencies (minimum version)
