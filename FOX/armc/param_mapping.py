@@ -22,7 +22,7 @@ from types import MappingProxyType
 from logging import Logger
 from functools import wraps, partial
 from typing import (
-    Any, TypeVar, Optional, Tuple, Mapping, Iterable, ClassVar, Union, Sequence,
+    Any, TypeVar, Optional, Tuple, Mapping, Iterable, ClassVar, Union,
     Callable, FrozenSet, cast, MutableMapping, TYPE_CHECKING, Dict
 )
 
@@ -303,9 +303,7 @@ class ParamMappingABC(AbstractDataClass, ABC):
 
     # The actual meat of the class
 
-    def add_param(self, idx: Tup3, value: float,
-                  columns: Union[str, Sequence[str], slice] = slice(None),
-                  **kwargs: Any) -> None:
+    def add_param(self, idx: Tup3, value: float, **kwargs: Any) -> None:
         r"""Add a new parameter to this instance.
 
         Parameters

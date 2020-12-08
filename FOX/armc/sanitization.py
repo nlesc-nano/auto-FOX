@@ -241,10 +241,12 @@ def _guess_param(mc: MonteCarloABC, prm: dict,
 
     # Update the variable parameters
     metadata = {'min': -np.inf, 'max': np.inf, 'count': 0, 'guess': True}
+    _prm = mc.param.param
     for k, v in seq:
         iterator = (((k, v['param'], at), value) for at, value in v.items() if at != 'param')
         for key, value in iterator:
-            mc.param.add_param(key, value, frozen=frozen, **metadata)
+            if key not in _prm.index:
+                mc.param.add_param(key, value, frozen=frozen, **metadata)
     return
 
 
