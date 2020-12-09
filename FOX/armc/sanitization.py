@@ -228,7 +228,7 @@ def _guess_param(mc: MonteCarloABC, prm: dict,
         if mode is None:
             continue
         param = v['param']
-        unit = UNIT_MAP[v.get('unit', 'k_e' if param == 'epsilon' else 'angstrom')]
+        unit = UNIT_MAP[v.get('unit') or ('k_e' if param == 'epsilon' else 'angstrom')]
 
         prm_series = guess_param(mc.molecule, param, mode=mode,
                                  psf_list=psf, prm=prm_file, unit=unit)
@@ -243,10 +243,11 @@ def _guess_param(mc: MonteCarloABC, prm: dict,
     metadata = {'min': -np.inf, 'max': np.inf, 'count': 0, 'guess': True}
     _prm = mc.param.param
     for k, v in seq:
+        unit = mc.param.metadata.loc[(k, v['param']), 'unit'].iat[0]
         iterator = (((k, v['param'], at), value) for at, value in v.items() if at != 'param')
         for key, value in iterator:
             if key not in _prm.index:
-                mc.param.add_param(key, value, frozen=frozen, **metadata)
+                mc.param.add_param(key, value, frozen=frozen, unit=unit, **metadata)
     return
 
 
@@ -326,14 +327,18 @@ def get_param(dct: ParamMapping_) -> Tuple[ParamMapping, dict, dict, ValidationD
     prm_dict = validate_param(_prm_dict)
     kwargs = prm_dict.pop('kwargs')  # type: ignore[misc]
     validation_dict = validation_schema.validate(prm_dict.pop('validation'))  # type: ignore[misc]
+
+    # Construct and fill the parameter dataframe
     data = _get_param_df(_sub_prm_dict)
-    constraints, min_max = _get_prm_constraints(_sub_prm_dict)
+    constraints, min_max, units = _get_prm_constraints(_sub_prm_dict)
     data[['min', 'max']] = min_max
+    data['unit'] = units
 
     if _sub_prm_dict_frozen is not None:
         for *_key, value in _get_prm(_sub_prm_dict_frozen):
             key = tuple(_key)
-            data.loc[key, :] = [value, value, True, False, -np.inf, np.inf, 0]
+            unit = data.loc[key[:2], 'unit'].iat[0]
+            data.loc[key, :] = [value, value, True, False, -np.inf, np.inf, 0, unit]
     data.sort_index(inplace=True)
 
     param_type = prm_dict.pop('type')  # type: ignore
@@ -515,6 +520,7 @@ def _get_param_df(dct: Mapping[str, Any]) -> pd.DataFrame:
     df['min'] = -np.inf
     df['max'] = np.inf
     df['count'] = 0
+    df['unit'] = ''
     return df
 
 
@@ -619,7 +625,8 @@ def _get_prm_constraints(
     dct: Mapping[str, Union[MutableMapping, Iterable[MutableMapping]]]
 ) -> Tuple[
     Dict[Tuple[str, str], Optional[List[Dict[str, float]]]],
-    List[Tuple[float, float]]
+    List[Tuple[float, float]],
+    List[str],
 ]:
     """Parse all user-provided constraints.
 
@@ -637,14 +644,18 @@ def _get_prm_constraints(
 
     constraints_dict: Dict[Tuple[str, str], Optional[List[Dict[str, float]]]] = {}
     min_max: List[Tuple[float, float]] = []
+    units: List[str] = []
 
     dct_iterator = prm_iter(dct)
     for key_alias, sub_dict in dct_iterator:
+        unit = sub_dict.setdefault('unit', None) or ''
+
         try:
             proto_constraints = sub_dict.pop('constraints')
         except KeyError:
             for k in sub_dict:
                 if k not in ignore_keys:
+                    units.append(unit)
                     min_max.append((-np.inf, np.inf))
             constraints_dict[key_alias, sub_dict["param"]] = []
             continue
@@ -652,6 +663,7 @@ def _get_prm_constraints(
         extremites, constraints = assign_constraints(proto_constraints)
         for k in sub_dict:
             if k not in ignore_keys:
+                units.append(unit)
                 min_max.append((
                     extremites.get((k, 'min'), -np.inf),
                     extremites.get((k, 'max'), np.inf)
@@ -659,11 +671,11 @@ def _get_prm_constraints(
         constraints_dict[key_alias, sub_dict["param"]] = (
             constraints if constraints is not None else []
         )
-    return constraints_dict, min_max
+    return constraints_dict, min_max, units
 
 
 def _parse_ligand_alias(psf_list: Optional[Sequence[PSFContainer]], prm: ParamMapping) -> None:
-    """Replace ``$LIGAND`` constraints with explicit ligands."""
+    """Replace ``$LIGAND`` constraints with explicit ligand atoms."""
     not_implemented = psf_list is None or len(psf_list) != 1
     if not not_implemented:
         psf: PSFContainer = psf_list[0]  # type: ignore[index]
@@ -672,7 +684,8 @@ def _parse_ligand_alias(psf_list: Optional[Sequence[PSFContainer]], prm: ParamMa
 
         atom_types: Iterable[str] = df['atom type'].values
         atom_counter = Counter(atom_types)
-        metadata = {'min': -np.inf, 'max': np.inf, 'count': 0, 'frozen': True, 'guess': False}
+        metadata = {'min': -np.inf, 'max': np.inf, 'count': 0, 'frozen': True,
+                    'guess': False, 'unit': ''}
         for k in atom_counter:
             key = ('charge', 'charge', k)
             if key not in prm.param.index:

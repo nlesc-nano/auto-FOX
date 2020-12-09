@@ -26,6 +26,7 @@ from typing import (
     Callable, FrozenSet, cast, MutableMapping, TYPE_CHECKING, Dict
 )
 
+import h5py
 import numpy as np
 import pandas as pd
 from assertionlib.dataclass import AbstractDataClass
@@ -49,7 +50,7 @@ Tup3 = Tuple[Any, Any, Any]
 Tup2 = Tuple[Any, Any]
 
 # All dict keys in ParamMappingABC
-MetadataKeys = Literal['min', 'max', 'count', 'frozen', 'guess']
+MetadataKeys = Literal['min', 'max', 'count', 'frozen', 'guess', 'unit']
 
 # A function for moving parameters
 MoveFunc = Callable[[float, float], float]
@@ -67,6 +68,7 @@ class InputMapping(_InputMapping, total=False):
     count: pd.Series
     frozen: pd.Series
     guess: pd.Series
+    unit: pd.Series
 
 
 def _parse_param(dct: MutableMapping[str, Any]) -> pd.DataFrame:
@@ -147,6 +149,7 @@ class ParamMappingABC(AbstractDataClass, ABC):
         'count': np.int64(-1),
         'frozen': np.False_,
         'guess': np.False_,
+        'unit': np.str_(''),
     })
 
     _PRIVATE_ATTR = frozenset({'_net_charge'})  # type: ignore
@@ -425,7 +428,10 @@ class ParamMappingABC(AbstractDataClass, ABC):
     def to_struct_array(self) -> np.ndarray:
         """Stack all :class:`~pandas.Series` in this instance into a single structured array."""
         cls = type(self)
-        dtype = np.dtype(list((k, type(v)) for k, v in cls.FILL_VALUE.items()))
+        dtype_dict = {k: type(v) for k, v in cls.FILL_VALUE.items()}
+        dtype_dict['unit'] = h5py.string_dtype('utf-8')
+        dtype = np.dtype(list(dtype_dict.items()))
+
         iterator = (v for _, v in self.metadata.items())
         return np.rec.fromarrays(iterator, dtype=dtype)
 
@@ -494,13 +500,14 @@ class ParamMappingABC(AbstractDataClass, ABC):
             ret[key][i]['constraints'].append(f'{min_} < {atom} < {max_}')
 
         # Set the parameters
-        iterator = ((k, self.param.at[k, 0], self.metadata.at[k, 'frozen']) for k in index)
-        for (key, param, atom), value, frozen in iterator:
+        iterator = ((k, self.param.at[k, 0], self.metadata.loc[k, ['frozen', 'unit']]) for k in index)  # noqa: E501
+        for (key, param, atom), value, (frozen, unit) in iterator:
             i = idx_dict[key, param]
             if frozen:
                 ret[key][i]['frozen'][atom] = value.item()
             else:
                 ret[key][i][atom] = value.item()
+            ret[key][i]['unit'] = unit or None
         return ret
 
 

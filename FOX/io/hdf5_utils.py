@@ -614,7 +614,9 @@ def _metadata_to_df(f: File, key: str) -> pd.DataFrame:
     _index = f[key].attrs['index']
     idx_gen = (_index[k].astype(str) for k in _index.dtype.names)
     index = pd.MultiIndex.from_tuples(zip(*idx_gen), names=_index.dtype.names)
+
     df = pd.DataFrame.from_records(f[key][:], index=index)
+    df['unit'] = df['unit'].values.astype(str)
     df.sort_index(axis='columns', inplace=True)
     return df
 
