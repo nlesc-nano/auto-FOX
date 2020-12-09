@@ -76,8 +76,8 @@ MODE_SET: FrozenSet[str] = ION_SET | CRYSTAL_SET | {'rdf', 'uff'}
 
 #: A :class:`~collections.abc.Mapping` containing the default unit for each ``param`` value.
 DEFAULT_UNIT: Mapping[Param, str] = MappingProxyType({
-    'epsilon': 'kj/mol',
-    'sigma': 'nm'
+    'epsilon': 'kcal/mol',
+    'sigma': 'angstrom',
 })
 
 
@@ -123,8 +123,8 @@ def guess_param(mol_list: Iterable[MultiMolecule], param: Param,
         An optional list of .psf files.
     unit : :class:`str`, optional
         The unit of the to-be returned quantity.
-        If ``None``, default to kj/mol for :code:`param="epsilon"`
-        and nm for :code:`param="sigma"`.
+        If ``None``, default to kcal/mol for :code:`param="epsilon"`
+        and angstrom for :code:`param="sigma"`.
 
     Returns
     -------
