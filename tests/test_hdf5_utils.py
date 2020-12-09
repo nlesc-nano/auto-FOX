@@ -183,6 +183,23 @@ PARAM_METADATA = pd.DataFrame.from_dict({
         ('lennard_jones', 'sigma', 'Cd Se'): -inf,
         ('lennard_jones', 'sigma', 'OG2D2 Se'): -inf,
         ('lennard_jones', 'sigma', 'Se Se'): -inf,
+    },
+    'unit': {
+        ('charge', 'charge', 'CG2O3'): '',
+        ('charge', 'charge', 'Cd'): '',
+        ('charge', 'charge', 'HGR52'): '',
+        ('charge', 'charge', 'OG2D2'): '',
+        ('charge', 'charge', 'Se'): '',
+        ('lennard_jones', 'epsilon', 'Cd Cd'): 'kjmol',
+        ('lennard_jones', 'epsilon', 'Cd OG2D2'): 'kjmol',
+        ('lennard_jones', 'epsilon', 'Cd Se'): 'kjmol',
+        ('lennard_jones', 'epsilon', 'OG2D2 Se'): 'kjmol',
+        ('lennard_jones', 'epsilon', 'Se Se'): 'kjmol',
+        ('lennard_jones', 'sigma', 'Cd Cd'): 'nm',
+        ('lennard_jones', 'sigma', 'Cd OG2D2'): 'nm',
+        ('lennard_jones', 'sigma', 'Cd Se'): 'nm',
+        ('lennard_jones', 'sigma', 'OG2D2 Se'): 'nm',
+        ('lennard_jones', 'sigma', 'Se Se'): 'nm',
     }
 })
 
