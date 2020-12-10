@@ -277,7 +277,10 @@ def _get_kwarg_dict(armc: ARMC) -> Settings:
     ret.acceptance.dtype = np.bool_
     ret.acceptance.fillvalue = False
 
-    ret.aux_error.shape = shape + (len(armc.molecule), len(armc.pes) // len(armc.molecule))
+    if len(armc.phi) == 1:
+        ret.aux_error.shape = shape + (len(armc.molecule), len(armc.pes) // len(armc.molecule))
+    else:
+        ret.aux_error.shape = shape + (len(armc.pes) // len(armc.phi), len(armc.phi))
     ret.aux_error.dtype = np.float64
     ret.aux_error.fillvalue = np.nan
     ret.aux_error_mod.shape = shape + (param_shape[0], 1 + param_shape[1])

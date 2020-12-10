@@ -13,6 +13,8 @@ API
 
 """
 
+import copy
+import warnings
 from os import PathLike
 from abc import ABC, abstractmethod
 from logging import Logger
@@ -27,6 +29,8 @@ from typing import (
 import numpy as np
 from assertionlib.dataclass import AbstractDataClass
 from nanoutils import EMPTY_MAPPING
+from qmflows.packages import Result
+from qmflows.warnings_qmflows import QMFlows_Warning
 
 from ..logger import DEFAULT_LOGGER
 from ..type_hints import ArrayOrScalar
@@ -43,8 +47,18 @@ __all__ = ['MonteCarloABC']
 T = TypeVar('T')
 
 PostProcess = Callable[[Optional[Iterable[MultiMolecule]], Optional['MonteCarloABC']], None]
-GetPesDescriptor = Callable[[MultiMolecule], ArrayOrScalar]
+GetPesDescriptor = Callable[[MultiMolecule, Result], ArrayOrScalar]
 Key = Tuple[float, ...]
+
+
+def _template_func1(_func: Callable[..., Any], *args: Any, **kwargs: Any) -> Any:
+    _mol, _, *args = args
+    return _func(_mol, *args, **kwargs)
+
+
+def _template_func2(_func: Callable[..., Any], *args: Any, **kwargs: Any) -> Any:
+    _, _result, *args = args
+    return _func(_result, *args, **kwargs)
 
 
 class MonteCarloABC(AbstractDataClass, ABC, Mapping[Key, np.ndarray]):
@@ -198,12 +212,26 @@ class MonteCarloABC(AbstractDataClass, ABC, Mapping[Key, np.ndarray]):
     # Monte Carlo stuff
 
     @overload
-    def add_pes_evaluator(self, name: str, func: GetPesDescriptor, args: Sequence,
-                          kwargs: Mapping[str, Any], validation: bool = ...) -> None: ...
+    def add_pes_evaluator(
+        self,
+        name: str,
+        func: GetPesDescriptor,
+        args: Sequence[Any],
+        kwargs: Mapping[str, Any] = ...,
+        validation: bool = ...,
+        ref: Optional[Sequence[np.ndarray]] = None,
+    ) -> None: ...
     @overload  # noqa: E301
-    def add_pes_evaluator(self, name: str, func: GetPesDescriptor, args: Sequence,
-                          kwargs: Iterable[Mapping[str, Any]], validation: bool = ...) -> None: ...
-    def add_pes_evaluator(self, name, func, args=(), kwargs=EMPTY_MAPPING, validation=False):  # noqa: E301, E501
+    def add_pes_evaluator(
+        self,
+        name: str,
+        func: GetPesDescriptor,
+        args: Sequence[Any],
+        kwargs: Iterable[Mapping[str, Any]],
+        validation: bool = ...,
+        ref: Optional[Sequence[np.ndarray]] = None,
+    ) -> None: ...
+    def add_pes_evaluator(self, name, func, args=(), kwargs=EMPTY_MAPPING, validation=False, ref=None):  # noqa: E301, E501
         r"""Add a callable to this instance for constructing PES-descriptors.
 
         Examples
@@ -245,20 +273,31 @@ class MonteCarloABC(AbstractDataClass, ABC, Mapping[Key, np.ndarray]):
         for f1 in self.pes_post_process:
             f1(mol_list, self)
 
-        if not isinstance(kwargs, abc.Mapping):
-            iterator: Iterator[Tuple[MultiMolecule, Mapping[str, Any]]] = zip(mol_list, kwargs)
+        if ref is None:
+            ref_iter: Iterable[Optional[np.ndarray]] = repeat(None)
         else:
-            iterator = zip(mol_list, repeat(kwargs, len(mol_list)))
+            ref_iter = [ar for _ in self.param.move_range for ar in ref]
 
-        for i, (mol, kwarg) in enumerate(iterator):
-            f2 = wraps(func)(partial(func, *args, **kwarg))
-            f2.ref = np.asarray(f2(mol))
+        if not isinstance(kwargs, abc.Mapping):
+            _Iterator = Iterator[Tuple[MultiMolecule, Any, Mapping[str, Any]]]
+            iterator: _Iterator = zip(mol_list, ref_iter, kwargs)
+        else:
+            iterator = zip(mol_list, ref_iter, repeat(kwargs, len(mol_list)))
+
+        for i, (mol, ref_, kwarg) in enumerate(iterator):
+            if ref_ is None:
+                f2 = wraps(func)(partial(_template_func1, func, *args, **kwarg))
+                f2.ref = f2(mol, None)
+                f2.use_mol = True
+            else:
+                f2 = wraps(func)(partial(_template_func2, func, *args, **kwarg))
+                f2.ref = copy.deepcopy(ref_)
+                f2.use_mol = False
 
             # Check that a numeric value is returned
-            dtype = f2.ref.dtype
+            dtype = np.asanyarray(f2.ref).dtype
             if dtype.kind not in 'buifc':
-                raise TypeError(f"PES descriptor {name!r} has an invalid return type; "
-                                f"dtype: {dtype})")
+                raise TypeError(f"PES descriptor {name!r} has an invalid return dtype:  {dtype}")
 
             if validation:
                 self.pes_validation[f'{name}.{i}'] = f2
@@ -280,7 +319,7 @@ class MonteCarloABC(AbstractDataClass, ABC, Mapping[Key, np.ndarray]):
         """Delete all cp2k output files."""
         return self.package_manager.clear_jobs
 
-    def run_jobs(self) -> Optional[List[MultiMolecule]]:
+    def run_jobs(self) -> Union[Tuple[None, None], Tuple[List[MultiMolecule], List[Any]]]:
         """Run a geometry optimization followed by a molecular dynamics (MD) job.
 
         Returns a new :class:`.MultiMolecule` instance constructed from the MD trajectory and the
@@ -374,7 +413,7 @@ class MonteCarloABC(AbstractDataClass, ABC, Mapping[Key, np.ndarray]):
     ) -> Tuple[
         Dict[str, ArrayOrScalar],
         Dict[str, ArrayOrScalar],
-        Optional[List[MultiMolecule]],
+        Optional[List[MultiMolecule]]
     ]:
         """Check if a **key** is already present in **history_dict**.
 
@@ -391,34 +430,50 @@ class MonteCarloABC(AbstractDataClass, ABC, Mapping[Key, np.ndarray]):
 
         Returns
         -------
-        :class:`dict[str, np.ndarray[np.float64]] <dict>`, :class:`dict[str, np.ndarray[np.float64]] <dict>` and :class:`FOX.MultiMolecule`
+        :class:`dict[str, np.ndarray[np.float64]] <dict>`, :class:`dict[str, np.ndarray[np.float64]] <dict>` and :class:`list[FOX.MultiMolecule] <list>`
             A previous value from **history_dict** or a new value from an MD calculation &
             a :class:`.MultiMolecule` instance constructed from the MD simulation.
             Values are set to ``np.inf`` if the MD job crashed.
 
         """  # noqa: E501
         # Generate PES descriptors
-        mol_list = self.run_jobs()
+        mol_list, result_list = self.run_jobs()
 
-        if mol_list is None:  # The MD simulation crashed
+        if mol_list is not None and result_list is not None:
+            with warnings.catch_warnings():
+                warnings.simplefilter("error", QMFlows_Warning)
+
+                self.logger.info("Applying PES post-processing")
+                for func1 in self.pes_post_process:
+                    func1(mol_list, self)  # Post-process the MultiMolecules
+
+                ret1: Dict[str, ArrayOrScalar] = {}
+                iterator1 = zip(self.pes.items(), cycle(mol_list), cycle(result_list))
+                for (k, func2), mol, result in iterator1:
+                    _k, i = k.rsplit(".", maxsplit=1)
+                    self.logger.info(f"Calculating descriptor {_k!r} for PES {i}")
+                    try:
+                        ret1[k] = func2(mol, result)
+                    except Exception:
+                        self.logger.warning(f"Failed to compute descriptor {_k!r} for PES {i}")
+                        ret1[k] = np.inf
+
+                ret2: Dict[str, ArrayOrScalar] = {}
+                iterator2 = zip(self.pes_validation.items(), cycle(mol_list), cycle(result_list))
+                for (k, func2), mol, result in iterator2:
+                    _k, i = k.rsplit(".", maxsplit=1)
+                    self.logger.info(f"Calculating validation descriptor {_k!r} for PES {i}")
+                    try:
+                        ret2[k] = func2(mol, result)
+                    except Exception:
+                        self.logger.warning(
+                            f"Failed to compute validation descriptor {_k!r} for PES {i}"
+                        )
+                        ret2[k] = np.inf
+        else:
+            # The MD simulation crashed
             ret1 = {key: np.inf for key in self.pes.keys()}
             ret2 = {key: np.inf for key in self.pes_validation.keys()}
-        else:
-            self.logger.info("Applying PES post-processing")
-            for func1 in self.pes_post_process:
-                func1(mol_list, self)  # Post-process the MultiMolecules
-
-            ret1 = {}
-            for (k, func2), mol in zip(self.pes.items(), cycle(mol_list)):
-                _k, i = k.rsplit(".", maxsplit=1)
-                self.logger.info(f"Calculating descriptor {_k} for PES {i}")
-                ret1[k] = func2(mol)
-
-            ret2 = {}
-            for (k, func2), mol in zip(self.pes_validation.items(), cycle(mol_list)):
-                _k, i = k.rsplit(".", maxsplit=1)
-                self.logger.debug(f"Calculating validation descriptor {_k} for PES {i}")
-                ret2[k] = func2(mol)
 
         if not (get_first_key or self.keep_files):
             self.logger.info("Clearing jobs")

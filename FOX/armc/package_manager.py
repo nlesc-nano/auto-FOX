@@ -230,7 +230,9 @@ class PackageManagerABC(ABC, Mapping[str, Value]):
     # The actual job runner
 
     @abstractmethod
-    def __call__(self, logger: Optional[Logger] = None, **kwargs: Any) -> Optional[Sequence]:
+    def __call__(
+        self, logger: Optional[Logger] = None, **kwargs: Any
+    ) -> Union[Tuple[None, None], Tuple[List[MultiMolecule], List[Any]]]:
         r"""Run all jobs and return a sequence of user-specified results.
 
         Parameters
@@ -300,8 +302,9 @@ class PackageManager(PackageManagerABC):
         for settings in job_iterator:  # Type: QmSettings
             prm_to_df(settings)
 
-    def __call__(self, logger: Optional[Logger] = None,
-                 n_processes: int = 1) -> Optional[List[MultiMolecule]]:
+    def __call__(
+        self, logger: Optional[Logger] = None, n_processes: int = 1
+    ) -> Union[Tuple[None, None], Tuple[List[MultiMolecule], List[Any]]]:
         r"""Run all jobs and return a sequence of list of MultiMolecules.
 
         Parameters
@@ -396,21 +399,24 @@ class PackageManager(PackageManagerABC):
                 df.update(df_update)
 
     @staticmethod
-    def _extract_mol(results: Iterable[Result], logger: Logger) -> Optional[List[MultiMolecule]]:
+    def _extract_mol(
+        results: Iterable[Result], logger: Logger
+    ) -> Union[Tuple[None, None], Tuple[List[MultiMolecule], List[Any]]]:
         """Create a list of MultiMolecule from the passed **results**."""
-        ret: List[MultiMolecule] = []
+        mol_list = []
+        results_list = list(results)
         for result in results:
             try:  # Construct and return a MultiMolecule object
                 path: str = get_xyz_path(result.archive['work_dir'])  # type: ignore
                 mol = MultiMolecule.from_xyz(path)
                 mol.round(3, inplace=True)
-                ret.append(mol)
+                mol_list.append(mol)
 
             except XYZError:  # The .xyz file is unreadable for some reason
                 logger.warning(f"Failed to parse {path!r}")
-                return None
+                return None, None
 
             except Exception as ex:
                 logger.warning(ex)
-                return None
-        return ret
+                return None, None
+        return mol_list, results_list

@@ -125,11 +125,11 @@ def dict_to_armc(input_dict: MainMapping) -> Tuple[MonteCarloABC, RunDict]:
     mc.param.metadata.sort_index(inplace=True)
 
     # Add PES evaluators
-    pes = get_pes(dct['pes'])
+    pes = get_pes(dct['pes'], len(mol_list))
     for name, kwargs in pes.items():
         mc.add_pes_evaluator(name, **kwargs)  # type: ignore[call-overload]
 
-    pes2 = get_pes(dct['pes_validation'])
+    pes2 = get_pes(dct['pes_validation'], len(mol_list))
     for name, kwargs in pes2.items():
         mc.add_pes_evaluator(name, validation=True, **kwargs)  # type: ignore[call-overload]
     return mc, run_kwargs
@@ -350,9 +350,13 @@ def get_param(dct: ParamMapping_) -> Tuple[ParamMapping, dict, dict, ValidationD
     )
 
 
-def get_pes(dct: Mapping[str, PESMapping]) -> Dict[str, PESDict]:
+def get_pes(dct: Mapping[str, PESMapping], mol_len: int) -> Dict[str, PESDict]:
     """Construct a :class:`dict` with PES-descriptor workflows."""
-    return {k: validate_pes(v) for k, v in dct.items()}
+    ret = {k: validate_pes(v) for k, v in dct.items()}
+
+    iterator = (len(v['ref']) for v in ret.values() if v['ref'] is not None)
+    assert all(mol_len == i for i in iterator)
+    return ret
 
 
 def get_armc(dct: MCMapping,
