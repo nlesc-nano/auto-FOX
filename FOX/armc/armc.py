@@ -434,8 +434,8 @@ class ARMC(MonteCarloABC):
 
         def norm_mean(key: str, mm_pes: ArrayLikeOrScalar) -> float:
             qm_pes = pes_dict_ref[key].ref  # type: ignore
-            QM = np.asarray(qm_pes, dtype=float)
-            MM = np.asarray(mm_pes, dtype=float)
+            QM = np.asarray(qm_pes, dtype=np.float64)
+            MM = np.asarray(mm_pes, dtype=np.float64)
             ret: np.ndarray = (QM - MM)**2
             return ret.sum() / QM.sum()
 
