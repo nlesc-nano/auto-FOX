@@ -49,6 +49,7 @@ setup(
         'FOX.io',
         'FOX.ff',
         'FOX.recipes',
+        'FOX.properties',
     ],
     package_dir={'FOX': 'FOX'},
     package_data={'FOX': [

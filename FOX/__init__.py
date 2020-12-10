@@ -36,6 +36,8 @@ from .utils import (
     call_method,
 )
 
+from . import recipes, properties
+
 __author__ = "Bas van Beek"
 __email__ = 'b.f.van.beek@vu.nl'
 
@@ -63,7 +65,7 @@ __all__ = [
     'get_intra_non_bonded',
     'get_bonded',
 
-    'recipes',
+    'recipes', 'properties',
 
     'get_attr', 'call_method',
 ]
