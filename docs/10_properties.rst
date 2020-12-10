@@ -1,0 +1,3 @@
+Properties
+==========
+.. automodule:: FOX.properties
