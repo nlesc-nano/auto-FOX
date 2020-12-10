@@ -1,8 +1,10 @@
 """Tests for various ARMC jobs."""
 
+import os
 import warnings
 import pytest
 import shutil
+import subprocess
 from os import PathLike
 from pathlib import Path
 from typing import Tuple, Generator, Any, cast, List, Optional, Union
@@ -15,6 +17,7 @@ import yaml
 from nanoutils import delete_finally, UniqueLoader
 from assertionlib import assertion
 
+from FOX.entry_points import main_armc
 from FOX.testing_utils import load_results, compare_hdf5
 from FOX.armc import dict_to_armc, run_armc
 from FOX.armc.sanitization import _sort_atoms
@@ -254,3 +257,33 @@ def test_yaml_armc(name: str) -> None:
 
     assertion.eq(armc1, armc2)
     assertion.eq(dct1, dct2)
+
+
+def _has_cp2k() -> bool:
+    try:
+        subprocess.run('cp2k.popt --version', shell=True, check=True,
+                       stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    except subprocess.CalledProcessError:
+        return False
+    else:
+        return True
+
+
+HAS_CP2K = _has_cp2k()
+
+
+@delete_finally(PATH / '_ARMC', PATH / '_ARMCPT')
+@pytest.mark.skipif(not HAS_CP2K, reason="Requires CP2K")
+@pytest.mark.parametrize('name', ['armc_cp2k.yaml', 'armcpt_cp2k.yaml'])
+def test_with_cp2k(name: str) -> None:
+    """Test :class:`ARMC` and :class:`ARMCPT`."""
+    try:
+        main_armc([f'tests/test_files/{name}'])
+    except Exception as ex:
+        err_file = PATH / name / 'md' / 'md.err'
+        if not os.path.isfile(err_file):
+            raise
+
+        with open(err_file, 'r', encoding='utf-8') as f:
+            msg = f.read()
+        raise AssertionError(msg) from ex
