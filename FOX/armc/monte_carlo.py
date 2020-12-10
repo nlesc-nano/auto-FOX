@@ -252,7 +252,14 @@ class MonteCarloABC(AbstractDataClass, ABC, Mapping[Key, np.ndarray]):
 
         for i, (mol, kwarg) in enumerate(iterator):
             f2 = wraps(func)(partial(func, *args, **kwarg))
-            f2.ref = f2(mol)
+            f2.ref = np.asarray(f2(mol))
+
+            # Check that a numeric value is returned
+            dtype = f2.ref.dtype
+            if dtype.kind not in 'buifc':
+                raise TypeError(f"PES descriptor {name!r} has an invalid return type; "
+                                f"dtype: {dtype})")
+
             if validation:
                 self.pes_validation[f'{name}.{i}'] = f2
             else:
