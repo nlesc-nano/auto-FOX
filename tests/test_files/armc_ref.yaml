@@ -59,6 +59,7 @@ job:
         template: qmflows.md.specific.cp2k_mm
         settings:
             prm: tests/test_files/ligand.prm
+            cell_parameters: [50, 50, 50]
             input:
                 force_eval:
                     mm:
