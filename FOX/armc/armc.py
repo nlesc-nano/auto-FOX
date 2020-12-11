@@ -159,10 +159,13 @@ class ARMC(MonteCarloABC):
                     pes[k]['kwargs'][i] = v.keywords
                 except KeyError:
                     pes[k] = {
-                        'func': f'{v.func.__module__}.{v.func.__qualname__}',
+                        'func': f'{v.args[0].__module__}.{v.args[0].__qualname__}',
                         'kwargs': i_max * [None],
+                        'ref': None if v.use_mol else [],
                     }
                     pes[k]['kwargs'][i] = v.keywords
+                if not v.use_mol:
+                    pes[k]['ref'].append(v.ref)
 
         # Parse the `psf` block
         if psf is None:
@@ -434,8 +437,8 @@ class ARMC(MonteCarloABC):
 
         def norm_mean(key: str, mm_pes: ArrayLikeOrScalar) -> float:
             qm_pes = pes_dict_ref[key].ref  # type: ignore
-            QM = np.asarray(qm_pes, dtype=float)
-            MM = np.asarray(mm_pes, dtype=float)
+            QM = np.asarray(qm_pes, dtype=np.float64)
+            MM = np.asarray(mm_pes, dtype=np.float64)
             ret: np.ndarray = (QM - MM)**2
             return ret.sum() / QM.sum()
 

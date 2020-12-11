@@ -31,6 +31,11 @@ from .ff import (
     estimate_lj, get_free_energy
 )
 
+from .utils import (
+    get_attr,
+    call_method,
+)
+
 __author__ = "Bas van Beek"
 __email__ = 'b.f.van.beek@vu.nl'
 
@@ -58,5 +63,7 @@ __all__ = [
     'get_intra_non_bonded',
     'get_bonded',
 
-    'recipes'
+    'recipes',
+
+    'get_attr', 'call_method',
 ]

@@ -89,11 +89,13 @@ def create_hdf5(filename: PathType, armc: ARMC) -> None:
     # Create a hdf5 file with *n* datasets
     with h5py.File(filename, 'w-', libver='latest') as f:
         for key, kwargs in sorted(kwarg_dict.items(), key=lambda tup: tup[0]):
-            f.create_dataset(name=key, compression='gzip', **kwargs)
+            compression = 'gzip' if kwargs['shape'] else None
+            f.create_dataset(name=key, compression=compression, **kwargs)
 
         group = f.create_group('validation')
         for key, kwargs in sorted(kwarg_dict2.items(), key=lambda tup: tup[0]):
-            group.create_dataset(name=key, compression='gzip', **kwargs)
+            compression = 'gzip' if kwargs['shape'] else None
+            group.create_dataset(name=key, compression=compression, **kwargs)
 
         f.attrs['super-iteration'] = -1
         f.attrs['sub-iteration'] = -1
@@ -277,7 +279,10 @@ def _get_kwarg_dict(armc: ARMC) -> Settings:
     ret.acceptance.dtype = np.bool_
     ret.acceptance.fillvalue = False
 
-    ret.aux_error.shape = shape + (len(armc.molecule), len(armc.pes) // len(armc.molecule))
+    if len(armc.phi) == 1:
+        ret.aux_error.shape = shape + (len(armc.molecule), len(armc.pes) // len(armc.molecule))
+    else:
+        ret.aux_error.shape = shape + (len(armc.pes) // len(armc.phi), len(armc.phi))
     ret.aux_error.dtype = np.float64
     ret.aux_error.fillvalue = np.nan
     ret.aux_error_mod.shape = shape + (param_shape[0], 1 + param_shape[1])

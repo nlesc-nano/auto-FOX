@@ -27,7 +27,7 @@ from qmflows import cp2k_mm, Settings as QmSettings
 from qmflows.packages import Package
 from nanoutils import (
     Default, Formatter, supports_int, supports_float, isinstance_factory,
-    issubclass_factory, import_factory, as_nd_array, TypedDict
+    issubclass_factory, import_factory, as_nd_array, TypedDict,
 )
 
 from .armc import ARMC
@@ -298,6 +298,12 @@ pes_schema = Schema({
         error=Formatter(f"'pes.*.func' expected a callable object{EPILOG}")
     ),
 
+    Optional_('ref', default=None): Or(
+        None,
+        And(abc.Sequence, Use(list)),
+        error=Formatter(f"'pes.*.ref' expected a Sequence of array-likes{EPILOG}"),
+    ),
+
     Optional_('kwargs', default=dict): Or(
         And(None, Default(dict)),
         And(abc.Mapping, lambda dct: all(isinstance(k, str) for k in dct.keys())),
@@ -319,13 +325,15 @@ class _PESMapping(TypedDict):
 class PESMapping(_PESMapping, total=False):
     """A :class:`~typing.TypedDict` representing the input of :data:`pes_schema`."""
 
+    ref: Optional[Sequence[ArrayLike]]
     kwargs: Union[None, Mapping[str, Any], Sequence[Mapping[str, Any]]]
 
 
 class PESDict(TypedDict):
     """A :class:`~typing.TypedDict` representing the output of :data:`pes_schema`."""
 
-    func: Callable
+    func: Callable[..., ArrayLike]
+    ref: Optional[List[ArrayLike]]
     kwargs: Union[Mapping[str, Any], Tuple[Mapping[str, Any], ...]]
 
 
