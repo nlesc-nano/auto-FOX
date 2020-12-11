@@ -1,6 +1,6 @@
 
-.. image:: https://github.com/nlesc-nano/auto-FOX/workflows/Build%20with%20Conda/badge.svg
-    :target: https://github.com/nlesc-nano/auto-FOX/actions?query=workflow%3A%22Build+with+Conda%22
+.. image:: https://github.com/nlesc-nano/auto-FOX/workflows/Tests/badge.svg
+    :target: https://github.com/nlesc-nano/auto-FOX/actions?query=workflow%3ATests+branch%3Amaster
 .. image:: https://readthedocs.org/projects/auto-fox/badge/?version=latest
     :target: https://auto-fox.readthedocs.io/en/latest/
 .. image:: https://codecov.io/gh/nlesc-nano/auto-FOX/branch/master/graph/badge.svg?token=7IgHsRDVdo
