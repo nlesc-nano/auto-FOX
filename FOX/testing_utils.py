@@ -303,7 +303,8 @@ def compare_hdf5(f1: h5py.Group, f2: h5py.Group, skip: Container[str] = frozense
 
     """
     __tracebackhide__ = True
-    assertion.eq(set(recursive_keys(f1)), set(recursive_keys(f2)))
+    assertion.eq(list(recursive_keys(f1)), list(recursive_keys(f2)),
+                 message=f'group {f1.name!r} and {f2.name!r} keys')
 
     iterator1 = ((k, f1[k], f2[k]) for k in recursive_keys(f2) if k not in skip)
     for k1, dset1, dset2 in iterator1:
@@ -311,7 +312,7 @@ def compare_hdf5(f1: h5py.Group, f2: h5py.Group, skip: Container[str] = frozense
         _compare_arrays(ar1, ar2, err_msg=f'dataset {k1!r}\n')
 
         # Compare attributes
-        assertion.eq(dset1.attrs.keys(), dset2.attrs.keys())
+        assertion.eq(dset1.attrs.keys(), dset2.attrs.keys(), message=f'dataset {k1!r} attributes')
         iterator2 = ((k2, dset1.attrs[k2], dset1.attrs[k2]) for k2 in dset1.attrs.keys())
         for k2, attr1, attr2 in iterator2:
             _compare_arrays(attr1, attr2, err_msg=f'dataset {k1!r}; attribute {k2!r}')
