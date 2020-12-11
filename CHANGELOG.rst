@@ -6,6 +6,24 @@ All notable changes to this project will be documented in this file.
 This project adheres to `Semantic Versioning <http://semver.org/>`_.
 
 
+0.8.10
+******
+* Reorganized the dataframes in ``FOX.armc.ParamMapping``.
+* Added the ``pes_validation`` keyword. Used for constructing a set
+  of PES descriptors for the purpose of validation.
+* Dissallow the specification of duplicate .yaml keys.
+* Allow users to provide unique settings for each molecule in PES-averaged ARMC.
+* Added tests using CP2K, python 3.9, pre-releases and the minimum supported version
+  of dependencies.
+* Removed the plotting and .csv-related entry points.
+* Added the ``param.validation.enforce_constraints`` keyword; used for checking
+  whether or not initially supplied parameters satisfy all user-provided constraints.
+* Added the ``unit`` field to the ``param_metadata`` dataset.
+* Added the new ``pes.block.ref`` keyword; used for constructing PES descriptors
+  from ``qmflows.Result`` objects rather than the ``FOX.MultiMolecule`` instances
+  constructed therefrom.
+
+
 0.8.9
 *****
 * Fixed an issue where frozen parameters were not respected when performing
