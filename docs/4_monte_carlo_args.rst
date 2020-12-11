@@ -9,9 +9,9 @@ Index
     :width: 100%
     :widths: 30 70
 
-    ============================================ =========================================================================================================
+    ============================================ ===================================================================================================================
     param_                                       Description
-    ============================================ =========================================================================================================
+    ============================================ ===================================================================================================================
     :attr:`param.type`                           The type of parameter mapping.
     :attr:`param.move_range`                     The parameter move range.
     :attr:`param.func`                           The callable for performing the Monte Carlo moves.
@@ -24,64 +24,66 @@ Index
     :attr:`param.block.constraints`              A string or list of strings with parameter constraints.
     :attr:`param.block.guess`                    Estimate all non-specified forcefield parameters.
     :attr:`param.block.frozen`                   A sub-block with to-be frozen parameters.
-    ============================================ =========================================================================================================
+    ============================================ ===================================================================================================================
 
 .. table::
     :width: 100%
     :widths: 30 70
 
-    =========================================== =========================================================================================================
+    =========================================== ===================================================================================================================
     psf_                                        Description
-    =========================================== =========================================================================================================
+    =========================================== ===================================================================================================================
     :attr:`psf.str_file`                        The path+filename to one or more stream file.
     :attr:`psf.rtf_file`                        The path+filename to one or more MATCH-produced rtf file.
     :attr:`psf.psf_file`                        The path+filename to one or more psf files.
     :attr:`psf.ligand_atoms`                    All atoms within a ligand.
-    =========================================== =========================================================================================================
+    =========================================== ===================================================================================================================
 
 .. table::
     :width: 100%
     :widths: 30 70
 
-    =========================================== =========================================================================================================
+    =========================================== ===================================================================================================================
     pes_                                        Description
-    =========================================== =========================================================================================================
+    =========================================== ===================================================================================================================
     :attr:`pes.block.func`                      The callable for performing the Monte Carlo moves.
+    :attr:`pes.block.ref`                       A list of reference values for when :attr:`~pes.block.func` operates on :class:`qmflows.Result` objects.
     :attr:`pes.block.kwargs`                    A dictionary with keyword arguments for :attr:`pes.block.func`.
-    =========================================== =========================================================================================================
+    =========================================== ===================================================================================================================
 
 .. table::
     :width: 100%
     :widths: 30 70
 
-    =========================================== =========================================================================================================
+    =========================================== ===================================================================================================================
     pes_validation_                             Description
-    =========================================== =========================================================================================================
+    =========================================== ===================================================================================================================
     :attr:`pes_validation.block.func`           The callable for performing the Monte Carlo validation.
+    :attr:`pes_validation.block.ref`            A list of reference values for when :attr:`~pes_validation.block.func` operates on :class:`qmflows.Result` objects.
     :attr:`pes_validation.block.kwargs`         A dictionary with keyword arguments for :attr:`pes_validation.block.func`.
-    =========================================== =========================================================================================================
+    =========================================== ===================================================================================================================
 
 .. table::
     :width: 100%
     :widths: 30 70
 
-    =========================================== =========================================================================================================
+    =========================================== ===================================================================================================================
     job_                                        Description
-    =========================================== =========================================================================================================
+    =========================================== ===================================================================================================================
     :attr:`job.type`                            The type of package manager.
     :attr:`job.molecule`                        One or more .xyz files with reference (QM) potential energy surfaces.
     :attr:`job.block.type`                      An instance of a QMFlows :class:`~qmflows.packages.packages.Package`.
     :attr:`job.block.settings`                  The job settings as used by :class:`job.block.type`.
     :attr:`job.block.template`                  A settings template for updating :class:`job.block.settings`.
-    =========================================== =========================================================================================================
+    =========================================== ===================================================================================================================
 
 .. table::
     :width: 100%
     :widths: 30 70
 
-    =========================================== =========================================================================================================
+    =========================================== ===================================================================================================================
     monte_carlo_                                Description
-    =========================================== =========================================================================================================
+    =========================================== ===================================================================================================================
     :attr:`monte_carlo.type`                    The type of Monte Carlo procedure.
     :attr:`monte_carlo.iter_len`                The total number of ARMC iterations :math:`\kappa \omega`.
     :attr:`monte_carlo.sub_iter_len`            The length of each ARMC subiteration :math:`\omega`.
@@ -90,22 +92,22 @@ Index
     :attr:`monte_carlo.path`                    The path to the ARMC working directory.
     :attr:`monte_carlo.folder`                  The name of the ARMC working directory.
     :attr:`monte_carlo.keep_files`              Whether to keep *all* raw output files or not.
-    =========================================== =========================================================================================================
+    =========================================== ===================================================================================================================
 
 .. table::
     :width: 100%
     :widths: 30 70
 
-    =========================================== =========================================================================================================
+    =========================================== ===================================================================================================================
     phi_                                        Description
-    =========================================== =========================================================================================================
+    =========================================== ===================================================================================================================
     :attr:`phi.type`                            The type of phi updater.
     :attr:`phi.gamma`                           The constant :math:`\gamma`.
     :attr:`phi.a_target`                        The target acceptance rate :math:`\alpha_{t}`.
     :attr:`phi.phi`                             The initial value of the variable :math:`\phi`.
     :attr:`phi.func`                            The callable for updating :attr:`phi<phi.phi>`.
     :attr:`phi.kwargs`                          A dictionary with keyword arguments for :attr:`phi.func`.
-    =========================================== =========================================================================================================
+    =========================================== ===================================================================================================================
 
 
 param
@@ -387,17 +389,30 @@ each containg the :attr:`func<pes.block.func>` and, optionally,
                 func: FOX.MultiMolecule.init_adf
                 kwargs:
                     atom_subset: [Cd, Se]
+            energy:
+                func: FOX.get_attr  # i.e. `qmflows.Result(...).energy`
+                ref: [-17.0429775897]
+                kwargs:
+                    name: energy
+            hirshfeld_charges:
+                func: FOX.call_method  # i.e. `qmflows.Result(...).get_hirshfeld_charges()`
+                ref:
+                    - [-0.1116, 0.1930, -0.1680, -0.2606, 0.1702, 0.0598, 0.0575, 0.0598]
+                kwargs:
+                    name: get_hirshfeld_charges
 
 |
 
     .. attribute:: pes.block.func
 
-        :Parameter:     * **Type** - :class:`str` or :class:`Callable[[FOX.MultiMolecule], ArrayLike] <collections.abc.Callable>`
+        :Parameter:     * **Type** - :class:`str`, :class:`Callable[[FOX.MultiMolecule], ArrayLike] <collections.abc.Callable>` or :class:`Callable[[qmflows.Result], ArrayLike] <collections.abc.Callable>`
 
         A callable for constructing a PES descriptor.
 
-        The callable should take a :class:`~FOX.classes.multi_mol.MultiMolecule` instance
-        as sole (positional) argument and return an array-like object.
+        The callable should return an array-like object and, as sole positional argument,
+        take either a :class:`FOX.MultiMolecule` or :class:`qmflows.Results` instance.
+        In the latter case one *must* supply a list of reference PES-descriptor-values to
+        :attr:`pes.block.ref`.
 
         .. important::
 
@@ -411,6 +426,17 @@ each containg the :attr:`func<pes.block.func>` and, optionally,
 
             :meth:`FOX.MultiMolecule.init_adf`
                 Initialize the calculation of angular distribution functions (ADFs).
+
+
+    .. attribute:: pes.block.ref
+
+        :Parameter:     * **Type** - :class:`list[ArrayLike] <list>` or :data:`None`
+                        * **Default Value** - :data:`None`
+
+        A list of reference values for when :attr:`~pes.block.func` operates on :class:`qmflows.Result` objects.
+
+        If not :data:`None`, a list of :term:`numpy:array_like` objects must be supplied here,
+        one equal in length to the number of supplied molecules (see :attr:`job.molecule`).
 
 
     .. attribute:: pes.block.kwargs
@@ -455,8 +481,10 @@ each containg the :attr:`func<pes_validation.block.func>` and, optionally,
 
         A callable for constructing a PES validators.
 
-        The callable should take a :class:`~FOX.classes.multi_mol.MultiMolecule` instance
-        as sole (positional) argument and return an array-like object.
+        The callable should return an array-like object and, as sole positional argument,
+        take either a :class:`FOX.MultiMolecule` or :class:`qmflows.Results` instance.
+        In the latter case one *must* supply a list of reference PES-descriptor-values to
+        :attr:`pes_validation.block.ref`.
 
         The structure of this block is identintical to its counterpart in :attr:`pes.block.func`.
 
@@ -472,6 +500,17 @@ each containg the :attr:`func<pes_validation.block.func>` and, optionally,
 
             :meth:`FOX.MultiMolecule.init_adf`
                 Initialize the calculation of angular distribution functions (ADFs).
+
+
+    .. attribute:: pes_validation.block.ref
+
+        :Parameter:     * **Type** - :class:`list[ArrayLike] <list>` or :data:`None`
+                        * **Default Value** - :data:`None`
+
+        A list of reference values for when :attr:`~pes_validation.block.func` operates on :class:`qmflows.Result` objects.
+
+        If not :data:`None`, a list of :term:`numpy:array_like` objects must be supplied here,
+        one equal in length to the number of supplied molecules (see :attr:`job.molecule`).
 
 
     .. attribute:: pes_validation.block.kwargs

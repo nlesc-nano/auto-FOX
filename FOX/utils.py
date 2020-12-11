@@ -14,6 +14,8 @@ Index
     read_rtf_file
     prepend_exception
     log_traceback_locals
+    get_attr
+    call_method
 
 API
 ---
@@ -26,6 +28,8 @@ API
 .. autofunction:: read_rtf_file
 .. autofunction:: prepend_exception
 .. autofunction:: log_traceback_locals
+.. autofunction:: get_attr
+.. autofunction:: call_method
 
 """
 
@@ -49,7 +53,7 @@ from nanoutils import PathType
 __all__ = [
     'get_move_range', 'array_to_index', 'serialize_array', 'read_str_file',
     'get_shape', 'slice_str', 'get_atom_count', 'read_rtf_file', 'prepend_exception',
-    'log_traceback_locals',
+    'log_traceback_locals', 'get_attr', 'call_method',
 ]
 
 T = TypeVar('T')
@@ -461,3 +465,21 @@ def log_traceback_locals(logger: Logger, level: int = -1,
         value_str[0] = prefix + value_str[0]
         for v in value_str:
             logger.debug(v)
+
+
+class _Null:
+    """A singleton used as sentinel value in :func:`FOX.get_attr`."""
+
+    ...
+
+
+def get_attr(obj: Any, name: str, default: Any = _Null) -> Any:
+    """:func:`gettattr` with support for keyword argument."""
+    if default is _Null:
+        return getattr(obj, name)
+    return getattr(obj, name, default)
+
+
+def call_method(obj: Any, name: str, *args: Any, **kwargs: Any) -> Any:
+    """Call the **name** method of **obj**."""
+    return getattr(obj, name)(*args, **kwargs)
