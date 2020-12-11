@@ -1,11 +1,6 @@
 param:
     type: FOX.armc.ParamMapping
     validation: {}
-    move_range:
-        ratio: [1, 2, 4]
-        start: 0.005
-        stop: 0.1
-        step: 0.005
 
     charge:
         param: charge
@@ -77,17 +72,11 @@ job:
                         steps: 100
 
 monte_carlo:
-    type: FOX.armc.ARMCPT
-    iter_len: 100
-    sub_iter_len: 10
+    type: FOX.armc.ARMC
+    iter_len: 1
+    sub_iter_len: 1
     logfile: armc.log
     hdf5_file: armc.hdf5
     path: tests/test_files
-    folder: _ARMCPT
+    folder: _ARMC
     keep_files: True
-
-phi:
-    type: FOX.armc.PhiUpdater
-    phi: [1, 2, 4]
-    gamma: [2, 2, 2]
-    a_target: [0.25, 0.375, 0.5]

@@ -78,8 +78,8 @@ job:
 
 monte_carlo:
     type: FOX.armc.ARMCPT
-    iter_len: 100
-    sub_iter_len: 10
+    iter_len: 1
+    sub_iter_len: 1
     logfile: armc.log
     hdf5_file: armc.hdf5
     path: tests/test_files

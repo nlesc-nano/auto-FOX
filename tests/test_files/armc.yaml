@@ -54,6 +54,7 @@ job:
         type: qmflows.cp2k_mm
         template: qmflows.md.specific.cp2k_mm
         settings:
+            cell_parameters: [50, 50, 50]
             prm: tests/test_files/ligand.prm
 
 monte_carlo:

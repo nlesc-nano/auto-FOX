@@ -55,6 +55,14 @@ jobs:
                     python-version: ${{ matrix.version }}
                     conda-channels: anaconda
 
+            -   name: Install CP2K
+                if: matrix.os == 'ubuntu-latest'
+                run: sudo apt install cp2k
+
+            -   name: Info CP2K
+                if: matrix.os == 'ubuntu-latest'
+                run: cp2k.popt --version
+
             -   name: Install dependencies
                 if: matrix.special == '' && matrix.os != 'windows-latest'
                 run: |
@@ -98,6 +106,7 @@ jobs:
                 if: matrix.os != 'windows-latest'
                 run: |
                     source $CONDA/bin/activate test
+                    export CP2K_DATA_DIR="/usr/share/cp2k"
                     pytest -m "not slow" --flake8
 
             -   name: Run tests (windows-latest)
