@@ -89,11 +89,13 @@ def create_hdf5(filename: PathType, armc: ARMC) -> None:
     # Create a hdf5 file with *n* datasets
     with h5py.File(filename, 'w-', libver='latest') as f:
         for key, kwargs in sorted(kwarg_dict.items(), key=lambda tup: tup[0]):
-            f.create_dataset(name=key, compression='gzip', **kwargs)
+            compression = 'gzip' if kwargs['shape'] else None
+            f.create_dataset(name=key, compression=compression, **kwargs)
 
         group = f.create_group('validation')
         for key, kwargs in sorted(kwarg_dict2.items(), key=lambda tup: tup[0]):
-            group.create_dataset(name=key, compression='gzip', **kwargs)
+            compression = 'gzip' if kwargs['shape'] else None
+            group.create_dataset(name=key, compression=compression, **kwargs)
 
         f.attrs['super-iteration'] = -1
         f.attrs['sub-iteration'] = -1
