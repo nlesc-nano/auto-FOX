@@ -48,8 +48,7 @@ def test_cp2k_md():
 
     assertion.isinstance(armc.pes['rdf.0'], functools.partial)
     assertion.eq(armc.pes['rdf.0'].keywords, {'atom_subset': ['Cd', 'Se', 'O']})
-    assertion.eq(armc.pes['rdf.0'].args, ())
-    assertion.eq(armc.pes['rdf.0'].func, MultiMolecule.init_rdf)
+    assertion.eq(armc.pes['rdf.0'].args, (MultiMolecule.init_rdf,))
 
     phi_ref = PhiUpdater(a_target=0.25, gamma=2.0, phi=1.0, func=np.add)
     assertion.eq(armc.phi, phi_ref)
