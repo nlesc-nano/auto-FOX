@@ -48,7 +48,7 @@ setup(
         'FOX.classes',
         'FOX.io',
         'FOX.ff',
-        'FOX.recipes'
+        'FOX.recipes',
     ],
     package_dir={'FOX': 'FOX'},
     package_data={'FOX': [
@@ -56,7 +56,7 @@ setup(
         'data/*.yaml',
         'data/*.csv',
         'py.typed',
-        '*.pyi'
+        '*.pyi',
     ]},
     include_package_data=True,
     entry_points={'console_scripts': [
@@ -70,9 +70,12 @@ setup(
         'molecular-mechanics',
         'science',
         'chemistry',
+        'forcefield-parameterization',
+        'forcefield',
         'python-3',
         'python-3.7',
-        'python-3.8'
+        'python-3.8',
+        'python-3.9',
     ],
     classifiers=[
         'Development Status :: 4 - Beta',
@@ -85,9 +88,10 @@ setup(
         'Programming Language :: Python :: 3',
         'Programming Language :: Python :: 3.7',
         'Programming Language :: Python :: 3.8',
+        'Programming Language :: Python :: 3.9',
         'Topic :: Scientific/Engineering :: Chemistry',
         'Topic :: Software Development :: Libraries ',
-        'Typing :: Typed'
+        'Typing :: Typed',
     ],
     python_requires='>=3.7',
     install_requires=[
