@@ -1,4 +1,4 @@
-.. _Monte Carlo Parameters:
+.. _monte_carlo_parameters:
 
 Monte Carlo Parameters
 ======================
@@ -109,6 +109,8 @@ Index
     :attr:`phi.kwargs`                          A dictionary with keyword arguments for :attr:`phi.func`.
     =========================================== ===================================================================================================================
 
+
+.. _monte_carlo_parameters.param:
 
 param
 ~~~~~
@@ -309,6 +311,8 @@ This settings block accepts an arbitrary number of sub-blocks.
         optionally, the :attr:`guess<param.block.guess>` key.
 
 
+.. _monte_carlo_parameters.psf:
+
 psf
 ~~~
 Settings related to the construction of protein structure files (.psf).
@@ -367,6 +371,8 @@ Furthermore, this block is completelly optional.
 
         Used for defining residues.
 
+
+.. _monte_carlo_parameters.pes:
 
 pes
 ~~~
@@ -447,6 +453,8 @@ each containg the :attr:`func<pes.block.func>` and, optionally,
         A dictionary with keyword arguments for :attr:`func<pes.block.func>`.
 
 
+.. _monte_carlo_parameters.pes_validation:
+
 pes_validation
 ~~~~~~~~~~~~~~
 Settings to the construction of potentialy energy surface (PES) validators.
@@ -522,6 +530,8 @@ each containg the :attr:`func<pes_validation.block.func>` and, optionally,
 
         The structure of this block is identintical to its counterpart in :attr:`pes.block.kwargs`.
 
+
+.. _monte_carlo_parameters.job:
 
 job
 ~~~
@@ -634,6 +644,8 @@ Note that these jobs are executed in the order as provided by the user-input.
                 Templates for geometry optimization calculations.
 
 
+.. _monte_carlo_parameters.monte_carlo:
+
 monte_carlo
 ~~~~~~~~~~~
 Settings related to the Monte Carlo procedure itself.
@@ -725,6 +737,8 @@ Settings related to the Monte Carlo procedure itself.
 
         Whether to keep *all* raw output files or not.
 
+
+.. _monte_carlo_parameters.phi:
 
 phi
 ~~~

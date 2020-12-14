@@ -15,7 +15,7 @@ with open('README.rst', encoding='utf-8') as readme_file:
     readme = readme_file.read()
 
 docs_require = [
-    'sphinx>=2.1',
+    'sphinx>=2.4',
     'sphinx_rtd_theme',
     'matplotlib'
 ]
@@ -49,6 +49,7 @@ setup(
         'FOX.io',
         'FOX.ff',
         'FOX.recipes',
+        'FOX.properties',
     ],
     package_dir={'FOX': 'FOX'},
     package_data={'FOX': [

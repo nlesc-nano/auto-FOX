@@ -11,6 +11,7 @@ Auto-FOX Documentation
     6_estimate_lj
     8_psf
     9_prm
+    10_properties
     7_recipes
 
 .. toctree::
