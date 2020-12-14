@@ -26,9 +26,11 @@ API
 
 """
 
+from __future__ import annotations
+
 import warnings
 import subprocess
-from os import remove, PathLike
+from os import remove, PathLike, fsdecode
 from time import sleep
 from os.path import isfile
 from typing import (
@@ -330,14 +332,27 @@ def _get_kwarg_dict2(armc: ARMC) -> Settings:
 """################################### Updating .hdf5 files ####################################"""
 
 
-def hdf5_clear_status(filename: PathType) -> bool:
-    """Run the :code:`h5clear filename` command if **filename** refuses to open."""
+def hdf5_clear_status(filename: PathType) -> Optional[subprocess.CompletedProcess[str]]:
+    """Run the :code:`h5clear -s filename` command if **filename** refuses to open.
+
+    Raises
+    ------
+    RuntimeError
+        Raised if **filename** can neither be opened nor reset.
+
+    """
     try:
         with h5py.File(filename, 'r+', libver='latest'):
-            return True
-    except OSError:
-        subprocess.run(['h5clear', '-s', repr(filename)])
-        return False
+            return None
+    except OSError as ex:
+        if not isfile(filename):
+            raise
+
+        name = fsdecode(filename)
+        try:
+            return subprocess.run(f'h5clear -s {name!r}', shell=True, check=True)
+        except subprocess.CalledProcessError:
+            raise RuntimeError(f'Unable to open or reset {name!r}') from ex
 
 
 def hdf5_availability(filename: PathType, timeout: float = 5.0,

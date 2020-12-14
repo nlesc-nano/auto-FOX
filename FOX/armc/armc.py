@@ -465,10 +465,11 @@ class ARMC(MonteCarloABC):
 
         # Check that both .hdf5 files can be opened; clear their status if not
         closed1 = hdf5_clear_status(xyz)
-        if not closed1:
+        if closed1 is not None:
             self.logger.warning(f"Unable to open {xyz!r}, file status was forcibly reset")
+
         closed2 = hdf5_clear_status(self.hdf5_file)
-        if not closed2:
+        if closed2 is not None:
             self.logger.warning(f"Unable to open {self.hdf5_file!r}, "
                                 "file status was forcibly reset")
 
