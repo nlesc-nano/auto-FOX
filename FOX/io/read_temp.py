@@ -22,7 +22,7 @@ __all__ = ['read_temperatures']
 
 
 def read_temperatures(file: Union[str, bytes, os.PathLike], **kwargs: Any) -> np.ndarray:
-    r"""Extract the temperatures from the passed ``cp2k-*.PARTICLES.temp`` file.
+    r"""Extract the temperatures from the passed ``cp2k-*.ener`` file.
 
     Parameters
     ----------
@@ -38,5 +38,5 @@ def read_temperatures(file: Union[str, bytes, os.PathLike], **kwargs: Any) -> np
 
     """
     with open(file, 'r', **kwargs) as f:
-        iterator = (i.split()[-1] for i in islice(f, 2, None, 2))
+        iterator = (i.split()[3] for i in islice(f, 1, None))
         return np.fromiter(iterator, dtype=np.float64)

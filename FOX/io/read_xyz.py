@@ -23,6 +23,7 @@ from typing import Tuple, Dict, Iterable, List, Union, Iterator, Generator, over
 from itertools import islice, chain
 
 import numpy as np
+from scm.plams import Units
 from nanoutils import Literal, PathType, group_by_values
 
 __all__ = ['read_multi_xyz']
@@ -37,20 +38,21 @@ XYZoutput2 = Tuple[np.ndarray, Dict[str, List[int]], np.ndarray]
 
 
 @overload
-def read_multi_xyz(filename: PathType, return_comment: Literal[True] = ...) -> XYZoutput2: ...
+def read_multi_xyz(filename: PathType, return_comment: Literal[True] = ..., unit: str = ...) -> XYZoutput2: ...  # noqa: E501
 @overload
-def read_multi_xyz(filename: PathType, return_comment: Literal[False]) -> XYZoutput1: ...
-def read_multi_xyz(filename, return_comment=True):  # noqa: E302
+def read_multi_xyz(filename: PathType, return_comment: Literal[False], unit: str = ...) -> XYZoutput1: ...  # noqa: E501
+def read_multi_xyz(filename, return_comment=True, unit='angstrom'):  # noqa: E302
     r"""Read a (multi) .xyz file.
 
     Parameters
     ----------
     filename : str
         The path+filename of a (multi) .xyz file.
-
     return_comment : bool
         Whether or not the comment line in each Cartesian coordinate block should be returned.
         Returned as a 1D array of strings.
+    unit : :class:`str`
+        The unit of the to-be returned array.
 
     Returns
     -------
@@ -88,6 +90,9 @@ def read_multi_xyz(filename, return_comment=True):  # noqa: E302
         except ValueError as ex:  # Failed to parse the .xyz file
             raise XYZError(str(ex)).with_traceback(ex.__traceback__)
     xyz.shape = shape  # From 1D to 3D array
+
+    if unit != 'angstrom':
+        xyz *= Units.conversion_ratio('angstrom', unit)
 
     if return_comment:
         return xyz, idx_dict, get_comments(filename, atom_count)

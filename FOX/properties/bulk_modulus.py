@@ -1,7 +1,7 @@
 """Functions for calculating the bulk modulus."""
 
 from pathlib import Path
-from typing import Union, overload, TypeVar, Callable, Any
+from typing import Union, overload, TypeVar, Callable, Any, TYPE_CHECKING
 
 import numpy as np
 from scm.plams import Units
@@ -9,7 +9,7 @@ from nanoutils import ArrayLike, Literal
 from qmflows.packages.cp2k_package import CP2K_Result
 
 from . import FromResult, get_pressure
-from ..io import read_multi_xyz, read_volumes, read_temperatures
+from ..io import read_volumes
 
 __all__ = ['get_bulk_modulus', 'GetBulkMod']
 
@@ -29,7 +29,7 @@ def get_bulk_modulus(
 
     .. math::
 
-        B = -V_{0} * \frac{\delta P}{\delta V}
+        B = -V * \frac{\delta P}{\delta V}
 
     Parameters
     ----------
@@ -67,6 +67,25 @@ def get_bulk_modulus(
 class GetBulkMod(FromResult[FT, CP2K_Result]):
     """A :class:`FOX.properties.FromResult` subclass for :func:`get_bulk_modulus`."""
 
+    if not TYPE_CHECKING:
+        @property
+        def __call__(self):  # noqa: D205,D400
+            """
+            Note
+            ----
+            Using :meth:`get_bulk_modulus.from_result <FromResult.from_result>` requires the passed
+            :class:`qmflows.CP2K_Result <qmflows.packages.cp2k_package.CP2K_Result>`
+            to have access to the following files for each argument:
+
+            * **pressure**: ``cp2k-frc-1.xyz``, ``cp2k-pos-1.xyz``, ``cp2k-1.cell`` & ``cp2k-1.ener``
+            * **volume**: ``cp2k-1.cell``
+
+            Furthermore, in order to get sensible results both the pressure and
+            cell volume must be variable.
+
+            """  # noqa: E501
+            return self._func
+
     @overload
     def from_result(self: FromResult[Callable[..., T], CP2K_Result], result: CP2K_Result, reduction: None = ..., **kwargs: Any) -> T: ...  # noqa: E501
     @overload
@@ -95,17 +114,15 @@ class GetBulkMod(FromResult[FT, CP2K_Result]):
 
         """  # noqa: E501
         if result.status in {'failed', 'crashed'}:
-            raise RuntimeError("Cannot extract data a job with status {result.status!r}")
+            raise RuntimeError(f"Cannot extract data a job with status {result.status!r}")
         else:
-            base = Path(result.archive['workdir'])  # type: ignore[arg-type]
+            base = Path(result.archive['work_dir'])  # type: ignore[arg-type]
 
-        forces, _ = read_multi_xyz(base / 'cp2k-frc-1.xyz', return_comment=False)
-        coords, _ = read_multi_xyz(base / 'cp2k-pos-1.xyz', return_comment=False)
-        volume = read_volumes(base / 'cp2k-1.cell')
-        temp = read_temperatures(base / 'cp2k-1.PARTICLES.temp')
-
-        pressure = get_pressure(
-            forces, coords, volume, temp, coords_unit='angstrom', volume_unit='angstrom'
+        volume = self._pop(
+            kwargs, 'volume',
+            callback=lambda: read_volumes(base / 'cp2k-1.cell', unit='bohr')
         )
+        pressure = get_pressure.from_result(result, reduction=None, volume=volume)
+
         ret = self(pressure, volume, **kwargs)
         return self._reduce(ret, reduction)

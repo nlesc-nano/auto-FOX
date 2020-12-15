@@ -23,9 +23,8 @@ docs_require = [
 tests_require = [
     'pytest>=5.4.0',
     'pytest-cov',
-    'pyflakes>=2.1.1',
-    'pytest-flake8>=1.0.5',
-    'pytest-pydocstyle>=2.1',
+    'flake8',
+    'pydocstyle',
     'auto-FOX-data@git+https://github.com/nlesc-nano/auto-FOX-data@1.1.6',
 ]
 tests_require += docs_require

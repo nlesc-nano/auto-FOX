@@ -1,7 +1,7 @@
 """Functions for calculating the pressure."""
 
 from pathlib import Path
-from typing import TypeVar, Callable, Any, overload
+from typing import TypeVar, Callable, Any, overload, TYPE_CHECKING
 
 import numpy as np
 from scipy import constants
@@ -65,7 +65,7 @@ def get_pressure(
     xyz = np.asarray(coords, dtype=np.float64) * Units.conversion_ratio(coords_unit, 'bohr')
     v = np.asarray(volume, dtype=np.float64) * Units.conversion_ratio(volume_unit, 'bohr')**3
     t = np.asarray(temp, dtype=np.float64)
-    k = Units.convert(constants.Boltzmann, 'joule', 'hartree')
+    k = Units.convert(constants.Boltzmann, 'j', 'hartree')
 
     f = _f[..., None, :] + _f[..., None, :, :]
     r = xyz[..., None, :] - xyz[..., None, :, :]
@@ -77,6 +77,24 @@ def get_pressure(
 
 class GetPressure(FromResult[FT, CP2K_Result]):
     """A :class:`FOX.properties.FromResult` subclass for :func:`get_pressure`."""
+
+    if not TYPE_CHECKING:
+        @property
+        def __call__(self):  # noqa: D205, D400
+            """
+            Note
+            ----
+            Using :meth:`get_pressure.from_result <FromResult.from_result>` requires the passed
+            :class:`qmflows.CP2K_Result <qmflows.packages.cp2k_package.CP2K_Result>`
+            to have access to the following files for each argument:
+
+            * **forces**: ``cp2k-frc-1.xyz``
+            * **coords**: ``cp2k-pos-1.xyz``
+            * **volume**: ``cp2k-1.cell``
+            * **temp**: ``cp2k-1.ener``
+
+            """
+            return self._func
 
     @overload
     def from_result(self: FromResult[Callable[..., T], CP2K_Result], result: CP2K_Result, reduction: None = ..., **kwargs: Any) -> T: ...  # noqa: E501
@@ -106,16 +124,26 @@ class GetPressure(FromResult[FT, CP2K_Result]):
 
         """  # noqa: E501
         if result.status in {'failed', 'crashed'}:
-            raise RuntimeError("Cannot extract data a job with status {result.status!r}")
+            raise RuntimeError(f"Cannot extract data a job with status {result.status!r}")
         else:
-            base = Path(result.archive['workdir'])  # type: ignore[arg-type]
+            base = Path(result.archive['work_dir'])  # type: ignore[arg-type]
 
-        forces, _ = read_multi_xyz(base / 'cp2k-frc-1.xyz', return_comment=False)
-        coords, _ = read_multi_xyz(base / 'cp2k-pos-1.xyz', return_comment=False)
-        volume = read_volumes(base / 'cp2k-1.cell')
-        temp = read_temperatures(base / 'cp2k-1.PARTICLES.temp')
-
-        ret = self(
-            forces, coords, volume, temp, coords_unit='angstrom', volume_unit='angstrom', **kwargs
+        forces = self._pop(
+            kwargs, 'forces',
+            callback=lambda: read_multi_xyz(base / 'cp2k-frc-1.xyz', return_comment=False)[0]
         )
+        coords = self._pop(
+            kwargs, 'coords',
+            callback=lambda: read_multi_xyz(base / 'cp2k-pos-1.xyz', return_comment=False, unit='bohr')[0]  # noqa: E501
+        )
+        volume = self._pop(
+            kwargs, 'volume',
+            callback=lambda: read_volumes(base / 'cp2k-1.cell', unit='bohr')
+        )
+        temp = self._pop(
+            kwargs, 'temp',
+            callback=lambda: read_temperatures(base / 'cp2k-1.ener')
+        )
+
+        ret = self(forces, coords, volume, temp, **kwargs)
         return self._reduce(ret, reduction)
