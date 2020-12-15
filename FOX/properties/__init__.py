@@ -30,8 +30,32 @@ or to extract it from a passed :class:`qmflows.Result <qmflows.packages.Result>`
 
 An example for how :func:`get_bulk_modulus` can be used in conjunction
 with the :ref:`ARMC yaml input <monte_carlo_parameters.pes>`.
+Note that additional CP2K ``print`` keys are required in order for it
+to export the necessary properties.
 
 .. code-block:: yaml
+
+job:
+    type: FOX.armc.PackageManager
+    molecule: mol.xyz
+
+    md:
+        template: qmflows.md.specific.cp2k_mm
+        settings:
+            cell_parameters: [50, 50, 50]
+            input:
+                motion:
+                    print:
+                        cell on:
+                            filename: ''
+                        forces on:
+                            filename: ''
+                    md:
+                        ensemble: NVE
+                        thermostat:
+                            print:
+                                temperature on:
+                                    filename: ''
 
     pes:
         bulk_modulus:
@@ -58,6 +82,7 @@ API
         :value: ...
 
         A mapping that maps :meth:`from_result` aliases to callbacks.
+
         .. code-block:: python
 
             >>> from types import MappingProxyType

@@ -3,9 +3,13 @@
 from __future__ import annotations
 
 import inspect
+import textwrap
 from abc import ABCMeta, abstractmethod
 from types import MappingProxyType
-from typing import Generic, TypeVar, Any, Callable, Optional, ClassVar, overload, TYPE_CHECKING
+from typing import (
+    Generic, TypeVar, Any, Callable, Optional, ClassVar, overload,
+    MutableMapping, TYPE_CHECKING,
+)
 
 import numpy as np
 from nanoutils import Literal, TypedDict, ArrayLike
@@ -47,12 +51,12 @@ class FromResult(Generic[FT, RT], metaclass=ABCMeta):
     func : :class:`Callable[..., Any] <collections.abc.Callable>`
         The to-be wrapped function.
     name : :class:`str`
-        The :attr:`~object.__name__` of the to-be created instance.
+        The :attr:`~definition.__name__` of the to-be created instance.
     module : :class:`str`
-        The :attr:`~object.__module__` of the to-be created instance.
+        The :attr:``__module__`` of the to-be created instance.
         If :data:`None`, set it to ``"__main__"``.
     doc : :class:`str`, optional
-        The :attr:`~object.__doc__` of the to-be created instance.
+        The :attr:``__doc__`` of the to-be created instance.
         If :data:`None`, extract the docstring from **func**.
 
     """
@@ -92,6 +96,12 @@ class FromResult(Generic[FT, RT], metaclass=ABCMeta):
             self.__doc__: Optional[str] = getattr(func, '__doc__', None)
         else:
             self.__doc__ = doc
+        if cls.__call__ is not FromResult.__call__ and cls.__call__.__doc__ is not None:
+            doc_append = textwrap.indent(textwrap.dedent(cls.__call__.__doc__), 4 * ' ')
+            if self.__doc__ is not None:
+                self.__doc__ += doc_append
+            else:
+                self.__doc__ = doc_append
 
         try:
             self._hash = hash((cls, func))
@@ -144,15 +154,15 @@ class FromResult(Generic[FT, RT], metaclass=ABCMeta):
         return f'<FOX.{cls.__name__} instance {self.__module__}.{self.__name__}{sgn}>'
 
     @overload
-    def from_result(self: FromResult[Callable[..., T], RT], result: RT, reduction: None = ...) -> T: ...  # noqa: E501
+    def from_result(self: FromResult[Callable[..., T], RT], result: RT, reduction: None = ..., **kwargs: Any) -> T: ...  # noqa: E501
     @overload
-    def from_result(self: FromResult[Callable[..., T], RT], result: RT, reduction: Callable[[T], T1]) -> T1: ...  # noqa: E501
+    def from_result(self: FromResult[Callable[..., T], RT], result: RT, reduction: Callable[[T], T1], **kwargs: Any) -> T1: ...  # noqa: E501
     @overload
-    def from_result(self, result: RT, reduction: Literal['min', 'max', 'mean', 'sum', 'product', 'var', 'std', 'ptp']) -> np.float64: ...  # noqa: E501
+    def from_result(self, result: RT, reduction: Literal['min', 'max', 'mean', 'sum', 'product', 'var', 'std', 'ptp'], **kwargs: Any) -> np.float64: ...  # noqa: E501
     @overload
-    def from_result(self, result: RT, reduction: Literal['all', 'any']) -> np.bool_: ...  # noqa: E501
+    def from_result(self, result: RT, reduction: Literal['all', 'any'], **kwargs: Any) -> np.bool_: ...  # noqa: E501
     @abstractmethod  # noqa: E301
-    def from_result(self, result, reduction=None):
+    def from_result(self, result, reduction=None, **kwargs: Any):
         r"""Call **self** using argument extracted from **result**.
 
         Parameters
@@ -197,9 +207,17 @@ class FromResult(Generic[FT, RT], metaclass=ABCMeta):
             func = cls.REDUCTION_NAMES[reduction]
         except (TypeError, KeyError):
             if not isinstance(reduction, str):
-                raise ValueError("Expected a string; observed type: "
+                raise TypeError("`reduction` expected a string; observed type: "
                                  f"{reduction.__class__.__name__!r}") from None
             else:
-                raise ValueError(f"Invalid value: {reduction!r}") from None
+                raise ValueError(f"Invalid `reduction` value: {reduction!r}") from None
         else:
             return func(value)
+
+    @staticmethod
+    def _pop(dct: MutableMapping[str, T1], key: str, callback: Callable[[], T1]) -> T1:
+        """Attempt to :meth:`~dict.pop` **key** from **dct**, fall back to **callback** otherwise."""  # noqa: E501
+        if key in dct:
+            return dct.pop(key)
+        else:
+            return callback()
