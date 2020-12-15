@@ -35,27 +35,27 @@ to export the necessary properties.
 
 .. code-block:: yaml
 
-job:
-    type: FOX.armc.PackageManager
-    molecule: mol.xyz
+    job:
+        type: FOX.armc.PackageManager
+        molecule: mol.xyz
 
-    md:
-        template: qmflows.md.specific.cp2k_mm
-        settings:
-            cell_parameters: [50, 50, 50]
-            input:
-                motion:
-                    print:
-                        cell on:
-                            filename: ''
-                        forces on:
-                            filename: ''
-                    md:
-                        ensemble: NVE
-                        thermostat:
-                            print:
-                                temperature on:
-                                    filename: ''
+        md:
+            template: qmflows.md.specific.cp2k_mm
+            settings:
+                cell_parameters: [50, 50, 50]
+                input:
+                    motion:
+                        print:
+                            cell on:
+                                filename: ''
+                            forces on:
+                                filename: ''
+                        md:
+                            ensemble: NVE
+                            thermostat:
+                                print:
+                                    temperature on:
+                                        filename: ''
 
     pes:
         bulk_modulus:
