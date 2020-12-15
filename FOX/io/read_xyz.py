@@ -38,9 +38,9 @@ XYZoutput2 = Tuple[np.ndarray, Dict[str, List[int]], np.ndarray]
 
 
 @overload
-def read_multi_xyz(filename: PathType, return_comment: Literal[True] = ..., unit: str = ...) -> XYZoutput2: ...
+def read_multi_xyz(filename: PathType, return_comment: Literal[True] = ..., unit: str = ...) -> XYZoutput2: ...  # noqa: E501
 @overload
-def read_multi_xyz(filename: PathType, return_comment: Literal[False], unit: str = ...) -> XYZoutput1: ...
+def read_multi_xyz(filename: PathType, return_comment: Literal[False], unit: str = ...) -> XYZoutput1: ...  # noqa: E501
 def read_multi_xyz(filename, return_comment=True, unit='angstrom'):  # noqa: E302
     r"""Read a (multi) .xyz file.
 

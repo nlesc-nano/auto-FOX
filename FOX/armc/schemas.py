@@ -216,7 +216,7 @@ class MCMapping(TypedDict, total=False):
 
     type: Union[None, str, Type[MonteCarloABC]]
     iter_len: Union[None, str, bytes, SupportsInt]
-    sub_iter_len:  Union[None, str, bytes, SupportsInt]
+    sub_iter_len: Union[None, str, bytes, SupportsInt]
     hdf5_file: Union[None, str, bytes, os.PathLike]
     logfile: Union[None, str, bytes, os.PathLike]
     path: Union[None, str, bytes, os.PathLike]

@@ -208,7 +208,7 @@ class FromResult(Generic[FT, RT], metaclass=ABCMeta):
         except (TypeError, KeyError):
             if not isinstance(reduction, str):
                 raise TypeError("`reduction` expected a string; observed type: "
-                                 f"{reduction.__class__.__name__!r}") from None
+                                f"{reduction.__class__.__name__!r}") from None
             else:
                 raise ValueError(f"Invalid `reduction` value: {reduction!r}") from None
         else:

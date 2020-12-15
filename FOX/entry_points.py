@@ -29,12 +29,12 @@ from .armc import dict_to_armc, run_armc
 def main_armc(args: Optional[list] = None) -> None:
     """Entrypoint for :func:`FOX.classes.armc.run_armc`."""
     parser = argparse.ArgumentParser(
-         prog='FOX',
-         usage='init_armc filename -r restart',
-         description=("Initalize the Auto-FOX Addaptive Rate Monte Carlo (ARMC) "
-                      "parameter optimizer."
-                      "See 'https://auto-fox.readthedocs.io/en/latest/4_monte_carlo.html' for "
-                      "a more detailed description.")
+        prog='FOX',
+        usage='init_armc filename -r restart',
+        description=("Initalize the Auto-FOX Addaptive Rate Monte Carlo (ARMC) "
+                     "parameter optimizer."
+                     "See 'https://auto-fox.readthedocs.io/en/latest/4_monte_carlo.html' for "
+                     "a more detailed description.")
     )
 
     parser.add_argument(
@@ -59,9 +59,9 @@ def main_armc(args: Optional[list] = None) -> None:
 def main_armc2yaml(args: Optional[list] = None) -> None:
     """Entrypoint for :meth:`FOX.classes.armc.ARMC.to_yaml`."""
     parser = argparse.ArgumentParser(
-         prog='FOX',
-         usage='armc2yaml filename -o output',
-         description=("Convert an ARMC .yaml file into a pre-processed .yaml file")
+        prog='FOX',
+        usage='armc2yaml filename -o output',
+        description="Convert an ARMC .yaml file into a pre-processed .yaml file"
     )
 
     parser.add_argument(

@@ -80,7 +80,7 @@ class GetPressure(FromResult[FT, CP2K_Result]):
 
     if not TYPE_CHECKING:
         @property
-        def __call__(self):
+        def __call__(self):  # noqa: D205, D400
             """
             Note
             ----
@@ -128,16 +128,20 @@ class GetPressure(FromResult[FT, CP2K_Result]):
         else:
             base = Path(result.archive['work_dir'])  # type: ignore[arg-type]
 
-        forces = self._pop(kwargs, 'forces',
+        forces = self._pop(
+            kwargs, 'forces',
             callback=lambda: read_multi_xyz(base / 'cp2k-frc-1.xyz', return_comment=False)[0]
         )
-        coords = self._pop(kwargs, 'coords',
+        coords = self._pop(
+            kwargs, 'coords',
             callback=lambda: read_multi_xyz(base / 'cp2k-pos-1.xyz', return_comment=False, unit='bohr')[0]  # noqa: E501
         )
-        volume = self._pop(kwargs, 'volume',
+        volume = self._pop(
+            kwargs, 'volume',
             callback=lambda: read_volumes(base / 'cp2k-1.cell', unit='bohr')
         )
-        temp = self._pop(kwargs, 'temp',
+        temp = self._pop(
+            kwargs, 'temp',
             callback=lambda: read_temperatures(base / 'cp2k-1.ener')
         )
 

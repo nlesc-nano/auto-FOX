@@ -13,7 +13,7 @@ API
 """
 
 from types import MappingProxyType
-from typing import Optional, Dict, Union, Iterable, Tuple,  Generator, List, cast
+from typing import Optional, Dict, Union, Iterable, Tuple, Generator, List, cast
 
 __all__ = ["assign_constraints"]
 

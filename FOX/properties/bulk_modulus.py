@@ -9,7 +9,7 @@ from nanoutils import ArrayLike, Literal
 from qmflows.packages.cp2k_package import CP2K_Result
 
 from . import FromResult, get_pressure
-from ..io import read_multi_xyz, read_volumes, read_temperatures
+from ..io import read_volumes
 
 __all__ = ['get_bulk_modulus', 'GetBulkMod']
 
@@ -69,7 +69,7 @@ class GetBulkMod(FromResult[FT, CP2K_Result]):
 
     if not TYPE_CHECKING:
         @property
-        def __call__(self):
+        def __call__(self):  # noqa: D205,D400
             """
             Note
             ----
@@ -118,7 +118,8 @@ class GetBulkMod(FromResult[FT, CP2K_Result]):
         else:
             base = Path(result.archive['work_dir'])  # type: ignore[arg-type]
 
-        volume = self._pop(kwargs, 'volume',
+        volume = self._pop(
+            kwargs, 'volume',
             callback=lambda: read_volumes(base / 'cp2k-1.cell', unit='bohr')
         )
         pressure = get_pressure.from_result(result, reduction=None, volume=volume)
