@@ -124,7 +124,7 @@ jobs:
 
             -   name: Run tests (windows-latest)
                 if: matrix.os == 'windows-latest'
-                run: pytest -m "not slow" --flake8
+                run: pytest -m "not slow"
 
             -   name: Run codecov
                 uses: codecov/codecov-action@v1
