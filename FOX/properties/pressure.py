@@ -1,13 +1,12 @@
 """Functions for calculating the pressure."""
 
 from pathlib import Path
-from typing import TypeVar, Callable, Any, overload, TYPE_CHECKING
+from typing import TypeVar, Callable, Any
 
 import numpy as np
 from scipy import constants
 from scm.plams import Units
 from qmflows.packages.cp2k_package import CP2K_Result
-from nanoutils import ArrayLike, Literal
 
 from . import FromResult
 from ..io import read_multi_xyz, read_temperatures, read_volumes
@@ -20,15 +19,15 @@ FT = TypeVar("FT", bound=Callable[..., Any])
 
 
 def get_pressure(
-    forces: ArrayLike,
-    coords: ArrayLike,
-    volume: ArrayLike,
-    temp: ArrayLike = 298.15,
-    forces_unit: str = 'ha/bohr',
-    coords_unit: str = 'bohr',
-    volume_unit: str = 'bohr',
-    return_unit: str = 'ha/bohr^3',
-) -> np.ndarray:
+    forces,
+    coords,
+    volume,
+    temp=298.15,
+    forces_unit='ha/bohr',
+    coords_unit='bohr',
+    volume_unit='bohr',
+    return_unit='ha/bohr^3',
+):
     r"""Calculate the pressure from the passed **forces**.
 
     .. math::
@@ -78,33 +77,24 @@ def get_pressure(
 class GetPressure(FromResult[FT, CP2K_Result]):
     """A :class:`FOX.properties.FromResult` subclass for :func:`get_pressure`."""
 
-    if not TYPE_CHECKING:
-        @property
-        def __call__(self):  # noqa: D205, D400
-            """
-            Note
-            ----
-            Using :meth:`get_pressure.from_result <FromResult.from_result>` requires the passed
-            :class:`qmflows.CP2K_Result <qmflows.packages.cp2k_package.CP2K_Result>`
-            to have access to the following files for each argument:
+    @property
+    def __call__(self):  # noqa: D205, D400
+        """
+        Note
+        ----
+        Using :meth:`get_pressure.from_result() <FromResult.from_result>` requires the passed
+        :class:`qmflows.CP2K_Result <qmflows.packages.cp2k_package.CP2K_Result>`
+        to have access to the following files for each argument:
 
-            * **forces**: ``cp2k-frc-1.xyz``
-            * **coords**: ``cp2k-pos-1.xyz``
-            * **volume**: ``cp2k-1.cell``
-            * **temp**: ``cp2k-1.ener``
+        * **forces**: ``cp2k-frc-1.xyz``
+        * **coords**: ``cp2k-pos-1.xyz``
+        * **volume**: ``cp2k-1.cell``
+        * **temp**: ``cp2k-1.ener``
 
-            """
-            return self._func
+        """
+        return self._func
 
-    @overload
-    def from_result(self: FromResult[Callable[..., T], CP2K_Result], result: CP2K_Result, reduction: None = ..., **kwargs: Any) -> T: ...  # noqa: E501
-    @overload
-    def from_result(self: FromResult[Callable[..., T], CP2K_Result], result: CP2K_Result, reduction: Callable[[T], T1], **kwargs: Any) -> T1: ...  # noqa: E501
-    @overload
-    def from_result(self, result: CP2K_Result, reduction: Literal['min', 'max', 'mean', 'sum', 'product', 'var', 'std', 'ptp'], **kwargs: Any) -> np.float64: ...  # noqa: E501
-    @overload
-    def from_result(self, result: CP2K_Result, reduction: Literal['all', 'any'], **kwargs: Any) -> np.bool_: ...  # noqa: E501
-    def from_result(self, result, reduction=None, **kwargs: Any):  # noqa: E301
+    def from_result(self, result, reduction=None, **kwargs):
         r"""Call **self** using argument extracted from **result**.
 
         Parameters

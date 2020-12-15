@@ -1,11 +1,10 @@
 """Functions for calculating the bulk modulus."""
 
 from pathlib import Path
-from typing import Union, overload, TypeVar, Callable, Any, TYPE_CHECKING
+from typing import TypeVar, Callable, Any
 
 import numpy as np
 from scm.plams import Units
-from nanoutils import ArrayLike, Literal
 from qmflows.packages.cp2k_package import CP2K_Result
 
 from . import FromResult, get_pressure
@@ -19,12 +18,12 @@ FT = TypeVar("FT", bound=Callable[..., Any])
 
 
 def get_bulk_modulus(
-    pressure: ArrayLike,
-    volume: ArrayLike,
-    pressure_unit: str = 'ha/bohr^3',
-    volume_unit: str = 'bohr',
-    return_unit: str = 'ha/bohr^3',
-) -> Union[np.float64, np.ndarray]:
+    pressure,
+    volume,
+    pressure_unit='ha/bohr^3',
+    volume_unit='bohr',
+    return_unit='ha/bohr^3',
+):
     r"""Calculate the bulk modulus via differentiation of **pressure** w.r.t. **volume**.
 
     .. math::
@@ -67,34 +66,25 @@ def get_bulk_modulus(
 class GetBulkMod(FromResult[FT, CP2K_Result]):
     """A :class:`FOX.properties.FromResult` subclass for :func:`get_bulk_modulus`."""
 
-    if not TYPE_CHECKING:
-        @property
-        def __call__(self):  # noqa: D205,D400
-            """
-            Note
-            ----
-            Using :meth:`get_bulk_modulus.from_result <FromResult.from_result>` requires the passed
-            :class:`qmflows.CP2K_Result <qmflows.packages.cp2k_package.CP2K_Result>`
-            to have access to the following files for each argument:
+    @property
+    def __call__(self):  # noqa: D205,D400
+        """
+        Note
+        ----
+        Using :meth:`get_bulk_modulus.from_result() <FromResult.from_result>` requires the passed
+        :class:`qmflows.CP2K_Result <qmflows.packages.cp2k_package.CP2K_Result>`
+        to have access to the following files for each argument:
 
-            * **pressure**: ``cp2k-frc-1.xyz``, ``cp2k-pos-1.xyz``, ``cp2k-1.cell`` & ``cp2k-1.ener``
-            * **volume**: ``cp2k-1.cell``
+        * **pressure**: ``cp2k-frc-1.xyz``, ``cp2k-pos-1.xyz``, ``cp2k-1.cell`` & ``cp2k-1.ener``
+        * **volume**: ``cp2k-1.cell``
 
-            Furthermore, in order to get sensible results both the pressure and
-            cell volume must be variable.
+        Furthermore, in order to get sensible results both the pressure and
+        cell volume must be variable.
 
-            """  # noqa: E501
-            return self._func
+        """
+        return self._func
 
-    @overload
-    def from_result(self: FromResult[Callable[..., T], CP2K_Result], result: CP2K_Result, reduction: None = ..., **kwargs: Any) -> T: ...  # noqa: E501
-    @overload
-    def from_result(self: FromResult[Callable[..., T], CP2K_Result], result: CP2K_Result, reduction: Callable[[T], T1], **kwargs: Any) -> T1: ...  # noqa: E501
-    @overload
-    def from_result(self, result: CP2K_Result, reduction: Literal['min', 'max', 'mean', 'sum', 'product', 'var', 'std', 'ptp'], **kwargs: Any) -> np.float64: ...  # noqa: E501
-    @overload
-    def from_result(self, result: CP2K_Result, reduction: Literal['all', 'any'], **kwargs: Any) -> np.bool_: ...  # noqa: E501
-    def from_result(self, result, reduction=None, **kwargs: Any):   # noqa: E301
+    def from_result(self, result, reduction=None, **kwargs):
         r"""Call **self** using argument extracted from **result**.
 
         Parameters

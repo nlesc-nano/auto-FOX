@@ -55,6 +55,7 @@ setup(
         'data/*.xyz',
         'data/*.yaml',
         'data/*.csv',
+        'properties/*.pyi',
         'py.typed',
         '*.pyi',
     ]},

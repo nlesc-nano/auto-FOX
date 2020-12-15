@@ -6,37 +6,15 @@ import inspect
 import textwrap
 from abc import ABCMeta, abstractmethod
 from types import MappingProxyType
-from typing import (
-    Generic, TypeVar, Any, Callable, Optional, ClassVar, overload,
-    MutableMapping, TYPE_CHECKING,
-)
+from typing import Generic, TypeVar, Any, Callable
 
 import numpy as np
-from nanoutils import Literal, TypedDict, ArrayLike
 from qmflows.packages import Result
 
 __all__ = ['FromResult']
 
-T = TypeVar("T")
-T1 = TypeVar("T1")
-ST = TypeVar("ST", bound='FromResult[Any, Any]')
 FT = TypeVar("FT", bound=Callable[..., Any])
 RT = TypeVar("RT", bound=Result)
-
-
-class ReductionDict(TypedDict):
-    """A dictionary mapping keywords to callbacks."""
-
-    min: Callable[[ArrayLike], np.float64]
-    max: Callable[[ArrayLike], np.float64]
-    mean: Callable[[ArrayLike], np.float64]
-    sum: Callable[[ArrayLike], np.float64]
-    product: Callable[[ArrayLike], np.float64]
-    var: Callable[[ArrayLike], np.float64]
-    std: Callable[[ArrayLike], np.float64]
-    ptp: Callable[[ArrayLike], np.float64]
-    all: Callable[[ArrayLike], np.bool_]
-    any: Callable[[ArrayLike], np.bool_]
 
 
 class FromResult(Generic[FT, RT], metaclass=ABCMeta):
@@ -62,7 +40,7 @@ class FromResult(Generic[FT, RT], metaclass=ABCMeta):
     """
 
     #: A mapping that maps :meth:`from_result` aliases to callbacks.
-    REDUCTION_NAMES: ClassVar[ReductionDict] = MappingProxyType({  # type: ignore[assignment]
+    REDUCTION_NAMES = MappingProxyType({
         'min': np.min,
         'max': np.max,
         'mean': np.mean,
@@ -75,13 +53,7 @@ class FromResult(Generic[FT, RT], metaclass=ABCMeta):
         'any': np.any,
     })
 
-    def __init__(
-        self,
-        func: FT,
-        name: str,
-        module: Optional[str] = None,
-        doc: Optional[str] = None,
-    ) -> None:
+    def __init__(self, func, name, module=None, doc=None):
         """Initialize the instance."""
         if not callable(func):
             raise TypeError("`func` expected a callable object")
@@ -93,7 +65,7 @@ class FromResult(Generic[FT, RT], metaclass=ABCMeta):
         self.__module__ = module if module is not None else '__main__'
 
         if doc is None:
-            self.__doc__: Optional[str] = getattr(func, '__doc__', None)
+            self.__doc__ = getattr(func, '__doc__', None)
         else:
             self.__doc__ = doc
         if cls.__call__ is not FromResult.__call__ and cls.__call__.__doc__ is not None:
@@ -108,61 +80,107 @@ class FromResult(Generic[FT, RT], metaclass=ABCMeta):
         except TypeError:  # `func` may not be hashable in rare cases
             self._hash = hash((cls, id(func)))
 
-        try:
-            self.__annotations__ = func.__annotations__.copy()
-        except AttributeError:
-            self.__annotations__ = {'args': Any, 'kwargs': Any, 'return': Any}
-
-        self.__signature__: Optional[inspect.Signature] = None
-        self.__text_signature__: Optional[str] = None
         if hasattr(func, '__signature__'):
-            self.__signature__ = func.__signature__  # type: ignore[attr-defined]
+            self._signature = func.__signature__
         elif getattr(func, '__text_signature__', None) is not None:
-            self.__text_signature__ = func.__text_signature__  # type: ignore[attr-defined]
+            self._signature = None
         else:
             try:
-                self.__signature__ = inspect.signature(func)
+                self._signature = inspect.signature(func)
             except ValueError:
-                self.__signature__ = inspect.Signature([
+                self._signature = inspect.Signature([
                     inspect.Parameter('args', kind=inspect.Parameter.VAR_POSITIONAL),
                     inspect.Parameter('kwargs', kind=inspect.Parameter.VAR_KEYWORD),
                 ])
 
-    if TYPE_CHECKING:
-        __call__: FT
-    else:
-        @property
-        def __call__(self):
-            """Get the underlying function."""
-            return self._func
+        # Can't make `__globals__` into a property or sphinx will crash:
+        #
+        # Extension error:
+        # Handler <function record_typehints at 0x00000229C568BAF0> for event
+        # 'autodoc-process-signature' threw an exception (exception: 'property' object
+        # has no attribute 'get')
+        self.__globals__ = MappingProxyType(getattr(func, '__globals__', {}))
 
-    def __hash__(self) -> int:
+    @property
+    def __signature__(self):
+        """Get a :class:`~inspect.Signature` representing the underlying function."""
+        return self._signature
+
+    @property
+    def __annotations__(self):
+        """Get the :attr:`~types.FunctionType.__annotations__>` of the underlying function as a read-only view."""  # noqa: E501
+        try:
+            dct = self._func.__annotations__
+        except AttributeError:
+            dct = {'args': Any, 'kwargs': Any, 'return': Any}
+        return MappingProxyType(dct)
+
+    @property
+    def __text_signature__(self):
+        """Get the :attr:`~types.FunctionType.__text_signature__>` of the underlying function."""
+        return getattr(self._func, '__text_signature__', None)
+
+    @property
+    def __closure__(self):
+        """Get the :attr:`~types.FunctionType.__closure__>` of the underlying function."""
+        return getattr(self._func, '__closure__', None)
+
+    @property
+    def __defaults__(self):
+        """Get the :attr:`~types.FunctionType.__defaults__>` of the underlying function."""
+        return getattr(self._func, '__defaults__', None)
+
+    @property
+    def __kwdefaults__(self):
+        """Get the :attr:`~types.FunctionType.__kwdefaults__>` of the underlying function as a read-only view."""  # noqa: E501
+        return MappingProxyType(getattr(self._func, '__kwdefaults__', {}))
+
+    @property
+    def __code__(self):
+        """Get the :attr:`~types.FunctionType.__code__>` of the underlying function.
+
+        Note
+        ----
+        This property is only available if the underlying function supports it.
+
+        """
+        return self._func.__code__
+
+    @property
+    def __get__(self):
+        """Get the :attr:`~types.FunctionType.__get__>` method of the underlying function.
+
+        Note
+        ----
+        This property is only available if the underlying function supports it.
+
+        """
+        return self._func.__get__
+
+    @property
+    def __call__(self):
+        """Get the underlying function."""
+        return self._func
+
+    def __hash__(self):
         """Implement :func:`hash(self) <hash>`."""
         return self._hash
 
-    def __eq__(self, value: object) -> bool:
+    def __eq__(self, value):
         """Implement :meth:`self == value <object.__eq__>`."""
         try:
             return hash(self) == hash(value)
         except TypeError:
             return False
 
-    def __repr__(self) -> str:
+    def __repr__(self):
         """Implement :class:`str(self) <str>` and :func:`repr(self) <repr>`."""
         cls = type(self)
         sgn = inspect.signature(self)
-        return f'<FOX.{cls.__name__} instance {self.__module__}.{self.__name__}{sgn}>'
+        return f'<{cls.__name__} instance {self.__module__}.{self.__name__}{sgn}>'
 
-    @overload
-    def from_result(self: FromResult[Callable[..., T], RT], result: RT, reduction: None = ..., **kwargs: Any) -> T: ...  # noqa: E501
-    @overload
-    def from_result(self: FromResult[Callable[..., T], RT], result: RT, reduction: Callable[[T], T1], **kwargs: Any) -> T1: ...  # noqa: E501
-    @overload
-    def from_result(self, result: RT, reduction: Literal['min', 'max', 'mean', 'sum', 'product', 'var', 'std', 'ptp'], **kwargs: Any) -> np.float64: ...  # noqa: E501
-    @overload
-    def from_result(self, result: RT, reduction: Literal['all', 'any'], **kwargs: Any) -> np.bool_: ...  # noqa: E501
-    @abstractmethod  # noqa: E301
-    def from_result(self, result, reduction=None, **kwargs: Any):
+    @abstractmethod
+    def from_result(self, result, reduction=None, **kwargs):
         r"""Call **self** using argument extracted from **result**.
 
         Parameters
@@ -183,19 +201,7 @@ class FromResult(Generic[FT, RT], metaclass=ABCMeta):
         """  # noqa: E501
         raise NotImplementedError("Trying to call an abstract method")
 
-    @overload
     @classmethod
-    def _reduce(cls, value: T, reduction: None) -> T: ...  # noqa: E501
-    @overload
-    @classmethod
-    def _reduce(cls, value: T, reduction: Callable[[T], T1]) -> T1: ...  # noqa: E501
-    @overload
-    @classmethod
-    def _reduce(cls, value: T, reduction: Literal['min', 'max', 'mean', 'sum', 'product', 'var', 'std', 'ptp']) -> np.float64: ...  # noqa: E501
-    @overload
-    @classmethod
-    def _reduce(cls, value: T, reduction: Literal['all', 'any']) -> np.bool_: ...  # noqa: E501
-    @classmethod  # noqa: E301
     def _reduce(cls, value, reduction):
         """A helper function to handle the reductions in :meth:`from_result`."""
         if reduction is None:
@@ -215,7 +221,7 @@ class FromResult(Generic[FT, RT], metaclass=ABCMeta):
             return func(value)
 
     @staticmethod
-    def _pop(dct: MutableMapping[str, T1], key: str, callback: Callable[[], T1]) -> T1:
+    def _pop(dct, key, callback):
         """Attempt to :meth:`~dict.pop` **key** from **dct**, fall back to **callback** otherwise."""  # noqa: E501
         if key in dct:
             return dct.pop(key)
