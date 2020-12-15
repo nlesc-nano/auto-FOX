@@ -102,12 +102,25 @@ jobs:
                 if: matrix.os == 'windows-latest'
                 run: conda list
 
+            -   name: Check code style
+                if: matrix.os != 'windows-latest'
+                run: |
+                    source $CONDA/bin/activate test
+                    flake8 FOX tests
+                    pydocstyle FOX tests
+
+            -   name: Check code style (windows-latest)
+                if: matrix.os == 'windows-latest'
+                run: |
+                    flake8 FOX tests
+                    pydocstyle FOX tests
+
             -   name: Run tests
                 if: matrix.os != 'windows-latest'
                 run: |
                     source $CONDA/bin/activate test
                     export CP2K_DATA_DIR="/usr/share/cp2k"
-                    pytest -m "not slow" --flake8
+                    pytest -m "not slow"
 
             -   name: Run tests (windows-latest)
                 if: matrix.os == 'windows-latest'
