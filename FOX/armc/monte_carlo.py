@@ -454,9 +454,10 @@ class MonteCarloABC(AbstractDataClass, ABC, Mapping[Key, np.ndarray]):
                     self.logger.info(f"Calculating descriptor {_k!r} for PES {i}")
                     try:
                         ret1[k] = func2(mol, result)
-                    except Exception:
-                        self.logger.warning(f"Failed to compute descriptor {_k!r} for PES {i}")
-                        ret1[k] = np.inf
+                    except Exception as ex:
+                        raise RuntimeError(
+                            f"Failed to compute descriptor {_k!r} for PES {i}"
+                        ) from ex
 
                 ret2: Dict[str, ArrayOrScalar] = {}
                 iterator2 = zip(self.pes_validation.items(), cycle(mol_list), cycle(result_list))
@@ -465,11 +466,10 @@ class MonteCarloABC(AbstractDataClass, ABC, Mapping[Key, np.ndarray]):
                     self.logger.info(f"Calculating validation descriptor {_k!r} for PES {i}")
                     try:
                         ret2[k] = func2(mol, result)
-                    except Exception:
-                        self.logger.warning(
+                    except Exception as ex:
+                        raise RuntimeError(
                             f"Failed to compute validation descriptor {_k!r} for PES {i}"
-                        )
-                        ret2[k] = np.inf
+                        ) from ex
         else:
             # The MD simulation crashed
             ret1 = {key: np.inf for key in self.pes.keys()}
