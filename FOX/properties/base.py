@@ -11,7 +11,7 @@ from typing import Generic, TypeVar, Any, Callable
 import numpy as np
 from qmflows.packages import Result
 
-__all__ = ['FromResult']
+__all__ = ['FromResult', 'get_attr', 'call_method']
 
 FT = TypeVar("FT", bound=Callable[..., Any])
 RT = TypeVar("RT", bound=Result)
@@ -227,3 +227,68 @@ class FromResult(Generic[FT, RT], metaclass=ABCMeta):
             return dct.pop(key)
         else:
             return callback()
+
+
+class _Null:
+    """A singleton used as sentinel value in :func:`get_attr`."""
+
+    ...
+
+
+def get_attr(obj, name, default=_Null, reduction=None):
+    """:func:`gettattr` with support for keyword argument.
+
+    Parameters
+    ----------
+    obj : :class:`object`
+        The object in question.
+    name : :class:`str`
+        The name of the to-be extracted attribute.
+    default : :class:`~typing.Any`
+        An object that is to-be returned if **obj** does not have the **name** attribute.
+    reduction : :class:`str` or :class:`Callable[[Any], Any] <collections.abc.Callable>`, optional
+        A callback for reducing the extracted attribute.
+        Alternativelly, one can provide on of the string aliases
+        from :attr:`FromResult.REDUCTION_NAMES`.
+
+    Returns
+    -------
+    :class:`~typing.Any`
+        The extracted attribute.
+
+    See Also
+    --------
+    :func:`getattr`
+        Get a named attribute from an object.
+
+    """
+    if default is _Null:
+        ret = getattr(obj, name)
+    ret = getattr(obj, name, default)
+    return FromResult._reduce(ret, reduction)
+
+
+def call_method(obj, name, *args, reduction=None, **kwargs):
+    r"""Call the **name** method of **obj**.
+
+    Parameters
+    ----------
+    obj : :class:`object`
+        The object in question.
+    name : :class:`str`
+        The name of the to-be extracted method.
+    \*args/\**kwargs : :class:`~typing.Any`
+        Positional and/or keyword arguments for the (to-be called) extracted method.
+    reduction : :class:`str` or :class:`Callable[[Any], Any] <collections.abc.Callable>`, optional
+        A callback for reducing the output of the called function.
+        Alternativelly, one can provide on of the string aliases
+        from :attr:`FromResult.REDUCTION_NAMES`.
+
+    Returns
+    -------
+    :class:`~typing.Any`
+        The output of the extracted method.
+
+    """
+    ret = getattr(obj, name)(*args, **kwargs)
+    return FromResult._reduce(ret, reduction)

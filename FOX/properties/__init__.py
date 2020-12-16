@@ -69,6 +69,8 @@ Index
 .. currentmodule:: FOX.properties
 .. autosummary::
     FromResult
+    get_attr
+    call_method
     get_pressure
     get_bulk_modulus
 
@@ -101,6 +103,8 @@ API
             ...         'any': np.any,
             ...     })
 
+.. autofunction:: get_attr
+.. autofunction:: call_method
 .. autofunction:: get_pressure
 .. autofunction:: get_bulk_modulus
 
@@ -108,7 +112,7 @@ API
 
 # flake8: noqa: E402
 
-from .base import FromResult
+from .base import FromResult, get_attr, call_method
 
 from .pressure import get_pressure as _get_pressure, GetPressure
 get_pressure = GetPressure(
@@ -126,4 +130,4 @@ get_bulk_modulus = GetBulkMod(
 )
 del _get_bulk_modulus, GetBulkMod
 
-__all__ = ['FromResult', 'get_pressure', 'get_bulk_modulus']
+__all__ = ['FromResult', 'get_attr', 'call_method', 'get_pressure', 'get_bulk_modulus']

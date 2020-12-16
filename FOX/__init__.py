@@ -31,11 +31,6 @@ from .ff import (
     estimate_lj, get_free_energy
 )
 
-from .utils import (
-    get_attr,
-    call_method,
-)
-
 from . import recipes, properties
 
 __author__ = "Bas van Beek"
@@ -66,6 +61,4 @@ __all__ = [
     'get_bonded',
 
     'recipes', 'properties',
-
-    'get_attr', 'call_method',
 ]

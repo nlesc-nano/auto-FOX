@@ -45,12 +45,12 @@ pes:
         kwargs:
             atom_subset: [Cd, Se, O]
     energy:
-        func: FOX.get_attr
+        func: FOX.properties.get_attr
         ref: [-17.0429775897]
         kwargs:
             name: energy
     runtime:
-        func: FOX.call_method
+        func: FOX.properties.call_method
         ref: [15.0]
         kwargs:
             name: get_runtime

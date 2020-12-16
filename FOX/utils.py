@@ -465,21 +465,3 @@ def log_traceback_locals(logger: Logger, level: int = -1,
         value_str[0] = prefix + value_str[0]
         for v in value_str:
             logger.debug(v)
-
-
-class _Null:
-    """A singleton used as sentinel value in :func:`FOX.get_attr`."""
-
-    ...
-
-
-def get_attr(obj: Any, name: str, default: Any = _Null) -> Any:
-    """:func:`gettattr` with support for keyword argument."""
-    if default is _Null:
-        return getattr(obj, name)
-    return getattr(obj, name, default)
-
-
-def call_method(obj: Any, name: str, *args: Any, **kwargs: Any) -> Any:
-    """Call the **name** method of **obj**."""
-    return getattr(obj, name)(*args, **kwargs)
