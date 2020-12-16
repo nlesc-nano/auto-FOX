@@ -85,8 +85,8 @@ API
 
         A mapping that maps :meth:`from_result` aliases to callbacks.
 
-        In addition to the examples below, all reducable :class:`ufuncs <numpy.ufunc>`
-        from :mod:`numpy` and :mod:`scipy.special` are available.
+        In addition to the examples below, all reducable ufuncs
+        from :ref:`numpy <numpy:ufuncs>` and :mod:`scipy.special` are available.
 
         .. code-block:: python
 
