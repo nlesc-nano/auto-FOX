@@ -8,7 +8,6 @@ from scm.plams import Units
 from qmflows.packages.cp2k_package import CP2K_Result
 
 from . import FromResult, get_pressure
-from ..io import read_volumes
 
 __all__ = ['get_bulk_modulus', 'GetBulkMod']
 
@@ -105,12 +104,10 @@ class GetBulkMod(FromResult[FT, CP2K_Result]):
         """  # noqa: E501
         if result.status in {'failed', 'crashed'}:
             raise RuntimeError(f"Cannot extract data a job with status {result.status!r}")
-        else:
-            base = Path(result.archive['work_dir'])  # type: ignore[arg-type]
+        a_to_au = Units.conversion_ratio('angstrom', 'bohr')
 
         volume = self._pop(
-            kwargs, 'volume',
-            callback=lambda: read_volumes(base / 'cp2k-1.cell', unit='bohr')
+            kwargs, 'volume', callback=lambda: getattr(result, 'volume') * a_to_au**3
         )
         pressure = get_pressure.from_result(result, reduction=None, volume=volume)
 

@@ -9,7 +9,6 @@ from scm.plams import Units
 from qmflows.packages.cp2k_package import CP2K_Result
 
 from . import FromResult
-from ..io import read_multi_xyz, read_temperatures, read_volumes
 
 __all__ = ['get_pressure', 'GetPressure']
 
@@ -115,24 +114,15 @@ class GetPressure(FromResult[FT, CP2K_Result]):
         """  # noqa: E501
         if result.status in {'failed', 'crashed'}:
             raise RuntimeError(f"Cannot extract data a job with status {result.status!r}")
-        else:
-            base = Path(result.archive['work_dir'])  # type: ignore[arg-type]
+        a_to_au = Units.conversion_ratio('angstrom', 'bohr')
 
-        forces = self._pop(
-            kwargs, 'forces',
-            callback=lambda: read_multi_xyz(base / 'cp2k-frc-1.xyz', return_comment=False)[0]
-        )
+        forces = self._pop(kwargs, 'forces', callback=lambda: getattr(result, 'forces'))
+        temp = self._pop(kwargs, 'temp', callback=lambda: getattr(result, 'temperature'))
         coords = self._pop(
-            kwargs, 'coords',
-            callback=lambda: read_multi_xyz(base / 'cp2k-pos-1.xyz', return_comment=False, unit='bohr')[0]  # noqa: E501
+            kwargs, 'coords', callback=lambda: getattr(result, 'coords') * a_to_au
         )
         volume = self._pop(
-            kwargs, 'volume',
-            callback=lambda: read_volumes(base / 'cp2k-1.cell', unit='bohr')
-        )
-        temp = self._pop(
-            kwargs, 'temp',
-            callback=lambda: read_temperatures(base / 'cp2k-1.ener')
+            kwargs, 'volume', callback=lambda: getattr(result, 'volume') * a_to_au**3
         )
 
         ret = self(forces, coords, volume, temp, **kwargs)
