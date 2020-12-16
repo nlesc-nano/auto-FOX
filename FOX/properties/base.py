@@ -5,9 +5,10 @@ from __future__ import annotations
 import inspect
 import textwrap
 from abc import ABCMeta, abstractmethod
-from types import MappingProxyType
-from typing import Generic, TypeVar, Any, Callable
+from types import MappingProxyType, ModuleType
+from typing import Generic, TypeVar, Any, Callable, Dict
 
+import scipy.special
 import numpy as np
 from qmflows.packages import Result
 
@@ -15,6 +16,14 @@ __all__ = ['FromResult', 'get_attr', 'call_method']
 
 FT = TypeVar("FT", bound=Callable[..., Any])
 RT = TypeVar("RT", bound=Result)
+
+
+def _gather_ufuncs(module: ModuleType) -> Dict[str, Callable[[Any], Any]]:
+    """Gather a dictionary with all :class:`~numpy.ufunc.reduce`-supporting :class:`ufuncs <numpy.ufunc>` from the passed **module**."""  # noqa: E501
+    iterator = (getattr(module, name) for name in getattr(module, '__all__', []))
+    condition = lambda ufunc: (isinstance(ufunc, np.ufunc) and ufunc.signature is None and
+                               ufunc.nin == 2 and ufunc.nout == 1)
+    return {ufunc.__name__: ufunc.reduce for ufunc in iterator if condition(ufunc)}
 
 
 class FromResult(Generic[FT, RT], metaclass=ABCMeta):
@@ -49,8 +58,13 @@ class FromResult(Generic[FT, RT], metaclass=ABCMeta):
         'var': np.var,
         'std': np.std,
         'ptp': np.ptp,
+        'norm': np.linalg.norm,
+        'argmin': np.argmin,
+        'argmax': np.argmax,
         'all': np.all,
         'any': np.any,
+        **_gather_ufuncs(np),
+        **_gather_ufuncs(scipy.special),
     })
 
     def __init__(self, func, name, module=None, doc=None):

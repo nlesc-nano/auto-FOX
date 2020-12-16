@@ -85,23 +85,33 @@ API
 
         A mapping that maps :meth:`from_result` aliases to callbacks.
 
+        In addition to the examples below, all reducable :class:`ufuncs <numpy.ufunc>`
+        from :mod:`numpy` and :mod:`scipy.special` are available.
+
         .. code-block:: python
 
             >>> from types import MappingProxyType
             >>> import numpy as np
+            >>> import scipy.special
 
             >>> REDUCTION_NAMES = MappingProxyType({
-            ...         'min': np.min,
-            ...         'max': np.max,
-            ...         'mean': np.mean,
-            ...         'sum': np.sum,
-            ...         'product': np.product,
-            ...         'var': np.var,
-            ...         'std': np.std,
-            ...         'ptp': np.ptp,
-            ...         'all': np.all,
-            ...         'any': np.any,
-            ...     })
+            ...     'min': np.min,
+            ...     'max': np.max,
+            ...     'mean': np.mean,
+            ...     'sum': np.sum,
+            ...     'product': np.product,
+            ...     'var': np.var,
+            ...     'std': np.std,
+            ...     'ptp': np.ptp,
+            ...     'norm': np.linalg.norm,
+            ...     'argmin': np.argmin,
+            ...     'argmax': np.argmax,
+            ...     'all': np.all,
+            ...     'any': np.any,
+            ...     'add': np.add.reduce,
+            ...     'eval_legendre': scipy.special.eval_legendre.reduce,
+            ...     ...
+            ... })
 
 .. autofunction:: get_attr
 .. autofunction:: call_method

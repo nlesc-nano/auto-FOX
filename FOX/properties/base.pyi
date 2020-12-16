@@ -1,17 +1,13 @@
-import sys
 import types
 import inspect
 from abc import ABCMeta, abstractmethod
-from typing import Generic, Callable, Any, ClassVar, TypeVar, overload, Optional, Dict, MutableMapping, Mapping, Tuple
+from typing import Generic, Callable, Any, ClassVar, TypeVar, overload, Optional, MutableMapping, Mapping, Tuple
 
 from qmflows.packages import Result
 import numpy as np
 import numpy.typing as npt
 
-if sys.version_info >= (3, 8):
-    from typing import TypedDict, Literal
-else:
-    from typing_extensions import TypedDict, Literal
+from FOX.properties.annotations import ReductionDict, IntPNames, Float64Names, BoolNames
 
 T1 = TypeVar("T1")
 T2 = TypeVar("T2")
@@ -19,20 +15,8 @@ ST = TypeVar("ST", bound=FromResult[Any, Any])
 FT = TypeVar("FT", bound=Callable[..., Any])
 RT = TypeVar("RT", bound=Result)
 
-class _ReductionDict(TypedDict):
-    min: Callable[[npt.ArrayLike], np.float64]
-    max: Callable[[npt.ArrayLike], np.float64]
-    mean: Callable[[npt.ArrayLike], np.float64]
-    sum: Callable[[npt.ArrayLike], np.float64]
-    product: Callable[[npt.ArrayLike], np.float64]
-    var: Callable[[npt.ArrayLike], np.float64]
-    std: Callable[[npt.ArrayLike], np.float64]
-    ptp: Callable[[npt.ArrayLike], np.float64]
-    all: Callable[[npt.ArrayLike], np.bool_]
-    any: Callable[[npt.ArrayLike], np.bool_]
-
 class FromResult(Generic[FT, RT], types.FunctionType, metaclass=ABCMeta):
-    REDUCTION_NAMES: ClassVar[_ReductionDict]
+    REDUCTION_NAMES: ClassVar[ReductionDict]
     def __init__(
         self,
         func: FT,
@@ -75,10 +59,13 @@ class FromResult(Generic[FT, RT], types.FunctionType, metaclass=ABCMeta):
     def from_result(self: FromResult[Callable[..., T1], RT], result: RT, reduction: Callable[[T1], T2]) -> T2: ...
     @overload
     @abstractmethod
-    def from_result(self, result: RT, reduction: Literal['min', 'max', 'mean', 'sum', 'product', 'var', 'std', 'ptp']) -> np.float64: ...
+    def from_result(self, result: RT, reduction: Float64Names) -> np.float64: ...
     @overload
     @abstractmethod
-    def from_result(self, result: RT, reduction: Literal['all', 'any']) -> np.bool_: ...
+    def from_result(self, result: RT, reduction: IntPNames) -> np.intp: ...
+    @overload
+    @abstractmethod
+    def from_result(self, result: RT, reduction: BoolNames) -> np.bool_: ...
 
     @overload
     @classmethod
@@ -88,10 +75,13 @@ class FromResult(Generic[FT, RT], types.FunctionType, metaclass=ABCMeta):
     def _reduce(cls, value: T1, reduction: Callable[[T1], T2]) -> T2: ...
     @overload
     @classmethod
-    def _reduce(cls, value: T1, reduction: Literal['min', 'max', 'mean', 'sum', 'product', 'var', 'std', 'ptp']) -> np.float64: ...
+    def _reduce(cls, value: T1, reduction: Float64Names) -> np.float64: ...
     @overload
     @classmethod
-    def _reduce(cls, value: T1, reduction: Literal['all', 'any']) -> np.bool_: ...
+    def _reduce(cls, value: T1, reduction: IntPNames) -> np.intp: ...
+    @overload
+    @classmethod
+    def _reduce(cls, value: T1, reduction: BoolNames) -> np.bool_: ...
 
     @staticmethod
     def _pop(dct: MutableMapping[str, T1], key: str, callback: Callable[[], T1]) -> T1: ...
@@ -101,15 +91,19 @@ def get_attr(obj: object, name: str, default: Any = ..., *, reduction: None = ..
 @overload
 def get_attr(obj: object, name: str, default: Any = ..., *, reduction: Callable[[Any], T1]) -> T1: ...
 @overload
-def get_attr(obj: object, name: str, default: Any = ..., *, reduction: Literal['min', 'max', 'mean', 'sum', 'product', 'var', 'std', 'ptp']) -> np.float64: ...
+def get_attr(obj: object, name: str, default: Any = ..., *, reduction: Float64Names) -> np.float64: ...
 @overload
-def get_attr(obj: object, name: str, default: Any = ..., *, reduction: Literal['all', 'any']) -> np.bool_: ...
+def get_attr(obj: object, name: str, default: Any = ..., *, reduction: IntPNames) -> np.intp: ...
+@overload
+def get_attr(obj: object, name: str, default: Any = ..., *, reduction: BoolNames) -> np.bool_: ...
 
 @overload
 def call_method(obj: object, name: str, *args: Any, reduction: None = ..., **kwargs: Any) -> Any: ...
 @overload
 def call_method(obj: object, name: str, *args: Any, reduction: Callable[[Any], T1], **kwargs: Any) -> T1: ...
 @overload
-def call_method(obj: object, name: str, *args: Any, reduction: Literal['min', 'max', 'mean', 'sum', 'product', 'var', 'std', 'ptp'], **kwargs: Any) -> np.float64: ...
+def call_method(obj: object, name: str, *args: Any, reduction: Float64Names, **kwargs: Any) -> np.float64: ...
 @overload
-def call_method(obj: object, name: str, *args: Any, reduction: Literal['all', 'any'], **kwargs: Any) -> np.bool_: ...
+def call_method(obj: object, name: str, *args: Any, reduction: IntPNames, **kwargs: Any) -> np.intp: ...
+@overload
+def call_method(obj: object, name: str, *args: Any, reduction: BoolNames, **kwargs: Any) -> np.bool_: ...
