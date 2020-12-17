@@ -467,15 +467,13 @@ def _xyz_to_hdf5(filename: PathType, omega: int,
         All to-be exported :class:`MultiMolecule` instance(s) or float (*e.g.* ``np.nan``).
 
     """
+    if mol_list is None:
+        return
+
     # Check if the hdf5 file is already opened. If opened: wait for 5 sec and try again.
     hdf5_availability(filename)
 
     with h5py.File(filename, 'r+', libver='latest') as f:
-        if mol_list is None:
-            for k in f.keys():
-                f[k] = np.nan
-            return
-
         iterator = ((f[f'xyz.{i}'], mol) for i, mol in enumerate(mol_list))
         for dset, mol in iterator:
             i = len(mol)
