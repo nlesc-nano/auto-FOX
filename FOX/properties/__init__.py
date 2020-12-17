@@ -76,7 +76,7 @@ Index
 
 API
 ---
-.. autoclass:: FromResult
+.. autoclass:: FromResult(func, name, module=None, doc=None)
     :members: __call__, from_result
 
     .. data:: REDUCTION_NAMES

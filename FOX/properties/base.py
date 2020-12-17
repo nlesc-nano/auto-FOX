@@ -27,7 +27,7 @@ def _gather_ufuncs(module: ModuleType) -> Dict[str, Callable[[Any], Any]]:
 
 
 class FromResult(Generic[FT, RT], metaclass=ABCMeta):
-    """A :class:`~collections.abc.Callable` wrapper.
+    """A class for wrapping :class:`~collections.abc.Callable` objects.
 
     Besides :meth:`__call__`, instances have access to the :meth:`from_result` method,
     which is used for applying the wrapped callable to
@@ -38,12 +38,12 @@ class FromResult(Generic[FT, RT], metaclass=ABCMeta):
     func : :class:`Callable[..., Any] <collections.abc.Callable>`
         The to-be wrapped function.
     name : :class:`str`
-        The :attr:`~definition.__name__` of the to-be created instance.
+        The :attr:`~definition.__name__` attribute of the to-be created instance.
     module : :class:`str`
-        The :attr:``__module__`` of the to-be created instance.
+        The ``__module__`` attribute of the to-be created instance.
         If :data:`None`, set it to ``"__main__"``.
     doc : :class:`str`, optional
-        The :attr:``__doc__`` of the to-be created instance.
+        The ``__doc__`` attribute of the to-be created instance.
         If :data:`None`, extract the docstring from **func**.
 
     """
