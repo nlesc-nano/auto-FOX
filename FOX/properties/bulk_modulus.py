@@ -103,7 +103,7 @@ class GetBulkMod(FromResult[FT, CP2K_Result]):
 
         """  # noqa: E501
         if result.status in {'failed', 'crashed'}:
-            raise RuntimeError(f"Cannot extract data a job with status {result.status!r}")
+            raise RuntimeError(f"Cannot extract data from a job with status {result.status!r}")
         a_to_au = Units.conversion_ratio('angstrom', 'bohr')
 
         volume = self._pop(
