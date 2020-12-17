@@ -35,6 +35,7 @@ import pandas as pd
 from scm.plams import config, Molecule, JobManager  # type: ignore
 from qmflows import Settings as QmSettings
 from qmflows.cp2k_utils import prm_to_df
+from qmflows.packages.cp2k_package import CP2K, CP2K_Result
 from noodles import gather, schedule, has_scheduled_methods, run_parallel
 from nanoutils import set_docstring, TypedDict
 
@@ -345,16 +346,26 @@ class PackageManager(PackageManagerABC):
     def assemble_job(job: PkgDict, old_results: Optional[Result] = None,
                      name: Optional[str] = None) -> PromisedObject:
         """Create a :class:`PromisedObject` from a qmflow :class:`Package` instance."""
-        kwargs: PkgDict = job.copy()
+        job_name = name if name is not None else ''
+        obj_type = job['type']
+        settings = job['settings']
 
-        if old_results is not None:
-            mol: Molecule = old_results.geometry
+        if old_results is None:
+            mol = job['molecule']
         else:
-            mol = kwargs['molecule']
+            mol = old_results.geometry
 
-        job_name: str = name if name is not None else ''
-        obj_type: Package = kwargs.pop('type')  # type: ignore
-        return obj_type(mol=mol, job_name=job_name, validate_output=False, **kwargs)
+        if isinstance(obj_type, CP2K) and isinstance(old_results, CP2K_Result):
+            try:
+                lattice = old_results.lattice
+                assert lattice is not None
+            except (AssertionError, FileNotFoundError):
+                pass
+            else:
+                settings = settings.copy()
+                settings.cell_parameters = lattice[-1].tolist()
+
+        return obj_type(mol=mol, job_name=job_name, validate_output=False, settings=settings)
 
     @staticmethod
     def clear_jobs() -> None:
