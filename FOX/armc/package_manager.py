@@ -416,7 +416,7 @@ class PackageManager(PackageManagerABC):
         """Create a list of MultiMolecule from the passed **results**."""
         mol_list = []
         results_list = list(results)
-        for result in results:
+        for result in results_list:
             try:  # Construct and return a MultiMolecule object
                 path: str = get_xyz_path(result.archive['work_dir'])  # type: ignore
                 mol = MultiMolecule.from_xyz(path)
