@@ -223,12 +223,14 @@ def _guess_param(mc: MonteCarloABC, prm: dict,
 
     # Guess and collect all to-be updated parameters
     seq = []
+    unit_lst = []
     for k, v in prm_iter(prm):
         mode = v.pop('guess', None)
         if mode is None:
             continue
         param = v['param']
         unit = UNIT_MAP[v.get('unit') or ('k_e' if param == 'epsilon' else 'angstrom')]
+        unit_lst.append(unit)
 
         prm_series = guess_param(mc.molecule, param, mode=mode,
                                  psf_list=psf, prm=prm_file, unit=unit)
@@ -242,8 +244,7 @@ def _guess_param(mc: MonteCarloABC, prm: dict,
     # Update the variable parameters
     metadata = {'min': -np.inf, 'max': np.inf, 'count': 0, 'guess': True}
     _prm = mc.param.param
-    for k, v in seq:
-        unit = mc.param.metadata.loc[(k, v['param']), 'unit'].iat[0]
+    for (k, v), unit in zip(seq, unit_lst):
         iterator = (((k, v['param'], at), value) for at, value in v.items() if at != 'param')
         for key, value in iterator:
             if key not in _prm.index:
