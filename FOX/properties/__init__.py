@@ -62,19 +62,21 @@ to export the necessary properties.
             func: FOX.properties.get_bulk_modulus.from_result
             ref: [1.0]
             kwargs:
-                reduction: mean
+                reduce: mean
 
 Index
 -----
 .. currentmodule:: FOX.properties
 .. autosummary::
     FromResult
+    get_attr
+    call_method
     get_pressure
     get_bulk_modulus
 
 API
 ---
-.. autoclass:: FromResult
+.. autoclass:: FromResult(func, name, module=None, doc=None)
     :members: __call__, from_result
 
     .. data:: REDUCTION_NAMES
@@ -83,24 +85,36 @@ API
 
         A mapping that maps :meth:`from_result` aliases to callbacks.
 
+        In addition to the examples below, all reducable ufuncs
+        from :ref:`numpy <numpy:ufuncs>` and :mod:`scipy.special` are available.
+
         .. code-block:: python
 
             >>> from types import MappingProxyType
             >>> import numpy as np
+            >>> import scipy.special
 
             >>> REDUCTION_NAMES = MappingProxyType({
-            ...         'min': np.min,
-            ...         'max': np.max,
-            ...         'mean': np.mean,
-            ...         'sum': np.sum,
-            ...         'product': np.product,
-            ...         'var': np.var,
-            ...         'std': np.std,
-            ...         'ptp': np.ptp,
-            ...         'all': np.all,
-            ...         'any': np.any,
-            ...     })
+            ...     'min': np.min,
+            ...     'max': np.max,
+            ...     'mean': np.mean,
+            ...     'sum': np.sum,
+            ...     'product': np.product,
+            ...     'var': np.var,
+            ...     'std': np.std,
+            ...     'ptp': np.ptp,
+            ...     'norm': np.linalg.norm,
+            ...     'argmin': np.argmin,
+            ...     'argmax': np.argmax,
+            ...     'all': np.all,
+            ...     'any': np.any,
+            ...     'add': np.add.reduce,
+            ...     'eval_legendre': scipy.special.eval_legendre.reduce,
+            ...     ...
+            ... })
 
+.. autofunction:: get_attr
+.. autofunction:: call_method
 .. autofunction:: get_pressure
 .. autofunction:: get_bulk_modulus
 
@@ -108,7 +122,7 @@ API
 
 # flake8: noqa: E402
 
-from .base import FromResult
+from .base import FromResult, get_attr, call_method
 
 from .pressure import get_pressure as _get_pressure, GetPressure
 get_pressure = GetPressure(
@@ -126,4 +140,4 @@ get_bulk_modulus = GetBulkMod(
 )
 del _get_bulk_modulus, GetBulkMod
 
-__all__ = ['FromResult', 'get_pressure', 'get_bulk_modulus']
+__all__ = ['FromResult', 'get_attr', 'call_method', 'get_pressure', 'get_bulk_modulus']

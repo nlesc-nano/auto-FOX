@@ -1,6 +1,5 @@
 """Functions for calculating the bulk modulus."""
 
-from pathlib import Path
 from typing import TypeVar, Callable, Any
 
 import numpy as np
@@ -8,7 +7,6 @@ from scm.plams import Units
 from qmflows.packages.cp2k_package import CP2K_Result
 
 from . import FromResult, get_pressure
-from ..io import read_volumes
 
 __all__ = ['get_bulk_modulus', 'GetBulkMod']
 
@@ -84,16 +82,19 @@ class GetBulkMod(FromResult[FT, CP2K_Result]):
         """
         return self._func
 
-    def from_result(self, result, reduction=None, **kwargs):
+    def from_result(self, result, reduce=None, axis=None, **kwargs):
         r"""Call **self** using argument extracted from **result**.
 
         Parameters
         ----------
         result : :class:`qmflows.CP2K_Result <qmflows.packages.cp2k_package.CP2K_Result>`
             The Result instance that **self** should operator on.
-        reduction : :class:`str` or :class:`Callable[[Any], Any] <collections.abc.Callable>`, optional
+        reduce : :class:`str` or :class:`Callable[[Any], Any] <collections.abc.Callable>`, optional
             A callback for reducing the output of **self**.
             Alternativelly, one can provide on of the string aliases from :attr:`REDUCTION_NAMES`.
+        axis : :class:`int` or :class:`Sequence[int] <collections.abc.Sequence>`, optional
+            The axis along which the reduction should take place.
+            If :data:`None`, use all axes.
         \**kwargs : :data:`~typing.Any`
             Further keyword arguments for :meth:`__call__`.
 
@@ -104,15 +105,13 @@ class GetBulkMod(FromResult[FT, CP2K_Result]):
 
         """  # noqa: E501
         if result.status in {'failed', 'crashed'}:
-            raise RuntimeError(f"Cannot extract data a job with status {result.status!r}")
-        else:
-            base = Path(result.archive['work_dir'])  # type: ignore[arg-type]
+            raise RuntimeError(f"Cannot extract data from a job with status {result.status!r}")
+        a_to_au = Units.conversion_ratio('angstrom', 'bohr')
 
         volume = self._pop(
-            kwargs, 'volume',
-            callback=lambda: read_volumes(base / 'cp2k-1.cell', unit='bohr')
+            kwargs, 'volume', callback=lambda: getattr(result, 'volume') * a_to_au**3
         )
-        pressure = get_pressure.from_result(result, reduction=None, volume=volume)
+        pressure = get_pressure.from_result(result, reduce=None, volume=volume)
 
         ret = self(pressure, volume, **kwargs)
-        return self._reduce(ret, reduction)
+        return self._reduce(ret, reduce, axis)

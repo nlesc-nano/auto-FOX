@@ -5,20 +5,29 @@ from __future__ import annotations
 import inspect
 import textwrap
 from abc import ABCMeta, abstractmethod
-from types import MappingProxyType
-from typing import Generic, TypeVar, Any, Callable
+from types import MappingProxyType, ModuleType
+from typing import Generic, TypeVar, Any, Callable, Dict
 
+import scipy.special
 import numpy as np
 from qmflows.packages import Result
 
-__all__ = ['FromResult']
+__all__ = ['FromResult', 'get_attr', 'call_method']
 
 FT = TypeVar("FT", bound=Callable[..., Any])
 RT = TypeVar("RT", bound=Result)
 
 
+def _gather_ufuncs(module: ModuleType) -> Dict[str, Callable[[Any], Any]]:
+    """Gather a dictionary with all :class:`~numpy.ufunc.reduce`-supporting :class:`ufuncs <numpy.ufunc>` from the passed **module**."""  # noqa: E501
+    iterator = (getattr(module, name) for name in getattr(module, '__all__', []))
+    condition = lambda ufunc: (isinstance(ufunc, np.ufunc) and ufunc.signature is None and
+                               ufunc.nin == 2 and ufunc.nout == 1)
+    return {ufunc.__name__: ufunc.reduce for ufunc in iterator if condition(ufunc)}
+
+
 class FromResult(Generic[FT, RT], metaclass=ABCMeta):
-    """A :class:`~collections.abc.Callable` wrapper.
+    """A class for wrapping :class:`~collections.abc.Callable` objects.
 
     Besides :meth:`__call__`, instances have access to the :meth:`from_result` method,
     which is used for applying the wrapped callable to
@@ -29,12 +38,12 @@ class FromResult(Generic[FT, RT], metaclass=ABCMeta):
     func : :class:`Callable[..., Any] <collections.abc.Callable>`
         The to-be wrapped function.
     name : :class:`str`
-        The :attr:`~definition.__name__` of the to-be created instance.
+        The :attr:`~definition.__name__` attribute of the to-be created instance.
     module : :class:`str`
-        The :attr:``__module__`` of the to-be created instance.
+        The ``__module__`` attribute of the to-be created instance.
         If :data:`None`, set it to ``"__main__"``.
     doc : :class:`str`, optional
-        The :attr:``__doc__`` of the to-be created instance.
+        The ``__doc__`` attribute of the to-be created instance.
         If :data:`None`, extract the docstring from **func**.
 
     """
@@ -49,8 +58,13 @@ class FromResult(Generic[FT, RT], metaclass=ABCMeta):
         'var': np.var,
         'std': np.std,
         'ptp': np.ptp,
+        'norm': np.linalg.norm,
+        'argmin': np.argmin,
+        'argmax': np.argmax,
         'all': np.all,
         'any': np.any,
+        **_gather_ufuncs(np),
+        **_gather_ufuncs(scipy.special),
     })
 
     def __init__(self, func, name, module=None, doc=None):
@@ -180,16 +194,19 @@ class FromResult(Generic[FT, RT], metaclass=ABCMeta):
         return f'<{cls.__name__} instance {self.__module__}.{self.__name__}{sgn}>'
 
     @abstractmethod
-    def from_result(self, result, reduction=None, **kwargs):
+    def from_result(self, result, reduce=None, axis=None, **kwargs):
         r"""Call **self** using argument extracted from **result**.
 
         Parameters
         ----------
         result : :class:`qmflows.Result <qmflows.packages.Result>`
             The Result instance that **self** should operator on.
-        reduction : :class:`str` or :class:`Callable[[Any], Any] <collections.abc.Callable>`, optional
+        reduce : :class:`str` or :class:`Callable[[Any], Any] <collections.abc.Callable>`, optional
             A callback for reducing the output of **self**.
             Alternativelly, one can provide on of the string aliases from :attr:`REDUCTION_NAMES`.
+        axis : :class:`int` or :class:`Sequence[int] <collections.abc.Sequence>`, optional
+            The axis along which the reduction should take place.
+            If :data:`None`, use all axes.
         \**kwargs : :data:`~typing.Any`
             Further keyword arguments for :meth:`__call__`.
 
@@ -202,23 +219,23 @@ class FromResult(Generic[FT, RT], metaclass=ABCMeta):
         raise NotImplementedError("Trying to call an abstract method")
 
     @classmethod
-    def _reduce(cls, value, reduction):
+    def _reduce(cls, value, reduce, axis=None):
         """A helper function to handle the reductions in :meth:`from_result`."""
-        if reduction is None:
+        if reduce is None:
             return value
-        elif callable(reduction):
-            return reduction(value)
+        elif callable(reduce):
+            return reduce(value)
 
         try:
-            func = cls.REDUCTION_NAMES[reduction]
+            func = cls.REDUCTION_NAMES[reduce]
         except (TypeError, KeyError):
-            if not isinstance(reduction, str):
-                raise TypeError("`reduction` expected a string; observed type: "
-                                f"{reduction.__class__.__name__!r}") from None
+            if not isinstance(reduce, str):
+                raise TypeError("`reduce` expected a string; observed type: "
+                                f"{reduce.__class__.__name__!r}") from None
             else:
-                raise ValueError(f"Invalid `reduction` value: {reduction!r}") from None
+                raise ValueError(f"Invalid `reduce` value: {reduce!r}") from None
         else:
-            return func(value)
+            return func(value, axis=axis)
 
     @staticmethod
     def _pop(dct, key, callback):
@@ -227,3 +244,74 @@ class FromResult(Generic[FT, RT], metaclass=ABCMeta):
             return dct.pop(key)
         else:
             return callback()
+
+
+class _Null:
+    """A singleton used as sentinel value in :func:`get_attr`."""
+
+    ...
+
+
+def get_attr(obj, name, default=_Null, reduce=None, axis=None):
+    """:func:`gettattr` with support for keyword argument.
+
+    Parameters
+    ----------
+    obj : :class:`object`
+        The object in question.
+    name : :class:`str`
+        The name of the to-be extracted attribute.
+    default : :class:`~typing.Any`
+        An object that is to-be returned if **obj** does not have the **name** attribute.
+    reduce : :class:`str` or :class:`Callable[[Any], Any] <collections.abc.Callable>`, optional
+        A callback for reducing the extracted attribute.
+        Alternativelly, one can provide on of the string aliases
+        from :attr:`FromResult.REDUCTION_NAMES`.
+    axis : :class:`int` or :class:`Sequence[int] <collections.abc.Sequence>`, optional
+        The axis along which the reduction should take place.
+        If :data:`None`, use all axes.
+
+    Returns
+    -------
+    :class:`~typing.Any`
+        The extracted attribute.
+
+    See Also
+    --------
+    :func:`getattr`
+        Get a named attribute from an object.
+
+    """
+    if default is _Null:
+        ret = getattr(obj, name)
+    ret = getattr(obj, name, default)
+    return FromResult._reduce(ret, reduce)
+
+
+def call_method(obj, name, *args, reduce=None, axis=None, **kwargs):
+    r"""Call the **name** method of **obj**.
+
+    Parameters
+    ----------
+    obj : :class:`object`
+        The object in question.
+    name : :class:`str`
+        The name of the to-be extracted method.
+    \*args/\**kwargs : :class:`~typing.Any`
+        Positional and/or keyword arguments for the (to-be called) extracted method.
+    reduce : :class:`str` or :class:`Callable[[Any], Any] <collections.abc.Callable>`, optional
+        A callback for reducing the output of the called function.
+        Alternativelly, one can provide on of the string aliases
+        from :attr:`FromResult.REDUCTION_NAMES`.
+    axis : :class:`int` or :class:`Sequence[int] <collections.abc.Sequence>`, optional
+        The axis along which the reduction should take place.
+        If :data:`None`, use all axes.
+
+    Returns
+    -------
+    :class:`~typing.Any`
+        The output of the extracted method.
+
+    """
+    ret = getattr(obj, name)(*args, **kwargs)
+    return FromResult._reduce(ret, reduce)

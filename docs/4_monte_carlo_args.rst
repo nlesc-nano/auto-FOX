@@ -396,12 +396,12 @@ each containg the :attr:`func<pes.block.func>` and, optionally,
                 kwargs:
                     atom_subset: [Cd, Se]
             energy:
-                func: FOX.get_attr  # i.e. `qmflows.Result(...).energy`
+                func: FOX.properties.get_attr  # i.e. `qmflows.Result(...).energy`
                 ref: [-17.0429775897]
                 kwargs:
                     name: energy
             hirshfeld_charges:
-                func: FOX.call_method  # i.e. `qmflows.Result(...).get_hirshfeld_charges()`
+                func: FOX.properties.call_method  # i.e. `qmflows.Result(...).get_hirshfeld_charges()`
                 ref:
                     - [-0.1116, 0.1930, -0.1680, -0.2606, 0.1702, 0.0598, 0.0575, 0.0598]
                 kwargs:
