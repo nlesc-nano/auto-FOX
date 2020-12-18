@@ -194,16 +194,19 @@ class FromResult(Generic[FT, RT], metaclass=ABCMeta):
         return f'<{cls.__name__} instance {self.__module__}.{self.__name__}{sgn}>'
 
     @abstractmethod
-    def from_result(self, result, reduction=None, **kwargs):
+    def from_result(self, result, reduce=None, axis=None, **kwargs):
         r"""Call **self** using argument extracted from **result**.
 
         Parameters
         ----------
         result : :class:`qmflows.Result <qmflows.packages.Result>`
             The Result instance that **self** should operator on.
-        reduction : :class:`str` or :class:`Callable[[Any], Any] <collections.abc.Callable>`, optional
+        reduce : :class:`str` or :class:`Callable[[Any], Any] <collections.abc.Callable>`, optional
             A callback for reducing the output of **self**.
             Alternativelly, one can provide on of the string aliases from :attr:`REDUCTION_NAMES`.
+        axis : :class:`int` or :class:`Sequence[int] <collections.abc.Sequence>`, optional
+            The axis along which the reduction should take place.
+            If :data:`None`, use all axes.
         \**kwargs : :data:`~typing.Any`
             Further keyword arguments for :meth:`__call__`.
 
@@ -216,23 +219,23 @@ class FromResult(Generic[FT, RT], metaclass=ABCMeta):
         raise NotImplementedError("Trying to call an abstract method")
 
     @classmethod
-    def _reduce(cls, value, reduction):
+    def _reduce(cls, value, reduce, axis=None):
         """A helper function to handle the reductions in :meth:`from_result`."""
-        if reduction is None:
+        if reduce is None:
             return value
-        elif callable(reduction):
-            return reduction(value)
+        elif callable(reduce):
+            return reduce(value)
 
         try:
-            func = cls.REDUCTION_NAMES[reduction]
+            func = cls.REDUCTION_NAMES[reduce]
         except (TypeError, KeyError):
-            if not isinstance(reduction, str):
-                raise TypeError("`reduction` expected a string; observed type: "
-                                f"{reduction.__class__.__name__!r}") from None
+            if not isinstance(reduce, str):
+                raise TypeError("`reduce` expected a string; observed type: "
+                                f"{reduce.__class__.__name__!r}") from None
             else:
-                raise ValueError(f"Invalid `reduction` value: {reduction!r}") from None
+                raise ValueError(f"Invalid `reduce` value: {reduce!r}") from None
         else:
-            return func(value)
+            return func(value, axis=axis)
 
     @staticmethod
     def _pop(dct, key, callback):
@@ -249,7 +252,7 @@ class _Null:
     ...
 
 
-def get_attr(obj, name, default=_Null, reduction=None):
+def get_attr(obj, name, default=_Null, reduce=None, axis=None):
     """:func:`gettattr` with support for keyword argument.
 
     Parameters
@@ -260,10 +263,13 @@ def get_attr(obj, name, default=_Null, reduction=None):
         The name of the to-be extracted attribute.
     default : :class:`~typing.Any`
         An object that is to-be returned if **obj** does not have the **name** attribute.
-    reduction : :class:`str` or :class:`Callable[[Any], Any] <collections.abc.Callable>`, optional
+    reduce : :class:`str` or :class:`Callable[[Any], Any] <collections.abc.Callable>`, optional
         A callback for reducing the extracted attribute.
         Alternativelly, one can provide on of the string aliases
         from :attr:`FromResult.REDUCTION_NAMES`.
+    axis : :class:`int` or :class:`Sequence[int] <collections.abc.Sequence>`, optional
+        The axis along which the reduction should take place.
+        If :data:`None`, use all axes.
 
     Returns
     -------
@@ -279,10 +285,10 @@ def get_attr(obj, name, default=_Null, reduction=None):
     if default is _Null:
         ret = getattr(obj, name)
     ret = getattr(obj, name, default)
-    return FromResult._reduce(ret, reduction)
+    return FromResult._reduce(ret, reduce)
 
 
-def call_method(obj, name, *args, reduction=None, **kwargs):
+def call_method(obj, name, *args, reduce=None, axis=None, **kwargs):
     r"""Call the **name** method of **obj**.
 
     Parameters
@@ -293,10 +299,13 @@ def call_method(obj, name, *args, reduction=None, **kwargs):
         The name of the to-be extracted method.
     \*args/\**kwargs : :class:`~typing.Any`
         Positional and/or keyword arguments for the (to-be called) extracted method.
-    reduction : :class:`str` or :class:`Callable[[Any], Any] <collections.abc.Callable>`, optional
+    reduce : :class:`str` or :class:`Callable[[Any], Any] <collections.abc.Callable>`, optional
         A callback for reducing the output of the called function.
         Alternativelly, one can provide on of the string aliases
         from :attr:`FromResult.REDUCTION_NAMES`.
+    axis : :class:`int` or :class:`Sequence[int] <collections.abc.Sequence>`, optional
+        The axis along which the reduction should take place.
+        If :data:`None`, use all axes.
 
     Returns
     -------
@@ -305,4 +314,4 @@ def call_method(obj, name, *args, reduction=None, **kwargs):
 
     """
     ret = getattr(obj, name)(*args, **kwargs)
-    return FromResult._reduce(ret, reduction)
+    return FromResult._reduce(ret, reduce)

@@ -93,16 +93,19 @@ class GetPressure(FromResult[FT, CP2K_Result]):
         """
         return self._func
 
-    def from_result(self, result, reduction=None, **kwargs):
+    def from_result(self, result, reduce=None, axis=None, **kwargs):
         r"""Call **self** using argument extracted from **result**.
 
         Parameters
         ----------
         result : :class:`qmflows.CP2K_Result <qmflows.packages.cp2k_package.CP2K_Result>`
             The Result instance that **self** should operator on.
-        reduction : :class:`str` or :class:`Callable[[Any], Any] <collections.abc.Callable>`, optional
+        reduce : :class:`str` or :class:`Callable[[Any], Any] <collections.abc.Callable>`, optional
             A callback for reducing the output of **self**.
             Alternativelly, one can provide on of the string aliases from :attr:`REDUCTION_NAMES`.
+        axis : :class:`int` or :class:`Sequence[int] <collections.abc.Sequence>`, optional
+            The axis along which the reduction should take place.
+            If :data:`None`, use all axes.
         \**kwargs : :data:`~typing.Any`
             Further keyword arguments for :meth:`__call__`.
 
@@ -126,4 +129,4 @@ class GetPressure(FromResult[FT, CP2K_Result]):
         )
 
         ret = self(forces, coords, volume, temp, **kwargs)
-        return self._reduce(ret, reduction)
+        return self._reduce(ret, reduce, axis)

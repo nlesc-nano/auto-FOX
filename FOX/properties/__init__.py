@@ -62,7 +62,7 @@ to export the necessary properties.
             func: FOX.properties.get_bulk_modulus.from_result
             ref: [1.0]
             kwargs:
-                reduction: mean
+                reduce: mean
 
 Index
 -----
