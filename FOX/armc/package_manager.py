@@ -411,9 +411,13 @@ class PackageManager(PackageManagerABC):
 
     @staticmethod
     def _extract_mol(
-        results: Iterable[Result], logger: Logger
+        results: Optional[Iterable[Result]], logger: Logger
     ) -> Union[Tuple[None, None], Tuple[List[MultiMolecule], List[Any]]]:
         """Create a list of MultiMolecule from the passed **results**."""
+        # `noodles.run_parallel()` can return `None` under certain circumstances
+        if results is None:
+            return None, None
+
         mol_list = []
         results_list = list(results)
         for result in results_list:
