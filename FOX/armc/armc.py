@@ -451,13 +451,6 @@ class ARMC(MonteCarloABC):
 
     def restart(self) -> None:
         r"""Restart a previously started Addaptive Rate Monte Carlo procedure."""
-        i, j, key, acceptance = self._restart_from_hdf5()
-
-        cls = type(self)
-        if not cls.HAS_LOOP:
-            key = key[0]
-            acceptance = acceptance[..., 0]
-
         # Validate the xyz .hdf5 file; create a new one if required
         xyz = _get_filename_xyz(self.hdf5_file)
         if not os.path.isfile(xyz):
@@ -472,6 +465,12 @@ class ARMC(MonteCarloABC):
         if closed2 is not None:
             self.logger.warning(f"Unable to open {self.hdf5_file!r}, "
                                 "file status was forcibly reset")
+
+        i, j, key, acceptance = self._restart_from_hdf5()
+        cls = type(self)
+        if not cls.HAS_LOOP:
+            key = key[0]
+            acceptance = acceptance[..., 0]
 
         # Finish the current set of sub-iterations
         j += 1
