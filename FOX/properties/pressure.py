@@ -1,6 +1,5 @@
 """Functions for calculating the pressure."""
 
-from pathlib import Path
 from typing import TypeVar, Callable, Any
 
 import numpy as np

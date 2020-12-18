@@ -14,8 +14,6 @@ Index
     read_rtf_file
     prepend_exception
     log_traceback_locals
-    get_attr
-    call_method
 
 API
 ---
@@ -28,8 +26,6 @@ API
 .. autofunction:: read_rtf_file
 .. autofunction:: prepend_exception
 .. autofunction:: log_traceback_locals
-.. autofunction:: get_attr
-.. autofunction:: call_method
 
 """
 
@@ -53,7 +49,7 @@ from nanoutils import PathType
 __all__ = [
     'get_move_range', 'array_to_index', 'serialize_array', 'read_str_file',
     'get_shape', 'slice_str', 'get_atom_count', 'read_rtf_file', 'prepend_exception',
-    'log_traceback_locals', 'get_attr', 'call_method',
+    'log_traceback_locals',
 ]
 
 T = TypeVar('T')
