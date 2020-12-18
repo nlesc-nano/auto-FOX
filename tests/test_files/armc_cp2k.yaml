@@ -64,12 +64,34 @@ job:
     type: FOX.armc.PackageManager
     molecule: tests/test_files/Cd68Se55_26COO_MD_trajec.xyz
 
+    cell_opt:
+        type: qmflows.cp2k_mm
+        template: qmflows.geometry.specific.cp2k_mm
+        settings:
+            prm: tests/test_files/ligand.prm
+            cell_parameters: [50, 50, 50]
+            input:
+                force_eval:
+                    stress_tensor: analytical
+                    mm:
+                        forcefield:
+                            spline:
+                                emax_spline: 500.0
+                                r0_nb: 0.1
+                motion:
+                    print:
+                        cell on:
+                            filename: ''
+                    cell_opt:
+                        max_iter: 10
+                        optimizer: lbfgs
+                global:
+                    run_type: cell_opt
     md:
         type: qmflows.cp2k_mm
         template: qmflows.md.specific.cp2k_mm
         settings:
             prm: tests/test_files/ligand.prm
-            cell_parameters: [50, 50, 50]
             input:
                 force_eval:
                     mm:
