@@ -249,10 +249,24 @@ class FromResult(Generic[FT, RT], metaclass=ABCMeta):
 class _Null:
     """A singleton used as sentinel value in :func:`get_attr`."""
 
-    ...
+    _INSTANCE = None
+
+    def __new__(cls):
+        """Construct a new instance."""
+        if cls._INSTANCE is None:
+            cls._INSTANCE = super().__new__(cls)
+        return cls._INSTANCE
+
+    def __repr__(self):
+        """Implement :class:`str(self) <self>` and :func:`repr(self) <repr>`."""
+        return '<null>'
 
 
-def get_attr(obj, name, default=_Null, reduce=None, axis=None):
+#: A singleton used as sentinel value by :func:`get_attr`.
+_NULL = _Null
+
+
+def get_attr(obj, name, default=_NULL, reduce=None, axis=None):
     """:func:`gettattr` with support for keyword argument.
 
     Parameters
@@ -282,7 +296,7 @@ def get_attr(obj, name, default=_Null, reduce=None, axis=None):
         Get a named attribute from an object.
 
     """
-    if default is _Null:
+    if default is _NULL:
         ret = getattr(obj, name)
     ret = getattr(obj, name, default)
     return FromResult._reduce(ret, reduce)
