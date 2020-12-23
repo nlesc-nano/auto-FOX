@@ -94,61 +94,29 @@ class FromResult(Generic[FT, RT], metaclass=ABCMeta):
         except TypeError:  # `func` may not be hashable in rare cases
             self._hash = hash((cls, id(func)))
 
+        self.__text_signature__ = None
         if hasattr(func, '__signature__'):
-            self._signature = func.__signature__
+            self.__signature__ = func.__signature__
         elif getattr(func, '__text_signature__', None) is not None:
-            self._signature = None
+            self.__signature__ = None
+            self.__text_signature__ = func.__text_signature__
         else:
             try:
-                self._signature = inspect.signature(func)
+                self.__signature__ = inspect.signature(func)
             except ValueError:
-                self._signature = inspect.Signature([
+                self.__signature__ = inspect.Signature([
                     inspect.Parameter('args', kind=inspect.Parameter.VAR_POSITIONAL),
                     inspect.Parameter('kwargs', kind=inspect.Parameter.VAR_KEYWORD),
                 ])
 
-        # Can't make `__globals__` into a property or sphinx will crash:
-        #
-        # Extension error:
-        # Handler <function record_typehints at 0x00000229C568BAF0> for event
-        # 'autodoc-process-signature' threw an exception (exception: 'property' object
-        # has no attribute 'get')
         self.__globals__ = MappingProxyType(getattr(func, '__globals__', {}))
-
-    @property
-    def __signature__(self):
-        """Get a :class:`~inspect.Signature` representing the underlying function."""
-        return self._signature
-
-    @property
-    def __annotations__(self):
-        """Get the :attr:`~types.FunctionType.__annotations__>` of the underlying function as a read-only view."""  # noqa: E501
-        try:
-            dct = self._func.__annotations__
-        except AttributeError:
-            dct = {'args': Any, 'kwargs': Any, 'return': Any}
-        return MappingProxyType(dct)
-
-    @property
-    def __text_signature__(self):
-        """Get the :attr:`~types.FunctionType.__text_signature__>` of the underlying function."""
-        return getattr(self._func, '__text_signature__', None)
-
-    @property
-    def __closure__(self):
-        """Get the :attr:`~types.FunctionType.__closure__>` of the underlying function."""
-        return getattr(self._func, '__closure__', None)
-
-    @property
-    def __defaults__(self):
-        """Get the :attr:`~types.FunctionType.__defaults__>` of the underlying function."""
-        return getattr(self._func, '__defaults__', None)
-
-    @property
-    def __kwdefaults__(self):
-        """Get the :attr:`~types.FunctionType.__kwdefaults__>` of the underlying function as a read-only view."""  # noqa: E501
-        dct = getattr(self._func, '__kwdefaults__', None)
-        return MappingProxyType({}) if dct is None else MappingProxyType(dct)
+        self.__closure__ = getattr(self._func, '__closure__', None)
+        self.__defaults__ = getattr(self._func, '__defaults__', None)
+        self.__annotations__ = MappingProxyType(getattr(
+            func, '__annotations__', {'args': Any, 'kwargs': Any, 'return': Any}
+        ))
+        kwd =  getattr(self._func, '__kwdefaults__', None)
+        self.__kwdefaults__ = MappingProxyType({}) if kwd is None else MappingProxyType(kwd)
 
     @property
     def __code__(self):
@@ -159,7 +127,10 @@ class FromResult(Generic[FT, RT], metaclass=ABCMeta):
         This property is only available if the underlying function supports it.
 
         """
-        return self._func.__code__
+        try:
+            return self._func.__code__
+        except AttributeError as ex:
+            raise NotImplementedError(str(ex)) from None
 
     @property
     def __get__(self):
@@ -170,7 +141,10 @@ class FromResult(Generic[FT, RT], metaclass=ABCMeta):
         This property is only available if the underlying function supports it.
 
         """
-        return self._func.__get__
+        try:
+            return self._func.__get__
+        except AttributeError as ex:
+            raise NotImplementedError(str(ex)) from None
 
     @property
     def __call__(self):
