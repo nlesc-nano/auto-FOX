@@ -41,7 +41,7 @@ from nanoutils import group_by_values, Literal
 from .multi_mol_magic import _MultiMolecule
 from ..io.read_kf import read_kf
 from ..io.read_xyz import read_multi_xyz
-from ..functions.rdf import get_rdf, get_rdf_lowmem, get_rdf_df
+from ..functions.rdf import get_rdf, _init_rdf, get_rdf_df
 from ..functions.adf import get_adf, get_adf_df
 from ..functions.molecule_utils import fix_bond_orders, separate_mod
 
@@ -1241,8 +1241,14 @@ class MultiMolecule(_MultiMolecule):
 
     """#############################  Radial Distribution Functions  ##########################"""
 
-    def init_rdf(self, mol_subset: MolSubset = None, atom_subset: AtomSubset = None,
-                 dr: float = 0.05, r_max: float = 12.0, mem_level: int = 2):
+    def init_rdf(
+        self,
+        mol_subset: MolSubset = None,
+        atom_subset: AtomSubset = None,
+        dr: float = 0.05,
+        r_max: float = 10.0,
+        k: Optional[int] = None,
+    ) -> pd.DataFrame:
         """Initialize the calculation of radial distribution functions (RDFs).
 
         RDFs are calculated for all possible atom-pairs in **atom_subset** and returned as a
@@ -1282,14 +1288,6 @@ class MultiMolecule(_MultiMolecule):
             Radii are used as index.
 
         """
-        def _rdf(i, j) -> np.ndarray:
-            dist_mat = self.get_dist_mat(mol_subset=i, atom_subset=at)
-            return get_rdf_lowmem(dist_mat, dr=dr, r_max=r_max)
-
-        # Validate the 'mem_level' parameter
-        if not 0 <= mem_level <= 2:
-            raise ValueError("The 'mem_level' parameter should be between 0 and 2")
-
         # If **atom_subset** is None: extract atomic symbols from they keys of **self.atoms**
         at_subset = atom_subset or sorted(self.atoms, key=str)
         atom_pairs = self.get_pair_dict(at_subset, r=2)
@@ -1299,29 +1297,8 @@ class MultiMolecule(_MultiMolecule):
 
         # Define the subset
         m_subset = self._get_mol_subset(mol_subset)
-        mol_range = range(m_subset.start or 0,
-                          m_subset.stop or len(self),
-                          m_subset.step or 1)
 
-        # Fill the dataframe with RDF's, averaged over all conformations in this instance
-        if mem_level == 0:  # Slow speed approach; mem scaling: n
-            for i in mol_range:
-                for key, at in atom_pairs.items():
-                    df[key] += _rdf(i, at)
-            df.loc[0.0] = 0.0
-            df /= len(self)
-
-        elif mem_level == 1:  # Medium speed approach; mem scaling: m * n
-            for key, at in atom_pairs.items():
-                df[key] = np.sum([_rdf(i, at) for i in mol_range], axis=0)
-            df.loc[0.0] = 0.0
-            df /= len(self)
-
-        else:  # High speed approach; mem scaling: m * n**2
-            for key, at in atom_pairs.items():
-                dist_mat = self.get_dist_mat(mol_subset=mol_subset, atom_subset=at)
-                df[key] = get_rdf(dist_mat, dr=dr, r_max=r_max)
-
+        _init_rdf(self[m_subset], df, atom_pairs, r_max=r_max, dr=dr, k=k)
         return df
 
     def get_dist_mat(self, mol_subset: MolSubset = None,
