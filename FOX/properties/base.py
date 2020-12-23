@@ -115,7 +115,7 @@ class FromResult(Generic[FT, RT], metaclass=ABCMeta):
         self.__annotations__ = MappingProxyType(getattr(
             func, '__annotations__', {'args': Any, 'kwargs': Any, 'return': Any}
         ))
-        kwd =  getattr(self._func, '__kwdefaults__', None)
+        kwd = getattr(self._func, '__kwdefaults__', None)
         self.__kwdefaults__ = MappingProxyType({}) if kwd is None else MappingProxyType(kwd)
 
     @property
