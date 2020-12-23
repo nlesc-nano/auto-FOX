@@ -1,7 +1,7 @@
 import types
 import inspect
 from abc import ABCMeta, abstractmethod
-from typing import Generic, Callable, Any, ClassVar, TypeVar, overload, Optional, MutableMapping, Mapping, Tuple
+from typing import Generic, Callable, Any, ClassVar, TypeVar, overload, Optional, MutableMapping, Mapping, Tuple, Type
 
 from qmflows.packages import Result
 import numpy as np
@@ -30,7 +30,7 @@ class FromResult(Generic[FT, RT], types.FunctionType, metaclass=ABCMeta):
     __module__: str
     __doc__: Optional[str]
     @property
-    def __annotations__(self) -> Optional[Mapping[str, Any]]: ...  # type: ignore[override]
+    def __annotations__(self) -> Mapping[str, Any]: ...  # type: ignore[override]
     @property
     def __signature__(self) -> Optional[inspect.Signature]: ...
     @property
@@ -51,6 +51,8 @@ class FromResult(Generic[FT, RT], types.FunctionType, metaclass=ABCMeta):
     def __hash__(self) -> int: ...
     def __eq__(self, value: object) -> bool: ...
     def __repr__(self) -> str: ...
+    def __reduce__(self: ST) -> Tuple[Type[ST], Tuple[FT, str, str], Optional[str]]: ...
+    def __setstate__(self, state: Optional[str]) -> None: ...
     @overload
     @abstractmethod
     def from_result(self: FromResult[Callable[..., T1], RT], result: RT, reduce: None = ..., axis: None = ...) -> T1: ...

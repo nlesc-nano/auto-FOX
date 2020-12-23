@@ -147,7 +147,8 @@ class FromResult(Generic[FT, RT], metaclass=ABCMeta):
     @property
     def __kwdefaults__(self):
         """Get the :attr:`~types.FunctionType.__kwdefaults__>` of the underlying function as a read-only view."""  # noqa: E501
-        return MappingProxyType(getattr(self._func, '__kwdefaults__', {}))
+        dct = getattr(self._func, '__kwdefaults__', None)
+        return MappingProxyType({}) if dct is None else MappingProxyType(dct)
 
     @property
     def __code__(self):
@@ -192,6 +193,16 @@ class FromResult(Generic[FT, RT], metaclass=ABCMeta):
         cls = type(self)
         sgn = inspect.signature(self)
         return f'<{cls.__name__} instance {self.__module__}.{self.__name__}{sgn}>'
+
+    def __reduce__(self):
+        """A helper method for :mod:`pickle`."""
+        cls = type(self)
+        args = self._func, self.__name__, self.__module__
+        return cls, args, self.__doc__
+
+    def __setstate__(self, state):
+        """A helper method for :meth:`__reduce__`."""
+        self.__doc__ = state
 
     @abstractmethod
     def from_result(self, result, reduce=None, axis=None, **kwargs):
@@ -299,7 +310,7 @@ def get_attr(obj, name, default=_NULL, reduce=None, axis=None):
     if default is _NULL:
         ret = getattr(obj, name)
     ret = getattr(obj, name, default)
-    return FromResult._reduce(ret, reduce)
+    return FromResult._reduce(ret, reduce, axis)
 
 
 def call_method(obj, name, *args, reduce=None, axis=None, **kwargs):
@@ -328,4 +339,4 @@ def call_method(obj, name, *args, reduce=None, axis=None, **kwargs):
 
     """
     ret = getattr(obj, name)(*args, **kwargs)
-    return FromResult._reduce(ret, reduce)
+    return FromResult._reduce(ret, reduce, axis)
