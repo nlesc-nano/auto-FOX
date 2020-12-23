@@ -14,6 +14,7 @@ Index
     read_rtf_file
     prepend_exception
     log_traceback_locals
+    slice_iter
 
 API
 ---
@@ -26,6 +27,7 @@ API
 .. autofunction:: read_rtf_file
 .. autofunction:: prepend_exception
 .. autofunction:: log_traceback_locals
+.. autofunction:: slice_iter
 
 """
 
@@ -38,18 +40,18 @@ from logging import Logger
 from functools import wraps
 from typing import (
     Iterable, Tuple, Callable, Hashable, Sequence, Optional, List, TypeVar,
-    Type, Mapping, Union, Any, cast
+    Type, Mapping, Union, Any, cast, Generator
 )
 
 import numpy as np
 import pandas as pd
 
-from nanoutils import PathType
+from nanoutils import PathType, SupportsIndex
 
 __all__ = [
     'get_move_range', 'array_to_index', 'serialize_array', 'read_str_file',
     'get_shape', 'slice_str', 'get_atom_count', 'read_rtf_file', 'prepend_exception',
-    'log_traceback_locals',
+    'log_traceback_locals', 'slice_iter',
 ]
 
 T = TypeVar('T')
@@ -461,3 +463,21 @@ def log_traceback_locals(logger: Logger, level: int = -1,
         value_str[0] = prefix + value_str[0]
         for v in value_str:
             logger.debug(v)
+
+
+def slice_iter(n: SupportsIndex, n_step: SupportsIndex) -> Generator[slice, None, None]:
+    """Create slices for iterating through a sequence of size **n** in chunks of size <= **n_step**."""  # noqa: E501
+    n_int = operator.index(n)
+    n_int_step = operator.index(n_step)
+    if n_int < 0 or n_int_step < 0:
+        raise ValueError
+    elif n == 0:
+        yield slice(None)
+        return
+
+    start = 0
+    stop = n_int_step
+    while n_int > start:
+        yield slice(start, stop)
+        start += n_int_step
+        stop += n_int_step
