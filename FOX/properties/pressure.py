@@ -10,6 +10,7 @@ from qmflows.packages.cp2k_package import CP2K_Result
 from qmflows.warnings_qmflows import QMFlows_Warning
 
 from . import FromResult
+from ..utils import slice_iter
 
 __all__ = ['get_pressure', 'GetPressure']
 
@@ -70,8 +71,13 @@ def get_pressure(
     r = xyz[..., None, :] - xyz[..., None, :, :]
 
     a = (xyz.shape[-2] * k * t) / v
-    b = np.linalg.norm((r * f).sum(axis=(-2, -3)), axis=-1)
-    b /= (6 * v)
+    b = np.empty(len(r), dtype=r.dtype)
+
+    shape = r.shape + (f.shape[1],)
+    iterator = slice_iter(shape, itemsize=b.dtype.itemsize)
+    for slc in iterator:
+        b[slc] = np.linalg.norm((r[slc] * f[slc]).sum(axis=(-2, -3)), axis=-1)
+    b /= 6 * v
     return (a + b) * Units.conversion_ratio('ha/bohr^3', return_unit)
 
 
