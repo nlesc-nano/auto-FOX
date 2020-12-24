@@ -10,6 +10,7 @@ from assertionlib import assertion
 from FOX.utils import (
     get_move_range, array_to_index, serialize_array, read_str_file,
     get_shape, slice_str, get_atom_count, read_rtf_file, prepend_exception,
+    slice_iter,
 )
 
 PATH = Path('tests') / 'test_files'
@@ -128,3 +129,11 @@ def test_prepend_exception() -> None:
         raise AssertionError("Failed to raise an 'AssertionError'") from ex2
     else:
         raise AssertionError("Failed to raise an 'AssertionError'")
+
+
+def test_slice_iter() -> None:
+    """Test :func:`FOX.utils.slice_iter`."""
+    shape = 16, 1024**3 // 8
+    slice_lst = list(slice_iter(shape, itemsize=1))
+    ref = [np.s_[0:8], np.s_[8:16]]
+    assertion.eq(slice_lst, ref)
