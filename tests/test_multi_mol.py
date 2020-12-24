@@ -2,7 +2,9 @@
 
 from os import remove
 from os.path import join
+from typing import Mapping, Any
 
+import pytest
 import yaml
 import numpy as np
 
@@ -146,25 +148,18 @@ def test_vacf():
     np.testing.assert_allclose(vacf, vacf_ref, rtol=1e-06)
 
 
-def test_rdf():
+@pytest.mark.parametrize(
+    "kwargs,filename",
+    [({'atom_subset': ('Cd', 'Se', 'O')}, 'rdf.npy'),
+     ({'mol_subset': np.s_[::10]}, 'rdf_10.npy'),
+     ({'mol_subset': np.s_[::100]}, 'rdf_100.npy')]
+)
+def test_rdf(kwargs: Mapping[str, Any], filename: str):
     """Test :meth:`.MultiMolecule.init_rdf`."""
-    mol = MOL.copy()
-
-    atoms = ('Cd', 'Se', 'O')
-    rdf1 = mol.init_rdf(atom_subset=atoms, mem_level=0).values
-    rdf2 = mol.init_rdf(atom_subset=atoms, mem_level=1).values
-    rdf3 = mol.init_rdf(atom_subset=atoms, mem_level=2).values
-    ref = np.load(join(PATH, 'rdf.npy'))
-    np.testing.assert_allclose(rdf1, ref)
-    np.testing.assert_allclose(rdf2, ref)
-    np.testing.assert_allclose(rdf3, ref)
-
-    rdf4 = mol.init_rdf(mol_subset=slice(None, None, 10), mem_level=1).values
-    rdf5 = mol.init_rdf(mol_subset=slice(None, None, 100), mem_level=1).values
-    ref4 = np.load(join(PATH, 'rdf_10.npy'))
-    ref5 = np.load(join(PATH, 'rdf_100.npy'))
-    np.testing.assert_allclose(rdf4, ref4)
-    np.testing.assert_allclose(rdf5, ref5)
+    rdf = MOL.init_rdf(**kwargs)
+    ref = rdf.copy()
+    ref[:] = np.load(join(PATH, filename))
+    np.testing.assert_allclose(rdf, ref)
 
 
 def test_rmsf():

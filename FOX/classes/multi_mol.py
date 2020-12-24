@@ -38,10 +38,11 @@ from scipy.spatial.distance import cdist
 from scm.plams import Molecule, Atom, Bond
 from nanoutils import group_by_values, Literal
 
+from ..utils import slice_iter
 from .multi_mol_magic import _MultiMolecule
 from ..io.read_kf import read_kf
 from ..io.read_xyz import read_multi_xyz
-from ..functions.rdf import get_rdf, get_rdf_lowmem, get_rdf_df
+from ..functions.rdf import get_rdf, get_rdf_df
 from ..functions.adf import get_adf, get_adf_df
 from ..functions.molecule_utils import fix_bond_orders, separate_mod
 
@@ -1242,7 +1243,7 @@ class MultiMolecule(_MultiMolecule):
     """#############################  Radial Distribution Functions  ##########################"""
 
     def init_rdf(self, mol_subset: MolSubset = None, atom_subset: AtomSubset = None,
-                 dr: float = 0.05, r_max: float = 12.0, mem_level: int = 2):
+                 dr: float = 0.05, r_max: float = 12.0) -> pd.DataFrame:
         """Initialize the calculation of radial distribution functions (RDFs).
 
         RDFs are calculated for all possible atom-pairs in **atom_subset** and returned as a
@@ -1263,15 +1264,6 @@ class MultiMolecule(_MultiMolecule):
             concentric spheres.
         r_max : :class:`float`
             The maximum to be evaluated interatomic distance in Ångström.
-        mem_level : :class:`int`
-            Set the level of to-be consumed memory and, by extension, the execution speed.
-            Given a molecule subset of size :math:`m`, atom subsets of (up to) size :math:`n`
-            and the resulting RDF with :math:`p` points (:code:`p = r_max / dr`),
-            the **mem_level** values can be interpreted as following:
-
-            * ``0``: Slow; memory scaling: :math:`n^2`
-            * ``1``: Medium; memory scaling: :math:`n^2 + m * p`
-            * ``2``: Fast; memory scaling: :math:`n^2 * m`
 
         Returns
         -------
@@ -1282,14 +1274,6 @@ class MultiMolecule(_MultiMolecule):
             Radii are used as index.
 
         """
-        def _rdf(i, j) -> np.ndarray:
-            dist_mat = self.get_dist_mat(mol_subset=i, atom_subset=at)
-            return get_rdf_lowmem(dist_mat, dr=dr, r_max=r_max)
-
-        # Validate the 'mem_level' parameter
-        if not 0 <= mem_level <= 2:
-            raise ValueError("The 'mem_level' parameter should be between 0 and 2")
-
         # If **atom_subset** is None: extract atomic symbols from they keys of **self.atoms**
         at_subset = atom_subset or sorted(self.atoms, key=str)
         atom_pairs = self.get_pair_dict(at_subset, r=2)
@@ -1299,29 +1283,17 @@ class MultiMolecule(_MultiMolecule):
 
         # Define the subset
         m_subset = self._get_mol_subset(mol_subset)
-        mol_range = range(m_subset.start or 0,
-                          m_subset.stop or len(self),
-                          m_subset.step or 1)
+        m_self = self[m_subset]
 
         # Fill the dataframe with RDF's, averaged over all conformations in this instance
-        if mem_level == 0:  # Slow speed approach; mem scaling: n
-            for i in mol_range:
-                for key, at in atom_pairs.items():
-                    df[key] += _rdf(i, at)
-            df.loc[0.0] = 0.0
-            df /= len(self)
-
-        elif mem_level == 1:  # Medium speed approach; mem scaling: m * n
-            for key, at in atom_pairs.items():
-                df[key] = np.sum([_rdf(i, at) for i in mol_range], axis=0)
-            df.loc[0.0] = 0.0
-            df /= len(self)
-
-        else:  # High speed approach; mem scaling: m * n**2
-            for key, at in atom_pairs.items():
-                dist_mat = self.get_dist_mat(mol_subset=mol_subset, atom_subset=at)
-                df[key] = get_rdf(dist_mat, dr=dr, r_max=r_max)
-
+        n_mol = len(m_self)
+        for key, (idx0, idx1) in atom_pairs.items():
+            shape = n_mol, len(idx0), len(idx1)
+            iterator = slice_iter(shape, m_self.dtype.itemsize)
+            for slc in iterator:
+                dist_mat = m_self.get_dist_mat(mol_subset=slc, atom_subset=(idx0, idx1))
+                df[key] += get_rdf(dist_mat, dr=dr, r_max=r_max)
+        df /= n_mol
         return df
 
     def get_dist_mat(self, mol_subset: MolSubset = None,
@@ -1360,7 +1332,7 @@ class MultiMolecule(_MultiMolecule):
             return cdist(A, B)[None, ...]
 
         shape = A.shape[0], A.shape[1], B.shape[1]
-        ret = np.empty(shape)
+        ret = np.empty(shape, dtype=self.dtype)
         for k, (a, b) in enumerate(zip(A, B)):
             ret[k] = cdist(a, b)
         return ret

@@ -14,6 +14,7 @@ Index
     read_rtf_file
     prepend_exception
     log_traceback_locals
+    slice_iter
 
 API
 ---
@@ -26,6 +27,7 @@ API
 .. autofunction:: read_rtf_file
 .. autofunction:: prepend_exception
 .. autofunction:: log_traceback_locals
+.. autofunction:: slice_iter
 
 """
 
@@ -38,18 +40,17 @@ from logging import Logger
 from functools import wraps
 from typing import (
     Iterable, Tuple, Callable, Hashable, Sequence, Optional, List, TypeVar,
-    Type, Mapping, Union, Any, cast
+    Type, Mapping, Union, Any, cast, Generator
 )
 
 import numpy as np
 import pandas as pd
-
 from nanoutils import PathType
 
 __all__ = [
     'get_move_range', 'array_to_index', 'serialize_array', 'read_str_file',
     'get_shape', 'slice_str', 'get_atom_count', 'read_rtf_file', 'prepend_exception',
-    'log_traceback_locals',
+    'log_traceback_locals', 'slice_iter'
 ]
 
 T = TypeVar('T')
@@ -461,3 +462,43 @@ def log_traceback_locals(logger: Logger, level: int = -1,
         value_str[0] = prefix + value_str[0]
         for v in value_str:
             logger.debug(v)
+
+
+def slice_iter(
+    shape: Sequence[int],
+    itemsize: int = 1,
+    nbytes_max: int = 1024**3,
+) -> Generator[slice, None, None]:
+    """Return a generator of :class:`slice` objects.
+
+    Parameters
+    ----------
+    shape : :class:`Sequence[int] <collections.abc.Sequence>`
+        The maximum shape of the relevant array.
+    itemsize : :class:`int`
+        The element size in bytes.
+    nbytes_max : :class:`int`
+        The maximum size (in bytes) of each of the arrays' chunks.
+
+    Yields
+    ------
+    :class:`slice`
+        Slice instances.
+
+    """
+    if nbytes_max <= 0:
+        raise ValueError("`nbytes_max` must be larger than 0")
+    elif len(shape) == 0:
+        yield slice(None)
+        return
+
+    size = np.product(shape, dtype=np.int64) * itemsize
+    n = shape[0]
+    n_step = max(1, np.ceil(n / (size / nbytes_max)).astype(np.int64))
+
+    start = 0
+    stop = n_step
+    while n > start:
+        yield slice(start, stop)
+        start += n_step
+        stop += n_step
