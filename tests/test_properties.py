@@ -6,6 +6,7 @@ import pickle
 import inspect
 from typing import Callable, Any, List
 from pathlib import Path
+from weakref import WeakKeyDictionary
 
 import pytest
 import numpy as np
@@ -67,6 +68,7 @@ def test_from_result_abc() -> None:
         '__globals__': types.MappingProxyType,
         '__kwdefaults__': types.MappingProxyType,
         '__call__': Callable,
+        '_cache': WeakKeyDictionary,
     }
 
     func_list: List[Callable[..., Any]] = [_get_pressure, len, len.__call__, cp2k_mm, lambda n: n]

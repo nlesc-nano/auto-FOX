@@ -84,7 +84,7 @@ class GetBulkMod(FromResult[FT, CP2K_Result]):
         """
         return self._func
 
-    def from_result(self, result, reduce=None, axis=None, **kwargs):
+    def from_result(self, result, reduce=None, axis=None, *, return_unit='ha/bohr^3', **kwargs):
         r"""Call **self** using argument extracted from **result**.
 
         Parameters
@@ -97,6 +97,8 @@ class GetBulkMod(FromResult[FT, CP2K_Result]):
         axis : :class:`int` or :class:`Sequence[int] <collections.abc.Sequence>`, optional
             The axis along which the reduction should take place.
             If :data:`None`, use all axes.
+        return_unit : :class:`str`
+            The unit of the to-be returned quantity.
         \**kwargs : :data:`~typing.Any`
             Further keyword arguments for :meth:`__call__`.
 
@@ -106,10 +108,16 @@ class GetBulkMod(FromResult[FT, CP2K_Result]):
             The output of :meth:`__call__`.
 
         """  # noqa: E501
+        # Attempt to pull from the cache
         if result.status in {'failed', 'crashed'}:
             raise RuntimeError(f"Cannot extract data from a job with status {result.status!r}")
-        a_to_au = Units.conversion_ratio('angstrom', 'bohr')
 
+        # Check the cache
+        ret1 = self._cache_get(result, return_unit)
+        if ret1 is not None:
+            return self._reduce(ret1, reduce, axis)
+
+        a_to_au = Units.conversion_ratio('angstrom', 'bohr')
         with warnings.catch_warnings():
             warnings.simplefilter('error', QMFlows_Warning)
 
@@ -118,5 +126,6 @@ class GetBulkMod(FromResult[FT, CP2K_Result]):
             )
         pressure = get_pressure.from_result(result, reduce=None, volume=volume)
 
-        ret = self(pressure, volume, **kwargs)
-        return self._reduce(ret, reduce, axis)
+        ret2 = self(pressure, volume, return_unit=return_unit, **kwargs)
+        self._cache[result] = (ret2, return_unit)
+        return self._reduce(ret2, reduce, axis)

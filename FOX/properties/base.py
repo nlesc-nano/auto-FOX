@@ -7,10 +7,12 @@ import textwrap
 from abc import ABCMeta, abstractmethod
 from types import MappingProxyType, ModuleType
 from typing import Generic, TypeVar, Any, Callable, Dict, Union
+from weakref import WeakKeyDictionary
 
 import scipy.special
 import numpy as np
 from qmflows.packages import Result
+from scm.plams import Units
 
 __all__ = ['FromResult', 'get_attr', 'call_method']
 
@@ -118,6 +120,8 @@ class FromResult(Generic[FT, RT], metaclass=ABCMeta):
         kwd = getattr(self._func, '__kwdefaults__', None)
         self.__kwdefaults__ = MappingProxyType({}) if kwd is None else MappingProxyType(kwd)
 
+        self._cache = WeakKeyDictionary({})
+
     @property
     def __code__(self):
         """Get the :attr:`~types.FunctionType.__code__>` of the underlying function.
@@ -179,7 +183,7 @@ class FromResult(Generic[FT, RT], metaclass=ABCMeta):
         self.__doc__ = state
 
     @abstractmethod
-    def from_result(self, result, reduce=None, axis=None, **kwargs):
+    def from_result(self, result, reduce=None, axis=None, *, return_unit=NotImplemented, **kwargs):
         r"""Call **self** using argument extracted from **result**.
 
         Parameters
@@ -192,6 +196,8 @@ class FromResult(Generic[FT, RT], metaclass=ABCMeta):
         axis : :class:`int` or :class:`Sequence[int] <collections.abc.Sequence>`, optional
             The axis along which the reduction should take place.
             If :data:`None`, use all axes.
+        return_unit : :class:`str`
+            The unit of the to-be returned quantity.
         \**kwargs : :data:`~typing.Any`
             Further keyword arguments for :meth:`__call__`.
 
@@ -202,6 +208,14 @@ class FromResult(Generic[FT, RT], metaclass=ABCMeta):
 
         """  # noqa: E501
         raise NotImplementedError("Trying to call an abstract method")
+
+    def _cache_get(self, result, return_unit):
+        """Pull a property from the cache if possible."""
+        try:
+            value, unit = self._cache[result]
+        except KeyError:
+            return None
+        return value * Units.conversion_ratio(unit, return_unit)
 
     @classmethod
     def _reduce(cls, value, reduce, axis=None):
