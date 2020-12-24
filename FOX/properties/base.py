@@ -27,7 +27,7 @@ def _gather_ufuncs(module: ModuleType) -> Dict[str, Callable[[Any], Any]]:
 
 
 class FromResult(Generic[FT, RT], metaclass=ABCMeta):
-    """A class for wrapping :class:`~collections.abc.Callable` objects.
+    """An abstract base class for wrapping :class:`~collections.abc.Callable` objects.
 
     Besides :meth:`__call__`, instances have access to the :meth:`from_result` method,
     which is used for applying the wrapped callable to

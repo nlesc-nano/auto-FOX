@@ -9,4 +9,4 @@ dependencies:
     - h5py
     - rdkit
     - matplotlib
-    - sphinx<3.4
+    - sphinx
