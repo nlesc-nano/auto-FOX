@@ -80,6 +80,7 @@ class FromResult(Generic[FT, RT], metaclass=ABCMeta):
         self.__qualname__ = name
         self.__module__ = module if module is not None else '__main__'
 
+        # Set the docstring; append it with the docstring of `__call__` if applicable
         if doc is None:
             self.__doc__ = getattr(func, '__doc__', None)
         else:
@@ -91,11 +92,13 @@ class FromResult(Generic[FT, RT], metaclass=ABCMeta):
             else:
                 self.__doc__ = doc_append
 
+        # Cache the hash
         try:
             self._hash = hash((cls, func))
         except TypeError:  # `func` may not be hashable in rare cases
             self._hash = hash((cls, id(func)))
 
+        # Signatures
         self.__text_signature__ = None
         if hasattr(func, '__signature__'):
             self.__signature__ = func.__signature__
@@ -111,6 +114,7 @@ class FromResult(Generic[FT, RT], metaclass=ABCMeta):
                     inspect.Parameter('kwargs', kind=inspect.Parameter.VAR_KEYWORD),
                 ])
 
+        # `types.FunctionType` properties
         self.__globals__ = MappingProxyType(getattr(func, '__globals__', {}))
         self.__closure__ = getattr(self._func, '__closure__', None)
         self.__defaults__ = getattr(self._func, '__defaults__', None)
@@ -120,6 +124,8 @@ class FromResult(Generic[FT, RT], metaclass=ABCMeta):
         kwd = getattr(self._func, '__kwdefaults__', None)
         self.__kwdefaults__ = MappingProxyType({}) if kwd is None else MappingProxyType(kwd)
 
+        # Cache the output from `from_result`, keeping it alive as
+        # longs as the respective `qmflows.Result` instance exists
         self._cache = WeakKeyDictionary({})
 
     @property
