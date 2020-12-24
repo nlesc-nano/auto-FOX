@@ -248,7 +248,7 @@ class _Null:
 
 
 #: A singleton used as sentinel value by :func:`get_attr`.
-_NULL = _Null
+_NULL = _Null()
 
 
 def get_attr(obj, name, default=_NULL, reduce=None, axis=None):
