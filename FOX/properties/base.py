@@ -6,7 +6,7 @@ import inspect
 import textwrap
 from abc import ABCMeta, abstractmethod
 from types import MappingProxyType, ModuleType
-from typing import Generic, TypeVar, Any, Callable, Dict
+from typing import Generic, TypeVar, Any, Callable, Dict, Union
 
 import scipy.special
 import numpy as np
@@ -14,11 +14,11 @@ from qmflows.packages import Result
 
 __all__ = ['FromResult', 'get_attr', 'call_method']
 
-FT = TypeVar("FT", bound=Callable[..., Any])
+FT = TypeVar("FT", bound=Callable[..., Union[np.ndarray, np.generic]])
 RT = TypeVar("RT", bound=Result)
 
 
-def _gather_ufuncs(module: ModuleType) -> Dict[str, Callable[[Any], Any]]:
+def _gather_ufuncs(module: ModuleType) -> Dict[str, Callable[..., Any]]:
     """Gather a dictionary with all :class:`~numpy.ufunc.reduce`-supporting :class:`ufuncs <numpy.ufunc>` from the passed **module**."""  # noqa: E501
     iterator = (getattr(module, name) for name in getattr(module, '__all__', []))
     condition = lambda ufunc: (isinstance(ufunc, np.ufunc) and ufunc.signature is None and

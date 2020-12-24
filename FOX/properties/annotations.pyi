@@ -1,5 +1,5 @@
 import sys
-from typing import Callable, overload, TypeVar, Union, Sequence, Any
+from typing import Callable, overload, TypeVar, Union, Sequence, Any, Optional
 
 import numpy as np
 import numpy.typing as npt
@@ -9,19 +9,31 @@ if sys.version_info >= (3, 8):
 else:
     from typing_extensions import TypedDict, Literal, Protocol
 
-__all__ = ["Shape", "ScalarOrArray", "ReduceFunc", "Float64Names", "IntPNames", "BoolNames", "ReductionDict"]
+__all__ = [
+    "ShapeLike",
+    "ScalarOrArray",
+    "ReduceFunc",
+    "Float64Names",
+    "IntPNames",
+    "BoolNames",
+    "ReductionDict",
+    "NDArray",
+]
 
 SCT = TypeVar("SCT", bound=np.generic)
 SCT_co = TypeVar("SCT_co", covariant=True, bound=np.generic)
 
-Shape = Union[int, Sequence[int]]
-ScalarOrArray = Union[SCT, np.ndarray[Any, np.dtype[SCT]]]
+ShapeLike = Union[int, Sequence[int]]
+NDArray = np.ndarray[Any, np.dtype[SCT]]
+ScalarOrArray = Union[SCT, NDArray[SCT]]
 
 class ReduceFunc(Protocol[SCT_co]):
     @overload
-    def __call__(self, a: npt.ArrayLike, *, axis: None = ...) -> SCT_co: ...
+    def __call__(self, a: np.float64, *, axis: Optional[ShapeLike] = ...) -> SCT_co: ...
     @overload
-    def __call__(self, a: npt.ArrayLike, *, axis: Shape) -> ScalarOrArray[SCT_co]: ...
+    def __call__(self, a: NDArray[np.float64], *, axis: None = ...) -> ScalarOrArray[SCT_co]: ...
+    @overload
+    def __call__(self, a: NDArray[np.float64], *, axis: ShapeLike) -> ScalarOrArray[SCT_co]: ...
 
 Float64Names = Literal[
     "min",
