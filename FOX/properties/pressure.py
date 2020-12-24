@@ -67,16 +67,16 @@ def get_pressure(
     t = np.asarray(temp, dtype=np.float64)
     k = Units.convert(constants.Boltzmann, 'j', 'hartree')
 
-    f = _f[..., None, :] + _f[..., None, :, :]
-    r = xyz[..., None, :] - xyz[..., None, :, :]
-
     a = (xyz.shape[-2] * k * t) / v
-    b = np.empty(len(r), dtype=r.dtype)
+    b = np.empty(len(xyz), dtype=np.float64)
 
-    shape = r.shape + (f.shape[1],)
+    shape = xyz.shape + (_f.shape[1],)
     iterator = slice_iter(shape, itemsize=b.dtype.itemsize)
     for slc in iterator:
-        b[slc] = np.linalg.norm((r[slc] * f[slc]).sum(axis=(-2, -3)), axis=-1)
+        f = _f[slc, ..., None, :] + _f[slc, ..., None, :, :]
+        r = xyz[slc, ..., None, :] - xyz[slc, ..., None, :, :]
+        b[slc] = np.linalg.norm((r * f).sum(axis=(-2, -3)), axis=-1)
+
     b /= 6 * v
     return (a + b) * Units.conversion_ratio('ha/bohr^3', return_unit)
 
