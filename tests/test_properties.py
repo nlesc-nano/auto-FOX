@@ -85,7 +85,7 @@ def test_from_result_abc() -> None:
 
 
 @pytest.mark.parametrize('func', FROM_RESULT_DICT.keys())
-def _test_from_result(func: FromResult) -> None:
+def test_from_result(func: FromResult) -> None:
     """Tests for :class:`FOX.properties.CP2KMM_Result` subclasses."""
     prop1 = func.from_result(RESULT)
     ref1 = np.load(FROM_RESULT_DICT[func])
