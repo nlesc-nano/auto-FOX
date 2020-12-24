@@ -492,9 +492,9 @@ def slice_iter(
         yield slice(None)
         return
 
-    size = np.product(shape) * itemsize
+    size = np.product(shape, dtype=np.int64) * itemsize
     n = shape[0]
-    n_step = np.ceil(n / (size / nbytes_max)).astype(np.int64)
+    n_step = max(1, np.ceil(n / (size / nbytes_max)).astype(np.int64))
 
     start = 0
     stop = n_step
