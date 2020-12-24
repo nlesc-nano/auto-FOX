@@ -16,8 +16,8 @@ with open('README.rst', encoding='utf-8') as readme_file:
 
 docs_require = [
     'sphinx>=2.4',
-    'sphinx_rtd_theme',
-    'matplotlib'
+    'sphinx_rtd_theme>=0.3.0',
+    'matplotlib>=3.0',
 ]
 
 tests_require = [

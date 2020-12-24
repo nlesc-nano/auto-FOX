@@ -1,10 +1,12 @@
 """Functions for calculating the bulk modulus."""
 
+import warnings
 from typing import TypeVar, Callable, Any
 
 import numpy as np
 from scm.plams import Units
 from qmflows.packages.cp2k_package import CP2K_Result
+from qmflows.warnings_qmflows import QMFlows_Warning
 
 from . import FromResult, get_pressure
 
@@ -108,9 +110,12 @@ class GetBulkMod(FromResult[FT, CP2K_Result]):
             raise RuntimeError(f"Cannot extract data from a job with status {result.status!r}")
         a_to_au = Units.conversion_ratio('angstrom', 'bohr')
 
-        volume = self._pop(
-            kwargs, 'volume', callback=lambda: getattr(result, 'volume') * a_to_au**3
-        )
+        with warnings.catch_warnings():
+            warnings.simplefilter('error', QMFlows_Warning)
+
+            volume = self._pop(
+                kwargs, 'volume', callback=lambda: getattr(result, 'volume') * a_to_au**3
+            )
         pressure = get_pressure.from_result(result, reduce=None, volume=volume)
 
         ret = self(pressure, volume, **kwargs)

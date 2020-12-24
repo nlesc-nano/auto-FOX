@@ -26,7 +26,7 @@ sys.path.insert(0, os.path.abspath('..'))
 # -- General configuration ------------------------------------------------
 
 # If your documentation needs a minimal Sphinx version, state it here.
-needs_sphinx = '2.1'
+needs_sphinx = '2.4'
 
 
 # This value controls how to represents typehints. The setting takes the following values:

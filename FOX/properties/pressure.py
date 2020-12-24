@@ -1,11 +1,13 @@
 """Functions for calculating the pressure."""
 
+import warnings
 from typing import TypeVar, Callable, Any
 
 import numpy as np
 from scipy import constants
 from scm.plams import Units
 from qmflows.packages.cp2k_package import CP2K_Result
+from qmflows.warnings_qmflows import QMFlows_Warning
 
 from . import FromResult
 
@@ -30,7 +32,7 @@ def get_pressure(
 
     .. math::
 
-        P = \frac{NK_{B}T}{V} + \frac{1}{6V} \sum_{i}\sum_{{j}\ne{i}}{r_{ij} * f_{ij}}
+        P = \frac{Nk_{B}T}{V} + \frac{1}{6V} \sum_{i}\sum_{{j}\ne{i}}{r_{ij} * f_{ij}}
 
     Parameters
     ----------
@@ -68,7 +70,8 @@ def get_pressure(
     r = xyz[..., None, :] - xyz[..., None, :, :]
 
     a = (xyz.shape[-2] * k * t) / v
-    b = (1 / (6 * v)) * np.linalg.norm((r * f).sum(axis=(-2, -3)), axis=-1)
+    b = np.linalg.norm((r * f).sum(axis=(-2, -3)), axis=-1)
+    b /= (6 * v)
     return (a + b) * Units.conversion_ratio('ha/bohr^3', return_unit)
 
 
@@ -118,14 +121,17 @@ class GetPressure(FromResult[FT, CP2K_Result]):
             raise RuntimeError(f"Cannot extract data from a job with status {result.status!r}")
         a_to_au = Units.conversion_ratio('angstrom', 'bohr')
 
-        forces = self._pop(kwargs, 'forces', callback=lambda: getattr(result, 'forces'))
-        temp = self._pop(kwargs, 'temp', callback=lambda: getattr(result, 'temperature'))
-        coords = self._pop(
-            kwargs, 'coords', callback=lambda: getattr(result, 'coords') * a_to_au
-        )
-        volume = self._pop(
-            kwargs, 'volume', callback=lambda: getattr(result, 'volume') * a_to_au**3
-        )
+        with warnings.catch_warnings():
+            warnings.simplefilter('error', QMFlows_Warning)
+
+            forces = self._pop(kwargs, 'forces', callback=lambda: getattr(result, 'forces'))
+            temp = self._pop(kwargs, 'temp', callback=lambda: getattr(result, 'temperature'))
+            coords = self._pop(
+                kwargs, 'coords', callback=lambda: getattr(result, 'coordinates') * a_to_au
+            )
+            volume = self._pop(
+                kwargs, 'volume', callback=lambda: getattr(result, 'volume') * a_to_au**3
+            )
 
         ret = self(forces, coords, volume, temp, **kwargs)
         return self._reduce(ret, reduce, axis)

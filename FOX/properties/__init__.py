@@ -1,4 +1,4 @@
-"""Functions for calculating/extracting various properties.
+r"""Functions for calculating/extracting various properties.
 
 Each function can be used to calculate the respective property as is,
 or to extract it from a passed :class:`qmflows.Result <qmflows.packages.Result>` instance.
@@ -67,12 +67,20 @@ to export the necessary properties.
 Index
 -----
 .. currentmodule:: FOX.properties
-.. autosummary::
-    FromResult
-    get_attr
-    call_method
-    get_pressure
-    get_bulk_modulus
+.. list-table::
+   :widths: 50 50
+   :header-rows: 0
+
+   * - :class:`FromResult` (func, name[, module, doc])
+     - A class for wrapping :class:`~collections.abc.Callable` objects.
+   * - :func:`get_attr <get_attr>` (obj, name[, default, reduce, axis])
+     - :func:`gettattr` with support for keyword argument.
+   * - :func:`call_method <call_method>` (obj, name, \*args[, reduce, axis])
+     - Call the **name** method of **obj**.
+   * - :func:`get_pressure <get_pressure>` (forces, coords, volume[...])
+     - Calculate the pressure from the passed **forces**.
+   * - :func:`get_bulk_modulus <get_bulk_modulus>` (pressure, volume[...])
+     - Calculate the bulk modulus via differentiation of **pressure** w.r.t. **volume**.
 
 API
 ---

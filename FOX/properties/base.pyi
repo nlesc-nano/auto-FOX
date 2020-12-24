@@ -1,7 +1,7 @@
 import types
 import inspect
 from abc import ABCMeta, abstractmethod
-from typing import Generic, Callable, Any, ClassVar, TypeVar, overload, Optional, MutableMapping, Mapping, Tuple
+from typing import Generic, Callable, Any, ClassVar, TypeVar, overload, Optional, MutableMapping, Tuple, Type
 
 from qmflows.packages import Result
 import numpy as np
@@ -29,28 +29,23 @@ class FromResult(Generic[FT, RT], types.FunctionType, metaclass=ABCMeta):
     __qualname__: str
     __module__: str
     __doc__: Optional[str]
-    @property
-    def __annotations__(self) -> Optional[Mapping[str, Any]]: ...  # type: ignore[override]
-    @property
-    def __signature__(self) -> Optional[inspect.Signature]: ...
-    @property
-    def __text_signature__(self) -> Optional[str]: ...
-    @property
-    def __closure__(self) -> Optional[Tuple[types._Cell, ...]]: ...  # type: ignore[override]
+    __annotations__: types.MappingProxyType[str, Any]  # type: ignore[assignment]
+    __signature__: Optional[inspect.Signature]
+    __text_signature__: Optional[str]
+    __closure__: Optional[Tuple[types._Cell, ...]]
+    __defaults__: Optional[Tuple[Any, ...]]
+    __globals__: types.MappingProxyType[str, Any]  # type: ignore[assignment]
+    __kwdefaults__: types.MappingProxyType[str, Any]  # type: ignore[assignment]
     @property
     def __code__(self) -> types.CodeType: ...  # type: ignore[override]
-    @property
-    def __defaults__(self) -> Optional[Tuple[Any, ...]]: ...  # type: ignore[override]
-    @property
-    def __globals__(self) -> Mapping[str, Any]: ...  # type: ignore[override]
-    @property
-    def __kwdefaults__(self) -> Mapping[str, Any]: ...  # type: ignore[override]
+    def __get__(self, obj: Optional[object], type: Optional[type]) -> types.MethodType: ...
 
     __call__: FT
-    def __get__(self, obj: Optional[object], type: Optional[type]) -> types.MethodType: ...
     def __hash__(self) -> int: ...
     def __eq__(self, value: object) -> bool: ...
     def __repr__(self) -> str: ...
+    def __reduce__(self: ST) -> Tuple[Type[ST], Tuple[FT, str, str], Optional[str]]: ...
+    def __setstate__(self, state: Optional[str]) -> None: ...
     @overload
     @abstractmethod
     def from_result(self: FromResult[Callable[..., T1], RT], result: RT, reduce: None = ..., axis: None = ...) -> T1: ...
