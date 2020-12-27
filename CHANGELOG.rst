@@ -6,6 +6,17 @@ All notable changes to this project will be documented in this file.
 This project adheres to `Semantic Versioning <http://semver.org/>`_.
 
 
+0.8.11
+******
+* Fixed an issue where the .hdf5 status would not be properly cleared (if necessary).
+* Grab the cell parameters from previous jobs if applicable.
+* More thouroughly check the ``qmflows.Result`` status before accessing it.
+* Automatically determine appropiate chunk sizes when calculating the RDF.
+* Added a new sub-module dedicated to the calculation of properties: ``FOX.properties``.
+* Fixed an issue where parsing the ``unit`` would fail when parameter guessing.
+* Fixed an issue where writing ``nan`` to ``armc.xyz.hdf5`` would fail.
+
+
 0.8.10
 ******
 * Reorganized the dataframes in ``FOX.armc.ParamMapping``.
