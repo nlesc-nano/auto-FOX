@@ -7,9 +7,9 @@ from qmflows.packages.cp2k_package import CP2K_Result
 from FOX.properties import FromResult
 from FOX.properties.annotations import IntPNames, Float64Names, BoolNames, ShapeLike, ScalarOrArray
 
-T1 = TypeVar("T1", bound=Union[np.ndarray[Any, Any], np.generic])
+T1 = TypeVar("T1", bound=ScalarOrArray[np.float64])
 T2 = TypeVar("T2")
-FT = TypeVar("FT", bound=Callable[..., Union[np.ndarray[Any, Any], np.generic]])
+FT = TypeVar("FT", bound=Callable[..., ScalarOrArray[np.float64]])
 
 def get_pressure(
     forces: npt.ArrayLike,

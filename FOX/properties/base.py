@@ -7,10 +7,12 @@ import textwrap
 from abc import ABCMeta, abstractmethod
 from types import MappingProxyType, ModuleType
 from typing import Generic, TypeVar, Any, Callable, Dict, Union
+from weakref import WeakKeyDictionary
 
 import scipy.special
 import numpy as np
 from qmflows.packages import Result
+from scm.plams import Units
 
 __all__ = ['FromResult', 'get_attr', 'call_method']
 
@@ -78,6 +80,7 @@ class FromResult(Generic[FT, RT], metaclass=ABCMeta):
         self.__qualname__ = name
         self.__module__ = module if module is not None else '__main__'
 
+        # Set the docstring; append it with the docstring of `__call__` if applicable
         if doc is None:
             self.__doc__ = getattr(func, '__doc__', None)
         else:
@@ -89,11 +92,13 @@ class FromResult(Generic[FT, RT], metaclass=ABCMeta):
             else:
                 self.__doc__ = doc_append
 
+        # Cache the hash
         try:
             self._hash = hash((cls, func))
         except TypeError:  # `func` may not be hashable in rare cases
             self._hash = hash((cls, id(func)))
 
+        # Signatures
         self.__text_signature__ = None
         if hasattr(func, '__signature__'):
             self.__signature__ = func.__signature__
@@ -109,6 +114,7 @@ class FromResult(Generic[FT, RT], metaclass=ABCMeta):
                     inspect.Parameter('kwargs', kind=inspect.Parameter.VAR_KEYWORD),
                 ])
 
+        # `types.FunctionType` properties
         self.__globals__ = MappingProxyType(getattr(func, '__globals__', {}))
         self.__closure__ = getattr(self._func, '__closure__', None)
         self.__defaults__ = getattr(self._func, '__defaults__', None)
@@ -117,6 +123,10 @@ class FromResult(Generic[FT, RT], metaclass=ABCMeta):
         ))
         kwd = getattr(self._func, '__kwdefaults__', None)
         self.__kwdefaults__ = MappingProxyType({}) if kwd is None else MappingProxyType(kwd)
+
+        # Cache the output from `from_result`, keeping it alive as
+        # longs as the respective `qmflows.Result` instance exists
+        self._cache = WeakKeyDictionary({})
 
     @property
     def __code__(self):
@@ -179,7 +189,7 @@ class FromResult(Generic[FT, RT], metaclass=ABCMeta):
         self.__doc__ = state
 
     @abstractmethod
-    def from_result(self, result, reduce=None, axis=None, **kwargs):
+    def from_result(self, result, reduce=None, axis=None, *, return_unit=NotImplemented, **kwargs):
         r"""Call **self** using argument extracted from **result**.
 
         Parameters
@@ -192,6 +202,8 @@ class FromResult(Generic[FT, RT], metaclass=ABCMeta):
         axis : :class:`int` or :class:`Sequence[int] <collections.abc.Sequence>`, optional
             The axis along which the reduction should take place.
             If :data:`None`, use all axes.
+        return_unit : :class:`str`
+            The unit of the to-be returned quantity.
         \**kwargs : :data:`~typing.Any`
             Further keyword arguments for :meth:`__call__`.
 
@@ -202,6 +214,14 @@ class FromResult(Generic[FT, RT], metaclass=ABCMeta):
 
         """  # noqa: E501
         raise NotImplementedError("Trying to call an abstract method")
+
+    def _cache_get(self, result, return_unit):
+        """Pull a property from the cache if possible."""
+        try:
+            value, unit = self._cache[result]
+        except KeyError:
+            return None
+        return value * Units.conversion_ratio(unit, return_unit)
 
     @classmethod
     def _reduce(cls, value, reduce, axis=None):

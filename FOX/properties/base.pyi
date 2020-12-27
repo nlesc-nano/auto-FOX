@@ -2,6 +2,7 @@ import types
 import inspect
 from abc import ABCMeta, abstractmethod
 from typing import Generic, Callable, Any, ClassVar, TypeVar, overload, Optional, MutableMapping, Tuple, Type, Union
+from weakref import WeakKeyDictionary
 
 from qmflows.packages import Result
 import numpy as np
@@ -9,10 +10,10 @@ import numpy.typing as npt
 
 from FOX.properties.annotations import ReductionDict, IntPNames, Float64Names, BoolNames, ShapeLike, ScalarOrArray
 
-T1 = TypeVar("T1", bound=Union[np.ndarray[Any, Any], np.generic])
+T1 = TypeVar("T1", bound=ScalarOrArray[Any])
 T2 = TypeVar("T2")
 ST = TypeVar("ST", bound=FromResult[Any, Any])
-FT = TypeVar("FT", bound=Callable[..., Union[np.ndarray[Any, Any], np.generic]])
+FT = TypeVar("FT", bound=Callable[..., ScalarOrArray[Any]])
 RT = TypeVar("RT", bound=Result)
 
 class FromResult(Generic[FT, RT], types.FunctionType, metaclass=ABCMeta):
@@ -37,6 +38,10 @@ class FromResult(Generic[FT, RT], types.FunctionType, metaclass=ABCMeta):
     __globals__: types.MappingProxyType[str, Any]  # type: ignore[assignment]
     __kwdefaults__: types.MappingProxyType[str, Any]  # type: ignore[assignment]
     @property
+    def _cache(self: FromResult[Callable[..., T1], RT]) -> WeakKeyDictionary[RT, Tuple[T1, str]]: ...
+    @_cache.setter
+    def _cache(self: FromResult[Callable[..., T1], RT], value: WeakKeyDictionary[RT, Tuple[T1, str]]) -> None: ...
+    @property
     def __code__(self) -> types.CodeType: ...  # type: ignore[override]
     def __get__(self, obj: Optional[object], type: Optional[type]) -> types.MethodType: ...
 
@@ -48,28 +53,30 @@ class FromResult(Generic[FT, RT], types.FunctionType, metaclass=ABCMeta):
     def __setstate__(self, state: Optional[str]) -> None: ...
     @overload
     @abstractmethod
-    def from_result(self: FromResult[Callable[..., T1], RT], result: RT, reduce: None = ..., axis: None = ...) -> T1: ...
+    def from_result(self: FromResult[Callable[..., T1], RT], result: RT, reduce: None = ..., axis: None = ..., *, return_unit: str = ...) -> T1: ...
     @overload
     @abstractmethod
-    def from_result(self: FromResult[Callable[..., T1], RT], result: RT, reduce: Callable[[T1], T2], axis: None = ...) -> T2: ...
+    def from_result(self: FromResult[Callable[..., T1], RT], result: RT, reduce: Callable[[T1], T2], axis: None = ..., *, return_unit: str = ...) -> T2: ...
     @overload
     @abstractmethod
-    def from_result(self, result: RT, reduce: Float64Names, axis: None = ...) -> np.float64: ...
+    def from_result(self, result: RT, reduce: Float64Names, axis: None = ..., *, return_unit: str = ...) -> np.float64: ...
     @overload
     @abstractmethod
-    def from_result(self, result: RT, reduce: Float64Names, axis: ShapeLike) -> ScalarOrArray[np.float64]: ...
+    def from_result(self, result: RT, reduce: Float64Names, axis: ShapeLike, *, return_unit: str = ...) -> ScalarOrArray[np.float64]: ...
     @overload
     @abstractmethod
-    def from_result(self, result: RT, reduce: IntPNames, axis: None = ...) -> np.intp: ...
+    def from_result(self, result: RT, reduce: IntPNames, axis: None = ..., *, return_unit: str = ...) -> np.intp: ...
     @overload
     @abstractmethod
-    def from_result(self, result: RT, reduce: IntPNames, axis: ShapeLike) -> ScalarOrArray[np.intp]: ...
+    def from_result(self, result: RT, reduce: IntPNames, axis: ShapeLike, *, return_unit: str = ...) -> ScalarOrArray[np.intp]: ...
     @overload
     @abstractmethod
-    def from_result(self, result: RT, reduce: BoolNames, axis: None = ...) -> np.bool_: ...
+    def from_result(self, result: RT, reduce: BoolNames, axis: None = ..., *, return_unit: str = ...) -> np.bool_: ...
     @overload
     @abstractmethod
-    def from_result(self, result: RT, reduce: BoolNames, axis: ShapeLike) -> ScalarOrArray[np.bool_]: ...
+    def from_result(self, result: RT, reduce: BoolNames, axis: ShapeLike, *, return_unit: str = ...) -> ScalarOrArray[np.bool_]: ...
+
+    def _cache_get(self: FromResult[Callable[..., T1], RT], result: RT, return_unit: str) -> Optional[T1]: ...
 
     @overload
     @classmethod
