@@ -303,7 +303,8 @@ def get_attr(obj, name, default=_NULL, reduce=None, axis=None):
     """
     if default is _NULL:
         ret = getattr(obj, name)
-    ret = getattr(obj, name, default)
+    else:
+        ret = getattr(obj, name, default)
     return FromResult._reduce(ret, reduce, axis)
 
 
