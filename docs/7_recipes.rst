@@ -8,6 +8,7 @@ Various recipes implemented in Auto-FOX.
     FOX.recipes.psf
     FOX.recipes.ligands
     FOX.recipes.time_resolution
+    FOX.recipes.similarity
 
 FOX.recipes.param
 -----------------
@@ -24,3 +25,7 @@ FOX.recipes.ligands
 FOX.recipes.time_resolution
 ---------------------------
 .. automodule:: FOX.recipes.time_resolution
+
+FOX.recipes.similarity
+----------------------
+.. automodule:: FOX.recipes.similarity
