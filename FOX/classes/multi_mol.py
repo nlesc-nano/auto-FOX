@@ -25,7 +25,7 @@ from itertools import (
 )
 from typing import (
     Sequence, Optional, Union, List, Hashable, Callable, Iterable, Dict, Tuple, Any, Mapping,
-    overload, TypeVar, Type, Container
+    overload, TypeVar, Type, Container, TYPE_CHECKING,
 )
 
 import numpy as np
@@ -46,10 +46,12 @@ from ..functions.rdf import get_rdf, get_rdf_df
 from ..functions.adf import get_adf, get_adf_df
 from ..functions.molecule_utils import fix_bond_orders, separate_mod
 
+if TYPE_CHECKING:
+    import numpy.typing as npt
+
 try:
     import dask
     DASK_EX: Optional[Exception] = None
-
 except Exception as ex:
     DASK_EX = ex
     _warn = ImportWarning(str(ex))
@@ -327,10 +329,10 @@ class MultiMolecule(_MultiMolecule):
             return self[idx].copy()
 
     @overload
-    def reset_origin(self, mol_subset: MolSubset = ..., atom_subset: AtomSubset = ..., inplace: Literal[True] = ...) -> None: ...  # type: ignore[misc] # noqa: E501
+    def reset_origin(self, mol_subset: MolSubset = ..., atom_subset: AtomSubset = ..., inplace: Literal[True] = ..., rot_ref: Optional[npt.ArrayLike] = ...) -> None: ...  # type: ignore[misc] # noqa: E501
     @overload
-    def reset_origin(self: MT, mol_subset: MolSubset = ..., atom_subset: AtomSubset = ..., inplace: Literal[False] = ...) -> MT: ...  # noqa: E501
-    def reset_origin(self, mol_subset=None, atom_subset=None, inplace=True):  # noqa: E301
+    def reset_origin(self: MT, mol_subset: MolSubset = ..., atom_subset: AtomSubset = ..., inplace: Literal[False] = ..., rot_ref: Optional[npt.ArrayLike] = ...) -> MT: ...  # noqa: E501
+    def reset_origin(self, mol_subset=None, atom_subset=None, inplace=True, rot_ref=None):  # noqa: E301,E501
         """Reallign all molecules in this instance.
 
         All molecules in this instance are rotating and translating, by performing a partial partial
@@ -364,8 +366,13 @@ class MultiMolecule(_MultiMolecule):
         # Remove translations
         coords = self[i, j, :] - self[i, j, :].mean(axis=1)[:, None, :]
 
+        if rot_ref is None:
+            ref_ar = coords[0]
+        else:
+            ref_ar = np.asarray(rot_ref)
+
         # Peform a singular value decomposition on the covariance matrix
-        H = np.swapaxes(coords[0:], 1, 2) @ coords[0]
+        H = np.swapaxes(coords, 1, 2) @ ref_ar
         U, _, Vt = np.linalg.svd(H)
         V, Ut = np.swapaxes(Vt, 1, 2), np.swapaxes(U, 1, 2)
 
