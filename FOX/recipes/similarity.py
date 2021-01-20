@@ -70,7 +70,7 @@ from __future__ import annotations
 
 import sys
 from functools import partial
-from typing import Any, Callable, Union, Optional, TYPE_CHECKING
+from typing import cast, Any, Callable, Union, Optional, TYPE_CHECKING
 
 from FOX import MultiMolecule
 import numpy as np
@@ -245,12 +245,18 @@ def compare_trajectories(
 
     """  # noqa: E501
     # Parse `md` and ensure that it is a 3D array
-    md_ar = np.array(md, dtype=np.float64, ndmin=3, copy=False, subok=True)
+    md_ar = cast(
+        MultiMolecule,
+        np.array(md, dtype=np.float64, ndmin=3, copy=False, subok=True),
+    )
     if not isinstance(md_ar, MultiMolecule):
         md_ar = md_ar.view(MultiMolecule)
 
     # Parse `md_ref` and ensure that it is a 3D array
-    md_ref_ar = np.array(md_ref, dtype=np.float64, ndmin=3, copy=False, subok=True)
+    md_ref_ar = cast(
+        MultiMolecule,
+        np.array(md_ref, dtype=np.float64, ndmin=3, copy=False, subok=True),
+    )
     if not isinstance(md_ref_ar, MultiMolecule):
         md_ref_ar = md_ref_ar.view(MultiMolecule)
 
