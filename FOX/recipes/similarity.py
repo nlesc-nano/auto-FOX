@@ -55,14 +55,10 @@ Index
 .. currentmodule:: FOX.recipes
 .. autosummary::
     compare_trajectories
-    cosine
-    euclidean
 
 API
 ---
 .. autofunction:: compare_trajectories
-.. autofunction:: cosine
-.. autofunction:: euclidean
 
 """
 
@@ -70,112 +66,77 @@ from __future__ import annotations
 
 import sys
 from functools import partial
-from typing import cast, Any, Callable, Union, Optional, TYPE_CHECKING
+from typing import Any, Callable, TYPE_CHECKING
 
 from FOX import MultiMolecule
 import numpy as np
+from scipy.spatial.distance import cdist
 
 if sys.version_info >= (3, 8):
-    from typing import Protocol, Literal, TypedDict
+    from typing import Protocol, Literal
 else:
-    from typing_extensions import Protocol, Literal, TypedDict
+    from typing_extensions import Protocol, Literal
 
 if TYPE_CHECKING:
     import numpy.typing as npt
 
-    class CallBack(Protocol):
+    class _CallBack(Protocol):
         def __call__(
             self, __md: MultiMolecule, __md_ref: MultiMolecule, **kwargs: Any,
         ) -> np.ndarray: ...
 
-    class MetricDict(TypedDict):
-        cosine: Callable[[np.ndarray, np.ndarray], np.ndarray]
-        euclidean: Callable[[np.ndarray, np.ndarray], np.ndarray]
+__all__ = ["compare_trajectories"]
 
-__all__ = ["compare_trajectories", "cosine", "euclidean"]
-
-
-def cosine(a: np.ndarray, b: np.ndarray) -> np.ndarray:
-    r"""Compute the cosine distance between all atom-pairs in **a** and **b**.
-
-    .. math::
-
-        1 - \frac{\mathbf{a}_{i,j,:} \cdot \mathbf{b}_{i,j,:}}
-                 {||\mathbf{a}_{i,j,:}||_2 ||\mathbf{b}_{i,j,:}||_2}
-
-    Parameters
-    ----------
-    a/b : :class:`np.ndarray <numpy.ndarray>`, shape :math:`(n_{mol}, n_{atom}, 3)`
-        The two to-be compared trajectories.
-
-    Returns
-    -------
-    :class:`np.ndarray[np.float64] <numpy.ndarray>`, shape :math:`(n_{mol}, n_{atom})`
-        The distances between all pairs in **a** and **b**.
-
-    See Also
-    --------
-    :func:`scipy.spatial.distance.cosine`
-        Compute the Cosine distance between 1-D arrays.
-
-    """
-    numerator = (a * b).sum(axis=-1)
-    denominator = np.linalg.norm(a, axis=-1) * np.linalg.norm(b, axis=-1)
-    return 1 - numerator / denominator
+_MetricAliases = Literal[
+    'braycurtis',
+    'canberra',
+    'chebychev', 'chebyshev', 'cheby', 'cheb', 'ch',
+    'cityblock', 'cblock', 'cb', 'c',
+    'correlation', 'co',
+    'cosine', 'cos',
+    'dice',
+    'euclidean', 'euclid', 'eu', 'e',
+    'matching', 'hamming', 'hamm', 'ha', 'h',
+    'jaccard', 'jacc', 'ja', 'j',
+    'jensenshannon', 'js',
+    'kulsinski',
+    'mahalanobis', 'mahal', 'mah',
+    'minkowski', 'mi', 'm', 'pnorm',
+    'rogerstanimoto',
+    'russellrao',
+    'seuclidean', 'se', 's',
+    'sokalmichener',
+    'sokalsneath',
+    'sqeuclidean', 'sqe', 'sqeuclid',
+    'yule',
+]
 
 
-def euclidean(a: np.ndarray, b: np.ndarray, p: Any = None) -> np.ndarray:
-    r"""Compute the euclidean distance between all atom-pairs in **a** and **b**.
-
-    .. math::
-
-        ||\mathbf{a}_{i,j,:} - \mathbf{b}_{i,j,:}||_{p}
-
-    Parameters
-    ----------
-    a/b : :class:`np.ndarray <numpy.ndarray>`, shape :math:`(n_{mol}, n_{atom}, 3)`
-        The two to-be compared trajectories.
-    p : :class:`int`
-        The order of the norm.
-        See the **ord** argument in :func:`numpy.linalg.norm` for more details.
-
-    Returns
-    -------
-    :class:`np.ndarray[np.float64] <numpy.ndarray>`, shape :math:`(n_{mol}, n_{atom})`
-        The distances between all pairs in **a** and **b**.
-
-    See Also
-    --------
-    :func:`scipy.spatial.distance.euclidean`
-        Computes the Euclidean distance between two 1-D arrays.
-    :func:`numpy.linalg.norm`
-        Matrix or vector norm.
-
-    """
-    return np.linalg.norm(a - b, axis=-1, ord=p)
-
-
-MetricAliases = Literal["cosine", "euclidean"]
-
-METRIC_DICT: MetricDict = {
-    "cosine": cosine,
-    "euclidean": euclidean,
-}
+def _parse_md(md: npt.ArrayLike, name: str, dtype: npt.DTypeLike = np.float64) -> MultiMolecule:
+    md_ar = np.array(md, dtype=dtype, ndmin=3, copy=False, subok=True)
+    if md_ar.ndim != 3:
+        raise ValueError(f"`{name}` expected a <= 3D array; observed dimensionality: {md_ar.ndim}")
+    elif not isinstance(md_ar, MultiMolecule):
+        return md_ar.view(MultiMolecule)
+    else:
+        return md_ar
 
 
 def compare_trajectories(
     md: npt.ArrayLike,
     md_ref: npt.ArrayLike,
-    metric: Union[MetricAliases, CallBack] = "cosine",
-    reduce: Optional[Callable[[np.ndarray], np.ndarray]] = partial(np.mean, axis=-1),
+    *,
+    metric: _MetricAliases | _CallBack = "cosine",
+    reduce: None | Callable[[np.ndarray], np.number] = np.mean,
     reset_origin: bool = True,
     **kwargs: Any,
 ) -> np.ndarray:
     r"""Compute the similarity between 2 trajectories according to the specified **metric**.
 
-    Two default presets, ``"cosine"`` and ``"euclidean"``, are available as metrics,
-    aforementioned metrics respectivelly being based on the cosine and euclidean distances
-    between atoms of the passed trajectories.
+    The default **metric** aliases :func:`scipy.spatial.distance.cdist` for defining
+    the (dis-)similarity between the passed **md** and its reference.
+    This (dis-)similarity array is subsequently reduced to a vector of size
+    :math:`(N_{mol},)` by taking its mean (along the relevant axes).
 
     Examples
     --------
@@ -190,39 +151,41 @@ def compare_trajectories(
         # Default `metric` presets
         >>> metric1 = compare_trajectories(md, md_ref, metric="cosine")
         >>> metric2 = compare_trajectories(md, md_ref, metric="euclidean")
-        >>> metric3 = compare_trajectories(md, md_ref, metric="euclidean", p=1)
+        >>> metric3 = compare_trajectories(md, md_ref, metric="minkowski", p=1)
 
-        >>> def rmsd(a: np.ndarray, axis: int) -> np.ndarray:
+        >>> def rmsd(a: np.ndarray) -> np.float64:
         ...     '''Calculate the root-mean-square deviation.'''
-        ...     return np.mean(a**2, axis=axis)**0.5
+        ...     return np.mean(a**2)**0.5
 
         # Sum over the number of atoms rather than average
-        >>> metric4 = compare_trajectories(md, md_ref, reduce=lambda n: np.sum(n, axis=-1))
-        >>> metric5 = compare_trajectories(md, md_ref, reduce=lambda n: rmsd(n, axis=-1))
+        >>> metric4 = compare_trajectories(md, md_ref, reduce=np.sum)
+        >>> metric5 = compare_trajectories(md, md_ref, reduce=rmsd)
 
         >>> def sqeuclidean(md: np.ndarray, md_ref: np.ndarray) -> np.ndarray:
         ...     '''Calculate the distance based on the squared eclidian norm.'''
-        ...     return np.linalg.norm(md - md_ref, axis=-1)**2
+        ...     delta = md[..., None] - md_ref[..., None, :]
+        ...     return np.linalg.norm(delta, axis=-1)**2
 
         # Pass a custom metric-function
         >>> metric6 = compare_trajectories(md, md_ref, metric=sqeuclidean)
 
     Parameters
     ----------
-    md : :term:`numpy:array_like`, shape :math:`(n_{mol}, n_{atom}, 3)` or :math:`(n_{atom}, 3)`
+    md : :term:`numpy:array_like`, shape :math:`(N_{mol}, N_{atom1}, 3)` or :math:`(N_{atom1}, 3)`
         An array-like object containing the trajectory of interest.
-    md_ref : :term:`numpy:array_like`, shape :math:`(n_{mol}, n_{atom}, 3)` or :math:`(n_{atom}, 3)`
+    md_ref : :term:`numpy:array_like`, shape :math:`(N_{mol}, N_{atom2}, 3)` or :math:`(N_{atom2}, 3)`
         An array-like object containing the reference trajectory.
-    metric : :class:`str` or :class:`Callable[[np.ndarray, np.ndarray], np.ndarray] <collections.abc.Callable>`
+    metric : :class:`str` or :class:`Callable[[FOX.MultiMolecule, FOX.MultiMolecule], np.ndarray] <collections.abc.Callable>`
         The type of metric used for calculating the (dis-)similarity.
-        Accepts either a callback or predefined alias: ``"cosine"`` or ``"euclidean"``.
-        If a callback is provided then it should take two arrays, of shape
-        :math:`(n_{mol}, n_{atom}, 3)`, as arguments and return a new array of
-        shape :math:`(n_{mol}, n_{atom})`.
-    reduce : :class:`Callable[[np.ndarray], np.ndarray] <collections.abc.Callable>`, optional
+        Accepts either a callback or predefined alias. See **metric** parameter
+        in :func:`scipy.spatial.distance.cdist` for a comprehensive overview of all aliases.
+        If a callback is provided then it should take a array of shape :math:`(n_{atom1}, 3)`
+        and :math:`(N_{atom2}, 3)` as arguments and return a new array of
+        shape :math:`(N_{atom1}, N_{atom2})`.
+    reduce : :class:`Callable[[np.ndarray], np.number] <collections.abc.Callable>`, optional
         A callable for performing a dimensional reduction.
-        Used for transforming the shape :math:`(n_{mol}, n_{atom})` array, returned
-        by **metric**, into the final shape :math:`(n_{mol},)` array.
+        Used for transforming the shape :math:`(N_{atom1}, N_{atom2})` array,
+        returned by **metric**, into a scalar.
         Setting this value to :data:`None` will disable the reduction and return the
         **metric** output in unaltered form.
     reset_origin : :class:`bool`
@@ -233,32 +196,20 @@ def compare_trajectories(
 
     Returns
     -------
-    :class:`np.ndarray[np.float64] <numpy.ndarray>`, shape :math:`(n_{mol},)`
+    :class:`np.ndarray[np.float64] <numpy.ndarray>`, shape :math:`(N_{mol},)`
         An array with the (dis-)similarity between all molecules in **md** and **md_ref**.
 
     See Also
     --------
-    :func:`FOX.recipes.cosine`
-        Compute the cosine distance between all atom-pairs in **a** and **b**.
-    :func:`FOX.recipes.euclidean`
-        Compute the euclidean distance between all atom-pairs in **a** and **b**.
+    :func:`scipy.spatial.distance.cdist`
+        Compute distance between each pair of the two collections of inputs.
 
     """  # noqa: E501
-    # Parse `md` and ensure that it is a 3D array
-    md_ar = cast(
-        MultiMolecule,
-        np.array(md, dtype=np.float64, ndmin=3, copy=False, subok=True),
-    )
-    if not isinstance(md_ar, MultiMolecule):
-        md_ar = md_ar.view(MultiMolecule)
-
-    # Parse `md_ref` and ensure that it is a 3D array
-    md_ref_ar = cast(
-        MultiMolecule,
-        np.array(md_ref, dtype=np.float64, ndmin=3, copy=False, subok=True),
-    )
-    if not isinstance(md_ref_ar, MultiMolecule):
-        md_ref_ar = md_ref_ar.view(MultiMolecule)
+    # Parse the inputs; ensure that they are a 3D array
+    md_ar = _parse_md(md, "md")
+    md_ref_ar = _parse_md(md_ref, "md_ref")
+    if len(md_ar) != len(md_ref_ar):
+        raise ValueError("`md` and `md_ref` should be of the same length")
 
     # Remove translations and rotations
     if reset_origin:
@@ -268,16 +219,14 @@ def compare_trajectories(
     # Parse the metric
     if callable(metric):
         func = metric
+    elif isinstance(metric, str):
+        func = partial(cdist, metric=metric)
     else:
-        try:
-            func = METRIC_DICT[metric]  # type: ignore[assignment]
-        except (TypeError, KeyError):
-            if not isinstance(metric, str):
-                raise TypeError("`metric` expected a string; observed type: "
-                                f"{metric.__class__.__name__}") from None
-            else:
-                raise ValueError(f"Invalid `metric` value: {metric!r}") from None
+        raise TypeError("`metric` expected a string or a callable; observed type: "
+                        f"{metric.__class__.__name__}")
 
     # Compute the (dis-)similarity
-    ret = func(md_ar, md_ref_ar, **kwargs)
-    return reduce(ret) if reduce is not None else ret
+    if reduce is None:
+        return np.array([func(a, b, **kwargs) for a, b in zip(md_ar, md_ref_ar)])
+    else:
+        return np.array([reduce(func(a, b, **kwargs)) for a, b in zip(md_ar, md_ref_ar)])

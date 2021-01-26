@@ -1,7 +1,7 @@
 """Tests for :mod:`FOX.recipes.similarity`."""
 
 from __future__ import annotations
-from typing import Mapping, Any, Type, TYPE_CHECKING
+from typing import Mapping, Any, Type, Sequence, TYPE_CHECKING
 from pathlib import Path
 
 import numpy as np
@@ -26,7 +26,7 @@ def _sqeuclidean(md: np.ndarray, md_ref: np.ndarray) -> np.ndarray:
     return np.linalg.norm(md - md_ref, axis=-1)**2
 
 
-def rmsd(a: np.ndarray, axis: int) -> np.ndarray:
+def rmsd(a: np.ndarray, axis: int | Sequence[int]) -> np.ndarray:
     return np.mean(a**2, axis=axis)**0.5
 
 
@@ -39,7 +39,7 @@ class TestCompareTrajectories:
             ('cosine', {'metric': 'cosine'}),
             ('euclidean', {'metric': 'euclidean'}),
             ('euclidean_no_reset', {'metric': 'euclidean', 'reset_origin': False}),
-            ('euclidean_p1', {'metric': 'euclidean', 'p': 1}),
+            ('euclidean_p1', {'metric': 'minkowski', 'p': 1}),
             ('sqeuclidean', {'metric': _sqeuclidean}),
             ('sum', {'reduce': lambda n: np.sum(n, axis=-1)}),
             ('rmsd', {'reduce': lambda n: rmsd(n, axis=-1)}),
@@ -61,12 +61,6 @@ class TestCompareTrajectories:
         out = compare_trajectories(md, md_ref)
         np.testing.assert_allclose(out, REF, rtol=0, atol=1e-8)
 
-    @pytest.mark.parametrize('md', [MOL1, MOL1[0]])
-    @pytest.mark.parametrize('md_ref', [MOL2, MOL2[0]])
-    def test_ndim(self, md: npt.ArrayLike, md_ref: npt.ArrayLike,) -> None:
-        """Tests :func:`~FOX.recipes.compare_trajectories` with array-like objects."""
-        _ = compare_trajectories(md, md_ref)
-
     @pytest.mark.parametrize(
         'name,exc_type,kwargs',
         [
@@ -75,6 +69,10 @@ class TestCompareTrajectories:
             ('metric', ValueError, {'md': MOL1, 'md_ref': MOL2, 'metric': 'bob'}),
             ('metric', TypeError, {'md': MOL1, 'md_ref': MOL2, 'metric': 1}),
             ('metric', TypeError, {'md': MOL1, 'md_ref': MOL2, 'metric': [1]}),
+            ('ndim', ValueError, {'md': MOL1[None], 'md_ref': MOL2}),
+            ('ndim', ValueError, {'md': MOL1, 'md_ref': MOL2[None]}),
+            ('len', ValueError, {'md': MOL1[:10], 'md_ref': MOL2}),
+            ('len', ValueError, {'md': MOL1, 'md_ref': MOL2[:10]}),
         ]
     )
     def test_raises(self, name: str, exc_type: Type[Exception], kwargs: Mapping[str, Any]) -> None:
