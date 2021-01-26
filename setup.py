@@ -26,6 +26,7 @@ tests_require = [
     'flake8',
     'pydocstyle',
     'auto-FOX-data@git+https://github.com/nlesc-nano/auto-FOX-data@1.1.6',
+    'ase',
 ]
 tests_require += docs_require
 

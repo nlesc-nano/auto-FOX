@@ -352,3 +352,26 @@ def test_loc():
     np.testing.assert_array_equal(mol.loc['Cd'], 1)
 
     assertion.assert_(mol.loc.__delitem__, 'Cd', exception=ValueError)
+
+
+@pytest.mark.parametrize(
+    "kwargs",
+    [
+        {'mol_subset': np.s_[::10]},
+        {'atom_subset': ['Cd', 'Se']},
+        {'mol_subset': np.s_[10:30], 'atom_subset': ['Cd', 'O']},
+        {'masses': MOL.mass},
+    ]
+)
+def test_ase(kwargs) -> None:
+    """Test :meth:`MultiMolecule.as_ase` and :meth:`MultiMolecule.from_ase`."""
+    mol_ref = MOL[:100]
+    ase_mols = mol_ref.as_ase(**kwargs)
+    mol = MultiMolecule.from_ase(ase_mols)
+
+    i = kwargs.get('mol_subset', np.s_[:])
+    j = kwargs.get('atom_subset')
+    if j is None:
+        np.testing.assert_allclose(mol, mol_ref[i])
+    else:
+        np.testing.assert_allclose(mol, mol_ref[i].loc[j])

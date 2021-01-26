@@ -25,7 +25,7 @@ from itertools import (
 )
 from typing import (
     Sequence, Optional, Union, List, Hashable, Callable, Iterable, Dict, Tuple, Any, Mapping,
-    overload, TypeVar, Type, Container, TYPE_CHECKING,
+    overload, TypeVar, Type, Container, cast, TYPE_CHECKING,
 )
 
 import numpy as np
@@ -35,7 +35,7 @@ from scipy.spatial import cKDTree
 from scipy.fftpack import fft
 from scipy.spatial.distance import cdist
 
-from scm.plams import Molecule, Atom, Bond
+from scm.plams import Molecule, Atom, Bond, PeriodicTable
 from nanoutils import group_by_values, Literal
 
 from ..utils import slice_iter
@@ -58,6 +58,12 @@ except Exception as ex:
     _warn.__cause__ = ex
     warnings.warn(_warn)
     del _warn
+
+try:
+    from ase import Atoms
+    ASE_EX: Optional[ImportError] = None
+except ImportError as ex:
+    ASE_EX = ex
 
 __all__ = ['MultiMolecule']
 
@@ -2177,6 +2183,68 @@ class MultiMolecule(_MultiMolecule):
             plams_mol.unset_atoms_id()
 
         return cls(coords, **kwargs)
+
+    def as_ase(self, mol_subset: MolSubset = None,
+               atom_subset: AtomSubset = None, **kwargs: Any) -> List[Atoms]:
+        r"""Convert this instance into a list of ASE :class:`~ase.Atoms`.
+
+        Parameters
+        ----------
+        mol_subset : :class:`slice`, optional
+            Perform the calculation on a subset of molecules in this instance, as
+            determined by their moleculair index.
+            Include all :math:`m` molecules in this instance if :data:`None`.
+        atom_subset : :class:`Sequence[str] <collections.abc.Sequence>`, optional
+            Perform the calculation on a subset of atoms in this instance, as
+            determined by their atomic index or atomic symbol.
+            Include all :math:`n` atoms per molecule in this instance if :data:`None`.
+        \**kwargs : :data:`~typing.Any`
+            Further keyword arguments for :class:`ase.Atoms`.
+
+        Returns
+        -------
+        :class:`list[ase.Atoms] <list>`
+            A list of ASE Atoms constructed from this instance.
+
+        """
+        if ASE_EX is not None:
+            raise ASE_EX
+
+        # Prepare slices
+        i = self._get_mol_subset(mol_subset)
+        j = self._get_atom_subset(atom_subset)
+
+        symbols = self.symbol[j]
+        positions_iter = self[i, j]
+        return [Atoms(symbols=symbols, positions=p) for p in positions_iter]
+
+    @classmethod
+    def from_ase(cls: Type[MT], mol_list: Union[Atoms, Sequence[Atoms]]) -> MT:
+        """Construct a :class:`.MultiMolecule` instance from one or more ASE Atoms.
+
+        Parameters
+        ----------
+        mol_list : :class:`ase.Atoms` or :class:`Sequence[ase.Atoms] <collections.abc.Sequence>`
+            An ASE Atoms instance or a list thereof.
+
+        Returns
+        -------
+        :class:`FOX.MultiMolecule`:
+            A molecule constructed from **mol_list**.
+
+        """  # noqa: E501
+        if ASE_EX is not None:
+            raise ASE_EX
+
+        if isinstance(mol_list, Atoms):
+            mol_list = cast("List[Atoms]", [mol_list])
+        elif len(mol_list) == 0:
+            raise ValueError("`mol_list` should contain at least one molecule")
+
+        coords = [m.positions for m in mol_list]
+        _atoms = group_by_values(enumerate(mol_list[0].numbers))
+        atoms = {PeriodicTable.get_symbol(k): v for k, v in _atoms.items()}
+        return cls(coords, atoms=atoms)
 
     @classmethod
     def from_xyz(cls: Type[MT], filename: Union[str, bytes, PathLike],
