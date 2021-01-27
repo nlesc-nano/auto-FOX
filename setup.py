@@ -57,6 +57,7 @@ setup(
         'data/*.yaml',
         'data/*.csv',
         'properties/*.pyi',
+        'recipes/*.pyi',
         'py.typed',
         '*.pyi',
     ]},

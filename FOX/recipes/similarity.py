@@ -62,57 +62,16 @@ API
 
 """
 
-from __future__ import annotations
-
-import sys
 from functools import partial
-from typing import Any, Callable, TYPE_CHECKING
 
 from FOX import MultiMolecule
 import numpy as np
 from scipy.spatial.distance import cdist
 
-if sys.version_info >= (3, 8):
-    from typing import Protocol, Literal
-else:
-    from typing_extensions import Protocol, Literal
-
-if TYPE_CHECKING:
-    import numpy.typing as npt
-
-    class _CallBack(Protocol):
-        def __call__(
-            self, __md: MultiMolecule, __md_ref: MultiMolecule, **kwargs: Any,
-        ) -> np.ndarray: ...
-
 __all__ = ["compare_trajectories"]
 
-_MetricAliases = Literal[
-    'braycurtis',
-    'canberra',
-    'chebychev', 'chebyshev', 'cheby', 'cheb', 'ch',
-    'cityblock', 'cblock', 'cb', 'c',
-    'correlation', 'co',
-    'cosine', 'cos',
-    'dice',
-    'euclidean', 'euclid', 'eu', 'e',
-    'matching', 'hamming', 'hamm', 'ha', 'h',
-    'jaccard', 'jacc', 'ja', 'j',
-    'jensenshannon', 'js',
-    'kulsinski',
-    'mahalanobis', 'mahal', 'mah',
-    'minkowski', 'mi', 'm', 'pnorm',
-    'rogerstanimoto',
-    'russellrao',
-    'seuclidean', 'se', 's',
-    'sokalmichener',
-    'sokalsneath',
-    'sqeuclidean', 'sqe', 'sqeuclid',
-    'yule',
-]
 
-
-def _parse_md(md: npt.ArrayLike, name: str, dtype: npt.DTypeLike = np.float64) -> MultiMolecule:
+def _parse_md(md, name, dtype=np.float64):
     md_ar = np.array(md, dtype=dtype, ndmin=3, copy=False, subok=True)
     if md_ar.ndim != 3:
         raise ValueError(f"`{name}` expected a <= 3D array; observed dimensionality: {md_ar.ndim}")
@@ -122,15 +81,8 @@ def _parse_md(md: npt.ArrayLike, name: str, dtype: npt.DTypeLike = np.float64) -
         return md_ar
 
 
-def compare_trajectories(
-    md: npt.ArrayLike,
-    md_ref: npt.ArrayLike,
-    *,
-    metric: _MetricAliases | _CallBack = "cosine",
-    reduce: None | Callable[[np.ndarray], np.number] = np.mean,
-    reset_origin: bool = True,
-    **kwargs: Any,
-) -> np.ndarray:
+def compare_trajectories(md, md_ref, *, metric='cosine', reduce=np.mean,
+                         reset_origin=True, **kwargs):
     r"""Compute the similarity between 2 trajectories according to the specified **metric**.
 
     The default **metric** aliases :func:`scipy.spatial.distance.cdist` for defining
