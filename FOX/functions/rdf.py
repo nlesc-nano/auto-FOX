@@ -101,9 +101,11 @@ def get_rdf_lowmem(dist: np.ndarray,
                    dr: float = 0.05,
                    r_max: float = 12.0) -> np.ndarray:
     """Calculate and return the radial distribution function (RDF).
+
     The RDF is calculated using the 2D distance matrix **dist**.
     A more memory efficient implementation of :func:`FOX.functions.rdf.get_rdf`,
     which operates on a 3D distance matrix.
+
     Parameters
     ----------
     dist : :math:`n*k` |np.ndarray|_ [|np.float64|_]
@@ -112,10 +114,12 @@ def get_rdf_lowmem(dist: np.ndarray,
         The integration step-size in Angstrom, *i.e.* the distance between concentric spheres.
     r_max : float
         The maximum to be evaluated interatomic distance.
+
     Returns
     -------
     1D |np.ndarray|_ [|np.float64|_] of length 1 + **r_max** / **dr**:
         An array with the resulting radial distribution function.
+
     """
     if not dist.size:
         return np.zeros((), dtype=dist.dtype)

@@ -23,7 +23,7 @@ import warnings
 from types import MappingProxyType
 from typing import (
     Dict, Optional, List, Any, Callable, Union, Mapping, Iterable,
-    NoReturn, TypeVar, Type, Generic, cast
+    NoReturn, TypeVar, Type, Generic, cast, TYPE_CHECKING,
 )
 
 import numpy as np
@@ -32,7 +32,10 @@ from scm.plams import PeriodicTable, PTError, Settings  # type: ignore
 from assertionlib.ndrepr import NDRepr
 from nanoutils import ArrayLike, Literal
 
-__all__: List[str] = []
+if TYPE_CHECKING:
+    import numpy.typing as npt
+
+__all__: List[str] = ["_MultiMolecule"]
 
 T = TypeVar('T')
 MT = TypeVar('MT', bound='_MultiMolecule')
@@ -188,12 +191,12 @@ class _MultiMolecule(np.ndarray):
 
     """
 
-    def __new__(cls: Type[MT], coords: np.ndarray,
+    def __new__(cls: Type[MT], coords: npt.ArrayLike,
                 atoms: Optional[IdxDict] = None,
                 bonds: Optional[np.ndarray] = None,
                 properties: Optional[Mapping] = None) -> MT:
         """Create and return a new object."""
-        obj = np.array(coords, dtype=float, ndmin=3, copy=False).view(cls)
+        obj = np.array(coords, dtype=np.float64, ndmin=3, copy=False).view(cls)
 
         # Set attributes
         obj.atoms = cast(IdxDict, atoms)
