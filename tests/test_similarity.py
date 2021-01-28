@@ -1,14 +1,21 @@
 """Tests for :mod:`FOX.recipes.similarity`."""
 
-from __future__ import annotations
+from __future__ import annotations\
+
+import operator
+from functools import partial
 from typing import Mapping, Any, Type, Sequence, TYPE_CHECKING
 from pathlib import Path
 
 import numpy as np
 import h5py
 import pytest
+from scipy.spatial.distance import cdist
+from nanoutils import SetAttr
+
+import FOX
 from FOX import MultiMolecule, example_xyz
-from FOX.recipes import compare_trajectories
+from FOX.recipes import compare_trajectories, fps_reduce
 
 if TYPE_CHECKING:
     import numpy.typing as npt
@@ -16,6 +23,7 @@ if TYPE_CHECKING:
 MOL1 = MultiMolecule.from_xyz(example_xyz)[:100]
 MOL2 = MOL1 * 1.25
 HDF5_FILE = Path('tests') / 'test_files' / 'test_similarity.hdf5'
+DIST = cdist(MOL1[0], MOL2[0])
 
 with h5py.File(HDF5_FILE, 'r') as f:
     REF: np.ndarray = f['cosine'][:]
@@ -79,3 +87,42 @@ class TestCompareTrajectories:
         """Tests for :func:`~FOX.recipes.compare_trajectories` failures."""
         with pytest.raises(exc_type):
             compare_trajectories(**kwargs)
+
+    @pytest.mark.parametrize(
+        "kwargs",
+        [
+            {"n": 1},
+            {"n": 20},
+            {"n": 20, "operation": "min"},
+            {"n": 20, "cluster_size": 5},
+            {"n": 20, "cluster_size": [1, 1, 1, 1, 2, 2, 4]},
+            {"n": 20, "start": 5},
+            {"n": 20, "weight": partial(operator.__truediv__, 1)},
+        ]
+    )
+    def test_fps(self, kwargs: Mapping[str, Any]) -> None:
+        """Tests for succesful :func:`~FOX.recipes.fps_reduce` calls."""
+        name = f'test_fps-{kwargs}'
+        with h5py.File(HDF5_FILE, 'r+') as f:
+            ref = f[name][:]
+
+        out = fps_reduce(DIST, **kwargs)
+        np.testing.assert_allclose(out, ref, rtol=0, atol=1e-8)
+
+    @pytest.mark.parametrize(
+        "name,value",
+        [
+            ("0d", np.array(1)),
+            ("1d", np.array(1, ndmin=1)),
+            ("3d", np.array(1, ndmin=3)),
+        ]
+    )
+    def test_fps_raises(self, name: str, value: np.ndarray) -> None:
+        """Tests for :func:`~FOX.recipes.fps_reduce` failures."""
+        with pytest.raises(ValueError):
+            fps_reduce(value)
+
+    def test_fps_no_cat(self) -> None:
+        """Tests for :func:`~FOX.recipes.fps_reduce` calls without :mod:`CAT`."""
+        with SetAttr(FOX.recipes.similarity, "CAT_EX", ImportError()), pytest.raises(ImportError):
+            fps_reduce(DIST)

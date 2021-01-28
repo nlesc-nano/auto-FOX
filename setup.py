@@ -27,6 +27,7 @@ tests_require = [
     'pydocstyle',
     'auto-FOX-data@git+https://github.com/nlesc-nano/auto-FOX-data@1.1.6',
     'ase',
+    'CAT@git+https://github.com/nlesc-nano/CAT@master',
 ]
 tests_require += docs_require
 

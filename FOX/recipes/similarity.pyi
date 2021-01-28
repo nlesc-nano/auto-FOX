@@ -1,5 +1,5 @@
 import sys
-from typing import Any, Union, Callable, overload, TypeVar
+from typing import Any, Union, Callable, overload, TypeVar, Iterable
 
 from FOX import MultiMolecule
 import numpy as np
@@ -93,3 +93,14 @@ def compare_trajectories(
     reset_origin: bool = True,
     **kwargs: Any,
 ) -> _NDArray[_SCT2]: ...
+
+def fps_reduce(
+    dist_mat: _NDArray[np.number[Any] | np.bool_ | np.character | np.object_],
+    n: None | int = ...,
+    *,
+    operation: Literal["min", "max"] = ...,
+    cluster_size: int | Iterable[int] = ...,
+    start: None | int = ...,
+    randomness: None | float = ...,
+    weight: Callable[[np.ndarray], np.ndarray] = ...,
+) -> _NDArray[np.intp]: ...
