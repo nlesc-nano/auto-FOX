@@ -117,8 +117,10 @@ API
 
 """
 
+from __future__ import annotations
+
 from os import PathLike
-from typing import Dict, Union, Iterable, Any, Tuple, Iterator, cast, Optional, Mapping
+from typing import Dict, Union, Iterable, Any, Tuple, Iterator, cast, Optional, Mapping, List
 from collections import abc
 
 import h5py
@@ -143,8 +145,13 @@ __all__ = ['get_best', 'overlay_descriptor', 'plot_descriptor']
 PlotAccessor: type = pd.DataFrame.plot  # A class used by Pandas for plotting stuff
 
 
-def get_best(hdf5_file: Union[str, 'PathLike[str]'], name: str,
-             i: int = 0, err_dset: str = 'aux_error') -> pd.DataFrame:
+def get_best(
+    hdf5_file: str | PathLike[str],
+    name: str,
+    i: int = 0,
+    sum_error: None | str | List[str] = None,
+    err_dset: str = 'aux_error'
+) -> pd.DataFrame:
     """Return the PES descriptor or ARMC property which yields the lowest error.
 
     Parameters
@@ -158,6 +165,9 @@ def get_best(hdf5_file: Union[str, 'PathLike[str]'], name: str,
     i : :class:`int`
         The index of the desired PES.
         Only relevant for PES-descriptors of state-averaged ARMCs.
+    sum_error : :class:`str` or :class:`list[str] <list>`, optional
+        Sum all the given aux errors for a given iteration when determining an optimum.
+        If :data:`None`, sum over all aux errors.
     err_dset : :class:`str`
         The name of the dataset containing the errors.
         Generally speaking one should pick either ``"aux_error"`` or ``"validation/aux_error"``.
@@ -183,7 +193,10 @@ def get_best(hdf5_file: Union[str, 'PathLike[str]'], name: str,
         aux_error, prop = hdf5_dict[err_dset], hdf5_dict[full_name]
 
     # Return the best DataFrame (or Series)
-    j: int = aux_error.sum(axis=1, skipna=False).idxmin()
+    if sum_error is None:
+        j: int = aux_error.sum(axis=1, skipna=False).idxmin()
+    else:
+        j = aux_error[sum_error].sum(axis=1, skipna=False).idxmin()
     logger.debug(f"Optimum ARMC cycle: {np.unravel_index(j, shape)}")
 
     df = prop[j] if not isinstance(prop, NDFrame) else prop.iloc[j]
