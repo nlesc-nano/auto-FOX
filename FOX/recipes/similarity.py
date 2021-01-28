@@ -55,20 +55,30 @@ Index
 .. currentmodule:: FOX.recipes
 .. autosummary::
     compare_trajectories
+    fps_reduce
 
 API
 ---
 .. autofunction:: compare_trajectories
+.. autofunction:: fps_reduce
 
 """
 
+from typing import Optional
+from itertools import islice
 from functools import partial
 
-from FOX import MultiMolecule
 import numpy as np
+from FOX import MultiMolecule
 from scipy.spatial.distance import cdist
 
-__all__ = ["compare_trajectories"]
+try:
+    from CAT.distribution import uniform_idx
+    CAT_EX: Optional[ImportError] = None
+except ImportError as ex:
+    CAT_EX = ex
+
+__all__ = ["compare_trajectories", "fps_reduce"]
 
 
 def _parse_md(md, name, dtype=np.float64):
@@ -182,3 +192,57 @@ def compare_trajectories(md, md_ref, *, metric='cosine', reduce=np.mean,
         return np.array([func(a, b, **kwargs) for a, b in zip(md_ar, md_ref_ar)])
     else:
         return np.array([reduce(func(a, b, **kwargs)) for a, b in zip(md_ar, md_ref_ar)])
+
+
+def fps_reduce(dist_mat, n=1, **kwargs):
+    r"""Return the indices that yield a uniform distribution of **n** points.
+
+    Examples
+    --------
+    .. code-block:: python
+
+        >>> from functools import partial
+        >>> import numpy as np
+        >>> from FOX.recipes import compare_trajectories, fps_reduce
+
+        >>> md: np.ndarray = ...
+        >>> md_ref: np.ndarray = ...
+
+        >>> reduce_func = partial(fps_reduce, n=10)
+        >>> out = compare_trajectories(md, md_ref, reduce=reduce_func)
+
+    Note
+    ----
+    This function requires the Compound Attachment Tools package:
+    `CAT <https://github.com/nlesc-nano/CAT>`_.
+
+    Parameters
+    ----------
+    dist_mat : :class:`np.ndarray[np.float64] <numpy.ndarray>`, shape :math:`(m_a, m_b)`
+        A distance matrix.
+    n : :class:`int`, optional
+        The number of to-be returned indices.
+    \**kwargs : :data:`~typing.Any`
+        Further keyword arguments for :func:`CAT.distribution.uniform_idx`.
+
+    Returns
+    -------
+    :class:`np.ndarray[np.int64] <numpy.ndarray>`, shape :math:`(n,)`
+        An array of indices.
+
+    See Also
+    --------
+    :func:`CAT.distribution.uniform_idx`
+        Yield the column-indices that result in a uniform or clustered distribution.
+    :func:`FOX.recipes.compare_trajectories`
+        Compute the similarity between 2 trajectories according to the specified **metric**.
+
+    """
+    if CAT_EX is not None:
+        raise CAT_EX
+    elif np.ndim(dist_mat) != 2:
+        raise ValueError("`dist_mat` expected a 2D array")
+
+    count = -1 if n is None else n
+    iterator = islice(uniform_idx(dist_mat, **kwargs), None, n)
+    return np.fromiter(iterator, dtype=np.intp, count=count)
