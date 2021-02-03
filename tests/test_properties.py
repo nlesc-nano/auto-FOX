@@ -20,9 +20,9 @@ from FOX.properties.pressure import get_pressure as _get_pressure
 # Fix for a precision issue in older numpy versions
 NP_VERSION = tuple(int(i) for i in np.__version__.split('.')[:2])
 if NP_VERSION == (1, 15):
-    RTOL = 1e6
+    RTOL = 1e-6
 else:
-    RTOL = 1e7
+    RTOL = 1e-7
 
 PATH = Path('tests') / 'test_files'
 
