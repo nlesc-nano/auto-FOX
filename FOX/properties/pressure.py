@@ -34,7 +34,7 @@ def get_pressure(
     .. math::
 
         P = \frac{Nk_{B}T}{V} + \frac{1}{6V}
-            \sum_{i} \sum_{{j}\ne{i}} {\boldsymbol{r}_{ij} \cdot \boldsymbol{f}_{ij}}
+            \sum_i^N \sum_j^N {\boldsymbol{r}_{ij} \cdot \boldsymbol{f}_{ij}}
 
     Parameters
     ----------
