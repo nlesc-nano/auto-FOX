@@ -33,7 +33,8 @@ def get_pressure(
 
     .. math::
 
-        P = \frac{Nk_{B}T}{V} + \frac{1}{6V} \sum_{i}\sum_{{j}\ne{i}}{r_{ij} * f_{ij}}
+        P = \frac{Nk_{B}T}{V} + \frac{1}{6V}
+            \sum_i^N \sum_j^N {\boldsymbol{r}_{ij} \cdot \boldsymbol{f}_{ij}}
 
     Parameters
     ----------
@@ -74,8 +75,8 @@ def get_pressure(
     iterator = slice_iter(shape, itemsize=b.dtype.itemsize)
     for slc in iterator:
         f = _f[slc, ..., None, :] + _f[slc, ..., None, :, :]
-        r = xyz[slc, ..., None, :] - xyz[slc, ..., None, :, :]
-        b[slc] = np.linalg.norm((r * f).sum(axis=(-2, -3)), axis=-1)
+        r = abs(xyz[slc, ..., None, :] - xyz[slc, ..., None, :, :])
+        b[slc] = np.einsum("...ijk,...ijk->...ij", r, f).sum(axis=(-1, -2))
 
     b /= 6 * v
     return (a + b) * Units.conversion_ratio('ha/bohr^3', return_unit)
