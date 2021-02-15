@@ -115,6 +115,12 @@ def update_charge(atom: KT, value: float, param: pd.Series, count: pd.Series,
     Performs an inplace update of the *param* column in **df**.
 
     """
+    if net_charge is None:
+        min_value = prm_min.at[atom] if prm_min is not None else -np.inf
+        max_value = prm_max.at[atom] if prm_max is not None else np.inf
+        param.at[atom] = np.clip(value, min_value, max_value)
+        return None
+
     param_backup = param.copy()
     if exclude is None:
         exclude_set = set()
@@ -129,18 +135,18 @@ def update_charge(atom: KT, value: float, param: pd.Series, count: pd.Series,
             return ex
         exclude_set.update(chain.from_iterable(s.index for s in atom_coefs))
 
-    if net_charge is not None:
-        exclude_set.add(atom)
-        param[atom] = value
-        try:
-            unconstrained_update(net_charge, param, count,
-                                 prm_min=prm_min,
-                                 prm_max=prm_max,
-                                 exclude=exclude_set)
-        except ChargeError as ex:
-            param[:] = param_backup
-            return ex
-    return None
+    exclude_set.add(atom)
+    param[atom] = value
+    try:
+        unconstrained_update(net_charge, param, count,
+                             prm_min=prm_min,
+                             prm_max=prm_max,
+                             exclude=exclude_set)
+    except ChargeError as ex:
+        param[:] = param_backup
+        return ex
+    else:
+        return None
 
 
 def constrained_update(atom: KT, value: float, param: pd.Series, count: pd.Series,
