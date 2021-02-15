@@ -215,6 +215,16 @@ def test_armc(name: str) -> None:
         assertion.eq(f1['param'].dtype, f2['param'].dtype)
         assertion.eq(f1['aux_error_mod'].dtype, f2['aux_error_mod'].dtype)
 
+    # Validate that the non-charges are updated independently of each other
+    with h5py.File(hdf5, 'r') as f1:
+        _index = f1['param'].attrs['index'][0] != b"charge"
+        index = np.nonzero(_index)[0]
+        param = f1['param'][..., index]
+        param.shape = (-1,) + param.shape[2:]
+
+        grad = param[1:] - param[:-1]
+        assertion.le(np.count_nonzero(grad, axis=2), 2, post_process=np.all)
+
 
 def test_param_sorting() -> None:
     """Tests for :func:`FOX.armc.sanitization._sort_atoms`"""
