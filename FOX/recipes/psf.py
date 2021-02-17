@@ -96,21 +96,19 @@ import math
 import warnings
 from types import MappingProxyType
 from typing import (Union, Iterable, Optional, Callable, Mapping, Type, Iterator,
-                    Hashable, Any, Tuple, MutableMapping, List)
+                    Hashable, Any, Tuple, MutableMapping, List, cast, Sequence)
 from itertools import chain
 from collections import abc
 
 import numpy as np
-from scm.plams import Molecule, Atom, Bond, MoleculeError, PT
+from scm.plams import Molecule, Atom, Bond, MoleculeError, PT, from_smiles, to_rdmol
+from rdkit.Chem import Mol
 from nanoutils import group_by_values, PathType
 
 from FOX import PSFContainer
 from FOX.io.read_psf import overlay_rtf_file, overlay_str_file
 from FOX.functions.molecule_utils import fix_bond_orders
 from FOX.armc.sanitization import _assign_residues
-
-from rdkit.Chem import Mol
-from scm.plams import from_smiles, to_rdmol
 
 # A somewhat contrived way of loading :exc:`ArgumentError<Boost.Python.ArgumentError>`
 _MOL = Molecule()
@@ -125,9 +123,12 @@ del _MOL
 __all__ = ['generate_psf', 'generate_psf2', 'extract_ligand']
 
 
-def generate_psf(qd: Union[str, Molecule], ligand: Union[str, Molecule],
-                 rtf_file: Optional[PathType] = None,
-                 str_file: Optional[PathType] = None) -> PSFContainer:
+def generate_psf(
+    qd: Union[str, Molecule],
+    ligand: Union[str, None, Molecule] = None,
+    rtf_file: Optional[PathType] = None,
+    str_file: Optional[PathType] = None,
+) -> PSFContainer:
     """Generate a :class:`PSFContainer` instance for **qd**.
 
     Parameters
@@ -136,7 +137,7 @@ def generate_psf(qd: Union[str, Molecule], ligand: Union[str, Molecule],
         The ligand-pacifated quantum dot.
         Should be supplied as either a Molecule or .xyz file.
 
-    ligand : :class:`str` or :class:`Molecule`
+    ligand : :class:`str` or :class:`Molecule`, optional
         A single ligand.
         Should be supplied as either a Molecule or .xyz file.
 
@@ -158,42 +159,53 @@ def generate_psf(qd: Union[str, Molecule], ligand: Union[str, Molecule],
     """
     if not isinstance(qd, Molecule):
         qd = Molecule(qd)
-    if not isinstance(ligand, Molecule):
-        ligand = Molecule(ligand)
+    if not isinstance(ligand, Molecule) and ligand is not None:
+        ligand = cast(Optional[Molecule], Molecule(ligand))
 
-    # Find the start of the ligand
-    atnum = ligand[1].atnum
-    for ligand_start, at in enumerate(qd):
-        if at.atnum == atnum:
-            break
+    if ligand is not None:
+        qd_atnum = {at.atnum for at in qd}
+        lig_atnum = {at.atnum for at in ligand}
+        if not qd_atnum.issuperset(lig_atnum):
+            atom_symbol = ", ".join(PT.get_symbol(i) for i in sorted(lig_atnum - qd_atnum))
+            raise MoleculeError(f'No atoms {atom_symbol} found within {qd.get_formula()}')
+
+        # Find the start of the ligand
+        atnum = ligand[1].atnum
+        for ligand_start, at in enumerate(qd):
+            if at.atnum == atnum:
+                break
+
+        # Create an array with atomic-indice pairs defining bonds
+        ligand.set_atoms_id()
+        bonds = np.array([(b.atom1.id, b.atom2.id) for b in ligand.bonds])
+        bonds += ligand_start
+        ligand.unset_atoms_id()
+
+        # Manually add bonds to the quantum dot
+        ligand_len = len(ligand)
+        qd.delete_all_bonds()
+        while True:
+            try:
+                qd[bonds[0, 0]]
+            except IndexError:
+                break
+            else:
+                for j, k in bonds:
+                    at1, at2 = qd[j], qd[k]
+                    qd.add_bond(at1, at2)
+                bonds += ligand_len
+
+        # Create a nested list with residue indices
+        res_ar = np.arange(ligand_start, len(qd))
+        res_ar.shape = -1, ligand_len
+        res_list: List[Sequence[int]] = res_ar.tolist()
+        res_list.insert(0, range(ligand_start))
     else:
-        raise MoleculeError(f'No atom {ligand[1].symbol} found within {qd.get_formula()}')
-
-    # Create an array with atomic-indice pairs defining bonds
-    ligand.set_atoms_id()
-    bonds = np.array([(b.atom1.id, b.atom2.id) for b in ligand.bonds])
-    bonds += ligand_start
-    ligand.unset_atoms_id()
-
-    # Manually add bonds to the quantum dot
-    ligand_len = len(ligand)
-    qd.delete_all_bonds()
-    while True:
-        try:
-            qd[bonds[0, 0]]
-        except IndexError:
-            break
-        else:
-            for j, k in bonds:
-                at1, at2 = qd[j], qd[k]
-                qd.add_bond(at1, at2)
-            bonds += ligand_len
-
-    # Create a nested list with residue indices
-    res_ar = np.arange(ligand_start, len(qd))
-    res_ar.shape = -1, ligand_len
-    res_list = res_ar.tolist()
-    res_list.insert(0, np.arange(ligand_start))
+        if rtf_file is not None:
+            raise TypeError("`rtf_file` cannot be specified if `ligand=None`")
+        elif str_file is not None:
+            raise TypeError("`str_file` cannot be specified if `ligand=None`")
+        res_list = [range(len(qd))]
     _assign_residues(qd, res_list)
 
     # Create the .psf file
