@@ -439,6 +439,9 @@ class PSFContainer(AbstractDataClass, AbstractFileContainer):
             array = np.array(_value, dtype=dtype, ndmin=ndmin, copy=False)
         except TypeError:  # **value** is an iterator
             array = np.fromiter(_value, dtype=dtype)
+        if ndmin == 2:
+            cls = type(self)
+            array.shape = (-1, cls._SHAPE_DICT[name.strip("_")]["shape"])
 
         try:
             setattr(self, name, array)

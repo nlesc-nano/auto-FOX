@@ -1,18 +1,25 @@
 """Tests for :mod:`FOX.recipes.psf`."""
 
 import warnings
-from os.path import join
+from pathlib import Path
+from typing import Optional, Mapping, Any, Type
 
+import pytest
 import numpy as np
-
-from scm.plams import Molecule, MoleculeError
+from scm.plams import Molecule, MoleculeError, Atom
 from assertionlib import assertion
 
+from FOX import PSFContainer
 from FOX.recipes import generate_psf, generate_psf2, extract_ligand
 
-PATH: str = join('tests', 'test_files')
-STR_FILE: str = join(PATH, 'ligand.str')
-QD: Molecule = Molecule(join(PATH, 'Cd68Se55_26COO_MD_trajec.xyz'))
+PATH = Path('tests') / 'test_files'
+STR_FILE = PATH / 'ligand.str'
+
+QD: Molecule = Molecule(PATH / 'Cd68Se55_26COO_MD_trajec.xyz')
+LIGAND = extract_ligand(QD, 4, {'C', 'H', 'O'})
+
+LIGAND2 = LIGAND.copy()
+LIGAND2.add_atom(Atom(symbol="Na"))
 
 
 def test_extract_ligand() -> None:
@@ -33,21 +40,39 @@ def test_extract_ligand() -> None:
     assertion.assert_(extract_ligand, qd, 4, 'bob', exception=MoleculeError)
 
 
-def test_generate_psf() -> None:
+class TestGeneratePSF:
     """Tests for :func:`extract_ligand`."""
-    qd = QD.copy()
-    ligand = extract_ligand(qd, 4, {'C', 'H', 'O'})
-    psf = generate_psf(qd, ligand, str_file=STR_FILE)
-    ref = np.load(join(PATH, 'generate_psf_bonds.npy'))
 
-    np.testing.assert_array_equal(psf.bonds, ref)
+    @pytest.mark.parametrize("lig", ["formate", None])
+    def test_passes(self, lig: Optional[str]) -> None:
+        qd = QD.copy()
+        ref_name = "generate_psf.psf" if lig is None else f"generate_psf_{lig}.psf"
+        ref = PSFContainer.read(PATH / ref_name)
+
+        if lig is None:
+            psf = generate_psf(qd)
+        else:
+            psf = generate_psf(qd, LIGAND, str_file=STR_FILE)
+        assertion.eq(psf, ref)
+
+    @pytest.mark.parametrize(
+        "kwargs,exc",
+        [
+            ({"qd": QD, "rtf_file": "test"}, TypeError),
+            ({"qd": QD, "str_file": "test"}, TypeError),
+            ({"qd": QD, "ligand": LIGAND2}, MoleculeError),
+        ],
+    )
+    def test_raises(self, kwargs: Mapping[str, Any], exc: Type[Exception]) -> None:
+        with pytest.raises(exc):
+            generate_psf(**kwargs)
 
 
 def test_generate_psf2() -> None:
     """Tests for :func:`extract_ligand`."""
     qd = QD.copy()
     psf = generate_psf2(qd, 'C(=O)[O-]')
-    ref = np.load(join(PATH, 'generate_psf_bonds2.npy'))
+    ref = np.load(PATH / 'generate_psf_bonds2.npy')
 
     np.testing.assert_array_equal(psf.bonds, ref)
 

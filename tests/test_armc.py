@@ -220,10 +220,10 @@ def test_armc(name: str) -> None:
         _index = f1['param'].attrs['index'][0] != b"charge"
         index = np.nonzero(_index)[0]
         param = f1['param'][..., index]
-        param.shape = (-1,) + param.shape[2:]
 
-        grad = param[1:] - param[:-1]
-        assertion.le(np.count_nonzero(grad, axis=2), 2, post_process=np.all)
+        grad = param[:, 1:] - param[:, :-1]
+        grad[grad < 1e-8] = 0
+        assertion.le(np.count_nonzero(grad, axis=-1), 2, post_process=np.all)
 
 
 def test_param_sorting() -> None:
