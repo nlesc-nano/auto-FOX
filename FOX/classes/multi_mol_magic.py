@@ -50,7 +50,7 @@ if TYPE_CHECKING:
         Iterable[Tuple[str, _ArLikeInt]],
     ]
 
-    AliasDict = Dict[str, AliasTuple]
+    AliasDict = MappingProxyType[str, AliasTuple]
     AliasMapping = Mapping[str, Tuple[str, Union[slice, ellipsis, _ArLikeInt]]]  # noqa: F821
 
 __all__: List[str] = ["_MultiMolecule"]
@@ -72,7 +72,11 @@ _NONE_DICT: Mapping[str, Union[str, int, float]] = MappingProxyType({
 
 
 def _to_int_array(ar: _ArLikeInt) -> np.ndarray[Any, np.dtype[np.intp]]:
-    ret = np.array(ar, ndmin=1, copy=False).astype(np.intp, copy=False, casting="same_kind")
+    _ret = np.array(ar, ndmin=1, copy=False)
+    if _ret.dtype == bool:
+        raise TypeError("Expected an integer array")
+
+    ret = _ret.astype(np.intp, copy=False, casting="same_kind")
     if ret.ndim != 1:
         raise ValueError("Expected a <= 1D array")
     if ret.base is not None:
@@ -274,22 +278,26 @@ class _MultiMolecule(np.ndarray):
 
     @property
     def atoms_alias(self) -> AliasDict:
-        return self._atoms_alias
+        return MappingProxyType(self._atoms_alias)
 
     @atoms_alias.setter
     def atoms_alias(self, value: None | AliasMapping) -> None:
-        self._atoms_alias: AliasDict = {}
         if value is None:
+            self._atoms_alias = {}
             return None
 
+        dct = {}
         for k, (alias, slc) in value.items():
             if alias not in self.atoms:
                 raise KeyError(alias)
+            elif k in self.atoms:
+                raise KeyError(k)
             elif isinstance(slc, slice) or slc is Ellipsis:
-                self._atoms_alias[k] = AliasTuple(alias, slc)
+                dct[k] = AliasTuple(alias, slc)
             else:
-                self._atoms_alias[k] = AliasTuple(alias, _to_int_array(slc))
-            _ = self.atoms[alias][self._atoms_alias[k][1]]
+                dct[k] = AliasTuple(alias, _to_int_array(slc))
+            _ = self.atoms[alias][dct[k][1]]
+        self._atoms_alias = dct
         return None
 
     @property

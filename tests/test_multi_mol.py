@@ -1,8 +1,8 @@
 """A module for testing the :class:`FOX.classes.multi_mol.MultiMolecule` class."""
 
-from os import remove
 from os.path import join
-from typing import Mapping, Any
+from pathlib import Path
+from typing import Mapping, Any, Type, Set
 
 import pytest
 import yaml
@@ -16,7 +16,10 @@ from FOX import MultiMolecule, example_xyz
 MOL = MultiMolecule.from_xyz(example_xyz)
 MOL.guess_bonds(['C', 'H', 'O'])
 
-PATH = join('tests', 'test_files')
+MOL_ALIAS = MOL.copy()
+MOL_ALIAS.atoms_alias = {"Cd2": ("Cd", np.s_[:10])}
+
+PATH = Path('tests') / 'test_files'
 
 
 @delete_finally(join(PATH, '.tmp.xyz'))
@@ -29,17 +32,32 @@ def test_mol_to_file():
     np.testing.assert_allclose(MOL[0][None], mol, atol=1e-6)
 
 
-def test_delete_atoms():
+class TestDeleteAtoms:
     """Test :meth:`.MultiMolecule.delete_atoms`."""
-    mol = MOL.copy()
 
-    atoms = {'H', 'C', 'O'}
-    mol_new = mol.delete_atoms(atom_subset=atoms)
-    ref = np.load(join(PATH, 'delete_atoms.npy'))
+    @pytest.mark.parametrize(
+        "name,mol,atoms",
+        [
+            ("delete_atoms", MOL, {'H', 'C', 'O'}),
+            ("delete_atoms_alias", MOL_ALIAS, {'Cd2'}),
+            ("delete_atoms_alias2", MOL_ALIAS, {'Cd'}),
+        ]
+    )
+    def test_passes(self, name: str, mol: MultiMolecule, atoms: Set[str]) -> None:
+        mol_new = mol.delete_atoms(atom_subset=atoms)
+        ref = np.load(PATH / f'{name}.npy')
 
-    assertion.eq(mol_new.shape, (4905, 123, 3))
-    assertion.isdisjoint(mol_new.symbol, atoms)
-    np.testing.assert_array_equal(mol_new.symbol, ref)
+        assertion.isdisjoint(mol_new.symbol, atoms)
+        assertion.isdisjoint(mol_new.atoms_alias, atoms)
+        np.testing.assert_array_equal(mol_new.symbol, ref)
+
+        for k1, (k2, _) in mol.atoms_alias.items():
+            if k2 in atoms:
+                assertion.contains(mol_new.atoms_alias, k1, invert=True)
+
+    def test_raises(self) -> None:
+        with pytest.raises(TypeError):
+            MOL.delete_atoms(atom_subset=None)
 
 
 def test_guess_bonds():
@@ -291,6 +309,7 @@ def test_from_molecule():
     np.testing.assert_allclose(mol_new, mol)
 
 
+@delete_finally(join(PATH, 'mol.xyz'))
 def test_as_xyz():
     """Test :meth:`.MultiMolecule.as_xyz`."""
     mol = MOL.copy()
@@ -298,7 +317,6 @@ def test_as_xyz():
     xyz = join(PATH, 'mol.xyz')
     mol.as_xyz(filename=xyz)
     mol_new = MultiMolecule.from_xyz(xyz)
-    remove(xyz)
     np.testing.assert_allclose(mol_new, mol)
 
 
@@ -342,6 +360,7 @@ def test_loc():
 
     assertion.eq(loc1, loc2)
     assertion.eq(hash(loc1), hash(loc2))
+    assertion.ne(loc1, None)
     assertion.assert_(loc1.__reduce__, exception=TypeError)
 
     assertion.shape_eq(mol.loc['Cd'], (4905, 68, 3))
@@ -352,6 +371,36 @@ def test_loc():
     np.testing.assert_array_equal(mol.loc['Cd'], 1)
 
     assertion.assert_(mol.loc.__delitem__, 'Cd', exception=ValueError)
+
+    mol._atoms["Xx"] = np.array([], dtype=np.intp)
+    assertion.shape_eq(mol.loc["Xx"], (4905, 0, 3))
+
+
+class TestAtoms:
+    @pytest.mark.parametrize(
+        "name,exc,dct",
+        [
+            ("atoms", TypeError, {"Cd": [1.0]}),
+            ("atoms", ValueError, {"Cd": [[1]]}),
+            ("atoms", TypeError, {"Cd": None}),
+            ("atoms", TypeError, {"Cd": [True]}),
+            ("atoms", ValueError, {"Cd": [1], "Se": [1]}),
+            ("atoms_alias", TypeError, {"Cd2": ("Cd", [1.0])}),
+            ("atoms_alias", ValueError, {"Cd2": ("Cd", [[1]])}),
+            ("atoms_alias", IndexError, {"Cd2": ("Cd", range(200))}),
+            ("atoms_alias", TypeError, {"Cd2": ("Cd", None)}),
+            ("atoms_alias", TypeError, {"Cd2": ("Cd", [True])}),
+            ("atoms_alias", KeyError, {"Cd2": ("Bob", [1])}),
+            ("atoms_alias", KeyError, {"Cd": ("Cd2", [1])}),
+        ]
+    )
+    def test_raises(self, name: str, exc: Type[Exception], dct: Mapping[str, Any]) -> None:
+        mol = MOL.copy()
+        with pytest.raises(exc):
+            if name == "atoms":
+                mol.atoms = dct
+            else:
+                mol.atoms_alias = dct
 
 
 @pytest.mark.parametrize(
