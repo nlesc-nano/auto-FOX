@@ -14,7 +14,7 @@ API
 
 from __future__ import annotations
 
-from typing import Iterable, List, Optional, MutableMapping, TYPE_CHECKING
+from typing import Iterable, List, Optional, TYPE_CHECKING, Mapping, Tuple, Any, Dict, Iterator
 
 if TYPE_CHECKING:
     from .armc import ARMC
@@ -25,7 +25,8 @@ else:
 
 __all__ = ['AtomsFromPSF']
 
-AtomMapping = MutableMapping[str, List[int]]
+AtomMapping = Mapping[str, Tuple[str, Any]]
+AtomDict = Dict[str, Tuple[str, List[int]]]
 
 
 class AtomsFromPSF:
@@ -55,11 +56,20 @@ class AtomsFromPSF:
     @classmethod
     def from_psf(cls, *psf: PSFContainer) -> AtomsFromPSF:
         """Construct a :class:`AtomsFromPsf` instance from one or more :class:`PSFContainer`."""
-        try:
-            return cls(*[i.to_atom_dict() for i in psf])
-        except AttributeError as ex:
-            raise TypeError("'psf' expected one or more PSFContainers; "
-                            f"{ex}").with_traceback(ex.__traceback__)
+        lst = []
+        for p in psf:
+            iterator: Iterator[Tuple[str, str]] = (
+                (i, j) for i, j in p.atoms[['atom type', 'atom name']].values if i != j
+            )
+
+            dct: Dict[Tuple[str, str], int] = {}
+            for i, j in iterator:
+                try:
+                    dct[i, j] += 1
+                except KeyError:
+                    dct[i, j] = 0
+            lst.append({i: (j, range(v)) for (i, j), v in dct.items()})
+        return cls(*lst)
 
     def __init__(self, *atom_dict: AtomMapping) -> None:
         """Initialize the :class:`AtomsFromPsf` instance."""
@@ -71,4 +81,4 @@ class AtomsFromPSF:
         if mol_list is None:
             return
         for atom_dict, mol in zip(self.atom_dict, mol_list):
-            mol.atoms.update(atom_dict)
+            mol.atoms_alias = atom_dict
