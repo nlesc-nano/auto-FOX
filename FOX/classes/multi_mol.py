@@ -1987,7 +1987,7 @@ class MultiMolecule(_MultiMolecule):
 
         """
         # Define constants and variables
-        m_subset = self[self._get_mol_subset(mol_subset)]
+        m_subset = self[self._get_mol_subset(mol_subset)].astype(str)
         at = self.symbol[:, None]
         header = '{:d}\n'.format(len(at))
         kwargs = {
