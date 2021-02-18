@@ -124,7 +124,7 @@ class _MolLoc(Generic[MT]):
     ----------
     mol : :class:`FOX.MultiMolecule`
         A MultiMolecule instance.
-    atoms : :class:`~collections.abc.Mapping`
+    atoms_view : :class:`~collections.abc.Mapping`
         A read-only view of :attr:`_MolLoc.mol.atoms<FOX.MultiMolecule.atoms>`.
 
     """
