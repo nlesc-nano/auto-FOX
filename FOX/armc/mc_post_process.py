@@ -14,7 +14,7 @@ API
 
 from __future__ import annotations
 
-from typing import Iterable, List, Optional, TYPE_CHECKING, Mapping, Tuple, Any, Dict, Iterator
+from typing import Iterable, List, Optional, TYPE_CHECKING, Mapping, Tuple, Any, Dict
 
 if TYPE_CHECKING:
     from .armc import ARMC
@@ -56,20 +56,7 @@ class AtomsFromPSF:
     @classmethod
     def from_psf(cls, *psf: PSFContainer) -> AtomsFromPSF:
         """Construct a :class:`AtomsFromPsf` instance from one or more :class:`PSFContainer`."""
-        lst = []
-        for p in psf:
-            iterator: Iterator[Tuple[str, str]] = (
-                (i, j) for i, j in p.atoms[['atom type', 'atom name']].values if i != j
-            )
-
-            dct: Dict[Tuple[str, str], int] = {}
-            for i, j in iterator:
-                try:
-                    dct[i, j] += 1
-                except KeyError:
-                    dct[i, j] = 0
-            lst.append({i: (j, range(v)) for (i, j), v in dct.items()})
-        return cls(*lst)
+        return cls(*[p.to_atom_alias_dict() for p in psf])
 
     def __init__(self, *atom_dict: AtomMapping) -> None:
         """Initialize the :class:`AtomsFromPsf` instance."""

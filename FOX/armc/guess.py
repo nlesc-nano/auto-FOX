@@ -139,10 +139,13 @@ def guess_param(mol_list: Iterable[MultiMolecule], param: Param,
     # Construct a set with all valid atoms types
     mol_list = [mol.copy() for mol in mol_list]
     if psf_list is not None:
+        atoms: Set[str] = set()
         for mol, p in zip(mol_list, psf_list):
             psf: PSFContainer = PSFContainer.read(p) if not isinstance(p, PSFContainer) else p
-            mol.atoms = psf.to_atom_dict()
-    atoms: Set[str] = set(chain.from_iterable(mol.atoms.keys() for mol in mol_list))
+            mol.atoms_alias = psf.to_atom_alias_dict()
+            atoms |= set(psf.atom_type)
+    else:
+        atoms = set(chain.from_iterable(mol.atoms.keys() for mol in mol_list))
 
     # Construct a DataFrame and update it with all available parameters
     df = LJDataFrame(np.nan, index=atoms)
@@ -188,7 +191,7 @@ def _validate_arg(value: str, name: str, ref: Container[str]) -> str:
 
 def _guess_param(series: pd.Series, mode: Mode,
                  mol_list: Iterable[MultiMolecule],
-                 prm_dict: Mapping[str, float],
+                 prm_dict: MutableMapping[str, float],
                  unit: Optional[str] = None) -> pd.Series:
     """Perform the parameter guessing as specified by **mode**.
 
@@ -201,46 +204,81 @@ def _guess_param(series: pd.Series, mode: Mode,
     if mode == 'rdf':
         rdf(series, mol_list)
     elif mode == 'uff':
-        uff(series, prm_dict)
+        uff(series, prm_dict, mol_list)
     elif mode in ION_SET:
-        ion_radius(series, prm_dict)
+        ion_radius(series, prm_dict, mol_list)
     elif mode in CRYSTAL_SET:
-        crystal_radius(series, prm_dict)
+        crystal_radius(series, prm_dict, mol_list)
     return series
 
 
-def uff(series: pd.Series, prm_mapping: Mapping[str, float]) -> None:
+def uff(
+    series: pd.Series,
+    prm_mapping: MutableMapping[str, float],
+    mol_list: Iterable[MultiMolecule],
+) -> None:
     """Guess parameters in **df** using UFF parameters."""
     uff_loc = UFF_DF[series.name].loc
+    iterator = ((at1, at2) for mol in mol_list for at1, (at2, _) in mol.atoms_alias.items())
+    for at1, at2 in iterator:
+        if at1 not in prm_mapping:
+            try:
+                prm_mapping[at1] = uff_loc[at2]
+            except KeyError:
+                pass
     _set_radii(series, prm_mapping, uff_loc)
 
 
-def ion_radius(series: pd.Series, prm_mapping: Mapping[str, float]) -> None:
+def ion_radius(
+    series: pd.Series,
+    prm_mapping: MutableMapping[str, float],
+    mol_list: Iterable[MultiMolecule],
+) -> None:
     """Guess parameters in **df** using ionic radii."""
     if series.name == 'epsilon':
         raise NotImplementedError("'epsilon' guessing is not supported "
                                   "with `guess='ion_radius'`")
 
     ion_loc = SIGMA_DF['ionic_sigma'].loc
+    iterator = ((at1, at2) for mol in mol_list for at1, (at2, _) in mol.atoms_alias.items())
+    for at1, at2 in iterator:
+        if at1 not in prm_mapping:
+            try:
+                prm_mapping[at1] = ion_loc[at2]
+            except KeyError:
+                pass
     _set_radii(series, prm_mapping, ion_loc)
 
 
-def crystal_radius(series: pd.Series, prm_mapping: Mapping[str, float]) -> None:
+def crystal_radius(
+    series: pd.Series,
+    prm_mapping: MutableMapping[str, float],
+    mol_list: Iterable[MultiMolecule],
+) -> None:
     """Guess parameters in **df** using crystal radii."""
     if series.name == 'epsilon':
         raise NotImplementedError("'epsilon' guessing is not supported "
                                   "with `guess='crystal_radius'`")
 
     ion_loc = SIGMA_DF['crystal_sigma'].loc
+    iterator = ((at1, at2) for mol in mol_list for at1, (at2, _) in mol.atoms_alias.items())
+    for at1, at2 in iterator:
+        if at1 not in prm_mapping:
+            try:
+                prm_mapping[at1] = ion_loc[at2]
+            except KeyError:
+                pass
     _set_radii(series, prm_mapping, ion_loc)
 
 
 def rdf(series: pd.Series, mol_list: Iterable[MultiMolecule]) -> None:
     """Guess parameters in **df** using the Boltzmann-inverted radial distribution function."""
-    nonzero = series[~series.isnull()].index
+    is_null = series.isnull()
+    nonzero = series[~is_null].index
+    atom_subset = set(chain.from_iterable(series[is_null].index))
 
     # Construct the RDF and guess the parameters
-    rdf_gen = (mol.init_rdf() for mol in mol_list)
+    rdf_gen = (mol.init_rdf(atom_subset=atom_subset) for mol in mol_list)
     for rdf in rdf_gen:
         guess = estimate_lj(rdf)
         guess.index = pd.MultiIndex.from_tuples(sorted(i.split()) for i in guess.index)

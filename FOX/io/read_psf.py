@@ -14,6 +14,8 @@ API
 
 """
 
+from __future__ import annotations
+
 import sys
 import reprlib
 import inspect
@@ -884,6 +886,20 @@ class PSFContainer(AbstractDataClass, AbstractFileContainer):
 
         """
         return group_by_values(enumerate(self.atom_type))
+
+    def to_atom_alias_dict(self) -> Dict[str, Tuple[str, np.ndarray[Any, np.dtype[np.intp]]]]:
+        """Create a with atom aliases."""
+        iterator: Iterator[Tuple[str, str]] = (
+            (i, j) for i, j in self.atoms[['atom type', 'atom name']].values if i != j
+        )
+
+        dct: Dict[Tuple[str, str], int] = {}
+        for i, j in iterator:
+            try:
+                dct[i, j] += 1
+            except KeyError:
+                dct[i, j] = 1
+        return {i: (j, np.arange(v, dtype=np.intp)) for (i, j), v in dct.items()}
 
     @raise_if(RDKIT_EX)
     def write_pdb(self, mol: Molecule,
