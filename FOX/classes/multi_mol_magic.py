@@ -22,8 +22,8 @@ import itertools
 import warnings
 from types import MappingProxyType
 from typing import (
-    Dict, Optional, List, Any, Callable, Union, Mapping, Iterable,
-    NoReturn, TypeVar, Type, Generic, cast, TYPE_CHECKING,
+    Dict, Optional, List, Any, Callable, Union, Mapping, Iterable, Tuple,
+    NoReturn, TypeVar, Type, Generic, cast, TYPE_CHECKING, Sequence, NamedTuple
 )
 
 import numpy as np
@@ -32,16 +32,31 @@ from scm.plams import PeriodicTable, PTError, Settings  # type: ignore
 from assertionlib.ndrepr import NDRepr
 from nanoutils import ArrayLike, Literal
 
+
+class AliasTuple(NamedTuple):
+    """A 2-tuple used for :attr:`FOX.MultiMolecule.atoms` values."""
+
+    alias: str
+    slice: Union[slice, ellipsis, np.ndarray[Any, np.dtype[np.intp]]]  # noqa: F821
+
+
 if TYPE_CHECKING:
     import numpy.typing as npt
+
+    _ArLikeInt = Union[int, Sequence[int], npt._SupportsArray[np.dtype[np.integer[Any]]]]
+    IdxDict = MappingProxyType[str, np.ndarray[Any, np.dtype[np.intp]]]
+    IdxMapping = Union[
+        Mapping[str, _ArLikeInt],
+        Iterable[Tuple[str, _ArLikeInt]],
+    ]
+
+    AliasDict = MappingProxyType[str, AliasTuple]
+    AliasMapping = Mapping[str, Tuple[str, Union[slice, ellipsis, _ArLikeInt]]]  # noqa: F821
 
 __all__: List[str] = ["_MultiMolecule"]
 
 T = TypeVar('T')
 MT = TypeVar('MT', bound='_MultiMolecule')
-
-IdxDict = Dict[str, List[int]]
-IdxMapping = Mapping[str, List[int]]
 
 _PROP_MAPPING: Mapping[str, Callable[[str], Union[int, float, str]]] = MappingProxyType({
     'symbol': lambda x: x,
@@ -56,6 +71,19 @@ _NONE_DICT: Mapping[str, Union[str, int, float]] = MappingProxyType({
 })
 
 
+def _to_int_array(ar: _ArLikeInt) -> np.ndarray[Any, np.dtype[np.intp]]:
+    _ret = np.array(ar, ndmin=1, copy=False)
+    if _ret.dtype == bool:
+        raise TypeError("Expected an integer array")
+
+    ret = _ret.astype(np.intp, copy=False, casting="same_kind")
+    if ret.ndim != 1:
+        raise ValueError("Expected a <= 1D array")
+    if ret.base is not None:
+        return ret.copy()
+    return ret
+
+
 class _MolLoc(Generic[MT]):
     """A getter and setter for atom-type-based slicing.
 
@@ -68,14 +96,18 @@ class _MolLoc(Generic[MT]):
     .. code:: python
 
         >>> mol = MultiMolecule(...)
-        >>> mol.atoms['Cd'] = [0, 1, 2, 3, 4, 5]
-        >>> mol.atoms['Se'] = [6, 7, 8, 9, 10, 11]
-        >>> mol.atoms['O'] = [12, 13, 14]
+        >>> mol.atoms = {
+        ...     'Cd': [0, 1, 2, 3, 4, 5],
+        ...     'Se': [6, 7, 8, 9, 10, 11],
+        ...     'O': [12, 13, 14],
+        ... }
 
         >>> (mol.loc['Cd'] == mol[mol.atoms['Cd']]).all()
         True
 
-        >>> idx = mol.atoms['Cd'] + mol.atoms['Se'] + mol.atoms['O']
+        >>> idx = []
+        >>> for atom in ["Cd", "Se", "O"]:
+        ...     idx += mol.atoms[atom].tolist()
         >>> (mol.loc['Cd', 'Se', 'O'] == mol[idx]).all()
         True
 
@@ -101,19 +133,15 @@ class _MolLoc(Generic[MT]):
 
     """
 
-    __slots__ = ('_mol', '_atoms')
+    __slots__ = ('_mol',)
 
     @property
     def mol(self) -> MT:
         return self._mol
 
     @property
-    def atoms_view(self) -> IdxMapping:
-        try:
-            return self._atoms
-        except AttributeError:
-            self._atoms: IdxMapping = MappingProxyType(self.mol.atoms)
-            return self._atoms
+    def atoms(self) -> IdxDict:
+        return self.mol.atoms
 
     def __init__(self, mol: MT) -> None:
         self._mol = mol
@@ -124,23 +152,24 @@ class _MolLoc(Generic[MT]):
         name = obj.__class__.__name__
         return TypeError(f"{cls_name}.loc() expected one or more strings; observed type: {name!r}")
 
-    def __getitem__(self, key: Union[str, Iterable[str]]) -> MT:
+    def __getitem__(self, key: Union[str, Tuple[str, ...]]) -> MT:
         """Get items from :attr:`_MolLoc.mol`."""
         idx = self._parse_key(key)
         return self.mol[..., idx, :]
 
-    def __setitem__(self, key: Union[str, Iterable[str]], value: ArrayLike) -> None:
+    def __setitem__(self, key: Union[str, Tuple[str, ...]], value: ArrayLike) -> None:
         """Set items in :attr:`_MolLoc.mol`."""
         idx = self._parse_key(key)
         self.mol[..., idx, :] = value
 
-    def __delitem__(self, key: Union[str, Iterable[str]]) -> NoReturn:
+    def __delitem__(self, key: Union[str, Tuple[str, ...]]) -> NoReturn:
         """Delete items from :attr:`_MolLoc.mol`; this raises a :exc:`ValueError`."""
+        # This will raise a ValueError
         idx = self._parse_key(key)
-        del self.mol[..., idx, :]  # This will raise a ValueError
+        del self.mol[..., idx, :]  # type: ignore[attr-defined]
         raise
 
-    def _parse_key(self, key: Union[str, Iterable[str]]) -> np.ndarray:
+    def _parse_key(self, key: Union[str, Sequence[str]]) -> np.ndarray[Any, np.dtype[np.intp]]:
         """Return the atomic indices of **key** are all atoms in **key**.
 
         Parameter
@@ -155,7 +184,7 @@ class _MolLoc(Generic[MT]):
 
         """
         if isinstance(key, str):
-            return self.atoms_view[key]
+            return self.atoms[key].copy()
 
         try:
             key_iterator = iter(key)
@@ -163,11 +192,11 @@ class _MolLoc(Generic[MT]):
             raise self._type_error(key) from ex
 
         # Gather all indices and flatten them
-        idx: List[int] = []
-        atoms = self.atoms_view
-        for k in key_iterator:
-            idx += atoms[k]
-        return idx
+        lst = [self.mol._atoms_get(k) for k in key_iterator]
+        if len(lst):
+            return np.concatenate(lst).astype(np.intp, copy=False)
+        else:
+            return np.array([], dtype=np.intp)
 
     def __reduce__(self) -> NoReturn:
         raise TypeError(f'cannot pickle {self.__class__.__name__!r} object')
@@ -176,12 +205,11 @@ class _MolLoc(Generic[MT]):
         """Implement :code:`hash(self)`."""
         return id(self.mol)
 
-    def __eq__(self, value: Any) -> bool:
+    def __eq__(self, value: object) -> bool:
         """Implement :code:`self == value`."""
-        try:
-            return type(self) is type(value) and self.mol is value.mol
-        except AttributeError:
-            return False
+        if type(self) is not type(value):
+            return NotImplemented
+        return self.mol is value.mol
 
 
 class _MultiMolecule(np.ndarray):
@@ -191,17 +219,23 @@ class _MultiMolecule(np.ndarray):
 
     """
 
-    def __new__(cls: Type[MT], coords: npt.ArrayLike,
-                atoms: Optional[IdxDict] = None,
-                bonds: Optional[np.ndarray] = None,
-                properties: Optional[Mapping] = None) -> MT:
+    def __new__(
+        cls: Type[MT],
+        coords: npt.ArrayLike,
+        atoms: Optional[IdxMapping] = None,
+        bonds: Optional[np.ndarray] = None,
+        properties: Optional[Mapping] = None,
+        *,
+        atoms_alias: Optional[Mapping[str, slice]] = None
+    ) -> MT:
         """Create and return a new object."""
         obj = np.array(coords, dtype=np.float64, ndmin=3, copy=False).view(cls)
 
         # Set attributes
-        obj.atoms = cast(IdxDict, atoms)
+        obj.atoms = cast("IdxDict", atoms)
         obj.bonds = cast(np.ndarray, bonds)
-        obj.properties = cast(Settings, properties)
+        obj.properties = cast("Settings", properties)
+        obj.atoms_alias = cast("AliasDict", atoms_alias)
         obj._ndrepr = NDRepr()
         return obj
 
@@ -213,6 +247,7 @@ class _MultiMolecule(np.ndarray):
         self.atoms = getattr(obj, 'atoms', None)
         self.bonds = getattr(obj, 'bonds', None)
         self.properties = getattr(obj, 'properties', None)
+        self.atoms_alias = getattr(obj, 'atoms_alias', None)
         self._ndrepr = getattr(obj, '_ndrepr', None)
 
     """#####################  Properties for managing instance attributes  ######################"""
@@ -224,11 +259,46 @@ class _MultiMolecule(np.ndarray):
 
     @property
     def atoms(self) -> IdxDict:
-        return self._atoms
+        return MappingProxyType(self._atoms)
 
     @atoms.setter
-    def atoms(self, value: Optional[Mapping[str, List[int]]]) -> None:
-        self._atoms = {} if value is None else dict(value)
+    def atoms(self, value: None | IdxMapping) -> None:
+        if value is None:
+            self._atoms: Dict[str, np.ndarray[Any, np.dtype[np.intp]]] = {}
+            return None
+
+        dct = {k: _to_int_array(v) for k, v in dict(value).items()}
+        if len(dct):
+            ar_tot = np.concatenate(list(dct.values()))
+            if len(ar_tot) != len(np.unique(ar_tot)):
+                raise ValueError("Expected non-interseting arrays")
+
+        self._atoms = dct
+        return None
+
+    @property
+    def atoms_alias(self) -> AliasDict:
+        return MappingProxyType(self._atoms_alias)
+
+    @atoms_alias.setter
+    def atoms_alias(self, value: None | AliasMapping) -> None:
+        if value is None:
+            self._atoms_alias = {}
+            return None
+
+        dct = {}
+        for k, (alias, slc) in value.items():
+            if alias not in self.atoms:
+                raise KeyError(alias)
+            elif k in self.atoms:
+                raise KeyError(k)
+            elif isinstance(slc, slice) or slc is Ellipsis:
+                dct[k] = AliasTuple(alias, slc)
+            else:
+                dct[k] = AliasTuple(alias, _to_int_array(slc))
+            _ = self.atoms[alias][dct[k][1]]
+        self._atoms_alias = dct
+        return None
 
     @property
     def bonds(self) -> np.ndarray:
@@ -237,13 +307,13 @@ class _MultiMolecule(np.ndarray):
     @bonds.setter
     def bonds(self, value: Optional[np.ndarray]) -> None:
         if value is None:
-            bonds = np.zeros((0, 3), dtype=int)
+            bonds = np.zeros((0, 3), dtype=np.intp)
         else:
-            bonds = np.array(value, dtype=int, ndmin=2, copy=False)
+            bonds = np.array(value, dtype=np.intp, ndmin=2, copy=False)
 
         # Set bond orders to 1 (i.e. 10 / 10) if the order is not specified
         if bonds.shape[1] == 2:
-            order = np.full(len(bonds), fill_value=10, dtype=int)[..., None]
+            order = np.full(len(bonds), fill_value=10, dtype=np.intp)[..., None]
             self._bonds = np.hstack([bonds, order])
         else:
             self._bonds = bonds
@@ -384,6 +454,13 @@ class _MultiMolecule(np.ndarray):
         return np.array([prop for _, prop in sorted(zip(idx_gen, prop_list))])
 
     """##################################  Magic methods  #################################### """
+
+    def _atoms_get(self, key: str) -> np.ndarray[Any, np.dtype[np.intp]]:
+        if key in self.atoms:
+            return self.atoms[key]
+        else:
+            k, slc = self.atoms_alias[key]
+            return self.atoms[k][slc]
 
     def copy(self: MT, order: str = 'C', *, deep: bool = True) -> MT:
         """Create a copy of this instance.

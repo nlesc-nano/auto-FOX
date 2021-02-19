@@ -39,7 +39,7 @@ from scm.plams import Molecule, Atom, Bond, PeriodicTable
 from nanoutils import group_by_values, Literal
 
 from ..utils import slice_iter
-from .multi_mol_magic import _MultiMolecule
+from .multi_mol_magic import _MultiMolecule, AliasTuple
 from ..io.read_kf import read_kf
 from ..io.read_xyz import read_multi_xyz
 from ..functions.rdf import get_rdf, get_rdf_df
@@ -172,23 +172,23 @@ class MultiMolecule(_MultiMolecule):
         ret.__dict__ = copy.deepcopy(self.__dict__)
 
         # Update :attr:`.MultiMolecule.atoms`
-        idx_all = np.fromiter(chain.from_iterable(lst for lst in self.atoms.values()), np.int64)
-        unique, counts = np.unique(idx_all, return_counts=True)
+        symbols = self.symbol[bool_ar]
+        ret.atoms = group_by_values(enumerate(symbols))
 
-        if len(unique) == len(idx_all):
-            symbols = self.symbol[bool_ar]
-            ret.atoms = group_by_values(enumerate(symbols))
-        else:
-            ret.atoms = {}
-            symbol_iter = iter(self.symbol)
-            for i, count in enumerate(counts[bool_ar]):
-                for j in range(count):
-                    symbol = next(symbol_iter)
-                    try:
-                        ret.atoms[symbol].append(i)
-                    except KeyError:
-                        ret.atoms[symbol] = [i]
-
+        # Update :attr:`MultiMolecule.atoms_alias`
+        if len(ret.atoms_alias):
+            alias_dct = {}
+            for k1, (k2, idx_ar) in ret.atoms_alias.items():
+                idx_ar2 = self.atoms[k2][idx_ar]
+                bool_slc = bool_ar[idx_ar2]
+                if not bool_slc.any():
+                    pass
+                elif bool_slc.all():
+                    alias_dct[k1] = AliasTuple(k2, idx_ar)
+                else:
+                    idx_ar_new = np.arange(idx_ar2, dtype=np.intp)[bool_slc]
+                    alias_dct[k1] = AliasTuple(k2, idx_ar_new)
+            ret.atoms_alias = alias_dct
         return ret
 
     def add_atoms(self: MT, coords: np.ndarray, symbols: Union[str, Iterable[str]] = 'Xx') -> MT:
@@ -247,14 +247,15 @@ class MultiMolecule(_MultiMolecule):
 
         # Update atomic symbols & indices
         symbols = repeat(symbols, j) if isinstance(symbols, str) else islice(symbols, j)
-        atoms_append = {k: v.append for k, v in ret.atoms.items()}
+        dct = {k: v.tolist() for k, v in ret.atoms.items()}
+        atoms_append = {k: v.append for k, v in dct.items()}
         for i, item in enumerate(symbols, self.shape[1]):
             try:
                 atoms_append[item](i)
             except KeyError:
-                ret.atoms[item] = list_ = [i]
+                dct[item] = list_ = [i]
                 atoms_append[item] = list_.append
-
+        ret.atoms = dct
         return ret
 
     def guess_bonds(self, atom_subset: AtomSubset = None) -> None:
@@ -444,12 +445,13 @@ class MultiMolecule(_MultiMolecule):
 
         # Refill **self.atoms**
         symbols = mol.symbol[idx_range]
-        mol.atoms = {}
+        atoms_dct = {}
         for i, at in enumerate(symbols):
             try:
-                mol.atoms[at].append(i)
+                atoms_dct[at].append(i)
             except KeyError:
-                mol.atoms[at] = [i]
+                atoms_dct[at] = [i]
+        mol.atoms = atoms_dct
 
         # Sort **self.bonds**
         if mol.bonds is not None:
@@ -1170,7 +1172,7 @@ class MultiMolecule(_MultiMolecule):
         # Calculate the RDF with respect to the center of mass
         at_dummy = np.zeros_like(mol_cp[:, 0, :])[:, None, :]
         mol_cp = MultiMolecule(np.hstack((mol_cp, at_dummy)), atoms=mol_cp.atoms)
-        mol_cp.atoms['origin'] = [mol_cp.shape[1] - 1]
+        mol_cp._atoms['origin'] = np.array([mol_cp.shape[1] - 1], dtype=np.intp)
         at_subset2 = ('origin',) + at_subset
         with np.errstate(divide='ignore', invalid='ignore'):
             rdf = mol_cp.init_rdf(atom_subset=at_subset2)
@@ -1749,9 +1751,9 @@ class MultiMolecule(_MultiMolecule):
             return np.arccos(np.einsum('ijkl,ijml->ijkm', unit_vec1, unit_vec2))
 
     @overload
-    def _get_atom_subset(self, atom_subset: AtomSubset, as_array: Literal[False] = ...) -> Union[slice, np.ndarray]: ...  # noqa: E501
+    def _get_atom_subset(self, atom_subset: AtomSubset, as_array: Literal[False] = ...) -> Union[slice, np.ndarray[Any, np.dtype[np.intp]]]: ...  # noqa: E501
     @overload
-    def _get_atom_subset(self, atom_subset: AtomSubset, as_array: Literal[True]) -> np.ndarray: ...
+    def _get_atom_subset(self, atom_subset: AtomSubset, as_array: Literal[True]) -> np.ndarray[Any, np.dtype[np.intp]]: ...  # noqa: E501
     def _get_atom_subset(self, atom_subset, as_array=False):  # noqa: E301
         """Sanitize the **_get_atom_subset** argument.
 
@@ -1806,23 +1808,21 @@ class MultiMolecule(_MultiMolecule):
         ret = np.array(atom_subset, ndmin=1, copy=False).ravel()
         i = ret[0]
         if isinstance(i, np.str_):
-            atoms = self.atoms
-            return np.fromiter(chain.from_iterable(atoms[j] for j in ret), dtype=int)
+            return np.concatenate([self._atoms_get(j) for j in ret]).astype(np.intp, copy=False)
         elif isinstance(i, np.integer):
-            return ret
+            return ret.astype(np.intp, copy=False)
         elif isinstance(i, np.bool_):
-            return ret if not as_array else np.arange(len(ret), dtype=int)[ret]
+            return ret if not as_array else np.arange(len(ret), dtype=np.intp)[ret]
 
         # A Collection or Iterator; try harder
         ret2 = np.array(list(chain.from_iterable(ret))).ravel()
         j = ret2[0]
         if isinstance(j, np.str_):
-            atoms = self.atoms
-            return np.fromiter(chain.from_iterable(atoms[j] for j in ret2), dtype=int)
+            return np.concatenate([self._atoms_get(j) for j in ret2]).astype(np.intp, copy=False)
         elif isinstance(j, np.integer):
-            return ret2
+            return ret2.astype(np.intp, copy=False)
         elif isinstance(j, np.bool_):
-            return ret2 if not as_array else np.arange(len(ret2), dtype=int)[ret]
+            return ret2 if not as_array else np.arange(len(ret2), dtype=np.intp)[ret]
 
         raise TypeError(f"'atom_subset' is of invalid type: '{atom_subset.__class__.__name__}'")
 
@@ -1987,7 +1987,7 @@ class MultiMolecule(_MultiMolecule):
 
         """
         # Define constants and variables
-        m_subset = self[self._get_mol_subset(mol_subset)]
+        m_subset = self[self._get_mol_subset(mol_subset)].astype(str)
         at = self.symbol[:, None]
         header = '{:d}\n'.format(len(at))
         kwargs = {
