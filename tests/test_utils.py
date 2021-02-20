@@ -149,3 +149,29 @@ def test_slice_iter() -> None:
     slice_lst = list(slice_iter(shape, itemsize=1))
     ref = [np.s_[0:8], np.s_[8:16]]
     assertion.eq(slice_lst, ref)
+
+
+class TestLatticeToVolume:
+    """Test :func:`FOX.utils.lattice_to_volume`."""
+
+    @pytest.mark.parametrize(
+        "lattice",
+        [LATTICE[0], LATTICE, LATTICE[None, ...]],
+        ids=["2d", "3d", "4d"],
+    )
+    def test_passes(self, lattice: np.ndarray) -> None:
+        value = lattice_to_volume(lattice)
+        ref = np.load(PATH / f"test_lattice_volume_{lattice.ndim}d.npy")
+        np.testing.assert_allclose(value, ref)
+
+    @pytest.mark.parametrize(
+        "kwargs,exc",
+        [
+            ({"a": LATTICE[0, 0]}, ValueError),
+            ({"a": np.arange(16).reshape(4, 4)}, ValueError),
+            ({"a": np.arange(3).reshape(1, 3)}, ValueError),
+        ]
+    )
+    def test_raises(self, kwargs: Mapping[str, Any], exc: Type[Exception]) -> None:
+        with pytest.raises(exc):
+            lattice_to_volume(**kwargs)
