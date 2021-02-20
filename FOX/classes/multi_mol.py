@@ -25,7 +25,7 @@ from itertools import (
 )
 from typing import (
     Sequence, Optional, Union, List, Hashable, Callable, Iterable, Dict, Tuple, Any, Mapping,
-    overload, TypeVar, Type, Container, cast, TYPE_CHECKING,
+    overload, TypeVar, Type, Container, cast, Generator, TYPE_CHECKING,
 )
 
 import numpy as np
@@ -68,6 +68,8 @@ except ImportError as ex:
 __all__ = ['MultiMolecule']
 
 MT = TypeVar('MT', bound='MultiMolecule')
+_DType = TypeVar("_DType", bound=np.dtype)
+
 MolSubset = Union[None, slice, int]
 AtomSubset = Union[
     None, slice, range, int, str, Sequence[int], Sequence[str], Sequence[Sequence[int]]
@@ -77,6 +79,21 @@ AtomSubset = Union[
 def neg_exp(x: np.ndarray) -> np.ndarray:
     """Return :math:`e^{-x}`."""
     return np.exp(-x)
+
+
+def _periodicity_iter(
+    periodicity: Iterable[Literal["x", "y", "z"]],
+    ar: np.ndarray[Any, _DType],
+) -> Generator[Tuple[int, np.ndarray[Any, _DType]], None, None]:
+    dct = {"x": 0, "y": 1, "z": 2}
+    for i in sorted(periodicity):
+        j = dct[i]
+        yield j, ar[j]
+
+
+class _GetNone:
+    def __getitem__(self, key: object) -> None:
+        return None
 
 
 class MultiMolecule(_MultiMolecule):
@@ -101,6 +118,9 @@ class MultiMolecule(_MultiMolecule):
         A Settings instance for storing miscellaneous user-defined (meta-)data.
         Is devoid of keys by default.
         Stored in the :attr:`MultiMolecule.properties` attribute.
+    lattice : :class:`np.ndarray[np.float64] <numpy.ndarray>`, shape :math:`(m, 3, 3)` or :math:`(3, 3)`, optional
+        Lattice vectors for periodic systems.
+        For non-periodic systems this value should be :data:`None`.
 
     Attributes
     ----------
@@ -112,8 +132,11 @@ class MultiMolecule(_MultiMolecule):
     properties : :class:`plams.Settings <scm.plams.core.settings.Settings>`
         A Settings instance for storing miscellaneous user-defined (meta-)data.
         Is devoid of keys by default.
+    lattice : :class:`np.ndarray[np.float64] <numpy.ndarray>`, shape :math:`(m, 3, 3)` or :math:`(3, 3)`, optional
+        Lattice vectors for periodic systems.
+        For non-periodic systems this value should be :data:`None`.
 
-    """
+    """  # noqa: E501
 
     @overload
     def round(self: MT, decimals: int = ..., *, inplace: Literal[False] = ...) -> MT: ...  # type: ignore[misc] # noqa: E501
@@ -1257,8 +1280,15 @@ class MultiMolecule(_MultiMolecule):
 
     """#############################  Radial Distribution Functions  ##########################"""
 
-    def init_rdf(self, mol_subset: MolSubset = None, atom_subset: AtomSubset = None,
-                 dr: float = 0.05, r_max: float = 12.0) -> pd.DataFrame:
+    def init_rdf(
+        self,
+        mol_subset: MolSubset = None,
+        atom_subset: AtomSubset = None,
+        *,
+        dr: float = 0.05,
+        r_max: float = 12.0,
+        periodic: None | Iterable[Literal["x", "y", "z"]] = "xyz",
+    ) -> pd.DataFrame:
         """Initialize the calculation of radial distribution functions (RDFs).
 
         RDFs are calculated for all possible atom-pairs in **atom_subset** and returned as a
@@ -1279,6 +1309,10 @@ class MultiMolecule(_MultiMolecule):
             concentric spheres.
         r_max : :class:`float`
             The maximum to be evaluated interatomic distance in Ångström.
+        periodic : :class:`str`
+            If specified, correct for the systems periodicity if
+            :attr:`self.lattice is not None <MultiMolecule.lattice>`.
+            Accepts ``"x"``, ``"y"`` and/or ``"z"``.
 
         Returns
         -------
@@ -1290,8 +1324,10 @@ class MultiMolecule(_MultiMolecule):
 
         """
         # If **atom_subset** is None: extract atomic symbols from they keys of **self.atoms**
-        at_subset = atom_subset or sorted(self.atoms, key=str)
-        atom_pairs = self.get_pair_dict(at_subset, r=2)
+        if atom_subset is not None:
+            atom_pairs = self.get_pair_dict(atom_subset, r=2)
+        else:
+            atom_pairs = self.get_pair_dict(sorted(self.atoms, key=str), r=2)
 
         # Construct an empty dataframe with appropiate dimensions, indices and keys
         df = get_rdf_df(atom_pairs, dr, r_max)
@@ -1300,19 +1336,38 @@ class MultiMolecule(_MultiMolecule):
         m_subset = self._get_mol_subset(mol_subset)
         m_self = self[m_subset]
 
+        # Parse the lattice and periodicty settings
+        if self.lattice is not None and periodic:
+            lattice_ar = self.lattice if self.lattice.ndim == 2 else self.lattice[m_subset]
+            periodic_set = {i.lower() for i in periodic}
+            if not periodic_set.issubset("xyz"):
+                raise ValueError("periodic expected `x`, `y` and/or `z`; "
+                                 f"observed value: {periodic!r}")
+        else:
+            lattice_ar = _GetNone()
+            periodic_set = "xyz"
+
         # Fill the dataframe with RDF's, averaged over all conformations in this instance
         n_mol = len(m_self)
-        for key, (idx0, idx1) in atom_pairs.items():
-            shape = n_mol, len(idx0), len(idx1)
+        for key, (i, j) in atom_pairs.items():
+            shape = n_mol, len(i), len(j)
             iterator = slice_iter(shape, m_self.dtype.itemsize)
             for slc in iterator:
-                dist_mat = m_self.get_dist_mat(mol_subset=slc, atom_subset=(idx0, idx1))
+                dist_mat = m_self.get_dist_mat(
+                    mol_subset=slc, atom_subset=(i, j),
+                    lattice=lattice_ar[slc], periodicity=periodic_set,
+                )
                 df[key] += get_rdf(dist_mat, dr=dr, r_max=r_max)
         df /= n_mol
         return df
 
-    def get_dist_mat(self, mol_subset: MolSubset = None,
-                     atom_subset: Tuple[AtomSubset, AtomSubset] = (None, None)) -> np.ndarray:
+    def get_dist_mat(
+        self,
+        mol_subset: MolSubset = None,
+        atom_subset: Tuple[AtomSubset, AtomSubset] = (None, None),
+        lattice: None | np.ndarray[Any, np.dtype[np.float64]] = None,
+        periodicity: Iterable[Literal["x", "y", "z"]] = "xyz",
+    ) -> np.ndarray[Any, np.dtype[np.float64]]:
         """Create and return a distance matrix for all molecules and atoms in this instance.
 
         Parameters
@@ -1325,6 +1380,13 @@ class MultiMolecule(_MultiMolecule):
             Perform the calculation on a subset of atoms in this instance, as
             determined by their atomic index or atomic symbol.
             Include all :math:`n` atoms per molecule in this instance if :data:`None`.
+        lattice : :class:`np.ndarray[np.float64] <numpy.ndarray>`, shape :math:`(3, 3)` or :math:`(m, 3, 3)`, optional
+            If not :data:`None`, use the specified lattice vectors for
+            correcting periodic effects.
+        periodicty : :class:`str`
+            The axes along which the system's periodicity extends; accepts
+            ``"x"``, ``"y"`` and/or ``"z"``.
+            Only relevant if ``lattice is not None``.
 
         Returns
         -------
@@ -1332,25 +1394,40 @@ class MultiMolecule(_MultiMolecule):
             A 3D distance matrix of :math:`m` molecules, created out of two sets of :math:`n`
             and :math:`k` atoms.
 
-        """
+        """  # noqa: E501
         # Define array slices
         m_subset = self._get_mol_subset(mol_subset)
-        i = m_subset, self._get_atom_subset(atom_subset[0])
-        j = m_subset, self._get_atom_subset(atom_subset[1])
 
         # Slice the XYZ array
-        A = self[i]
-        B = self[j]
+        A = self[m_subset, self._get_atom_subset(atom_subset[0])]
+        B = self[m_subset, self._get_atom_subset(atom_subset[1])]
 
         # Create, fill and return the distance matrix
         if A.ndim == 2:
             return cdist(A, B)[None, ...]
 
-        shape = A.shape[0], A.shape[1], B.shape[1]
-        ret = np.empty(shape, dtype=self.dtype)
-        for k, (a, b) in enumerate(zip(A, B)):
-            ret[k] = cdist(a, b)
-        return ret
+        if lattice is None:
+            shape = A.shape[0], A.shape[1], B.shape[1]
+            ret = np.empty(shape, dtype=self.dtype)
+            for k, (a, b) in enumerate(zip(A, B)):
+                ret[k] = cdist(a, b)
+            return ret
+
+        ret = np.abs(A[..., None, :] - B[..., None, :, :])
+        lat_norm = np.linalg.norm(lattice, axis=-1)
+        if lat_norm.ndim == 1:
+            iterator = _periodicity_iter(periodicity, lat_norm)
+            for i, ar1 in iterator:
+                ret[..., i][ret[..., i] > (ar1 / 2)] -= ar1
+        elif lat_norm.ndim == 2:
+            iterator = _periodicity_iter(periodicity, lat_norm.T)
+            for i, _ar2 in iterator:
+                ar2 = np.full(ret.shape[:-1], _ar2[..., None, None])
+                condition = ret[..., i] > (ar2 / 2)
+                ret[..., i][condition] -= ar2[condition]
+        else:
+            raise ValueError
+        return np.linalg.norm(ret, axis=-1)
 
     def get_pair_dict(self, atom_subset: Union[Sequence[AtomSubset],
                                                Mapping[Hashable, Sequence[AtomSubset]]],
