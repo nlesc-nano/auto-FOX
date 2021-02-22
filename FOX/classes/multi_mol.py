@@ -38,7 +38,7 @@ from scipy.spatial.distance import cdist
 from scm.plams import Molecule, Atom, Bond, PeriodicTable
 from nanoutils import group_by_values, Literal
 
-from ..utils import slice_iter
+from ..utils import slice_iter, lattice_to_volume
 from .multi_mol_magic import _MultiMolecule, AliasTuple
 from ..io.read_kf import read_kf
 from ..io.read_xyz import read_multi_xyz
@@ -1287,7 +1287,7 @@ class MultiMolecule(_MultiMolecule):
         *,
         dr: float = 0.05,
         r_max: float = 12.0,
-        periodic: None | Iterable[Literal["x", "y", "z"]] = "xyz",
+        periodic: None | Iterable[Literal["x", "y", "z"]] = None,
     ) -> pd.DataFrame:
         """Initialize the calculation of radial distribution functions (RDFs).
 
@@ -1309,7 +1309,7 @@ class MultiMolecule(_MultiMolecule):
             concentric spheres.
         r_max : :class:`float`
             The maximum to be evaluated interatomic distance in Ångström.
-        periodic : :class:`str`
+        periodic : :class:`str`, optional
             If specified, correct for the systems periodicity if
             :attr:`self.lattice is not None <MultiMolecule.lattice>`.
             Accepts ``"x"``, ``"y"`` and/or ``"z"``.
@@ -1337,15 +1337,26 @@ class MultiMolecule(_MultiMolecule):
         m_self = self[m_subset]
 
         # Parse the lattice and periodicty settings
-        if self.lattice is not None and periodic:
-            lattice_ar = self.lattice if self.lattice.ndim == 2 else self.lattice[m_subset]
+        if periodic is not None:
             periodic_set = {i.lower() for i in periodic}
             if not periodic_set.issubset("xyz"):
                 raise ValueError("periodic expected `x`, `y` and/or `z`; "
                                  f"observed value: {periodic!r}")
+            elif self.lattice is None:
+                raise TypeError("cannot perform periodic calculations if the "
+                                "molecules `lattice` is None")
+            lattice_ar = self.lattice if self.lattice.ndim == 2 else self.lattice[m_subset]
         else:
             lattice_ar = _GetNone()
             periodic_set = "xyz"
+
+        # Identify the volume occupied by the system
+        if self.lattice is None:
+            volume = None
+        else:
+            volume = lattice_to_volume(
+                self.lattice if self.lattice.ndim == 2 else self.lattice[m_subset]
+            )
 
         # Fill the dataframe with RDF's, averaged over all conformations in this instance
         n_mol = len(m_self)
@@ -1357,7 +1368,7 @@ class MultiMolecule(_MultiMolecule):
                     mol_subset=slc, atom_subset=(i, j),
                     lattice=lattice_ar[slc], periodicity=periodic_set,
                 )
-                df[key] += get_rdf(dist_mat, dr=dr, r_max=r_max)
+                df[key] += get_rdf(dist_mat, dr=dr, r_max=r_max, volume=volume)
         df /= n_mol
         return df
 

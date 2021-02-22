@@ -14,10 +14,15 @@ API
 
 """
 
-from typing import Hashable, Iterable
+from __future__ import annotations
+
+from typing import Hashable, Iterable, TYPE_CHECKING
 
 import numpy as np
 import pandas as pd
+
+if TYPE_CHECKING:
+    import numpy.typing as npt
 
 __all__ = ['get_rdf_df', 'get_rdf', 'get_rdf_lowmem']
 
@@ -52,23 +57,29 @@ def get_rdf_df(atom_pairs: Iterable[Hashable],
     return df
 
 
-def get_rdf(dist: np.ndarray,
-            dr: float = 0.05,
-            r_max: float = 12.0) -> np.ndarray:
+def get_rdf(
+    dist: np.ndarray,
+    dr: float = 0.05,
+    r_max: float = 12.0,
+    *,
+    volume: None | npt.ArrayLike = None,
+) -> np.ndarray:
     """Calculate and return the radial distribution function (RDF).
 
     The RDF is calculated using the 3D distance matrix **dist**.
 
     Parameters
     ----------
-    dist : :math:`m*n*k` |np.ndarray|_ [|np.float64|_]
+    dist : :class:`np.ndarray[np.float64] <numpy.ndarray>`, shape :math:`(m, n, k)`
         A 3D array representing :math:`m` distance matrices of :math:`n` by :math:`k` atoms.
-
-    dr : float
+    dr : :class:`float`
         The integration step-size in Angstrom, *i.e.* the distance between concentric spheres.
-
-    r_max : float
+    r_max : :class:`float`
         The maximum to be evaluated interatomic distance.
+    volume : :class:`np.ndarray[np.float64] <numpy.ndarray>`, shape :math:`()` or :math:`(m,)`, optional
+        The volume containing the system in question; used for calculating the average density.
+        If :data:`None`, estimate the volume by a sphere whose diameter is equal to
+        the largest value in **dist**.
 
     Returns
     -------
@@ -76,7 +87,7 @@ def get_rdf(dist: np.ndarray,
         An array with the resulting radial distribution function.
         Note that the RDF is summed (not averaged) w.r.t. the number of molecules.
 
-    """
+    """  # noqa: E501
     if not dist.size:
         return np.zeros((), dtype=dist.dtype)
 
@@ -86,12 +97,18 @@ def get_rdf(dist: np.ndarray,
     int_step[0] = np.nan
 
     dist_shape = dist.shape
-    dens_mean = dist_shape[2] / ((4/3) * np.pi * (0.5 * dist.max(axis=(1, 2)))**3)
+    if volume is not None:
+        dens_mean = dist_shape[2] / np.asarray(volume)
+    else:
+        dens_mean = dist_shape[2] / ((4/3) * np.pi * (0.5 * dist.max(axis=(1, 2)))**3)
     dist2 = (dist / dr).astype(np.int32)
     dist2.shape = dist_shape[0], dist_shape[1] * dist_shape[2]
 
-    dens = np.array([np.bincount(i, minlength=idx_max)[:idx_max] for i in dist2], dtype=float)
-    denom = dist_shape[1] * int_step * dens_mean[:, None]
+    dens = np.array([np.bincount(i, minlength=idx_max)[:idx_max] for i in dist2], dtype=np.float64)
+    if dens_mean.ndim == 0:
+        denom = dist_shape[1] * int_step * dens_mean
+    else:
+        denom = dist_shape[1] * int_step * dens_mean[..., None]
     dens /= denom
     dens[:, 0] = 0.0
     return dens.sum(axis=0)
