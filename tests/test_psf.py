@@ -90,3 +90,11 @@ def test_generate_impropers() -> None:
     ref = np.load(join(PATH, 'generate_impropers.npy'))
     psf.generate_impropers(MOL)
     np.testing.assert_array_equal(ref, psf.impropers)
+
+
+def test_to_atom_alias_dict() -> None:
+    """Tests for :meth:`PSFContainer.to_atom_alias_dict`."""
+    dct = PSF.to_atom_alias_dict()
+    for at1, (at2, idx) in dct.items():
+        at2_slice = PSF.atom_type[PSF.atom_name == at2]
+        np.testing.assert_array_equal(at2_slice.iloc[idx], at1)
