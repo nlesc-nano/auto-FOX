@@ -15,6 +15,7 @@ Index
     prepend_exception
     log_traceback_locals
     slice_iter
+    lattice_to_volume
 
 API
 ---
@@ -28,8 +29,11 @@ API
 .. autofunction:: prepend_exception
 .. autofunction:: log_traceback_locals
 .. autofunction:: slice_iter
+.. autofunction:: lattice_to_volume
 
 """
+
+from __future__ import annotations
 
 import operator
 import inspect
@@ -40,17 +44,20 @@ from logging import Logger
 from functools import wraps
 from typing import (
     Iterable, Tuple, Callable, Hashable, Sequence, Optional, List, TypeVar,
-    Type, Mapping, Union, Any, cast, Generator
+    Type, Mapping, Union, Any, cast, Generator, TYPE_CHECKING
 )
 
 import numpy as np
 import pandas as pd
 from nanoutils import PathType
 
+if TYPE_CHECKING:
+    import numpy.typing as npt
+
 __all__ = [
     'get_move_range', 'array_to_index', 'serialize_array', 'read_str_file',
     'get_shape', 'slice_str', 'get_atom_count', 'read_rtf_file', 'prepend_exception',
-    'log_traceback_locals', 'slice_iter'
+    'log_traceback_locals', 'slice_iter', 'lattice_to_volume',
 ]
 
 T = TypeVar('T')
@@ -502,3 +509,16 @@ def slice_iter(
         yield slice(start, stop)
         start += n_step
         stop += n_step
+
+
+def lattice_to_volume(a: npt.ArrayLike) -> np.ndarray[Any, np.dtype[np.float64]]:
+    """Calculate the volume contained within a set of lattice vectors."""
+    ar = np.asarray(a, dtype=np.float64)
+    if ar.ndim < 2:
+        raise ValueError(f"Expected a >= 2D array; observed dimensionality: {ar.ndim}")
+    elif ar.shape[-2] != 3:
+        raise ValueError(f"Invalid shape: {ar.shape}")
+
+    # Calculate and return the triple product
+    cross = np.cross(ar[..., 1, :], ar[..., 2, :])
+    return np.einsum("...j,...j->...", ar[..., 0, :], cross)

@@ -1,19 +1,31 @@
 """A module for testing files in the :mod:`FOX.utils` module,"""
 
+from __future__ import annotations
+
+import os
+from typing import Any, Mapping, Type
 from pathlib import Path
+from itertools import chain, islice
 
-import pandas as pd
+import pytest
 import numpy as np
-
+import pandas as pd
 from assertionlib import assertion
-
 from FOX.utils import (
     get_move_range, array_to_index, serialize_array, read_str_file,
     get_shape, slice_str, get_atom_count, read_rtf_file, prepend_exception,
-    slice_iter,
+    slice_iter, lattice_to_volume,
 )
 
+
+def _read_lattice(file: str | bytes | os.PathLike[Any]) -> np.ndarray[Any, np.dtype[np.float64]]:
+    with open(file, 'r') as f:
+        iterator = chain.from_iterable(i.split()[2:11] for i in islice(f, 1, None))
+        return np.fromiter(iterator, dtype=np.float64).reshape(-1, 3, 3)
+
+
 PATH = Path('tests') / 'test_files'
+LATTICE = _read_lattice(PATH / "md_lattice.cell")
 
 
 def test_serialize_array() -> None:
