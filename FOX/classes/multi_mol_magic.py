@@ -32,14 +32,6 @@ from scm.plams import PeriodicTable, PTError, Settings  # type: ignore
 from assertionlib.ndrepr import NDRepr
 from nanoutils import ArrayLike, Literal
 
-
-class AliasTuple(NamedTuple):
-    """A 2-tuple used for :attr:`FOX.MultiMolecule.atoms` values."""
-
-    alias: str
-    slice: Union[slice, ellipsis, np.ndarray[Any, np.dtype[np.intp]]]  # noqa: F821
-
-
 if TYPE_CHECKING:
     import numpy.typing as npt
 
@@ -50,10 +42,18 @@ if TYPE_CHECKING:
         Iterable[Tuple[str, _ArLikeInt]],
     ]
 
-    AliasDict = MappingProxyType[str, AliasTuple]
+    AliasDict = MappingProxyType[str, AliasTuple]  # noqa: F821
     AliasMapping = Mapping[str, Tuple[str, Union[slice, ellipsis, _ArLikeInt]]]  # noqa: F821
 
-__all__: List[str] = ["_MultiMolecule"]
+__all__: List[str] = ["_MultiMolecule", "AliasTuple"]
+
+
+class AliasTuple(NamedTuple):
+    """A 2-tuple used for :attr:`FOX.MultiMolecule.atoms` values."""
+
+    alias: str
+    slice: Union[slice, ellipsis, np.ndarray[Any, np.dtype[np.intp]]]  # noqa: F821
+
 
 T = TypeVar('T')
 MT = TypeVar('MT', bound='_MultiMolecule')
@@ -82,6 +82,16 @@ def _to_int_array(ar: _ArLikeInt) -> np.ndarray[Any, np.dtype[np.intp]]:
     if ret.base is not None:
         return ret.copy()
     return ret
+
+
+def _parse_lattice(a: npt.ArrayLike) -> np.ndarray[Any, np.dtype[np.float64]]:
+    ar = np.asarray(a).astype(np.float64, casting="same_kind", copy=False)
+    if ar.ndim not in {2, 3}:
+        raise ValueError("`lattice` expected a 2D or 3D array; "
+                         f"observed dimensionality: {ar.ndim!r}")
+    elif ar.shape[-2:] != (3, 3):
+        raise ValueError(f"Invalid `lattice` shape: {ar.shape!r}")
+    return ar
 
 
 class _MolLoc(Generic[MT]):
@@ -226,7 +236,8 @@ class _MultiMolecule(np.ndarray):
         bonds: Optional[np.ndarray] = None,
         properties: Optional[Mapping] = None,
         *,
-        atoms_alias: Optional[Mapping[str, slice]] = None
+        atoms_alias: Optional[Mapping[str, slice]] = None,
+        lattice: None | npt.ArrayLike = None,
     ) -> MT:
         """Create and return a new object."""
         obj = np.array(coords, dtype=np.float64, ndmin=3, copy=False).view(cls)
@@ -236,6 +247,7 @@ class _MultiMolecule(np.ndarray):
         obj.bonds = cast(np.ndarray, bonds)
         obj.properties = cast("Settings", properties)
         obj.atoms_alias = cast("AliasDict", atoms_alias)
+        obj.lattice = cast("Optional[np.ndarray[Any, np.dtype[np.float64]]]", lattice)
         obj._ndrepr = NDRepr()
         return obj
 
@@ -248,6 +260,7 @@ class _MultiMolecule(np.ndarray):
         self.bonds = getattr(obj, 'bonds', None)
         self.properties = getattr(obj, 'properties', None)
         self.atoms_alias = getattr(obj, 'atoms_alias', None)
+        self.lattice = getattr(obj, 'lattice', None)
         self._ndrepr = getattr(obj, '_ndrepr', None)
 
     """#####################  Properties for managing instance attributes  ######################"""
@@ -301,15 +314,16 @@ class _MultiMolecule(np.ndarray):
         return None
 
     @property
-    def bonds(self) -> np.ndarray:
+    def bonds(self) -> np.ndarray[Any, np.dtype[np.intp]]:
         return self._bonds
 
     @bonds.setter
-    def bonds(self, value: Optional[np.ndarray]) -> None:
+    def bonds(self, value: Optional[np.ndarray[Any, np.dtype[np.integer[Any]]]]) -> None:
         if value is None:
             bonds = np.zeros((0, 3), dtype=np.intp)
         else:
-            bonds = np.array(value, dtype=np.intp, ndmin=2, copy=False)
+            _bonds = np.array(value, ndmin=2, copy=False)
+            bonds = _bonds.astype(np.intp, casting="same_kind", copy=False)
 
         # Set bond orders to 1 (i.e. 10 / 10) if the order is not specified
         if bonds.shape[1] == 2:
@@ -323,8 +337,19 @@ class _MultiMolecule(np.ndarray):
         return self._properties
 
     @properties.setter
-    def properties(self, value: Optional[Mapping]) -> None:
+    def properties(self, value: Optional[Mapping[Any, Any]]) -> None:
         self._properties = Settings() if value is None else Settings(value)
+
+    @property
+    def lattice(self) -> None | np.ndarray[Any, np.dtype[np.float64]]:
+        return self._lattice
+
+    @lattice.setter
+    def lattice(self, value: None | npt.ArrayLike) -> None:
+        if value is None:
+            self._lattice = None
+        else:
+            self._lattice = _parse_lattice(value)
 
     """###############################  PLAMS-based properties  ################################"""
 

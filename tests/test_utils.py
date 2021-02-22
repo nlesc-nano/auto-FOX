@@ -1,19 +1,31 @@
 """A module for testing files in the :mod:`FOX.utils` module,"""
 
+from __future__ import annotations
+
+import os
+from typing import Any, Mapping, Type
 from pathlib import Path
+from itertools import chain, islice
 
-import pandas as pd
+import pytest
 import numpy as np
-
+import pandas as pd
 from assertionlib import assertion
-
 from FOX.utils import (
     get_move_range, array_to_index, serialize_array, read_str_file,
     get_shape, slice_str, get_atom_count, read_rtf_file, prepend_exception,
-    slice_iter,
+    slice_iter, lattice_to_volume,
 )
 
+
+def _read_lattice(file: str | bytes | os.PathLike[Any]) -> np.ndarray[Any, np.dtype[np.float64]]:
+    with open(file, 'r') as f:
+        iterator = chain.from_iterable(i.split()[2:11] for i in islice(f, 1, None))
+        return np.fromiter(iterator, dtype=np.float64).reshape(-1, 3, 3)
+
+
 PATH = Path('tests') / 'test_files'
+LATTICE = _read_lattice(PATH / "md_lattice.cell")
 
 
 def test_serialize_array() -> None:
@@ -137,3 +149,29 @@ def test_slice_iter() -> None:
     slice_lst = list(slice_iter(shape, itemsize=1))
     ref = [np.s_[0:8], np.s_[8:16]]
     assertion.eq(slice_lst, ref)
+
+
+class TestLatticeToVolume:
+    """Test :func:`FOX.utils.lattice_to_volume`."""
+
+    @pytest.mark.parametrize(
+        "lattice",
+        [LATTICE[0], LATTICE, LATTICE[None, ...]],
+        ids=["2d", "3d", "4d"],
+    )
+    def test_passes(self, lattice: np.ndarray) -> None:
+        value = lattice_to_volume(lattice)
+        ref = np.load(PATH / f"test_lattice_volume_{lattice.ndim}d.npy")
+        np.testing.assert_allclose(value, ref)
+
+    @pytest.mark.parametrize(
+        "kwargs,exc",
+        [
+            ({"a": LATTICE[0, 0]}, ValueError),
+            ({"a": np.arange(16).reshape(4, 4)}, ValueError),
+            ({"a": np.arange(3).reshape(1, 3)}, ValueError),
+        ]
+    )
+    def test_raises(self, kwargs: Mapping[str, Any], exc: Type[Exception]) -> None:
+        with pytest.raises(exc):
+            lattice_to_volume(**kwargs)

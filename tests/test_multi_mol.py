@@ -1,17 +1,30 @@
 """A module for testing the :class:`FOX.classes.multi_mol.MultiMolecule` class."""
 
+from __future__ import annotations
+
+import os
 from os.path import join
 from pathlib import Path
-from typing import Mapping, Any, Type, Set
+from itertools import islice, chain, combinations
+from typing import Mapping, Any, Type, Set, Iterable
 
 import pytest
 import yaml
 import numpy as np
 
 from assertionlib import assertion
-from nanoutils import delete_finally
+from nanoutils import delete_finally, Literal
 
 from FOX import MultiMolecule, example_xyz
+
+
+def _read_lattice(file: str | bytes | os.PathLike[Any]) -> np.ndarray[Any, np.dtype[np.float64]]:
+    with open(file, 'r') as f:
+        iterator = chain.from_iterable(i.split()[2:11] for i in islice(f, 1, None))
+        return np.fromiter(iterator, dtype=np.float64).reshape(-1, 3, 3)
+
+
+PATH = Path('tests') / 'test_files'
 
 MOL = MultiMolecule.from_xyz(example_xyz)
 MOL.guess_bonds(['C', 'H', 'O'])
@@ -19,7 +32,11 @@ MOL.guess_bonds(['C', 'H', 'O'])
 MOL_ALIAS = MOL.copy()
 MOL_ALIAS.atoms_alias = {"Cd2": ("Cd", np.s_[:10])}
 
-PATH = Path('tests') / 'test_files'
+MOL_LATTICE_3D = MultiMolecule.from_xyz(PATH / "md_lattice.xyz")[::10]
+MOL_LATTICE_3D.lattice = _read_lattice(PATH / "md_lattice.cell")[::10]
+
+MOL_LATTICE_2D = MOL_LATTICE_3D.copy()
+MOL_LATTICE_2D.lattice = MOL_LATTICE_2D.lattice[0]
 
 
 @delete_finally(join(PATH, '.tmp.xyz'))
@@ -166,18 +183,54 @@ def test_vacf():
     np.testing.assert_allclose(vacf, vacf_ref, rtol=1e-06)
 
 
-@pytest.mark.parametrize(
-    "kwargs,filename",
-    [({'atom_subset': ('Cd', 'Se', 'O')}, 'rdf.npy'),
-     ({'mol_subset': np.s_[::10]}, 'rdf_10.npy'),
-     ({'mol_subset': np.s_[::100]}, 'rdf_100.npy')]
-)
-def test_rdf(kwargs: Mapping[str, Any], filename: str):
+class TestRDF:
     """Test :meth:`.MultiMolecule.init_rdf`."""
-    rdf = MOL.init_rdf(**kwargs)
-    ref = rdf.copy()
-    ref[:] = np.load(join(PATH, filename))
-    np.testing.assert_allclose(rdf, ref)
+
+    @pytest.mark.parametrize(
+        "kwargs,filename",
+        [
+            ({'atom_subset': ('Cd', 'Se', 'O')}, 'rdf.npy'),
+            ({'mol_subset': np.s_[::10]}, 'rdf_10.npy'),
+            ({'mol_subset': np.s_[::100]}, 'rdf_100.npy')
+        ]
+    )
+    def test_passes(self, kwargs: Mapping[str, Any], filename: str) -> None:
+        rdf = MOL.init_rdf(**kwargs)
+        ref = rdf.copy()
+        ref[:] = np.load(join(PATH, filename))
+        np.testing.assert_allclose(rdf, ref)
+
+    @pytest.mark.parametrize("mol", [MOL_LATTICE_3D, MOL_LATTICE_2D])
+    @pytest.mark.parametrize(
+        "periodic",
+        chain([None], combinations("xyz", 1), combinations("xyz", 2), combinations("xyz", 3)),
+    )
+    def test_lattice(
+        self, mol: MultiMolecule, periodic: None | Iterable[Literal["x", "y", "z"]]
+    ) -> None:
+        assert mol.lattice is not None
+        rdf = mol.init_rdf(periodic=periodic)
+
+        if periodic is None:
+            filename = f"test_lattice_{mol.lattice.ndim}d.npy"
+        else:
+            filename = f"test_lattice_{mol.lattice.ndim}d_{''.join(sorted(periodic))}.npy"
+        ref = np.load(PATH / filename)
+
+        np.testing.assert_allclose(rdf, ref)
+
+    @pytest.mark.parametrize(
+        "mol,kwargs,exc",
+        [
+            (MOL_LATTICE_3D, {"periodic": "bob"}, ValueError),
+            (MOL, {"periodic": "xyz"}, TypeError),
+        ]
+    )
+    def test_raises(
+        self, mol: MultiMolecule, kwargs: Mapping[str, Any], exc: Type[Exception]
+    ) -> None:
+        with pytest.raises(exc):
+            mol.init_rdf(**kwargs)
 
 
 def test_rmsf():
