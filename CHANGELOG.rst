@@ -6,6 +6,16 @@ All notable changes to this project will be documented in this file.
 This project adheres to `Semantic Versioning <http://semver.org/>`_.
 
 
+0.8.12
+******
+* Added a recipe for calculating the similarity between 2 MD trajectories.
+* Added improved support for custom atom types.
+* Made the ligand optional in the ``FOX.recipes.generate_psf()`` recipe.
+* Fixed an issue where non-absolute distances were used when calculating the pressure.
+* Fixed an issue where non-charge parameters were updated incorrectly.
+* Fixed an issue where parameter guessing could fail if no ``.prm`` file was provided.
+
+
 0.8.11
 ******
 * Fixed an issue where the .hdf5 status would not be properly cleared (if necessary).
