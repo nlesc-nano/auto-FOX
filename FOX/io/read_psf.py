@@ -23,6 +23,7 @@ from os import PathLike
 from typing import (Dict, Optional, Any, Set, Iterator, Iterable, TypeVar, Tuple, cast,
                     List, Mapping, Union, Collection, Generic, IO, Callable)
 from itertools import chain
+from collections import defaultdict
 from types import MappingProxyType
 
 import numpy as np
@@ -889,17 +890,16 @@ class PSFContainer(AbstractDataClass, AbstractFileContainer):
 
     def to_atom_alias_dict(self) -> Dict[str, Tuple[str, np.ndarray[Any, np.dtype[np.intp]]]]:
         """Create a with atom aliases."""
-        iterator: Iterator[Tuple[str, str]] = (
-            (i, j) for i, j in self.atoms[['atom type', 'atom name']].values if i != j
-        )
+        counter: defaultdict[str, int] = defaultdict(lambda: -1)
+        dct: defaultdict[Tuple[str, str], List[int]] = defaultdict(list)
+        for (at1, at2) in self.atoms[['atom type', 'atom name']].values:  # type: str, str
+            counter[at2] += 1
+            if at1 == at2:
+                continue
 
-        dct: Dict[Tuple[str, str], int] = {}
-        for i, j in iterator:
-            try:
-                dct[i, j] += 1
-            except KeyError:
-                dct[i, j] = 1
-        return {i: (j, np.arange(v, dtype=np.intp)) for (i, j), v in dct.items()}
+            i = counter[at2]
+            dct[at1, at2].append(i)
+        return {at1: (at2, np.array(lst, dtype=np.intp)) for (at1, at2), lst in dct.items()}
 
     @raise_if(RDKIT_EX)
     def write_pdb(self, mol: Molecule,
