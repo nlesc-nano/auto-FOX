@@ -421,16 +421,21 @@ class PackageManager(PackageManagerABC):
         mol_list = []
         results_list = list(results)
         for result in results_list:
+            try:
+                lattice: None | np.ndarray[Any, np.dtype[np.float64]] = result.lattice
+                assert lattice is not None
+            except (AssertionError, FileNotFoundError):
+                lattice = None
+
             try:  # Construct and return a MultiMolecule object
                 path: str = get_xyz_path(result.archive['work_dir'])  # type: ignore
                 mol = MultiMolecule.from_xyz(path)
+                mol.lattice = lattice
                 mol.round(3, inplace=True)
                 mol_list.append(mol)
-
             except XYZError:  # The .xyz file is unreadable for some reason
                 logger.warning(f"Failed to parse {path!r}")
                 return None, None
-
             except Exception as ex:
                 logger.warning(ex)
                 return None, None
