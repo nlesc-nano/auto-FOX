@@ -338,7 +338,10 @@ def get_param(dct: ParamMapping_) -> Tuple[ParamMapping, dict, dict, ValidationD
     if _sub_prm_dict_frozen is not None:
         for *_key, value in _get_prm(_sub_prm_dict_frozen):
             key = tuple(_key)
-            unit = data.loc[key[:2], 'unit'].iat[0]
+            try:
+                unit = data.loc[key[:2], 'unit'].iat[0]
+            except KeyError:
+                unit = ''
             data.loc[key, :] = [value, value, True, False, -np.inf, np.inf, 0, unit]
     data.sort_index(inplace=True)
 
