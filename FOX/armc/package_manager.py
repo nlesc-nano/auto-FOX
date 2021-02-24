@@ -63,6 +63,7 @@ class PkgDict(TypedDict):
 
 
 T = TypeVar('T')
+RT = TypeVar('RT', bound=Result)
 
 MolLike = Iterable[Tuple[float, float, float]]
 Value = Tuple[PkgDict, ...]
@@ -322,7 +323,7 @@ class PackageManager(PackageManagerABC):
         """
         # Construct the logger
         if logger is None:
-            logger = DummyLogger()
+            logger = cast(Logger, DummyLogger())
 
         # Check if a hook has been specified
         if self.hook is not None:
@@ -343,8 +344,11 @@ class PackageManager(PackageManagerABC):
 
     @staticmethod
     @schedule
-    def assemble_job(job: PkgDict, old_results: Optional[Result] = None,
-                     name: Optional[str] = None) -> PromisedObject:
+    def assemble_job(
+        job: PkgDict,
+        old_results: Optional[Result] = None,
+        name: Optional[str] = None,
+    ) -> PromisedObject:
         """Create a :class:`PromisedObject` from a qmflow :class:`Package` instance."""
         job_name = name if name is not None else ''
         obj_type = job['type']
@@ -357,7 +361,7 @@ class PackageManager(PackageManagerABC):
 
         if isinstance(obj_type, CP2K) and isinstance(old_results, CP2K_Result):
             try:
-                lattice = old_results.lattice
+                lattice: np.ndarray[Any, np.dtype[np.float64]] = old_results.lattice
                 assert lattice is not None
             except (AssertionError, FileNotFoundError):
                 pass
@@ -409,10 +413,19 @@ class PackageManager(PackageManagerABC):
                     del df['guess']
                 df.update(df_update)
 
+    @overload
+    @staticmethod
+    def _extract_mol(results: None, logger: Logger) -> Tuple[None, None]: ...
+    @overload  # noqa: E301
     @staticmethod
     def _extract_mol(
-        results: Optional[Iterable[Result]], logger: Logger
-    ) -> Union[Tuple[None, None], Tuple[List[MultiMolecule], List[Any]]]:
+        results: Iterable[RT], logger: Logger
+    ) -> Tuple[None, None] | Tuple[List[MultiMolecule], List[RT]]: ...
+    @staticmethod  # noqa: E301
+    def _extract_mol(
+        results: None | Iterable[RT],
+        logger: Logger,
+    ) -> Tuple[None, None] | Tuple[List[MultiMolecule], List[RT]]:
         """Create a list of MultiMolecule from the passed **results**."""
         # `noodles.run_parallel()` can return `None` under certain circumstances
         if results is None:
