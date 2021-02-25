@@ -277,19 +277,20 @@ def test_average_velocity():
     np.testing.assert_allclose(v, ref)
 
 
-def test_adf():
-    """Test :meth:`.MultiMolecule.init_adf`."""
-    mol = MOL.copy()
+class TestADF:
+    """Test :meth:`MultiMolecule.init_adf`."""
 
-    atoms = ('Cd', 'Se')
-
-    adf1 = mol.init_adf(atom_subset=atoms).values
-    ref1 = np.load(join(PATH, 'adf_weighted.npy'))
-    np.testing.assert_allclose(adf1, ref1)
-
-    adf2 = mol.init_adf(atom_subset=atoms, weight=None).values
-    ref2 = np.load(join(PATH, 'adf.npy'))
-    np.testing.assert_allclose(adf2, ref2)
+    @pytest.mark.parametrize(
+        "name,kwargs",
+        [
+            ("adf_weighted", {}),
+            ("adf", {"weight": None}),
+        ]
+    )
+    def test_passes(self, name: str, kwargs: Mapping[str, Any]) -> None:
+        adf = MOL.init_adf(atom_subset=('Cd', 'Se'), **kwargs)
+        ref = np.load(join(PATH, f"{name}.npy"))
+        np.testing.assert_allclose(adf, ref)
 
 
 def test_shell_search():
