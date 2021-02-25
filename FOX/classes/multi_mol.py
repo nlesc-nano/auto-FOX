@@ -31,7 +31,6 @@ from typing import (
 import numpy as np
 import pandas as pd
 from scipy import constants
-from scipy.spatial import cKDTree
 from scipy.fftpack import fft
 from scipy.spatial.distance import cdist
 
@@ -43,7 +42,7 @@ from .multi_mol_magic import _MultiMolecule, AliasTuple
 from ..io.read_kf import read_kf
 from ..io.read_xyz import read_multi_xyz
 from ..functions.rdf import get_rdf, get_rdf_df
-from ..functions.adf import get_adf, get_adf_df
+from ..functions.adf import get_adf_df, _adf_inner_cdktree, _adf_inner
 from ..functions.molecule_utils import fix_bond_orders, separate_mod
 
 if TYPE_CHECKING:
@@ -58,6 +57,7 @@ except Exception as ex:
     _warn.__cause__ = ex
     warnings.warn(_warn)
     del _warn
+DASK_EX = Exception()
 
 try:
     from ase import Atoms
@@ -1703,140 +1703,24 @@ class MultiMolecule(_MultiMolecule):
 
         # Construct the angular distribution function
         # Perform the task in parallel (with dask) if possible
-        if not DASK_EX and r_max_:
-            func = dask.delayed(MultiMolecule._adf_inner_cdktree)
+        if DASK_EX is None and r_max_:
+            func = dask.delayed(_adf_inner_cdktree)
             jobs = [func(m, n, r_max_, atom_pairs.values(), weight) for m in mol]
             results = dask.compute(*jobs)
-        elif not DASK_EX and not r_max_:
-            func = dask.delayed(MultiMolecule._adf_inner)
+        elif DASK_EX is None and not r_max_:
+            func = dask.delayed(_adf_inner)
             jobs = [func(m, atom_pairs.values(), weight) for m in mol]
             results = dask.compute(*jobs)
-        elif DASK_EX and r_max_:
-            func = MultiMolecule._adf_inner_cdktree
+        elif DASK_EX is not None and r_max_:
+            func = _adf_inner_cdktree
             results = [func(m, n, r_max_, atom_pairs.values(), weight) for m in mol]
-        elif DASK_EX and not r_max_:
-            func = MultiMolecule._adf_inner
+        elif DASK_EX is not None and not r_max_:
+            func = _adf_inner
             results = [func(m, atom_pairs.values(), weight) for m in mol]
 
         df = get_adf_df(atom_pairs)
         df.loc[:, :] = np.array(results).mean(axis=0).T
         return df
-
-    @staticmethod
-    def _adf_inner_cdktree(m: MultiMolecule, n: int, r_max: float,
-                           idx_list: Iterable[Tuple[np.ndarray, np.ndarray, np.ndarray]],
-                           weight: Callable[[np.ndarray], np.ndarray]) -> List[np.ndarray]:
-        """Perform the loop of :meth:`.init_adf` with a distance cutoff."""
-        # Construct slices and a distance matrix
-        tree = cKDTree(m)
-        dist, idx = tree.query(m, n, distance_upper_bound=r_max, p=2)
-        dist[dist == np.inf] = 0.0
-        idx[idx == m.shape[0]] = 0
-
-        # Slice the Cartesian coordinates
-        coords13 = m[idx]
-        coords2 = m[..., None, :]
-
-        # Construct (3D) angle- and distance-matrices
-        with np.errstate(divide='ignore', invalid='ignore'):
-            vec = ((coords13 - coords2) / dist[..., None])
-            ang = np.arccos(np.einsum('jkl,jml->jkm', vec, vec))
-            dist = np.maximum(dist[..., None], dist[..., None, :])
-        ang[np.isnan(ang)] = 0.0
-        ang = np.degrees(ang).astype(int)  # Radian (float) to degrees (int)
-
-        # Construct and return the ADF
-        ret: List[np.ndarray] = []
-        ret_append = ret.append
-        for i, j, k in idx_list:
-            ijk = j[:, None, None] & i[idx][..., None] & k[idx][..., None, :]
-            weights = weight(dist[ijk]) if weight is not None else None
-            ret_append(get_adf(ang[ijk], weights=weights))
-        return ret
-
-    @staticmethod
-    def _adf_inner(m: MultiMolecule,
-                   idx_list: Iterable[Tuple[np.ndarray, np.ndarray, np.ndarray]],
-                   weight: Callable[[np.ndarray], np.ndarray]) -> List[np.ndarray]:
-        """Perform the loop of :meth:`.init_adf` without a distance cutoff."""
-        # Construct a distance matrix
-        dist = cdist(m, m)
-
-        # Slice the Cartesian coordinates
-        coords13 = m
-        coords2 = m[..., None, :]
-
-        # Construct (3D) angle- and distance-matrices
-        with np.errstate(divide='ignore', invalid='ignore'):
-            vec = ((coords13 - coords2) / dist[..., None])
-            ang = np.arccos(np.einsum('jkl,jml->jkm', vec, vec))
-            dist = np.maximum(dist[..., None], dist[..., None, :])
-        ang[np.isnan(ang)] = 0.0
-        ang = np.degrees(ang).astype(int)  # Radian (float) to degrees (int)
-
-        # Construct and return the ADF
-        ret: List[np.ndarray] = []
-        ret_append = ret.append
-        for i, j, k in idx_list:
-            ijk = j[:, None, None] & i[..., None] & k[..., None, :]
-            weights = weight(dist[ijk]) if weight is not None else None
-            ret_append(get_adf(ang[ijk], weights=weights))
-        return ret
-
-    @overload
-    def get_angle_mat(self, mol_subset: MolSubset = ..., atom_subset: Tuple[AtomSubset, AtomSubset, AtomSubset] = ..., get_r_max: Literal[False] = ...) -> np.ndarray: ...  # noqa: E501
-    @overload
-    def get_angle_mat(self, mol_subset: MolSubset = ..., atom_subset: Tuple[AtomSubset, AtomSubset, AtomSubset] = ..., get_r_max: Literal[True] = ...) -> Tuple[np.ndarray, float]: ...  # noqa: E501
-    def get_angle_mat(self, mol_subset=0, atom_subset=(None, None, None), get_r_max=False):  # noqa: E301, E501
-        """Create and return an angle matrix for all molecules and atoms in this instance.
-
-        Parameters
-        ----------
-        mol_subset : :class:`slice`, optional
-            Perform the calculation on a subset of molecules in this instance, as
-            determined by their moleculair index.
-            Include all :math:`m` molecules in this instance if :data:`None`.
-        atom_subset : :class:`Sequence[str] <collections.abc.Sequence>`, optional
-            Perform the calculation on a subset of atoms in this instance, as
-            determined by their atomic index or atomic symbol.
-            Include all :math:`n` atoms per molecule in this instance if :data:`None`.
-        get_r_max : :class:`bool`
-            Whether or not the maximum distance should be returned or not.
-
-        Returns
-        -------
-        :class:`np.ndarray[np.float64] <numpy.ndarray>`, shape :math:`(m, n, k, l)`
-            A 4D angle matrix of :math:`m` molecules, created out of three sets of :math:`n`,
-            :math:`k` and :math:`l` atoms.
-            If **get_r_max** = :data:`True`, also return the maximum distance.
-
-        """
-        # Define array slices
-        m_subset = self._get_mol_subset(mol_subset)
-        i = self._get_atom_subset(atom_subset[0])
-        j = self._get_atom_subset(atom_subset[1])
-        k = self._get_atom_subset(atom_subset[2])
-
-        # Slice and broadcast the XYZ array
-        A = self[m_subset][:, i][..., None, :]
-        B = self[m_subset][:, j][:, None, ...]
-        C = self[m_subset][:, k][:, None, ...]
-
-        # Temporary ignore RuntimeWarnings related to dividing by zero
-        with np.errstate(divide='ignore', invalid='ignore'):
-            # Prepare the unit vectors
-            kwarg1 = {'atom_subset': [atom_subset[0], atom_subset[1]], 'mol_subset': m_subset}
-            kwarg2 = {'atom_subset': [atom_subset[0], atom_subset[2]], 'mol_subset': m_subset}
-            dist_mat1 = self.get_dist_mat(**kwarg1)[..., None]
-            dist_mat2 = self.get_dist_mat(**kwarg2)[..., None]
-            r_max = max(dist_mat1.max(), dist_mat2.max())
-            unit_vec1 = (B - A) / dist_mat1
-            unit_vec2 = (C - A) / dist_mat2
-
-            # Create and return the angle matrix
-            if get_r_max:
-                return np.arccos(np.einsum('ijkl,ijml->ijkm', unit_vec1, unit_vec2)), r_max
-            return np.arccos(np.einsum('ijkl,ijml->ijkm', unit_vec1, unit_vec2))
 
     @overload
     def _get_atom_subset(self, atom_subset: AtomSubset, as_array: Literal[False] = ...) -> Union[slice, np.ndarray[Any, np.dtype[np.intp]]]: ...  # noqa: E501
