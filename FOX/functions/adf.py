@@ -48,11 +48,12 @@ def _adf_inner_cdktree(
     n: int,
     r_max: float,
     idx_list: Iterable[_3Tuple[NDArray[np.integer[Any]]]],
+    boxsize: None | NDArray[np.float64],
     weight: None | Callable[[NDArray[np.float64]], NDArray[np.float64]] = None,
 ) -> List[NDArray[np.float64]]:
     """Perform the loop of :meth:`.init_adf` with a distance cutoff."""
     # Construct slices and a distance matrix
-    tree = cKDTree(m)
+    tree = cKDTree(m, boxsize=boxsize)
     dist, idx = tree.query(m, n, distance_upper_bound=r_max, p=2)  # type: NDArray[np.float64], NDArray[np.intp]  # noqa: E501
     dist[dist == np.inf] = 0.0
     idx[idx == m.shape[0]] = 0

@@ -1628,16 +1628,25 @@ class MultiMolecule(_MultiMolecule):
 
     """############################  Angular Distribution Functions  ##########################"""
 
-    def init_adf(self, mol_subset: MolSubset = None,
-                 atom_subset: AtomSubset = None,
-                 r_max: Union[float, str] = 8.0,
-                 weight: Callable[[np.ndarray], np.ndarray] = neg_exp) -> pd.DataFrame:
+    def init_adf(
+        self,
+        mol_subset: MolSubset = None,
+        atom_subset: AtomSubset = None,
+        r_max: Union[float, str] = 8.0,
+        weight: Callable[[np.ndarray], np.ndarray] = neg_exp,
+        periodic: None | Iterable[Literal["x", "y", "z"]] = None,
+    ) -> pd.DataFrame:
         r"""Initialize the calculation of distance-weighted angular distribution functions (ADFs).
 
         ADFs are calculated for all possible atom-pairs in **atom_subset** and returned as a
         dataframe.
 
         .. _DASK: https://dask.org/
+
+        Note
+        ----
+        Periodic ADF calculations (see the **periodic** parameter) are currently
+        only supported for systems with cuboid latices and ``r_max != inf``.
 
         Parameters
         ----------
@@ -1659,6 +1668,10 @@ class MultiMolecule(_MultiMolecule):
             Given an angle :math:`\phi_{ijk}`, to the distance :math:`r_{ijk}` is defined
             as :math:`max[r_{ij}, r_{jk}]`.
             Set to :data:`None` to disable distance weighting.
+        periodic : :class:`str`, optional
+            If specified, correct for the systems periodicity if
+            :attr:`self.lattice is not None <MultiMolecule.lattice>`.
+            Accepts ``"x"``, ``"y"`` and/or ``"z"``.
 
         Returns
         -------
@@ -1701,11 +1714,49 @@ class MultiMolecule(_MultiMolecule):
                 v_new.append(bool_ar)
             atom_pairs[k] = v_new
 
+        # Periodic calculations
+        if periodic is not None:
+            if not r_max:
+                raise NotImplementedError(
+                    "periodic calculations are not supported for `r_max=inf`"
+                )
+
+            # Validate the parameters
+            periodic_set = {i.lower() for i in periodic}
+            lattice = self.lattice
+            if not periodic_set.issubset("xyz"):
+                raise ValueError("periodic expected `x`, `y` and/or `z`; "
+                                 f"observed value: {periodic!r}")
+            elif lattice is None:
+                raise TypeError("cannot perform periodic calculations if the "
+                                "molecules `lattice` is None")
+
+            # Scipy's `cKDTree` only supports cuboid lattices
+            is0 = np.abs(lattice - 0) < 1e-8
+            if not (np.count_nonzero(is0, axis=-1) == 2).all():
+                raise NotImplementedError("non-cuboid lattices are not supported")
+
+            # Set the vector-length of all absent axes to `inf`
+            xyz_dct = {"x": 0, "y": 1, "z": 2}
+            slc = [xyz_dct[i] for i in sorted(xyz_dct.keys() - periodic_set)]
+            lattice[..., slc, :] = np.inf
+
+            # Perform a translation to remove negative elements, as `cKDTree` cannot
+            # handle the latter if `boxsize` is specified
+            mol -= mol.min(axis=1)[..., None, :]
+            if lattice.ndim == 2:
+                boxsize_iter = repeat(np.linalg.norm(lattice, axis=-1))
+            else:
+                boxsize_iter = (i for i in np.linalg.norm(lattice, axis=-1))
+        else:
+            boxsize_iter = repeat(None)
+
         # Construct the angular distribution function
         # Perform the task in parallel (with dask) if possible
         if DASK_EX is None and r_max_:
             func = dask.delayed(_adf_inner_cdktree)
-            jobs = [func(m, n, r_max_, atom_pairs.values(), weight) for m in mol]
+            jobs = [func(m, n, r_max_, atom_pairs.values(), b, weight) for m, b in
+                    zip(mol, boxsize_iter)]
             results = dask.compute(*jobs)
         elif DASK_EX is None and not r_max_:
             func = dask.delayed(_adf_inner)
@@ -1713,7 +1764,8 @@ class MultiMolecule(_MultiMolecule):
             results = dask.compute(*jobs)
         elif DASK_EX is not None and r_max_:
             func = _adf_inner_cdktree
-            results = [func(m, n, r_max_, atom_pairs.values(), weight) for m in mol]
+            results = [func(m, n, r_max_, atom_pairs.values(), b, weight) for m, b in
+                       zip(mol, boxsize_iter)]
         elif DASK_EX is not None and not r_max_:
             func = _adf_inner
             results = [func(m, atom_pairs.values(), weight) for m in mol]
