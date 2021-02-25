@@ -38,6 +38,14 @@ MOL_LATTICE_3D.lattice = _read_lattice(PATH / "md_lattice.cell")[::10]
 MOL_LATTICE_2D = MOL_LATTICE_3D.copy()
 MOL_LATTICE_2D.lattice = MOL_LATTICE_2D.lattice[0]
 
+MOL_LATTICE_3D_ORTH = MOL_LATTICE_3D.copy()
+MOL_LATTICE_3D_ORTH.lattice = np.zeros_like(MOL_LATTICE_3D_ORTH.lattice)
+MOL_LATTICE_3D_ORTH.lattice[..., 0] = np.linalg.norm(MOL_LATTICE_3D.lattice, axis=-1)
+
+MOL_LATTICE_2D_ORTH = MOL_LATTICE_3D.copy()
+MOL_LATTICE_2D_ORTH.lattice = np.zeros_like(MOL_LATTICE_2D_ORTH.lattice)
+MOL_LATTICE_2D_ORTH.lattice[..., 0] = np.linalg.norm(MOL_LATTICE_2D.lattice, axis=-1)
+
 
 @delete_finally(join(PATH, '.tmp.xyz'))
 def test_mol_to_file():
@@ -281,16 +289,34 @@ class TestADF:
     """Test :meth:`MultiMolecule.init_adf`."""
 
     @pytest.mark.parametrize(
-        "name,kwargs",
+        "name,mol,kwargs",
         [
-            ("adf_weighted", {}),
-            ("adf", {"weight": None}),
+            ("adf_weighted", MOL, {"atom_subset": ("Cd", "Se")}),
+            ("adf", MOL, {"atom_subset": ("Cd", "Se"), "weight": None}),
+            ("adf_periodic_2d", MOL_LATTICE_2D_ORTH, {"atom_subset": ("Pb",), "periodic": "xyz"}),
+            ("adf_periodic_3d", MOL_LATTICE_3D_ORTH, {"atom_subset": ("Pb",), "periodic": "xy"}),
+        ],
+        ids=["adf_weighted", "adf", "adf_periodic_2d", "adf_periodic_3d"],
+    )
+    def test_passes(self, name: str, mol: MultiMolecule, kwargs: Mapping[str, Any]) -> None:
+        adf = mol.init_adf(**kwargs)
+        ref = np.load(PATH / f"{name}.npy")
+        np.testing.assert_allclose(adf, ref)
+
+    @pytest.mark.parametrize(
+        "kwargs,exc",
+        [
+            ({"periodic": "bob"}, ValueError),
+            ({"periodic": "xyz", "r_max": np.inf}, NotImplementedError),
+            ({"periodic": "xyz"}, NotImplementedError),
         ]
     )
-    def test_passes(self, name: str, kwargs: Mapping[str, Any]) -> None:
-        adf = MOL.init_adf(atom_subset=('Cd', 'Se'), **kwargs)
-        ref = np.load(join(PATH, f"{name}.npy"))
-        np.testing.assert_allclose(adf, ref)
+    @pytest.mark.parametrize("mol", [MOL_LATTICE_2D, MOL_LATTICE_3D])
+    def test_raises(
+        self, mol: MultiMolecule, kwargs: Mapping[str, Any], exc: Type[Exception]
+    ) -> None:
+        with pytest.raises(exc):
+            mol.init_adf(**kwargs)
 
 
 def test_shell_search():
