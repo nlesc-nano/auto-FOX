@@ -16,6 +16,7 @@ API
 
 from __future__ import annotations
 
+import sys
 from typing import (
     Sequence,
     Hashable,
@@ -34,6 +35,10 @@ from scipy.spatial import cKDTree
 from scipy.spatial.distance import cdist
 
 if TYPE_CHECKING:
+    if sys.version_info >= (3, 8):
+        from typing import Literal
+    else:
+        from typing_extensions import Literal
     from numpy import float64 as f8, int64 as i8
 
     _T = TypeVar("_T")
@@ -49,7 +54,7 @@ def _adf_inner_cdktree(
     m: NDArray[f8],
     n: int,
     r_max: float,
-    idx_list: Iterable[_3Tuple[NDArray[np.integer[Any]]]],
+    idx_list: Iterable[_3Tuple[NDArray[np.bool_]]],
     boxsize: None | NDArray[f8],
     weight: None | Callable[[NDArray[f8]], NDArray[f8]] = None,
 ) -> List[NDArray[f8]]:
@@ -85,23 +90,27 @@ def _adf_inner_cdktree(
 
 def _adf_inner(
     m: NDArray[f8],
-    idx_list: Iterable[_3Tuple[NDArray[np.integer[Any]]]],
+    idx_list: Iterable[_3Tuple[NDArray[np.bool_]]],
     lattice: None | NDArray[f8],
+    periodicity: Iterable[Literal["x", "y", "z"]] = "xyz",
     weight: None | Callable[[NDArray[f8]], NDArray[f8]] = None,
 ) -> List[NDArray[f8]]:
     """Perform the loop of :meth:`.init_adf` without a distance cutoff."""
-    # Construct a distance matrix
-    dist: NDArray[f8] = cdist(m, m)
-
-    # Slice the Cartesian coordinates
-    coords13: NDArray[f8] = m
-    coords2: NDArray[f8] = m[..., None, :]
-
     # Construct (3D) angle- and distance-matrices
     with np.errstate(divide='ignore', invalid='ignore'):
-        vec: NDArray[f8] = ((coords13 - coords2) / dist[..., None])
+        if lattice is None:
+            # Construct a distance matrix
+            dist: NDArray[f8] = cdist(m, m)
+
+            # Slice the Cartesian coordinates
+            coords13: NDArray[f8] = m
+            coords2: NDArray[f8] = m[..., None, :]
+
+            vec: NDArray[f8] = (coords13 - coords2) / dist[..., None]
+        else:
+            dist, vec = _adf_inner_periodic(m, lattice, periodicity)
         ang: NDArray[f8] = np.arccos(np.einsum('jkl,jml->jkm', vec, vec))
-        dist = np.maximum(dist[..., None], dist[..., None, :])
+        dist = np.maximum(dist[..., :, None], dist[..., None, :])
     ang[np.isnan(ang)] = 0.0
 
     # Radian (float) to degrees (int)
@@ -114,6 +123,26 @@ def _adf_inner(
         weights = weight(dist[ijk]) if weight is not None else None
         ret.append(get_adf(ang_int[ijk], weights=weights))
     return ret
+
+
+def _adf_inner_periodic(
+    m: NDArray[f8],
+    lattice: NDArray[f8],
+    periodicity: Iterable[Literal["x", "y", "z"]] = "xyz",
+) -> Tuple[NDArray[f8], NDArray[f8]]:
+    """Construct the distance matrix and angle-defining vectors for periodic systems."""
+    vec = m - m[..., None, :]
+    lat_norm = np.linalg.norm(lattice, axis=-1)
+
+    dct = {"x": 0, "y": 1, "z": 2}
+    iterator = ((dct[i], lat_norm[dct[i]]) for i in periodicity)
+    for i, vec_len in iterator:
+        vec[..., i][vec[..., i] > (vec_len / 2)] -= vec_len
+        vec[..., i][vec[..., i] < -(vec_len / 2)] += vec_len
+
+    dist = np.linalg.norm(vec, axis=-1)
+    vec /= dist[..., None]
+    return dist, vec
 
 
 def get_adf_df(atom_pairs: Sequence[Hashable]) -> pd.DataFrame:

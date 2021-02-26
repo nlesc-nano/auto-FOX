@@ -300,7 +300,6 @@ class TestADF:
         "kwargs,exc",
         [
             ({"periodic": "bob"}, ValueError),
-            ({"periodic": "xyz", "r_max": np.inf}, NotImplementedError),
             ({"periodic": "xyz"}, NotImplementedError),
         ]
     )
