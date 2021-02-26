@@ -2,10 +2,9 @@
 
 from __future__ import annotations
 
-import os
 from os.path import join
 from pathlib import Path
-from itertools import islice, chain, combinations
+from itertools import chain, combinations
 from typing import Mapping, Any, Type, Set, Iterable
 
 import pytest
@@ -16,13 +15,7 @@ from assertionlib import assertion
 from nanoutils import delete_finally, Literal
 
 from FOX import MultiMolecule, example_xyz
-
-
-def _read_lattice(file: str | bytes | os.PathLike[Any]) -> np.ndarray[Any, np.dtype[np.float64]]:
-    with open(file, 'r') as f:
-        iterator = chain.from_iterable(i.split()[2:11] for i in islice(f, 1, None))
-        return np.fromiter(iterator, dtype=np.float64).reshape(-1, 3, 3)
-
+from FOX.io import lattice_from_cell
 
 PATH = Path('tests') / 'test_files'
 
@@ -33,7 +26,7 @@ MOL_ALIAS = MOL.copy()
 MOL_ALIAS.atoms_alias = {"Cd2": ("Cd", np.s_[:10])}
 
 MOL_LATTICE_3D = MultiMolecule.from_xyz(PATH / "md_lattice.xyz")[::10]
-MOL_LATTICE_3D.lattice = _read_lattice(PATH / "md_lattice.cell")[::10]
+MOL_LATTICE_3D.lattice = lattice_from_cell(PATH / "md_lattice.cell")[::10]
 
 MOL_LATTICE_2D = MOL_LATTICE_3D.copy()
 MOL_LATTICE_2D.lattice = MOL_LATTICE_2D.lattice[0]
