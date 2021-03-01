@@ -288,8 +288,15 @@ class TestADF:
             ("adf", MOL, {"atom_subset": ("Cd", "Se"), "weight": None}),
             ("adf_periodic_2d", MOL_LATTICE_2D_ORTH, {"atom_subset": ("Pb",), "periodic": "xyz"}),
             ("adf_periodic_3d", MOL_LATTICE_3D_ORTH, {"atom_subset": ("Pb",), "periodic": "xy"}),
+            ("adf_2d_inf", MOL_LATTICE_2D, {"atom_subset": ("Pb",), "r_max": np.inf}),
+            ("adf_3d_inf", MOL_LATTICE_3D, {"atom_subset": ("Pb",), "r_max": np.inf}),
+            ("adf_periodic_2d_inf", MOL_LATTICE_2D,
+             {"atom_subset": ("Pb",), "periodic": "xyz", "r_max": np.inf}),
+            ("adf_periodic_3d_inf", MOL_LATTICE_3D,
+             {"atom_subset": ("Pb",), "periodic": "xy", "r_max": np.inf}),
         ],
-        ids=["adf_weighted", "adf", "adf_periodic_2d", "adf_periodic_3d"],
+        ids=["adf_weighted", "adf", "adf_periodic_2d", "adf_periodic_3d",
+             "adf_2d_inf", "adf_3d_inf", "adf_periodic_2d_inf", "adf_periodic_3d_inf"],
     )
     def test_passes(self, name: str, mol: MultiMolecule, kwargs: Mapping[str, Any]) -> None:
         adf = mol.init_adf(**kwargs)
@@ -300,7 +307,6 @@ class TestADF:
         "kwargs,exc",
         [
             ({"periodic": "bob"}, ValueError),
-            ({"periodic": "xyz", "r_max": np.inf}, NotImplementedError),
             ({"periodic": "xyz"}, NotImplementedError),
         ]
     )

@@ -57,7 +57,6 @@ except Exception as ex:
     _warn.__cause__ = ex
     warnings.warn(_warn)
     del _warn
-DASK_EX = Exception()
 
 try:
     from ase import Atoms
@@ -1716,11 +1715,6 @@ class MultiMolecule(_MultiMolecule):
 
         # Periodic calculations
         if periodic is not None:
-            if not r_max:
-                raise NotImplementedError(
-                    "periodic calculations are not supported for `r_max=inf`"
-                )
-
             # Validate the parameters
             periodic_set = {i.lower() for i in periodic}
             lattice = self.lattice
@@ -1730,11 +1724,13 @@ class MultiMolecule(_MultiMolecule):
             elif lattice is None:
                 raise TypeError("cannot perform periodic calculations if the "
                                 "molecules `lattice` is None")
+            lattice = lattice[m_subset]
 
             # Scipy's `cKDTree` only supports cuboid lattices
-            is0 = np.abs(lattice - 0) < 1e-8
-            if not (np.count_nonzero(is0, axis=-1) == 2).all():
-                raise NotImplementedError("non-cuboid lattices are not supported")
+            if r_max_:
+                is0 = np.abs(lattice - 0) < 1e-8
+                if not (np.count_nonzero(is0, axis=-1) == 2).all():
+                    raise NotImplementedError("non-cuboid lattices are not supported")
 
             # Set the vector-length of all absent axes to `inf`
             xyz_dct = {"x": 0, "y": 1, "z": 2}
@@ -1746,9 +1742,14 @@ class MultiMolecule(_MultiMolecule):
             mol -= mol.min(axis=1)[..., None, :]
             if lattice.ndim == 2:
                 boxsize_iter = repeat(np.linalg.norm(lattice, axis=-1))
+                lattice_iter = repeat(lattice)
             else:
-                boxsize_iter = (i for i in np.linalg.norm(lattice, axis=-1))
+                boxsize_iter = iter(np.linalg.norm(lattice, axis=-1))
+                lattice_iter = iter(lattice)
+            periodic_iter = repeat(sorted(periodic_set))
         else:
+            lattice_iter = repeat(None)
+            periodic_iter = repeat("xyz")
             boxsize_iter = repeat(None)
 
         # Construct the angular distribution function
@@ -1760,7 +1761,8 @@ class MultiMolecule(_MultiMolecule):
             results = dask.compute(*jobs)
         elif DASK_EX is None and not r_max_:
             func = dask.delayed(_adf_inner)
-            jobs = [func(m, atom_pairs.values(), weight) for m in mol]
+            jobs = [func(m, atom_pairs.values(), l, p, weight) for m, l, p in
+                    zip(mol, lattice_iter, periodic_iter)]
             results = dask.compute(*jobs)
         elif DASK_EX is not None and r_max_:
             func = _adf_inner_cdktree
@@ -1768,7 +1770,8 @@ class MultiMolecule(_MultiMolecule):
                        zip(mol, boxsize_iter)]
         elif DASK_EX is not None and not r_max_:
             func = _adf_inner
-            results = [func(m, atom_pairs.values(), weight) for m in mol]
+            results = [func(m, atom_pairs.values(), l, p, weight) for m, l, p in
+                       zip(mol, lattice_iter, periodic_iter)]
 
         df = get_adf_df(atom_pairs)
         df.loc[:, :] = np.array(results).mean(axis=0).T
