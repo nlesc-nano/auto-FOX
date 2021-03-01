@@ -2121,7 +2121,6 @@ class MultiMolecule(_MultiMolecule):
         at_symbols = self.symbol
 
         # Construct a template molecule and fill it with atoms
-        assert self.atoms is not None
         mol_template = Molecule()
         mol_template.properties = self.properties.copy()
         add_atom = mol_template.add_atom
@@ -2142,31 +2141,41 @@ class MultiMolecule(_MultiMolecule):
                     at2 = mol_template[bond_idx[j]]
                     add_bond(Bond(atom1=at1, atom2=at2, order=order/10.0))
 
+        if self.lattice is None:
+            lattice_iter = ([] for _ in self[m_subset])
+        elif self.lattice.ndim == 2:
+            lattice_iter = (self.lattice.tolist() for _ in self[m_subset])
+        elif self.lattice.ndim == 3:
+            lattice_iter = iter(self.lattice.tolist())
+        else:
+            raise ValueError
+
         # Create copies of the template molecule; update their cartesian coordinates
         ret: List[Molecule] = []
         ret_append = ret.append
-        for i, xyz in enumerate(self[m_subset]):
+        for i, (lat, xyz) in enumerate(zip(lattice_iter, self[m_subset])):
             mol = mol_template.copy()
             mol.from_array(xyz[at_subset])
             mol.properties.frame = i
+            mol.lattice = lat
             ret_append(mol)
 
         return ret
 
     @classmethod
     def from_Molecule(cls: Type[MT], mol_list: Union[Molecule, Sequence[Molecule]],
-                      subset: Container[str] = frozenset({'atoms'})) -> MT:
+                      subset: None | Container[str] = frozenset({'atoms'})) -> MT:
         """Construct a :class:`.MultiMolecule` instance from one or more PLAMS molecules.
 
         Parameters
         ----------
         mol_list : :class:`plams.Molecule <scm.plams.mol.molecule.Molecule>` or :class:`Sequence[plams.Molecule] <collections.abc.Sequence>`
             A PLAMS molecule or list of PLAMS molecules.
-        subset : :class:`Container[str] <collections.abc.Container>`
+        subset : :class:`Container[str] <collections.abc.Container>`, optional
             Transfer a subset of *plams.Molecule* attributes to this instance.
             If :data:`None`, transfer all attributes.
             Accepts one or more of the following values as strings:
-            ``"properties"``, ``"atoms"`` and/or ``"bonds"``.
+            ``"properties"``, ``"atoms"``, ``"lattice"`` and/or ``"bonds"``.
 
         Returns
         -------
@@ -2179,7 +2188,7 @@ class MultiMolecule(_MultiMolecule):
             mol_list = (mol_list,)
         else:
             plams_mol = mol_list[0]
-        subset = subset or {'atoms', 'bonds', 'properties'}
+        subset = subset if subset is not None else {'atoms', 'bonds', 'properties', 'lattice'}
 
         # Convert coordinates
         n_mol = len(mol_list)
@@ -2206,6 +2215,10 @@ class MultiMolecule(_MultiMolecule):
                                         bond in plams_mol.bonds], dtype=int)
             plams_mol.unset_atoms_id()
 
+        # Convert lattice
+        if 'lattice' in subset:
+            lat = np.array([m.lattice for m in mol_list], dtype=np.float64)
+            kwargs['lattice'] = lat if lat.size != 0 else None
         return cls(coords, **kwargs)
 
     def as_ase(self, mol_subset: MolSubset = None,
@@ -2240,7 +2253,21 @@ class MultiMolecule(_MultiMolecule):
 
         symbols = self.symbol[j]
         positions_iter = self[i, j]
-        return [Atoms(symbols=symbols, positions=p) for p in positions_iter]
+
+        if "cell" in kwargs:
+            lattice_iter = repeat(kwargs.pop("cell"))
+        else:
+            if self.lattice is None:
+                lattice_iter = repeat(None)
+            elif self.lattice.ndim == 2:
+                lattice_iter = repeat(self.lattice)
+            elif self.lattice.ndim == 3:
+                lattice_iter = iter(self.lattice[i])
+            else:
+                raise ValueError
+
+        return [Atoms(symbols=symbols, positions=p, cell=lat, **kwargs) for lat, p in
+                zip(lattice_iter, positions_iter)]
 
     @classmethod
     def from_ase(cls: Type[MT], mol_list: Union[Atoms, Sequence[Atoms]]) -> MT:
@@ -2268,7 +2295,11 @@ class MultiMolecule(_MultiMolecule):
         coords = [m.positions for m in mol_list]
         _atoms = group_by_values(enumerate(mol_list[0].numbers))
         atoms = {PeriodicTable.get_symbol(k): v for k, v in _atoms.items()}
-        return cls(coords, atoms=atoms)
+
+        lattice = np.array([m.cell for m in mol_list], dtype=np.float64)
+        if not lattice.any():
+            lattice = None
+        return cls(coords, atoms=atoms, lattice=lattice)
 
     @classmethod
     def from_xyz(cls: Type[MT], filename: Union[str, bytes, PathLike],
