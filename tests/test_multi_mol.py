@@ -2,10 +2,13 @@
 
 from __future__ import annotations
 
+import copy
+import pickle
+import weakref
 from os.path import join
 from pathlib import Path
 from itertools import chain, combinations
-from typing import Mapping, Any, Type, Set, Iterable
+from typing import Mapping, Any, Type, Set, Iterable, Callable
 
 import pytest
 import yaml
@@ -370,22 +373,46 @@ def test_from_mass_weighted():
     assertion.allclose(np.abs((mol_new - mol).mean()), 0.0, abs_tol=10**-8)
 
 
-def test_as_molecule():
+@pytest.mark.parametrize(
+    "mol", [MOL[::10], MOL_LATTICE_2D, MOL_LATTICE_3D]
+)
+def test_as_molecule(mol: MultiMolecule):
     """Test :meth:`.MultiMolecule.as_Molecule`."""
-    mol = MOL.copy()
-
     mol_list = mol.as_Molecule()
     mol_array = np.array([i.as_array() for i in mol_list])
     np.testing.assert_allclose(mol_array, mol)
 
+    lattice = np.array([m.lattice for m in mol_list])
 
-def test_from_molecule():
+    assert mol.lattice is None or mol.lattice.ndim in {2, 3}
+    if mol.lattice is None:
+        assertion.eq(lattice.size, 0)
+    elif mol.lattice.ndim == 2:
+        lat_ref = np.full((len(mol), 3, 3), mol.lattice)
+        np.testing.assert_allclose(lattice, lat_ref)
+    elif mol.lattice.ndim == 3:
+        np.testing.assert_allclose(lattice, mol.lattice)
+
+
+@pytest.mark.parametrize(
+    "mol", [MOL[::10], MOL_LATTICE_2D, MOL_LATTICE_3D]
+)
+def test_from_molecule(mol: MultiMolecule):
     """Test :meth:`.MultiMolecule.from_Molecule`."""
-    mol = MOL.copy()
-
     mol_list = mol.as_Molecule()
-    mol_new = MultiMolecule.from_Molecule(mol_list)
+    mol_new = MultiMolecule.from_Molecule(mol_list, subset=None)
     np.testing.assert_allclose(mol_new, mol)
+
+    assertion.eq(type(mol.lattice), type(mol_new.lattice))
+    assert mol.lattice is None or mol.lattice.ndim in {2, 3}
+
+    if mol.lattice is None:
+        assertion.is_(mol_new.lattice, mol.lattice)
+    elif mol.lattice.ndim == 2:
+        lat_ref = np.full(mol_new.lattice.shape, mol.lattice)
+        np.testing.assert_allclose(mol_new.lattice, lat_ref)
+    elif mol.lattice.ndim == 3:
+        np.testing.assert_allclose(mol_new.lattice, mol.lattice)
 
 
 @delete_finally(join(PATH, 'mol.xyz'))
@@ -483,23 +510,76 @@ class TestAtoms:
 
 
 @pytest.mark.parametrize(
-    "kwargs",
+    "mol,kwargs",
     [
-        {'mol_subset': np.s_[::10]},
-        {'atom_subset': ['Cd', 'Se']},
-        {'mol_subset': np.s_[10:30], 'atom_subset': ['Cd', 'O']},
-        {'masses': MOL.mass},
-    ]
+        (MOL[::10], {'mol_subset': np.s_[::10]}),
+        (MOL[::10], {'atom_subset': ['Cd', 'Se']}),
+        (MOL[::10], {'mol_subset': np.s_[10:30], 'atom_subset': ['Cd', 'O']}),
+        (MOL[::10], {'masses': MOL[::10].mass}),
+        (MOL_LATTICE_3D, {'mol_subset': np.s_[::10]}),
+        (MOL_LATTICE_3D, {'atom_subset': ['Pb', 'Cs']}),
+        (MOL_LATTICE_3D, {'mol_subset': np.s_[5:15], 'atom_subset': ['Pb', 'Br']}),
+        (MOL_LATTICE_3D, {'masses': MOL_LATTICE_3D.mass}),
+        (MOL_LATTICE_2D, {'mol_subset': np.s_[::10]}),
+        (MOL_LATTICE_2D, {'atom_subset': ['Pb', 'Cs']}),
+        (MOL_LATTICE_2D, {'mol_subset': np.s_[5:15], 'atom_subset': ['Pb', 'Br']}),
+        (MOL_LATTICE_2D, {'masses': MOL_LATTICE_2D.mass}),
+    ],
 )
-def test_ase(kwargs) -> None:
+def test_ase(mol: MultiMolecule, kwargs: Mapping[str, Any]) -> None:
     """Test :meth:`MultiMolecule.as_ase` and :meth:`MultiMolecule.from_ase`."""
-    mol_ref = MOL[:100]
-    ase_mols = mol_ref.as_ase(**kwargs)
-    mol = MultiMolecule.from_ase(ase_mols)
+    ase_mols = mol.as_ase(**kwargs)
+    mol_new = MultiMolecule.from_ase(ase_mols)
 
     i = kwargs.get('mol_subset', np.s_[:])
     j = kwargs.get('atom_subset')
     if j is None:
-        np.testing.assert_allclose(mol, mol_ref[i])
+        np.testing.assert_allclose(mol_new, mol[i])
     else:
-        np.testing.assert_allclose(mol, mol_ref[i].loc[j])
+        np.testing.assert_allclose(mol_new, mol[i].loc[j])
+
+    assert mol.lattice is None or mol.lattice.ndim in {2, 3}
+    if mol.lattice is None:
+        assertion.is_(mol_new.lattice, mol.lattice)
+    elif mol.lattice.ndim == 2:
+        lat_ref = np.full(mol_new.lattice.shape, mol.lattice)
+        np.testing.assert_allclose(mol_new.lattice, lat_ref)
+    elif mol.lattice.ndim == 3:
+        np.testing.assert_allclose(mol_new.lattice, mol.lattice[i])
+
+
+@pytest.mark.parametrize(
+    "func",
+    [
+        lambda m: m.copy(),
+        lambda m: pickle.loads(pickle.dumps(m)),
+        lambda m: weakref.ref(m)(),
+        lambda m: copy.copy(m),
+        lambda m: copy.deepcopy(m),
+    ],
+    ids=["copy", "pickle", "weakref", "__copy__", "__deepcopy__"],
+)
+@pytest.mark.parametrize("mol", [MOL[::10], MOL_LATTICE_2D, MOL_LATTICE_3D])
+def test_copy(func: Callable[[MultiMolecule], MultiMolecule], mol: MultiMolecule) -> None:
+    mol_new = func(mol)
+    assert isinstance(mol_new, MultiMolecule)
+
+    assertion.eq(mol.dtype, mol_new.dtype)
+    np.testing.assert_allclose(mol, mol_new)
+    if mol.lattice is not None and mol_new.lattice is not None:
+        np.testing.assert_allclose(mol.lattice, mol_new.lattice)
+
+    assertion.eq(mol.atoms.keys(), mol_new.atoms.keys())
+    iter1 = ((k, mol.atoms[k], mol_new.atoms[k]) for k in mol.atoms)
+    for k, v1, v2 in iter1:
+        np.testing.assert_array_equal(v1, v2, err_msg=k)
+
+    assertion.eq(mol.atoms_alias.keys(), mol_new.atoms_alias.keys())
+    iter2 = ((k, mol.atoms_alias[k], mol_new.atoms_alias[k]) for k in mol.atoms_alias)
+    for k, (at1, v3), (at2, v4) in iter2:
+        assertion.eq(type(v3), type(v4), message=k)
+        assertion.eq(at1, at2, message=k)
+        if isinstance(v3, np.ndarray):
+            np.testing.assert_array_equal(v3, v4, err_msg=k)
+        else:
+            assertion.eq(v3, v4, message=k)
