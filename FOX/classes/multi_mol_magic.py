@@ -235,7 +235,6 @@ class _MultiMolecule(np.ndarray):
         atoms: Optional[IdxMapping] = None,
         bonds: Optional[np.ndarray] = None,
         properties: Optional[Mapping] = None,
-        *,
         atoms_alias: Optional[Mapping[str, slice]] = None,
         lattice: None | npt.ArrayLike = None,
     ) -> MT:
@@ -532,3 +531,16 @@ class _MultiMolecule(np.ndarray):
     def __repr__(self) -> str:
         """Return the canonical string representation of this instance."""
         return f'{self.__class__.__name__}(..., shape={self.shape}, dtype={repr(self.dtype.name)})'
+
+    def __reduce__(self: MT) -> Tuple[MT, Tuple[Any, Any, Any, Any, Any, Any]]:
+        """Helper function for :mod:`pickle`."""
+        cls = type(self)
+        args = (
+            self.view(np.ndarray),
+            self._atoms,
+            self._bonds,
+            self._properties,
+            self._atoms_alias,
+            self._lattice,
+        )
+        return cls, args
