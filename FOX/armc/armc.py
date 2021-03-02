@@ -28,6 +28,7 @@ import numpy as np
 from nanoutils import Literal
 
 from .monte_carlo import MonteCarloABC
+from ..classes.multi_mol import MultiMolecule
 from ..type_hints import ArrayLikeOrScalar, ArrayOrScalar
 from ..io.hdf5_utils import (
     create_hdf5, to_hdf5, create_xyz_hdf5, _get_filename_xyz, hdf5_clear_status
@@ -37,9 +38,8 @@ if TYPE_CHECKING:
     import functools
     from .phi_updater import PhiUpdater
     from ..io.read_psf import PSFContainer
-    from ..classes import MultiMolecule
 else:
-    from ..type_alias import MultiMolecule, PhiUpdater, PSFContainer
+    from ..type_alias import PhiUpdater, PSFContainer
 
 __all__ = ['ARMC']
 
@@ -135,6 +135,18 @@ class ARMC(MonteCarloABC):
         ret['job'] = self.package_manager.to_yaml_dict()
         ret['job']['molecule'] = [m.properties.filename for m in self.molecule]
 
+        if self.molecule[0].lattice is not None:
+            ret['job']['lattice'] = lat_lst = []
+            iterator1 = (
+                (m, MultiMolecule(m.lattice, atoms={"Xx": range(3)})) for m in self.molecule
+            )
+            for m, lat_mol in iterator1:
+                filename = m.properties.filename.replace(".xyz", ".lattice.xyz")
+                lat_mol.as_xyz(filename)
+                lat_lst.append(filename)
+        else:
+            ret['job']['lattice'] = None
+
         ret['monte_carlo'] = {
             'type': f'{cls.__module__}.{cls.__name__}',
             'iter_len': self.iter_len,
@@ -147,8 +159,8 @@ class ARMC(MonteCarloABC):
         }
 
         # Parse the `pes` and `pes_validation` blocks
-        iterator = ((k, getattr(self, k)) for k in ('pes', 'pes_validation'))
-        for name, attr in iterator:
+        iterator2 = ((k, getattr(self, k)) for k in ('pes', 'pes_validation'))
+        for name, attr in iterator2:
             pes: Dict[str, Any] = {}
             ret[name] = pes
             i_max = 1 + max((int(k.split('.')[-1]) for k in attr.keys()), default=0)

@@ -283,7 +283,7 @@ class ARMCPT(ARMC):
 
         # Convert lists of settings into just settings
         for k, v in ret['job'].items():
-            if k in {'molecule', 'type'}:
+            if k in {'molecule', 'type', 'lattice'}:
                 continue
             v['settings'] = v['settings'][0]
         return ret

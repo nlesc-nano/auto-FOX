@@ -12,12 +12,15 @@ API
 
 """
 
+from __future__ import annotations
+
 import os
 from functools import partial
 from collections import abc
 from typing import (
     Any, SupportsInt, Type, Mapping, Collection, Sequence, SupportsFloat, Generator,
-    Callable, Union, Optional, Tuple, FrozenSet, Iterable, Dict, TypeVar, List
+    Callable, Union, Optional, Tuple, FrozenSet, Iterable, Dict, TypeVar, List,
+    cast, TYPE_CHECKING,
 )
 
 import numpy as np
@@ -27,7 +30,7 @@ from qmflows import cp2k_mm, Settings as QmSettings
 from qmflows.packages import Package
 from nanoutils import (
     Default, Formatter, supports_int, supports_float, isinstance_factory,
-    issubclass_factory, import_factory, as_nd_array, TypedDict,
+    issubclass_factory, import_factory, as_nd_array, TypedDict, Literal,
 )
 
 from .armc import ARMC
@@ -38,6 +41,12 @@ from .param_mapping import ParamMapping, ParamMappingABC
 from ..type_hints import ArrayLike, Scalar, ArrayLikeOrScalar
 from ..classes import MultiMolecule
 from ..utils import get_move_range
+from ..io.cp2k import lattice_from_cell
+from ..io.read_xyz import read_multi_xyz
+
+if TYPE_CHECKING:
+    SCT = TypeVar("SCT", bound=np.generic)
+    NDArray = np.ndarray[Any, np.dtype[SCT]]
 
 __all__ = [
     'validate_phi', 'validate_monte_carlo', 'validate_psf', 'validate_pes',
@@ -84,10 +93,28 @@ A_TARGET = np.array([0.25])
 A_TARGET.setflags(write=False)
 
 
-def abspath(file: Union[str, bytes, os.PathLike]) -> str:
+def abspath(file: str | bytes | os.PathLike[Any]) -> str:
     """Return the absolute path of **file**."""
     file_str = os.fsdecode(file)
     return os.path.abspath(file_str)
+
+
+CellFunc = Callable[[Union[str, bytes, "os.PathLike[Any]"]], "NDArray[np.float64]"]
+EXT_DICT: Dict[Literal["cell", "xyz"], CellFunc] = {
+    "cell": lattice_from_cell,
+    "xyz": lambda n: read_multi_xyz(n)[0],
+}
+
+
+def parse_lattice(file: str | bytes | os.PathLike[Any]) -> NDArray[np.float64]:
+    file_str = os.fsdecode(file)
+    _, ext = os.path.splitext(file_str)
+    ext = cast(Literal['cell'], ext.strip("."))
+    try:
+        func = EXT_DICT[ext]
+    except KeyError:
+        raise ValueError(f"Unsupported file extensions: {ext!r}") from None
+    return func(file_str)
 
 
 #: Schema for validating the ``"phi"`` block.
@@ -358,7 +385,18 @@ job_schema = Schema({
             ))
         ),
         error=Formatter(f"'job.molecule' expected one or more .xyz files{EPILOG}")
-    )
+    ),
+
+    Optional_('lattice', default=None): Or(
+        None,
+        And(Or(str, bytes, os.PathLike), Use(lambda n: (parse_lattice(n),))),
+        And(
+            abc.Sequence,
+            lambda n: all(isinstance(i, (str, bytes, os.PathLike)) for i in n),
+            Use(lambda n: tuple(parse_lattice(i) for i in n)),
+        ),
+        error=Formatter(f"'job.lattice' expected one or more .cell files{EPILOG}")
+    ),
 }, name='job_schema', description='Schema for validating the "job" block.')
 
 
@@ -367,6 +405,13 @@ class JobMapping(TypedDict, total=False):
 
     type: Union[None, str, Type[PackageManagerABC]]
     molecule: Union[MultiMolecule, str, os.PathLike, Sequence[Union[MultiMolecule, str, os.PathLike]]]  # noqa: E501
+    lattice: Union[
+        None,
+        str,
+        bytes,
+        os.PathLike[Any],
+        Sequence[str | bytes | os.PathLike[Any]],
+    ]
 
 
 class JobDict(TypedDict):
@@ -374,6 +419,7 @@ class JobDict(TypedDict):
 
     type: Type[PackageManagerABC]
     molecule: Tuple[MultiMolecule, ...]
+    lattice: None | Tuple[NDArray[np.float64], ...]
 
 
 def _parse_settings_sequence(seq: Sequence[Mapping]) -> Generator[QmSettings, None, None]:
