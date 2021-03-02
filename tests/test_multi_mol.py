@@ -34,14 +34,6 @@ MOL_LATTICE_3D.lattice = lattice_from_cell(PATH / "md_lattice.cell")[::10]
 MOL_LATTICE_2D = MOL_LATTICE_3D.copy()
 MOL_LATTICE_2D.lattice = MOL_LATTICE_2D.lattice[0]
 
-MOL_LATTICE_3D_ORTH = MOL_LATTICE_3D.copy()
-MOL_LATTICE_3D_ORTH.lattice = np.zeros_like(MOL_LATTICE_3D_ORTH.lattice)
-MOL_LATTICE_3D_ORTH.lattice[..., 0] = np.linalg.norm(MOL_LATTICE_3D.lattice, axis=-1)
-
-MOL_LATTICE_2D_ORTH = MOL_LATTICE_3D.copy()
-MOL_LATTICE_2D_ORTH.lattice = np.zeros_like(MOL_LATTICE_2D_ORTH.lattice)
-MOL_LATTICE_2D_ORTH.lattice[..., 0] = np.linalg.norm(MOL_LATTICE_2D.lattice, axis=-1)
-
 
 @delete_finally(join(PATH, '.tmp.xyz'))
 def test_mol_to_file():
@@ -289,8 +281,8 @@ class TestADF:
         [
             ("adf_weighted", MOL, {"atom_subset": ("Cd", "Se")}),
             ("adf", MOL, {"atom_subset": ("Cd", "Se"), "weight": None}),
-            ("adf_periodic_2d", MOL_LATTICE_2D_ORTH, {"atom_subset": ("Pb",), "periodic": "xyz"}),
-            ("adf_periodic_3d", MOL_LATTICE_3D_ORTH, {"atom_subset": ("Pb",), "periodic": "xy"}),
+            ("adf_periodic_2d", MOL_LATTICE_2D, {"atom_subset": ("Pb",), "periodic": "xyz"}),
+            ("adf_periodic_3d", MOL_LATTICE_3D, {"atom_subset": ("Pb",), "periodic": "xy"}),
             ("adf_2d_inf", MOL_LATTICE_2D, {"atom_subset": ("Pb",), "r_max": np.inf}),
             ("adf_3d_inf", MOL_LATTICE_3D, {"atom_subset": ("Pb",), "r_max": np.inf}),
             ("adf_periodic_2d_inf", MOL_LATTICE_2D,
@@ -310,7 +302,6 @@ class TestADF:
         "kwargs,exc",
         [
             ({"periodic": "bob"}, ValueError),
-            ({"periodic": "xyz"}, NotImplementedError),
         ]
     )
     @pytest.mark.parametrize("mol", [MOL_LATTICE_2D, MOL_LATTICE_3D])
