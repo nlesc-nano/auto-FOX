@@ -159,6 +159,14 @@ class MonteCarloABC(AbstractDataClass, ABC, Mapping[Key, np.ndarray]):
         if not np.allclose(self.molecule, value.molecule):
             return False
 
+        if self.molecule[0].lattice is not None:
+            lat0 = np.array([m.lattice for m in self.molecule], dtype=np.float64)
+            lat1 = np.array([m.lattice for m in value.molecule], dtype=np.float64)
+            if not np.allclose(lat0, lat1):
+                return False
+        elif value.molecule[0].lattice is not None:
+            return False
+
         iterator1 = ((v, value.pes[k]) for k, v in self.pes.items())
         for p1, p2 in iterator1:  # type: partial, partial  # type: ignore
             if p1.func != p2.func or p1.keywords != p2.keywords:

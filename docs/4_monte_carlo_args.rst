@@ -72,6 +72,7 @@ Index
     =========================================== ===================================================================================================================
     :attr:`job.type`                            The type of package manager.
     :attr:`job.molecule`                        One or more .xyz files with reference (QM) potential energy surfaces.
+    :attr:`job.lattice`                         One or more CP2K .cell files with the lattice vectors of each mol in :attr:`job.molecule`.
     :attr:`job.block.type`                      An instance of a QMFlows :class:`~qmflows.packages.packages.Package`.
     :attr:`job.block.settings`                  The job settings as used by :class:`job.block.type`.
     :attr:`job.block.template`                  A settings template for updating :class:`job.block.settings`.
@@ -594,6 +595,15 @@ Note that these jobs are executed in the order as provided by the user-input.
 
             Note that this option has no default value;
             one *must* be provided by the user.
+
+
+    .. attribute:: job.lattice
+
+        :Parameter:     * **Type** - :class:`str` or :class:`list[str] <list>`
+
+        One or more CP2K .cell files with the lattice vectors of each mol in :attr:`job.molecule`.
+
+        This option should be specified is one is performing calculations on periodic systems.
 
 
     .. attribute:: job.block.type

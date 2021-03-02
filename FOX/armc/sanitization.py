@@ -277,11 +277,16 @@ def get_package(dct: JobMapping, phi: Iterable) -> Tuple[PackageManager, Tuple[M
 
     """
     _sub_pkg_dict: Dict[str, SubJobMapping] = split_dict(  # type: ignore[call-overload]
-        dct, preserve_order=True, keep_keys={'type', 'molecule'}
+        dct, preserve_order=True, keep_keys={'type', 'molecule', 'lattice'}
     )
 
     job_dict = validate_job(dct)
     mol_list = [mol.as_Molecule(mol_subset=0)[0] for mol in job_dict['molecule']]
+    if job_dict['lattice'] is not None:
+        if len(job_dict['molecule']) != len(job_dict['lattice']):
+            raise ValueError("`job.molecule` and `job.lattice` must be of equal length")
+        for m, lat in zip(job_dict['molecule'], job_dict['lattice']):
+            m.lattice = lat
 
     data: Dict[str, List[PkgDict]] = {}
     for k, v in _sub_pkg_dict.items():
