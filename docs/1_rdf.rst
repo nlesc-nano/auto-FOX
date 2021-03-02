@@ -42,8 +42,8 @@ oxygen (Cd_Cd, Cd_Se, Cd_O, Se_Se, Se_O and O_O).
 
     # Default weight: np.exp(-r)
     >>> rdf = mol.init_rdf(atom_subset=('Cd', 'Se', 'O'))
-    >>> adf = mol.init_adf(r_max=8, weight=None, atom_subset=('Cd', 'Se'))
-    >>> adf_weighted = mol.init_adf(r_max=8, atom_subset=('Cd', 'Se'))
+    >>> adf = mol.init_adf(r_max=8, weight=None, atom_subset=('Cd',))
+    >>> adf_weighted = mol.init_adf(r_max=8, atom_subset=('Cd',))
 
     >>> rdf.plot(title='RDF')
     >>> adf.plot(title='ADF')
@@ -56,13 +56,35 @@ oxygen (Cd_Cd, Cd_Se, Cd_O, Se_Se, Se_O and O_O).
 
     mol = MultiMolecule.from_xyz(example_xyz)
     rdf = mol.init_rdf(atom_subset=('Cd', 'Se', 'O'))
-    adf = mol.init_adf(r_max=8, weight=None, atom_subset=('Cd', 'Se'))
-    adf_weighted = mol.init_adf(r_max=8, atom_subset=('Cd', 'Se'))
+    adf = mol.init_adf(r_max=8, weight=None, atom_subset=('Cd',))
+    adf_weighted = mol.init_adf(r_max=8, atom_subset=('Cd',))
 
     rdf.plot(title='RDF')
     adf.plot(title='ADF')
     adf_weighted.plot(title='Distance-weighted ADF')
 
+
+One can take into account a systems periodicity by settings the molecules'
+:attr:`~FOX.MultiMolecule.lattice` vectors and specifying the axes along which
+the system is periodic.
+
+The lattice vectors can be provided in one of two formats:
+
+* A :math:`(3, 3)` matrix.
+* A :math:`(N_{mol}, 3, 3)`-shaped tensor if they vary across the trajectory.
+
+.. code:: python
+
+    >>> from FOX import MultiMolecule
+    >>> import numpy as np
+
+    >>> lattice = np.array(...)
+    >>> mol = MultiMolecule.from_xyz(...)
+    >>> mol.lattice = lattice
+
+    # Periodic along the x, y and/or z axes
+    >>> rdf = mol.init_rdf(atom_subset=('Cd', 'Se', 'O'), periodic="xy")
+    >>> adf = mol.init_adf(r_max=8, atom_subset=('Cd',), periodic="xyz")
 
 API
 ---
