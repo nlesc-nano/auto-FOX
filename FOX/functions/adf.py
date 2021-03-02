@@ -55,25 +55,32 @@ def _adf_inner_cdktree(
     n: int,
     r_max: float,
     idx_list: Iterable[_3Tuple[NDArray[np.bool_]]],
-    boxsize: None | NDArray[f8],
+    lattice: None | NDArray[f8],
+    periodicity: Iterable[Literal[0, 1, 2]] = range(3),
     weight: None | Callable[[NDArray[f8]], NDArray[f8]] = None,
 ) -> List[NDArray[f8]]:
     """Perform the loop of :meth:`.init_adf` with a distance cutoff."""
     # Construct slices and a distance matrix
-    tree = cKDTree(m, boxsize=boxsize)
-    dist, idx = tree.query(m, n, distance_upper_bound=r_max, p=2)  # type: NDArray[f8], NDArray[i8]  # noqa: E501
-    dist[dist == np.inf] = 0.0
-    idx[idx == m.shape[0]] = 0
+    if lattice is not None:
+        with np.errstate(divide='ignore', invalid='ignore'):
+            dist, vec, idx = _adf_inner_cdktree_periodic(m, n, r_max, lattice, periodicity)
+            ang: NDArray[f8] = np.arccos(np.einsum('jkl,jml->jkm', vec, vec))
+            dist = np.maximum(dist[..., None], dist[..., None, :])
+    else:
+        tree = cKDTree(m)
+        dist, idx = tree.query(m, n, distance_upper_bound=r_max, p=2)
+        dist[dist == np.inf] = 0.0
+        idx[idx == len(m)] = 0
 
-    # Slice the Cartesian coordinates
-    coords13: NDArray[f8] = m[idx]
-    coords2: NDArray[f8] = m[..., None, :]
+        # Slice the Cartesian coordinates
+        coords13: NDArray[f8] = m[idx]
+        coords2: NDArray[f8] = m[..., None, :]
 
-    # Construct (3D) angle- and distance-matrices
-    with np.errstate(divide='ignore', invalid='ignore'):
-        vec: NDArray[f8] = ((coords13 - coords2) / dist[..., None])
-        ang: NDArray[f8] = np.arccos(np.einsum('jkl,jml->jkm', vec, vec))
-        dist = np.maximum(dist[..., None], dist[..., None, :])
+        # Construct (3D) angle- and distance-matrices
+        with np.errstate(divide='ignore', invalid='ignore'):
+            vec = ((coords13 - coords2) / dist[..., None])
+            ang = np.arccos(np.einsum('jkl,jml->jkm', vec, vec))
+            dist = np.maximum(dist[..., None], dist[..., None, :])
     ang[np.isnan(ang)] = 0.0
 
     # Radian (float) to degrees (int)
@@ -86,6 +93,34 @@ def _adf_inner_cdktree(
         weights = weight(dist[ijk]) if weight is not None else None
         ret.append(get_adf(ang_int[ijk], weights=weights))
     return ret
+
+
+def _adf_inner_cdktree_periodic(
+    m: NDArray[f8],
+    n: int,
+    r_max: float,
+    lattice: NDArray[f8],
+    periodicity: Iterable[Literal[0, 1, 2]],
+) -> Tuple[NDArray[f8], NDArray[f8], NDArray[np.intp]]:
+    # Construct the (full) distance matrix and vectors
+    dist, vec = _adf_inner_periodic(m, lattice, periodicity)
+
+    # Apply `n` and `r_max`: truncate the number of distances/vectors
+    idx1 = np.argsort(dist, axis=1)
+    if n < idx1.shape[1]:
+        idx1 = idx1[:, :n]
+    dist = np.take_along_axis(dist, idx1, axis=1)
+    mask = dist > r_max
+    idx1[mask] = 0
+    dist[mask] = 0.0
+
+    # Return the subsets
+    idx0 = np.empty_like(idx1)
+    idx0[:] = np.arange(len(idx0))[..., None]
+    i = idx0.ravel()
+    j = idx1.ravel()
+    vec_ret = vec[i, j].reshape(*dist.shape, 3)
+    return dist, vec_ret, idx1
 
 
 def _adf_inner(
@@ -128,7 +163,7 @@ def _adf_inner(
 def _adf_inner_periodic(
     m: NDArray[f8],
     lattice: NDArray[f8],
-    periodicity: Iterable[Literal[0, 1, 2]] = range(3),
+    periodicity: Iterable[Literal[0, 1, 2]],
 ) -> Tuple[NDArray[f8], NDArray[f8]]:
     """Construct the distance matrix and angle-defining vectors for periodic systems."""
     vec = m - m[..., None, :]
