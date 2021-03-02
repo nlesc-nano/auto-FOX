@@ -92,7 +92,7 @@ def _adf_inner(
     m: NDArray[f8],
     idx_list: Iterable[_3Tuple[NDArray[np.bool_]]],
     lattice: None | NDArray[f8],
-    periodicity: Iterable[Literal["x", "y", "z"]] = "xyz",
+    periodicity: Iterable[Literal[0, 1, 2]] = range(3),
     weight: None | Callable[[NDArray[f8]], NDArray[f8]] = None,
 ) -> List[NDArray[f8]]:
     """Perform the loop of :meth:`.init_adf` without a distance cutoff."""
@@ -128,14 +128,13 @@ def _adf_inner(
 def _adf_inner_periodic(
     m: NDArray[f8],
     lattice: NDArray[f8],
-    periodicity: Iterable[Literal["x", "y", "z"]] = "xyz",
+    periodicity: Iterable[Literal[0, 1, 2]] = range(3),
 ) -> Tuple[NDArray[f8], NDArray[f8]]:
     """Construct the distance matrix and angle-defining vectors for periodic systems."""
     vec = m - m[..., None, :]
     lat_norm = np.linalg.norm(lattice, axis=-1)
 
-    dct = {"x": 0, "y": 1, "z": 2}
-    iterator = ((dct[i], lat_norm[dct[i]]) for i in periodicity)
+    iterator = ((i, lat_norm[i]) for i in periodicity)
     for i, vec_len in iterator:
         vec[..., i][vec[..., i] > (vec_len / 2)] -= vec_len
         vec[..., i][vec[..., i] < -(vec_len / 2)] += vec_len

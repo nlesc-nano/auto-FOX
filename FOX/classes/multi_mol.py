@@ -25,7 +25,7 @@ from itertools import (
 )
 from typing import (
     Sequence, Optional, Union, List, Hashable, Callable, Iterable, Dict, Tuple, Any, Mapping,
-    overload, TypeVar, Type, Container, cast, Generator, TYPE_CHECKING,
+    overload, TypeVar, Type, Container, cast, TYPE_CHECKING,
 )
 
 import numpy as np
@@ -44,6 +44,7 @@ from ..io.read_xyz import read_multi_xyz
 from ..functions.rdf import get_rdf, get_rdf_df
 from ..functions.adf import get_adf_df, _adf_inner_cdktree, _adf_inner
 from ..functions.molecule_utils import fix_bond_orders, separate_mod
+from ..functions.periodic import parse_periodic
 
 if TYPE_CHECKING:
     import numpy.typing as npt
@@ -78,16 +79,6 @@ AtomSubset = Union[
 def neg_exp(x: np.ndarray) -> np.ndarray:
     """Return :math:`e^{-x}`."""
     return np.exp(-x)
-
-
-def _periodicity_iter(
-    periodicity: Iterable[Literal["x", "y", "z"]],
-    ar: np.ndarray[Any, _DType],
-) -> Generator[Tuple[int, np.ndarray[Any, _DType]], None, None]:
-    dct = {"x": 0, "y": 1, "z": 2}
-    for i in sorted(periodicity):
-        j = dct[i]
-        yield j, ar[j]
 
 
 class _GetNone:
@@ -1286,7 +1277,7 @@ class MultiMolecule(_MultiMolecule):
         *,
         dr: float = 0.05,
         r_max: float = 12.0,
-        periodic: None | Iterable[Literal["x", "y", "z"]] = None,
+        periodic: None | Sequence[Literal["x", "y", "z"]] | Sequence[Literal[0, 1, 2]] = None,
     ) -> pd.DataFrame:
         """Initialize the calculation of radial distribution functions (RDFs).
 
@@ -1337,17 +1328,14 @@ class MultiMolecule(_MultiMolecule):
 
         # Parse the lattice and periodicty settings
         if periodic is not None:
-            periodic_set = {i.lower() for i in periodic}
-            if not periodic_set.issubset("xyz"):
-                raise ValueError("periodic expected `x`, `y` and/or `z`; "
-                                 f"observed value: {periodic!r}")
-            elif self.lattice is None:
+            periodic_ar = parse_periodic(periodic)
+            if self.lattice is None:
                 raise TypeError("cannot perform periodic calculations if the "
                                 "molecules `lattice` is None")
             lattice_ar = self.lattice if self.lattice.ndim == 2 else self.lattice[m_subset]
         else:
             lattice_ar = _GetNone()
-            periodic_set = "xyz"
+            periodic_ar = np.arange(3, dtype=np.int64)
 
         # Identify the volume occupied by the system
         if self.lattice is None:
@@ -1365,7 +1353,7 @@ class MultiMolecule(_MultiMolecule):
             for slc in iterator:
                 dist_mat = m_self.get_dist_mat(
                     mol_subset=slc, atom_subset=(i, j),
-                    lattice=lattice_ar[slc], periodicity=periodic_set,
+                    lattice=lattice_ar[slc], periodicity=periodic_ar,
                 )
                 df[key] += get_rdf(dist_mat, dr=dr, r_max=r_max, volume=volume)
         df /= n_mol
@@ -1376,7 +1364,7 @@ class MultiMolecule(_MultiMolecule):
         mol_subset: MolSubset = None,
         atom_subset: Tuple[AtomSubset, AtomSubset] = (None, None),
         lattice: None | np.ndarray[Any, np.dtype[np.float64]] = None,
-        periodicity: Iterable[Literal["x", "y", "z"]] = "xyz",
+        periodicity: Iterable[Literal[0, 1, 2]] = range(3),
     ) -> np.ndarray[Any, np.dtype[np.float64]]:
         """Create and return a distance matrix for all molecules and atoms in this instance.
 
@@ -1426,11 +1414,11 @@ class MultiMolecule(_MultiMolecule):
         ret = np.abs(A[..., None, :] - B[..., None, :, :])
         lat_norm = np.linalg.norm(lattice, axis=-1)
         if lat_norm.ndim == 1:
-            iterator = _periodicity_iter(periodicity, lat_norm)
+            iterator = ((i, lat_norm[i]) for i in periodicity)
             for i, ar1 in iterator:
                 ret[..., i][ret[..., i] > (ar1 / 2)] -= ar1
         elif lat_norm.ndim == 2:
-            iterator = _periodicity_iter(periodicity, lat_norm.T)
+            iterator = ((i, lat_norm[:, i]) for i in periodicity)
             for i, _ar2 in iterator:
                 ar2 = np.full(ret.shape[:-1], _ar2[..., None, None])
                 condition = ret[..., i] > (ar2 / 2)
@@ -1633,7 +1621,7 @@ class MultiMolecule(_MultiMolecule):
         atom_subset: AtomSubset = None,
         r_max: Union[float, str] = 8.0,
         weight: Callable[[np.ndarray], np.ndarray] = neg_exp,
-        periodic: None | Iterable[Literal["x", "y", "z"]] = None,
+        periodic: None | Sequence[Literal["x", "y", "z"]] | Sequence[Literal[0, 1, 2]] = None,
     ) -> pd.DataFrame:
         r"""Initialize the calculation of distance-weighted angular distribution functions (ADFs).
 
@@ -1715,16 +1703,15 @@ class MultiMolecule(_MultiMolecule):
 
         # Periodic calculations
         if periodic is not None:
+            periodic_ar = parse_periodic(periodic)
+
             # Validate the parameters
-            periodic_set = {i.lower() for i in periodic}
             lattice = self.lattice
-            if not periodic_set.issubset("xyz"):
-                raise ValueError("periodic expected `x`, `y` and/or `z`; "
-                                 f"observed value: {periodic!r}")
-            elif lattice is None:
+            if lattice is None:
                 raise TypeError("cannot perform periodic calculations if the "
                                 "molecules `lattice` is None")
-            lattice = lattice[m_subset]
+            else:
+                lattice = cast("np.ndarray[Any, np.dtype[np.float64]]", lattice[m_subset])
 
             # Scipy's `cKDTree` only supports cuboid lattices
             if r_max_:
@@ -1733,8 +1720,7 @@ class MultiMolecule(_MultiMolecule):
                     raise NotImplementedError("non-cuboid lattices are not supported")
 
             # Set the vector-length of all absent axes to `inf`
-            xyz_dct = {"x": 0, "y": 1, "z": 2}
-            slc = [xyz_dct[i] for i in sorted(xyz_dct.keys() - periodic_set)]
+            slc = [i for i in range(3) if i not in periodic_ar]
             lattice[..., slc, :] = np.inf
 
             # Perform a translation to remove negative elements, as `cKDTree` cannot
@@ -1746,10 +1732,10 @@ class MultiMolecule(_MultiMolecule):
             else:
                 boxsize_iter = iter(np.linalg.norm(lattice, axis=-1))
                 lattice_iter = iter(lattice)
-            periodic_iter = repeat(sorted(periodic_set))
+            periodic_iter = repeat(periodic_ar)
         else:
             lattice_iter = repeat(None)
-            periodic_iter = repeat("xyz")
+            periodic_iter = repeat(range(3))
             boxsize_iter = repeat(None)
 
         # Construct the angular distribution function
