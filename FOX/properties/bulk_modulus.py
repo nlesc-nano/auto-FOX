@@ -8,7 +8,7 @@ from scm.plams import Units
 from qmflows.packages.cp2k_package import CP2K_Result
 from qmflows.warnings_qmflows import QMFlows_Warning
 
-from . import FromResult, get_pressure
+from . import FromResult
 
 __all__ = ['get_bulk_modulus', 'GetBulkMod']
 
@@ -75,8 +75,8 @@ class GetBulkMod(FromResult[FT, CP2K_Result]):
         :class:`qmflows.CP2K_Result <qmflows.packages.cp2k_package.CP2K_Result>`
         to have access to the following files for each argument:
 
-        * **pressure**: ``cp2k-frc-1.xyz``, ``cp2k-pos-1.xyz``, ``cp2k-1.cell`` & ``cp2k-1.ener``
-        * **volume**: ``cp2k-1.cell``
+        * **pressure**: ``*.out`` (expected unit: bar)
+        * **volume**: ``cp2k-1.cell`` (expected unit: angstrom**3)
 
         Furthermore, in order to get sensible results both the pressure and
         cell volume must be variable.
@@ -118,13 +118,16 @@ class GetBulkMod(FromResult[FT, CP2K_Result]):
             return self._reduce(ret1, reduce, axis)
 
         a_to_au = Units.conversion_ratio('angstrom', 'bohr')
+        bar_to_au = Units.conversion_ratio('bar', 'ha/bohr^3')
         with warnings.catch_warnings():
             warnings.simplefilter('error', QMFlows_Warning)
 
             volume = self._pop(
                 kwargs, 'volume', callback=lambda: getattr(result, 'volume') * a_to_au**3
             )
-        pressure = get_pressure.from_result(result, reduce=None, volume=volume)
+            pressure = self._pop(
+                kwargs, 'pressure', callback=lambda: getattr(result, 'pressure') * bar_to_au
+            )
 
         ret2 = self(pressure, volume, return_unit=return_unit, **kwargs)
         self._cache[result] = (ret2, return_unit)
