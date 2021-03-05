@@ -6,6 +6,18 @@ All notable changes to this project will be documented in this file.
 This project adheres to `Semantic Versioning <http://semver.org/>`_.
 
 
+0.9.0
+*****
+* Fixed an issue wherein `PSFContainer.to_atom_alias_dict` would assign incorrect indices to atom aliases.
+* Fixed an issue wherein treating an entire ARMC parameter block as frozen could raise.
+* Added the `FOX.MultiMolecule.lattice` property for storing the lattice vectors of periodic systems.
+* Added `FOX.io.lattice_from_cell`, a function for reading lattice vectors from CP2K .cell files.
+* Added support for periodic ADF and RDF calculations.
+* Added the new `job.lattice` keyword to the ARMC workflow for specifying lattice vectors of the reference system.
+* Lattice vectors are now preserved when interconverting between PLAMS, ASE and Auto-FOX.
+* Read the pressure from the CP2K .out file when calculating the bulk modulus, rather than calculating it from scratch.
+
+
 0.8.12
 ******
 * Added a recipe for calculating the similarity between 2 MD trajectories.
