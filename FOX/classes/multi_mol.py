@@ -1458,7 +1458,7 @@ class MultiMolecule(_MultiMolecule):
             for k, v in kv:
                 if not (k in ret or k[::-1] in ret):
                     ret[k] = v
-        return {' '.join(i for i in k): v for k, v in ret.items()}
+        return {' '.join(str(i) for i in k): v for k, v in ret.items()}
 
     """####################################  Power spectrum  ###################################"""
 
