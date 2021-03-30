@@ -8,7 +8,7 @@ import weakref
 from os.path import join
 from pathlib import Path
 from itertools import chain, combinations
-from typing import Mapping, Any, Type, Set, Iterable, Callable
+from typing import Mapping, Any, Type, Set, Sequence, Callable
 
 import pytest
 import yaml
@@ -202,7 +202,7 @@ class TestRDF:
         chain([None], combinations("xyz", 1), combinations("xyz", 2), combinations("xyz", 3)),
     )
     def test_lattice(
-        self, mol: MultiMolecule, periodic: None | Iterable[Literal["x", "y", "z"]]
+        self, mol: MultiMolecule, periodic: None | Sequence[Literal["x", "y", "z"]]
     ) -> None:
         assert mol.lattice is not None
         rdf = mol.init_rdf(periodic=periodic)
