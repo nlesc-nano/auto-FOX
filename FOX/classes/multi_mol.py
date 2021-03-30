@@ -1333,17 +1333,11 @@ class MultiMolecule(_MultiMolecule):
                 raise TypeError("cannot perform periodic calculations if the "
                                 "molecules `lattice` is None")
             lattice_ar = self.lattice if self.lattice.ndim == 2 else self.lattice[m_subset]
+            volume = lattice_to_volume(lattice_ar)
         else:
+            volume = None
             lattice_ar = _GetNone()
             periodic_ar = np.arange(3, dtype=np.int64)
-
-        # Identify the volume occupied by the system
-        if self.lattice is None:
-            volume = None
-        else:
-            volume = lattice_to_volume(
-                self.lattice if self.lattice.ndim == 2 else self.lattice[m_subset]
-            )
 
         # Fill the dataframe with RDF's, averaged over all conformations in this instance
         n_mol = len(m_self)
