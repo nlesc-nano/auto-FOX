@@ -45,6 +45,7 @@ from ..classes import MultiMolecule
 from ..functions.cp2k_utils import UNIT_MAP
 from ..functions.molecule_utils import fix_bond_orders, residue_argsort
 from ..functions.charge_parser import assign_constraints
+from ..functions.sorting import sort_param
 
 if TYPE_CHECKING:
     from .package_manager import PackageManager, PkgDict
@@ -341,13 +342,13 @@ def get_param(dct: ParamMapping_) -> Tuple[ParamMapping, dict, dict, ValidationD
     data['unit'] = units
 
     if _sub_prm_dict_frozen is not None:
-        for *_key, value in _get_prm(_sub_prm_dict_frozen):
-            key = tuple(_key)
-            try:
-                unit = data.loc[key[:2], 'unit'].iat[0]
-            except KeyError:
-                unit = ''
-            data.loc[key, :] = [value, value, True, False, -np.inf, np.inf, 0, unit]
+        data2 = _get_param_df(_sub_prm_dict_frozen)
+        if len(data2) != 0:
+            constraints2, min_max2, units2 = _get_prm_constraints(_sub_prm_dict_frozen)
+            data2[['min', 'max']] = min_max2
+            data2['unit'] = units2
+            data2['frozen'] = True
+            data = data.append(data2)
     data.sort_index(inplace=True)
 
     param_type = prm_dict.pop('type')  # type: ignore
@@ -555,30 +556,13 @@ def _sort_atoms(df: pd.DataFrame) -> None:
     param_types = set(df["param_type"])
     for prm in param_types:
         condition = df['param_type'] == prm
-        atoms = df.loc[condition, 'atoms'].values.astype(str)
-        atoms_split = np.char.partition(atoms, " ")
-
-        # Sort the atoms whenever dealing with atom-pair/triplet-based parameters
-        n = atoms_split.shape[1]
-        if n == 3:
-            atoms_split[..., ::2].sort(axis=1)
-        elif n == 5:
-            atoms_split[..., ::4].sort(axis=1)
-        elif n >= 7:
-            m = (n - 1) // 2
-            warnings.warn(f"The sorting of {m}-atom based parameters is not implemented")
-            continue
-        else:
-            continue
-
-        new_atoms = np.array([''.join(j for j in i) for i in atoms_split])
-
-        # Check for duplicates
-        _, idx, counts = np.unique(new_atoms, return_index=True, return_counts=True)
-        if not (counts == 1).all():
-            duplicates = atoms[idx[counts != 1]]
-            raise KeyError(f"Duplicate {prm!r} keys encountered: {duplicates}")
-        df.loc[condition, 'atoms'] = new_atoms
+        atoms = df.loc[condition, 'atoms'].values.astype(np.str_)
+        try:
+            df.loc[condition, 'atoms'] = sort_param(atoms)
+        except NotImplementedError as ex:
+            warning = RuntimeWarning(str(ex))
+            warning.__cause__ = ex
+            warnings.warn(warning)
 
 
 def _get_prm(dct: Mapping[str, Union[Mapping, Iterable[Mapping]]]
