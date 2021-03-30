@@ -238,7 +238,7 @@ def test_param_sorting() -> None:
     df2.loc[4, "atoms"] = "Se Cd"
     df2.loc[5, "atoms"] = "Cd Se"
     df2.loc[6, "atoms"] = "Se Cd"
-    assertion.assert_(_sort_atoms, df2, exception=KeyError)
+    assertion.assert_(_sort_atoms, df2, exception=ValueError)
 
 
 @delete_finally(PATH / '_ARMC', PATH / '_ARMCPT')
