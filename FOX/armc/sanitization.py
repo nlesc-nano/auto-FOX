@@ -342,13 +342,13 @@ def get_param(dct: ParamMapping_) -> Tuple[ParamMapping, dict, dict, ValidationD
     data['unit'] = units
 
     if _sub_prm_dict_frozen is not None:
-        for *_key, value in _get_prm(_sub_prm_dict_frozen):
-            key = tuple(_key)
-            try:
-                unit = data.loc[key[:2], 'unit'].iat[0]
-            except KeyError:
-                unit = ''
-            data.loc[key, :] = [value, value, True, False, -np.inf, np.inf, 0, unit]
+        data2 = _get_param_df(_sub_prm_dict_frozen)
+        if len(data2) != 0:
+            constraints2, min_max2, units2 = _get_prm_constraints(_sub_prm_dict_frozen)
+            data2[['min', 'max']] = min_max2
+            data2['unit'] = units2
+            data2['frozen'] = True
+            data = data.append(data2)
     data.sort_index(inplace=True)
 
     param_type = prm_dict.pop('type')  # type: ignore
