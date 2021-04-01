@@ -12,19 +12,18 @@ API
 
 """
 
+from __future__ import annotations
+
 from types import MappingProxyType
 from itertools import chain
 from typing import (
-    Union,
     Iterable,
     Mapping,
     MutableMapping,
     Tuple,
-    Optional,
     Dict,
     Set,
     Container,
-    FrozenSet,
     TYPE_CHECKING
 )
 
@@ -39,14 +38,12 @@ from ..utils import prepend_exception
 from ..ff import UFF_DF, SIGMA_DF, LJDataFrame, estimate_lj
 
 if TYPE_CHECKING:
-    from ..classes import MultiMolecule
-else:
-    from ..type_alias import MultiMolecule
+    from FOX import MultiMolecule
 
 __all__ = ['guess_param']
 
-Param = Literal['epsilon', 'sigma']
-Mode = Literal[
+ParamKind = Literal['epsilon', 'sigma']
+ModeKind = Literal[
     'ionic_radius',
     'ion_radius',
     'ionic_radii',
@@ -58,7 +55,7 @@ Mode = Literal[
 ]
 
 #: A :class:`frozenset` with alias for the :code:`"ion_radius"` guessing mode.
-ION_SET: FrozenSet[str] = frozenset({
+ION_SET = frozenset({
     'ionic_radius',
     'ion_radius',
     'ionic_radii',
@@ -66,28 +63,31 @@ ION_SET: FrozenSet[str] = frozenset({
 })
 
 #: A :class:`frozenset` with alias for the :code:`"crystal_radius"` guessing mode.
-CRYSTAL_SET: FrozenSet[str] = frozenset({
+CRYSTAL_SET = frozenset({
     'crystal_radius',
     'crystal_radii'
 })
 
 #: A :class:`frozenset` containing all allowed values for the ``mode`` parameter.
-MODE_SET: FrozenSet[str] = ION_SET | CRYSTAL_SET | {'rdf', 'uff'}
+MODE_SET = ION_SET | CRYSTAL_SET | {'rdf', 'uff'}
 
 #: A :class:`~collections.abc.Mapping` containing the default unit for each ``param`` value.
-DEFAULT_UNIT: Mapping[Param, str] = MappingProxyType({
+DEFAULT_UNIT: MappingProxyType[ParamKind, str] = MappingProxyType({
     'epsilon': 'kcal/mol',
     'sigma': 'angstrom',
 })
 
 
-def guess_param(mol_list: Iterable[MultiMolecule], param: Param,
-                mode: Mode = 'rdf',
-                cp2k_settings: Optional[MutableMapping] = None,
-                prm: Union[None, PathType, PRMContainer] = None,
-                psf_list: Optional[Iterable[Union[PathType, PSFContainer]]] = None,
-                unit: Optional[str] = None
-                ) -> Dict[Tuple[str, str], float]:
+def guess_param(
+    mol_list: Iterable[MultiMolecule],
+    param: ParamKind,
+    mode: ModeKind = 'rdf',
+    *,
+    cp2k_settings: None | MutableMapping = None,
+    prm: None | PathType | PRMContainer = None,
+    psf_list: None | Iterable[PathType | PSFContainer] = None,
+    unit: None | str = None,
+) -> Dict[Tuple[str, str], float]:
     """Estimate all Lennard-Jones missing forcefield parameters.
 
     Examples
@@ -101,11 +101,11 @@ def guess_param(mol_list: Iterable[MultiMolecule], param: Param,
         >>> prm = str(...)
         >>> psf_list = [str(...), ...]
 
-        >>> epsilon_dict = guess_Param(mol_list, 'epsilon', prm=prm, psf_list=psf_list)
-        >>> sigma_dict = guess_Param(mol_list, 'sigma', prm=prm, psf_list=psf_list)
+        >>> epsilon_dict = guess_ParamKind(mol_list, 'epsilon', prm=prm, psf_list=psf_list)
+        >>> sigma_dict = guess_ParamKind(mol_list, 'sigma', prm=prm, psf_list=psf_list)
 
 
-    Parameters
+    ParamKindeters
     ----------
     mol_list : :class:`Iterable[FOX.MultiMolecule] <collections.abc.Iterable>`
         An iterable of molecules.
@@ -189,10 +189,13 @@ def _validate_arg(value: str, name: str, ref: Container[str]) -> str:
     return ret
 
 
-def _guess_param(series: pd.Series, mode: Mode,
-                 mol_list: Iterable[MultiMolecule],
-                 prm_dict: MutableMapping[str, float],
-                 unit: Optional[str] = None) -> pd.Series:
+def _guess_param(
+    series: pd.Series,
+    mode: ModeKind,
+    mol_list: Iterable[MultiMolecule],
+    prm_dict: MutableMapping[str, float],
+    unit: None | str = None,
+) -> pd.Series:
     """Perform the parameter guessing as specified by **mode**.
 
     Returns
@@ -295,9 +298,11 @@ def _arithmetic_mean(a, b):
 
 
 @prepend_exception('No reference parameters available for atom type: ', exception=KeyError)
-def _set_radii(series: pd.Series,
-               prm_mapping: Mapping[str, float],
-               ref_mapping: Mapping[str, float]) -> None:
+def _set_radii(
+    series: pd.Series,
+    prm_mapping: Mapping[str, float],
+    ref_mapping: Mapping[str, float],
+) -> None:
     if series.name == 'epsilon':
         func = _geometric_mean
     elif series.name == 'sigma':
@@ -319,7 +324,7 @@ def _set_radii(series: pd.Series,
         series[i, j] = func(value_i, value_j)
 
 
-def _nb_from_prm(prm: PRMContainer, param: Param) -> Dict[str, float]:
+def _nb_from_prm(prm: PRMContainer, param: ParamKind) -> Dict[str, float]:
     r"""Extract a dict from **prm** with all :math:`\varepsilon` or :math:`\sigma` values."""
     if prm.nonbonded is None:
         return {}
