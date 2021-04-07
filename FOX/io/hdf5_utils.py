@@ -431,8 +431,6 @@ def to_hdf5(filename: PathType, dset_dict: Mapping[str, np.ndarray],
 
     # Update the hdf5 file
     with h5py.File(filename, 'r+', libver='latest') as f:
-        f.attrs['super-iteration'] = kappa
-        f.attrs['sub-iteration'] = omega
         for key, value in dset_dict.items():
             try:
                 if key == 'xyz':
@@ -445,6 +443,8 @@ def to_hdf5(filename: PathType, dset_dict: Mapping[str, np.ndarray],
                     dset[kappa, omega] = np.asarray(value, dtype=dset.dtype)
             except Exception as ex:
                 raise RuntimeError(f'Failed to write dataset {key!r}') from ex
+        f.attrs['super-iteration'] = kappa
+        f.attrs['sub-iteration'] = omega
 
     # Update the second hdf5 file with Cartesian coordinates
     filename_xyz = _get_filename_xyz(filename)
