@@ -15,7 +15,7 @@ HDF5 = Path('tests') / 'test_files' / 'armc_test.hdf5'
 
 def test_get_best() -> None:
     """Test :func:`FOX.recipes.param.get_best`."""
-    keys = ('aux_error', 'aux_error_mod', 'param', 'phi', 'rdf')
+    keys = ('aux_error', 'aux_error_mod', 'param', 'rdf')
 
     for name in keys:
         ref = np.load(PATH / f'{name}.npy')
