@@ -243,7 +243,6 @@ def overlay_descriptor(hdf5_file: Union[str, 'PathLike[str]'], name: str = 'rdf'
     j: int = aux_error.sum(axis=1, skipna=False).idxmin()
     logger.debug(f"Optimum ARMC cycle: {np.unravel_index(j, shape)}")
     mm = mm[j]
-    qm = qm[0]
 
     ret = {}
     for key in mm:

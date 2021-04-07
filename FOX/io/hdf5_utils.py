@@ -516,11 +516,6 @@ def from_hdf5(filename, datasets=None):  # noqa: E302
 
     """
     with h5py.File(filename, 'r', libver='latest') as f:
-        # Retrieve all values up to and including the current iteration
-        kappa = f.attrs['super-iteration']
-        omega = f.attrs['sub-iteration']
-        omega_max = f['param'].shape[1]
-        i = kappa * omega_max + omega + 1
 
         # Identify the to-be returned datasets
         as_dict = True
@@ -540,9 +535,6 @@ def from_hdf5(filename, datasets=None):  # noqa: E302
             ret = {key.strip('/'): _get_dset(f, key) for key in datasets_}
         except AttributeError:
             raise ValueError('Illegal "Group" key; only "Dataset" keys are accepted') from None
-        for k, v in ret.items():
-            if k != 'param_metadata':
-                ret[k] = v[:i]
 
     # Return a DataFrame/Series or dictionary of DataFrames/Series
     if not as_dict:
@@ -560,7 +552,6 @@ def _get_dset(f: File, key: str) -> Union[pd.Series, pd.DataFrame, List[pd.DataF
     ----------
     f : |h5py.File|_
         An opened hdf5 file.
-
     key : str
         The dataset name.
 
@@ -586,10 +577,10 @@ def _get_dset(f: File, key: str) -> Union[pd.Series, pd.DataFrame, List[pd.DataF
         return dset_to_series(f, key)
 
     elif f[key].ndim == 2:
-        return pd.Series(f[key][:].flatten(), name=key)
+        return pd.Series(_read_chunked(f, key), name=key)
 
     elif f[key].ndim == 3:
-        data = f[key][:]
+        data = _read_chunked(f, key)
         data.shape = np.product(data.shape[:-1]), -1
         columns = pd.MultiIndex.from_product([[key], np.arange(data.shape[-1])])
         return pd.DataFrame(data, columns=columns)
@@ -641,18 +632,38 @@ def _metadata_to_df(f: File, key: str) -> pd.DataFrame:
 
 def _phi_to_df(f: File, key: str) -> pd.DataFrame:
     """Convert the ``phi`` dataset into a :class:`~pandas.DataFrame`."""
+    i = f.attrs['super-iteration'] + 1
     dset = f[key]
-    index = pd.Index(dset.attrs['index'], name='kappa')
-    df = pd.DataFrame(dset[:], index=index)
+    index = pd.Index(dset.attrs['index'][:i], name='kappa')
+    df = pd.DataFrame(dset[:i], index=index)
     df.columns.name = dset.attrs['name'].item().decode()
     return df
 
 
+def _read_chunked(f: File, key: str) -> np.ndarray:
+    """Read all data up to and including the current sub-iteration."""
+    kappa: int = f.attrs['super-iteration']
+    omega: int = f.attrs['sub-iteration'] + 1
+    omega_max: int = f['param'].shape[1]
+    i = kappa * omega_max
+
+    dset = f[key]
+    tail = dset.shape[2:]
+    shape = (kappa * omega_max + omega,) + tail
+    data = np.empty(shape, dtype=dset.dtype)
+    if data.size == 0:
+        return data
+
+    if kappa != 0:
+        data[:i] = dset[:kappa].reshape(-1, *tail)
+    data[i:] = dset[kappa, :omega].reshape(-1, *tail)
+    return data
+
+
 def _acceptance_to_df(f: File, key: str) -> pd.DataFrame:
     """Convert the ``acceptance`` dataset into a :class:`~pandas.DataFrame`."""
-    array = f[key][:]
-    array.shape = -1, array.shape[-1]
-    df = pd.DataFrame(array)
+    data = _read_chunked(f, 'acceptance')
+    df = pd.DataFrame(data)
     df.index.name = 'iteration'
     df.columns.name = 'acceptance'
     return df
@@ -747,12 +758,15 @@ def dset_to_series(f: File, key: str) -> Union[pd.Series, pd.DataFrame]:
     """
     name = f[key].attrs['name'][0].decode()
     index = array_to_index(f[key].attrs['index'])
-    data = f[key][:]
+    if not key.endswith(".ref"):
+        data = _read_chunked(f, key)
+    else:
+        data = f[key][:]
     data.shape = np.product(data.shape[:-1], dtype=int), -1
 
     # Return a Series or DataFrame
     if data.ndim == 1:
-        return pd.Series(f[key][:], index=index, name=name)
+        return pd.Series(data, index=index, name=name)
     else:
         columns = index
         index = pd.Index(np.arange(data.shape[0]), name=name)
@@ -783,8 +797,10 @@ def dset_to_df(f: File, key: str) -> Union[pd.DataFrame, List[pd.DataFrame]]:
     """
     columns = array_to_index(f[key].attrs['columns'][:])
     index = array_to_index(f[key].attrs['index'][:])
-    data = f[key][:]
-    data.shape = np.product(data.shape[:-2], dtype=int), data.shape[-2], -1
+    if not key.endswith(".ref"):
+        data = _read_chunked(f, key)
+    else:
+        data = f[key][:]
 
     # Return a DataFrame or list of DataFrames
     if data.ndim == 2:
@@ -811,7 +827,7 @@ def _aux_err_to_df(f: File, key: str) -> Union[pd.DataFrame, List[pd.DataFrame]]
 
     """
     columns = array_to_index(f[key].attrs['index'][:])
-    data = f[key][:]
+    data = _read_chunked(f, key)
     data.shape = np.product(data.shape[:-2], dtype=int), -1
 
     ret = pd.DataFrame(data, columns=columns)
