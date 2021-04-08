@@ -233,8 +233,16 @@ def _guess_param(mc: MonteCarloABC, prm: dict,
         unit = UNIT_MAP[v.get('unit') or ('k_e' if param == 'epsilon' else 'angstrom')]
         unit_lst.append(unit)
 
-        prm_series = guess_param(mc.molecule, param, mode=mode,
-                                 psf_list=psf, prm=prm_file, unit=unit)
+        try:
+            param_mapping = mc.param.param.loc[(k, param), 0].copy()
+            param_mapping.index = pd.MultiIndex.from_tuples(i.split() for i in param_mapping.index)
+        except KeyError:
+            param_mapping = None
+
+        prm_series = guess_param(
+            mc.molecule, param, mode,
+            psf_list=psf, prm=prm_file, unit=unit, param_mapping=param_mapping,
+        )
         prm_dict = {' '.join(_k for _k in sorted(k)): v for k, v in prm_series.items()}
         prm_dict['param'] = param
         seq.append((k, prm_dict))

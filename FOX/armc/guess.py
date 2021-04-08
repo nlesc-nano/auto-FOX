@@ -87,6 +87,7 @@ def guess_param(
     prm: None | PathType | PRMContainer = None,
     psf_list: None | Iterable[PathType | PSFContainer] = None,
     unit: None | str = None,
+    param_mapping: None | Mapping[tuple[str, str], float] = None,
 ) -> Dict[Tuple[str, str], float]:
     """Estimate all Lennard-Jones missing forcefield parameters.
 
@@ -135,6 +136,10 @@ def guess_param(
     # Validate param and mode
     param = _validate_arg(param, name='param', ref={'epsilon', 'sigma'})  # type: ignore
     mode = _validate_arg(mode, name='mode', ref=MODE_SET)  # type: ignore
+    if unit is not None:
+        convert_unit = Units.conversion_ratio(DEFAULT_UNIT[param], unit)
+    else:
+        convert_unit = 1
 
     # Construct a set with all valid atoms types
     mol_list = [mol.copy() for mol in mol_list]
@@ -152,6 +157,10 @@ def guess_param(
     if cp2k_settings is not None:
         df.overlay_cp2k_settings(cp2k_settings)
 
+    if param_mapping is not None:
+        for k, v in param_mapping.items():
+            df.loc[k, param] = v / convert_unit
+
     if prm is not None:
         prm_: PRMContainer = prm if isinstance(prm, PRMContainer) else PRMContainer.read(prm)
         df.overlay_prm(prm_)
@@ -165,8 +174,7 @@ def guess_param(
 
     # Construct the to-be returned series and set them to the correct units
     ret = _guess_param(series, mode, mol_list=mol_list, prm_dict=prm_dict)
-    if unit is not None:
-        ret *= Units.conversion_ratio(DEFAULT_UNIT[param], unit)
+    ret *= convert_unit
     return ret
 
 
