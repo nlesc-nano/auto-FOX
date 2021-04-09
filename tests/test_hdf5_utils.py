@@ -38,7 +38,7 @@ def test_create_hdf5():
     ref_dict['/aux_error_mod'].dtype = np.float64
     ref_dict['/param'].shape = 500, 100, 1, 15
     ref_dict['/param'].dtype = np.float64
-    ref_dict['/param_metadata'].shape = (15,)
+    ref_dict['/param_metadata'].shape = (1, 15)
     ref_dict['/param_metadata'].dtype = np.void
     ref_dict['/phi'].shape = 500, 1
     ref_dict['/phi'].dtype = np.float64
@@ -99,6 +99,40 @@ def test_to_hdf5():
 
 
 PARAM_METADATA = pd.DataFrame.from_dict({
+    'min': {
+        ('charge', 'charge', 'CG2O3'): -inf,
+        ('charge', 'charge', 'Cd'): 0.5,
+        ('charge', 'charge', 'HGR52'): -inf,
+        ('charge', 'charge', 'OG2D2'): -inf,
+        ('charge', 'charge', 'Se'): -inf,
+        ('lennard_jones', 'epsilon', 'Cd Cd'): -inf,
+        ('lennard_jones', 'epsilon', 'Cd OG2D2'): -inf,
+        ('lennard_jones', 'epsilon', 'Cd Se'): -inf,
+        ('lennard_jones', 'epsilon', 'OG2D2 Se'): -inf,
+        ('lennard_jones', 'epsilon', 'Se Se'): -inf,
+        ('lennard_jones', 'sigma', 'Cd Cd'): -inf,
+        ('lennard_jones', 'sigma', 'Cd OG2D2'): -inf,
+        ('lennard_jones', 'sigma', 'Cd Se'): -inf,
+        ('lennard_jones', 'sigma', 'OG2D2 Se'): -inf,
+        ('lennard_jones', 'sigma', 'Se Se'): -inf,
+    },
+    'max': {
+        ('charge', 'charge', 'CG2O3'): inf,
+        ('charge', 'charge', 'Cd'): 1.5,
+        ('charge', 'charge', 'HGR52'): inf,
+        ('charge', 'charge', 'OG2D2'): 0.0,
+        ('charge', 'charge', 'Se'): -0.5,
+        ('lennard_jones', 'epsilon', 'Cd Cd'): inf,
+        ('lennard_jones', 'epsilon', 'Cd OG2D2'): inf,
+        ('lennard_jones', 'epsilon', 'Cd Se'): inf,
+        ('lennard_jones', 'epsilon', 'OG2D2 Se'): inf,
+        ('lennard_jones', 'epsilon', 'Se Se'): inf,
+        ('lennard_jones', 'sigma', 'Cd Cd'): inf,
+        ('lennard_jones', 'sigma', 'Cd OG2D2'): inf,
+        ('lennard_jones', 'sigma', 'Cd Se'): inf,
+        ('lennard_jones', 'sigma', 'OG2D2 Se'): inf,
+        ('lennard_jones', 'sigma', 'Se Se'): inf,
+    },
     'count': {
         ('charge', 'charge', 'CG2O3'): 26,
         ('charge', 'charge', 'Cd'): 68,
@@ -150,40 +184,6 @@ PARAM_METADATA = pd.DataFrame.from_dict({
         ('lennard_jones', 'sigma', 'OG2D2 Se'): False,
         ('lennard_jones', 'sigma', 'Se Se'): False,
     },
-    'max': {
-        ('charge', 'charge', 'CG2O3'): inf,
-        ('charge', 'charge', 'Cd'): 1.5,
-        ('charge', 'charge', 'HGR52'): inf,
-        ('charge', 'charge', 'OG2D2'): 0.0,
-        ('charge', 'charge', 'Se'): -0.5,
-        ('lennard_jones', 'epsilon', 'Cd Cd'): inf,
-        ('lennard_jones', 'epsilon', 'Cd OG2D2'): inf,
-        ('lennard_jones', 'epsilon', 'Cd Se'): inf,
-        ('lennard_jones', 'epsilon', 'OG2D2 Se'): inf,
-        ('lennard_jones', 'epsilon', 'Se Se'): inf,
-        ('lennard_jones', 'sigma', 'Cd Cd'): inf,
-        ('lennard_jones', 'sigma', 'Cd OG2D2'): inf,
-        ('lennard_jones', 'sigma', 'Cd Se'): inf,
-        ('lennard_jones', 'sigma', 'OG2D2 Se'): inf,
-        ('lennard_jones', 'sigma', 'Se Se'): inf,
-    },
-    'min': {
-        ('charge', 'charge', 'CG2O3'): -inf,
-        ('charge', 'charge', 'Cd'): 0.5,
-        ('charge', 'charge', 'HGR52'): -inf,
-        ('charge', 'charge', 'OG2D2'): -inf,
-        ('charge', 'charge', 'Se'): -inf,
-        ('lennard_jones', 'epsilon', 'Cd Cd'): -inf,
-        ('lennard_jones', 'epsilon', 'Cd OG2D2'): -inf,
-        ('lennard_jones', 'epsilon', 'Cd Se'): -inf,
-        ('lennard_jones', 'epsilon', 'OG2D2 Se'): -inf,
-        ('lennard_jones', 'epsilon', 'Se Se'): -inf,
-        ('lennard_jones', 'sigma', 'Cd Cd'): -inf,
-        ('lennard_jones', 'sigma', 'Cd OG2D2'): -inf,
-        ('lennard_jones', 'sigma', 'Cd Se'): -inf,
-        ('lennard_jones', 'sigma', 'OG2D2 Se'): -inf,
-        ('lennard_jones', 'sigma', 'Se Se'): -inf,
-    },
     'unit': {
         ('charge', 'charge', 'CG2O3'): '',
         ('charge', 'charge', 'Cd'): '',
@@ -200,8 +200,9 @@ PARAM_METADATA = pd.DataFrame.from_dict({
         ('lennard_jones', 'sigma', 'Cd Se'): 'nm',
         ('lennard_jones', 'sigma', 'OG2D2 Se'): 'nm',
         ('lennard_jones', 'sigma', 'Se Se'): 'nm',
-    }
+    },
 })
+PARAM_METADATA.columns = pd.MultiIndex.from_tuples([(0, k) for k in PARAM_METADATA.columns])
 
 
 @delete_finally(PATH / 'test.hdf5', PATH / 'test.xyz.hdf5')

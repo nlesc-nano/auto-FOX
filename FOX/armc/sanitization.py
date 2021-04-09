@@ -12,6 +12,8 @@ API
 
 """
 
+from __future__ import annotations
+
 import os
 import copy
 import warnings
@@ -169,13 +171,13 @@ def validate_atoms(
         raise RuntimeError(msg)
 
 
-def validate_charge(charge: Optional[float], tolerance: float = 0.01) -> None:
+def validate_charge(charge: None | np.ndarray, tolerance: float = 0.01) -> None:
     """Check if the net **charge** is integer within a given **tolerance**."""
     if charge is None:
         return
 
-    delta = abs(charge - round(charge))
-    if delta > tolerance:
+    delta = np.abs(charge - charge.round())
+    if (delta > tolerance).any():
         raise ValueError(f'Net charge {charge} not integer within a tolerance {tolerance}')
 
 
@@ -185,8 +187,8 @@ def validate_constraints(param: ParamMapping, tolerance: float = 0.01,
     msg = ""
 
     # Check minima and maxima
-    min_ok = param.metadata['min'] <= param.param[0]
-    max_ok = param.metadata['max'] >= param.param[0]
+    min_ok = param.metadata[0, 'min'] <= param.param[0]
+    max_ok = param.metadata[0, 'max'] >= param.param[0]
     if not min_ok.all():
         msg += f"Parameters smaller then specified minima:\n    {param.param.loc[~min_ok, 0]}\n"
     if not max_ok.all():
@@ -730,13 +732,14 @@ def update_count(param, psf=None, mol=None):  # noqa: E302
     else:
         raise TypeError("'psf' and 'mol' cannot be both 'None'")
 
-    prm_count = param.metadata['count']
-    at_sequence = [atoms.split() for *_, atoms in prm_count.index]
+    index = param.metadata.index
+    prm_count_list = [param.metadata[i, 'count'] for i in param.metadata.columns.levels[0]]
+    at_sequence = [atoms.split() for *_, atoms in index]
     for count in count_iter:
         data = get_atom_count(at_sequence, count)
-        series = pd.Series({k: v for k, v in zip(prm_count.index, data) if v is not None},
-                           name='unit')
-        prm_count.update(series)
+        series = pd.Series({k: v for k, v in zip(index, data) if v is not None}, name='unit')
+        for prm_count in prm_count_list:
+            prm_count.update(series)
 
 
 def _assign_residues(plams_mol: Molecule, res_list: Iterable[Iterable[int]]) -> None:
