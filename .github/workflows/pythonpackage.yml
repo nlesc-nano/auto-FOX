@@ -79,7 +79,7 @@ jobs:
             -   name: Install dependencies (minimum version)
                 if: matrix.special == '; minimum version'
                 run: |
-                    conda create -n test -c conda-forge python=${{ matrix.version }} pyyaml=5.1 rdkit=2018.09 numpy=1.15 h5py=2.10 pandas=0.23 scipy=1.2.0 matplotlib=3.0
+                    conda create -n test -c conda-forge python=${{ matrix.version }} pyyaml=5.1 rdkit=2018.09 numpy=1.15 h5py=2.10 pandas=0.24 scipy=1.2.0 matplotlib=3.0
                     source $CONDA/bin/activate test
                     pip install Nano-Utils==1.2.1 schema==0.7.1 AssertionLib==2.2 noodles==0.3.3 sphinx==2.4 sphinx_rtd_theme==0.3.0
                     pip install -e .[test]

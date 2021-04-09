@@ -103,7 +103,7 @@ setup(
         'pyyaml>=5.1',
         'numpy>=1.15',
         'scipy>=1.2',
-        'pandas',
+        'pandas>=0.24',
         'schema>=0.7.1',
         'AssertionLib>=2.3',
         'noodles>=0.3.3',
