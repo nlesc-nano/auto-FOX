@@ -19,7 +19,7 @@ import math
 import copy
 import warnings
 from pathlib import Path
-from itertools import chain
+from itertools import chain, repeat
 from collections import abc, Counter
 from typing import (
     Union, Iterable, Tuple, Optional, Mapping, Any, MutableMapping, Iterator,
@@ -742,17 +742,19 @@ def _parse_ligand_alias(psf_list: Optional[Sequence[PSFContainer]], prm: ParamMa
 
 @overload
 def update_count(
-    param: ParamMapping, psf: Iterable[PSFContainer], mol: Optional[Iterable[MultiMolecule]]
+    param: ParamMapping, psf: Sequence[PSFContainer], mol: None | Sequence[MultiMolecule]
 ) -> None: ...
 @overload
-def update_count(param: ParamMapping, psf: None, mol: Iterable[MultiMolecule]) -> None: ...
+def update_count(param: ParamMapping, psf: None, mol: Sequence[MultiMolecule]) -> None: ...
 def update_count(param, psf=None, mol=None):  # noqa: E302
     """Assign atom-counts to the passed :class:`ParamMapping`."""
     # Construct a generator
     if psf is not None:
-        count_iter: Iterator[Mapping[str, int]] = (pd.value_counts(p.atom_type) for p in psf)
+        psf_iter = psf if len(psf) != 1 else repeat(psf[0], len(param.param.columns))
+        count_iter: Iterator[Mapping[str, int]] = (pd.value_counts(p.atom_type) for p in psf_iter)
     elif mol is not None:
-        count_iter = ({k: len(v) for k, v in m.atoms.items()} for m in mol)
+        mol_iter = mol if len(mol) != 1 else repeat(mol[0], len(param.param.columns))
+        count_iter = ({k: len(v) for k, v in m.atoms.items()} for m in mol_iter)
     else:
         raise TypeError("'psf' and 'mol' cannot be both 'None'")
 

@@ -122,6 +122,7 @@ class ARMCPT(ARMC):
 
         """  # noqa: E501
         super().__init__(**kwargs)
+        self.param._is_independent = True
         self.swap_phi: SwapFunc = swapper
         if len(self.phi.phi) <= 1:
             raise ValueError("{self.__class__.__name__!r} requires 'phi.phi' to "

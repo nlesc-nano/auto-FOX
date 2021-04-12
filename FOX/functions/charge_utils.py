@@ -108,7 +108,7 @@ def update_charge(atom: KT, value: float, param: pd.Series, count: pd.Series,
 
     The atomic charges in **df** are furthermore exposed to the following constraints:
 
-        * The total charge remains constant.
+        * The total charge remains constant.param
         * Optional constraints specified in **constrain_dict**
           (see :func:`.update_constrained_charge`).
 
@@ -121,7 +121,6 @@ def update_charge(atom: KT, value: float, param: pd.Series, count: pd.Series,
         param.at[atom] = np.clip(value, min_value, max_value)
         return None
 
-    param_backup = param.copy()
     if exclude is None:
         exclude_set = set()
     else:
@@ -131,19 +130,19 @@ def update_charge(atom: KT, value: float, param: pd.Series, count: pd.Series,
         try:
             constrained_update(atom, value, param, count, atom_coefs, prm_min, prm_max, exclude_set)
         except ChargeError as ex:
-            param[:] = param_backup
             return ex
         exclude_set.update(chain.from_iterable(s.index for s in atom_coefs))
 
     exclude_set.add(atom)
     param[atom] = value
+    unconstrained_update(
+        net_charge, param, count, prm_min=prm_min,
+        prm_max=prm_max, exclude=exclude_set,
+    )
+
     try:
-        unconstrained_update(net_charge, param, count,
-                             prm_min=prm_min,
-                             prm_max=prm_max,
-                             exclude=exclude_set)
+        _check_net_charge(param, count, net_charge)
     except ChargeError as ex:
-        param[:] = param_backup
         return ex
     else:
         return None
@@ -269,8 +268,6 @@ def unconstrained_update(net_charge: float, param: pd.Series, count: pd.Series,
 
             s = param * i
             s_clip = np.clip(s, s_min, s_max).loc[include]
-
-    _check_net_charge(param, count, net_charge)
 
 
 def _check_net_charge(param: pd.Series, count: pd.Series, net_charge: float,
