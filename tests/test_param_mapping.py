@@ -37,7 +37,7 @@ PARAM = ParamMapping(_DF, constraints=_CONSTRAINTS)
 def test_call():
     """Test :meth:`ParamMapping.__call__`."""
     param = PARAM.copy(deep=True)
-    ref = sum(param.param.loc['charge', 0] * param.metadata.loc['charge', 'count'])
+    ref = sum(param.param.loc['charge', 0] * param.metadata.loc['charge', (0, 'count')])
 
     failed_iterations = []
     for i in range(1000):
@@ -46,20 +46,20 @@ def test_call():
             failed_iterations.append(i)
             ex_backup = ex
 
-        value = sum(param.param.loc['charge', 0] * param.metadata.loc['charge', 'count'])
+        value = sum(param.param.loc['charge', 0] * param.metadata.loc['charge', (0, 'count')])
         assertion.isclose(value, ref, abs_tol=0.001)
 
         try:
-            assertion.le(param.param[0], param.metadata['max'], post_process=np.all)
+            assertion.le(param.param[0], param.metadata[0, 'max'], post_process=np.all)
         except AssertionError as ex:
-            df = pd.DataFrame({'param': param.param[0], 'max': param.metadata['max']})
+            df = pd.DataFrame({'param': param.param[0], 'max': param.metadata[0, 'max']})
             msg = f"iteration{i}\n{df.round(2)}"
             raise AssertionError(msg) from ex
 
         try:
-            assertion.ge(param.param[0], param.metadata['min'], post_process=np.all)
+            assertion.ge(param.param[0], param.metadata[0, 'min'], post_process=np.all)
         except AssertionError as ex:
-            df = pd.DataFrame({'param': param.param[0], 'max': param.metadata['min']})
+            df = pd.DataFrame({'param': param.param[0], 'max': param.metadata[0, 'min']})
             msg = f"iteration{i}\n{df.round(2)}"
             raise AssertionError(msg) from ex
 

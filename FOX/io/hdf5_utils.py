@@ -620,13 +620,22 @@ def _get_xyz_dset(f: File) -> Tuple[np.ndarray, Dict[str, List[int]]]:
 
 def _metadata_to_df(f: File, key: str) -> pd.DataFrame:
     """Convert the ``param_metadata`` dataset into a :class:`~pandas.DataFrame`."""
-    _index = f[key].attrs['index']
-    idx_gen = (_index[k].astype(str) for k in _index.dtype.names)
-    index = pd.MultiIndex.from_tuples(zip(*idx_gen), names=_index.dtype.names)
+    dset = f[key]
+    index_ar = dset.attrs['index']
+    index = pd.MultiIndex.from_tuples(
+        zip(*(index_ar[k].astype(str) for k in index_ar.dtype.names)),
+        names=index_ar.dtype.names,
+    )
 
-    df = pd.DataFrame.from_records(f[key][:], index=index)
-    df['unit'] = df['unit'].values.astype(str)
-    df.sort_index(axis='columns', inplace=True)
+    columns = pd.MultiIndex(
+        levels=[pd.Index([], dtype=np.int64), pd.Index([], dtype=np.object_)],
+        codes=[[], []],
+    )
+
+    df = pd.DataFrame(index=index, columns=columns)
+    for i, ar in enumerate(dset[:]):
+        for k in dset.dtype.names:
+            df[i, k] = ar[k] if k != "unit" else ar[k].astype(str)
     return df
 
 

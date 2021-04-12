@@ -25,7 +25,7 @@ tests_require = [
     'pytest-cov',
     'flake8',
     'pydocstyle',
-    'auto-FOX-data@git+https://github.com/nlesc-nano/auto-FOX-data@1.1.6',
+    'auto-FOX-data@git+https://github.com/nlesc-nano/auto-FOX-data@1.1.8',
     'ase',
     'CAT@git+https://github.com/nlesc-nano/CAT@master',
 ]
@@ -103,7 +103,7 @@ setup(
         'pyyaml>=5.1',
         'numpy>=1.15',
         'scipy>=1.2',
-        'pandas',
+        'pandas>=0.24',
         'schema>=0.7.1',
         'AssertionLib>=2.3',
         'noodles>=0.3.3',
