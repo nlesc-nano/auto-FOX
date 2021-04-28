@@ -104,6 +104,8 @@ def sparse_bond_matrix(  # type: ignore[misc]
 def sparse_bond_matrix(mol, dtype=bool, sparse_type=csr_matrix, **kwargs):  # noqa: E302
     r"""Create a sparse bond-matrix of a user-specified data type.
 
+    The values of the matrix represent bond lengths.
+
     Parameters
     ----------
     mol : :class:`Molecule`
@@ -142,7 +144,7 @@ def sparse_bond_matrix(mol, dtype=bool, sparse_type=csr_matrix, **kwargs):  # no
     if dtype_ == bool:
         data = np.ones(bond_count, dtype=dtype_)
     else:
-        iterator2 = chain.from_iterable((b.order, b.order) for b in mol.bonds)
+        iterator2 = chain.from_iterable(2 * (b.length(),) for b in mol.bonds)
         data = np.fromiter(iterator2, count=bond_count, dtype=dtype_)
 
     # Create and return the sparse matrix
