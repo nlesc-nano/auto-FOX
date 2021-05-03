@@ -123,6 +123,8 @@ try:
     to_rdmol(_MOL)
 except Exception as ex:
     ArgumentError: Type[Exception] = type(ex)
+else:
+    raise TypeError("Failed to extract Boost.Python.ArgumentError")
 del _MOL
 
 __all__ = ['generate_psf', 'generate_psf2', 'extract_ligand']
