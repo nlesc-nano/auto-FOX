@@ -92,11 +92,13 @@ API
 
 """
 
+from __future__ import annotations
+
 import math
 import warnings
 from types import MappingProxyType
-from typing import (Union, Iterable, Optional, Callable, Mapping, Type, Iterator,
-                    Hashable, Any, Tuple, MutableMapping, List, cast, Sequence)
+from typing import (Union, Iterable, Optional, Callable, Mapping, Type, Iterator, TypeVar,
+                    Any, Tuple, List, cast, Sequence, Dict)
 from itertools import chain
 from collections import abc
 
@@ -109,6 +111,9 @@ from FOX import PSFContainer
 from FOX.io.read_psf import overlay_rtf_file, overlay_str_file
 from FOX.functions.molecule_utils import fix_bond_orders
 from FOX.armc.sanitization import _assign_residues
+
+KT = TypeVar("KT")
+VT = TypeVar("VT")
 
 # A somewhat contrived way of loading :exc:`ArgumentError<Boost.Python.ArgumentError>`
 _MOL = Molecule()
@@ -124,10 +129,10 @@ __all__ = ['generate_psf', 'generate_psf2', 'extract_ligand']
 
 
 def generate_psf(
-    qd: Union[str, Molecule],
-    ligand: Union[str, None, Molecule] = None,
-    rtf_file: Optional[PathType] = None,
-    str_file: Optional[PathType] = None,
+    qd: str | Molecule,
+    ligand: None | str | Molecule = None,
+    rtf_file: None | PathType = None,
+    str_file: None | PathType = None,
 ) -> PSFContainer:
     """Generate a :class:`PSFContainer` instance for **qd**.
 
@@ -225,8 +230,11 @@ def generate_psf(
     return psf
 
 
-def extract_ligand(qd: Union[str, Molecule], ligand_len: int,
-                   ligand_atoms: Union[str, Iterable[str]]) -> Molecule:
+def extract_ligand(
+    qd: str | Molecule,
+    ligand_len: int,
+    ligand_atoms: str | Iterable[str],
+) -> Molecule:
     """Extract a single ligand from **qd**.
 
     Parameters
@@ -268,11 +276,13 @@ def extract_ligand(qd: Union[str, Molecule], ligand_len: int,
     return ligand
 
 
-def generate_psf2(qd: Union[str, Molecule],
-                  *ligands: Union[str, Molecule, Mol],
-                  rtf_file: Union[None, PathType, Iterable[PathType]] = None,
-                  str_file: Union[None, PathType, Iterable[PathType]] = None,
-                  ret_failed_lig: bool = False) -> PSFContainer:
+def generate_psf2(
+    qd: str | Molecule,
+    *ligands: str | Molecule | Mol,
+    rtf_file: None | PathType | Iterable[PathType] = None,
+    str_file: None | PathType | Iterable[PathType] = None,
+    ret_failed_lig: bool = False,
+) -> PSFContainer:
     r"""Generate a :class:`PSFContainer` instance for **qd** with multiple different **ligands**.
 
     Parameters
@@ -384,8 +394,11 @@ def generate_psf2(qd: Union[str, Molecule],
     return psf
 
 
-def _get_initial_lig(qd: Molecule, rdmol_dict: Mapping[Mol, int], i: int
-                     ) -> Tuple[Union[None, Molecule], int]:
+def _get_initial_lig(
+    qd: Molecule,
+    rdmol_dict: Mapping[Mol, int],
+    i: int,
+) -> Tuple[None | Molecule, int]:
     """Construct a new ligand at the begining of the :func:`generate_psf2` ``while`` loop."""
     _, j = next(iter(rdmol_dict.items()))
     new = Molecule()
@@ -443,8 +456,12 @@ MOL_MAPPING: Mapping[Type[MolType], Callable[[Any], Mol]] = MappingProxyType({
 })
 
 
-def _overlay(psf: PSFContainer, mode: str, id_ranges: Iterable[Iterable[int]],
-             files: Union[PathType, Iterable[PathType]]) -> None:
+def _overlay(
+    psf: PSFContainer,
+    mode: str,
+    id_ranges: Iterable[Iterable[int]],
+    files: PathType | Iterable[PathType],
+) -> None:
     """Overlay one or more .str or .rtf files."""
     if not isinstance(files, abc.Iterable) or isinstance(files, (str, bytes)):
         files_iter: Iterable[PathType] = (files,)
@@ -462,7 +479,7 @@ def _overlay(psf: PSFContainer, mode: str, id_ranges: Iterable[Iterable[int]],
         func(psf, file, id_range=id_range)
 
 
-def _items_sorted(dct: Mapping) -> Iterator[Tuple[Hashable, Any]]:
+def _items_sorted(dct: Mapping[KT, VT]) -> Iterator[Tuple[KT, VT]]:
     """Return a :meth:`dict.items()` iterator whose items are sorted by the dictionary values."""
     return iter(sorted(dct.items(), key=lambda kv: kv[1], reverse=True))
 
@@ -478,7 +495,7 @@ def _get_matches(mol: Molecule, ref: Mol) -> bool:
     return match_set == set(range(len(mol))) and len(match_set) == len(mol)
 
 
-def _get_rddict(ligands: Iterable[Union[str, Molecule, Mol]]) -> MutableMapping[Mol, int]:
+def _get_rddict(ligands: Iterable[str | Molecule | Mol]) -> Dict[Mol, int]:
     """Create an ordered dict with rdkit molecules and delta atom counts for :func:`generate_psf`."""  # noqa
     tmp_dct = {MOL_MAPPING[type(lig)](lig): 0 for lig in ligands}
     for rdmol in tmp_dct:
@@ -492,7 +509,7 @@ def _get_rddict(ligands: Iterable[Union[str, Molecule, Mol]]) -> MutableMapping[
     return rdmol_dict
 
 
-def set_integer_bonds(self):
+def set_integer_bonds(self) -> None:
     """Convert non-integer bond orders into integers.
 
     For example, bond orders of aromatic systems are no longer set to the non-integer
@@ -575,9 +592,12 @@ def set_integer_bonds(self):
     """
     ceil = math.ceil
     floor = math.floor
-    func_invert = {ceil: floor, floor: ceil}
+    func_invert: Dict[Callable[[float], float], Callable[[float], float]] = {
+        ceil: floor,
+        floor: ceil,
+    }
 
-    def dfs(atom, func) -> None:
+    def dfs(atom: Atom, func: Callable[[float], float]) -> None:
         """Depth-first search algorithm for integer-ifying the bond orders."""
         for b2 in atom.bonds:
             if b2._visited:
@@ -592,7 +612,7 @@ def set_integer_bonds(self):
 
     # Mark all non-integer bonds; floats which can be represented exactly
     # by an integer (e.g. 1.0 and 2.0) are herein treated as integers
-    bond_dict = {}  # An improvised OrderedSet (as it does not exist)
+    bond_dict: Dict[Bond, None] = {}  # An improvised OrderedSet (as it does not exist)
     for bond in self.bonds:
         if hasattr(bond.order, 'is_integer') and not bond.order.is_integer():
             bond._visited = False
