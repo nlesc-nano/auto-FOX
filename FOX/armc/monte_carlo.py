@@ -330,8 +330,8 @@ class MonteCarloABC(AbstractDataClass, ABC, Mapping[Key, np.ndarray]):
     def run_jobs(self) -> Union[Tuple[None, None], Tuple[List[MultiMolecule], List[Any]]]:
         """Run a geometry optimization followed by a molecular dynamics (MD) job.
 
-        Returns a new :class:`.MultiMolecule` instance constructed from the MD trajectory and the
-        path to the MD results.
+        Returns a new :class:`~FOX.MultiMolecule` instance constructed from the MD trajectory
+        and the path to the MD results.
         If no trajectory is available (*i.e.* the job crashed) return *None* instead.
 
         * The MD job is constructed according to the provided settings in **self.job**.
@@ -440,7 +440,7 @@ class MonteCarloABC(AbstractDataClass, ABC, Mapping[Key, np.ndarray]):
         -------
         :class:`dict[str, np.ndarray[np.float64]] <dict>`, :class:`dict[str, np.ndarray[np.float64]] <dict>` and :class:`list[FOX.MultiMolecule] <list>`
             A previous value from **history_dict** or a new value from an MD calculation &
-            a :class:`.MultiMolecule` instance constructed from the MD simulation.
+            a :class:`~FOX.MultiMolecule` instance constructed from the MD simulation.
             Values are set to ``np.inf`` if the MD job crashed.
 
         """  # noqa: E501

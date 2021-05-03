@@ -229,7 +229,7 @@ An example of a custom, albit rather nonsensical, PES descriptor involving the
         kwargs:
             axis: 0
 
-This .yaml input, given a :class:`.MultiMolecule` instance ``mol``, is equivalent to:
+This .yaml input, given a :class:`~FOX.MultiMolecule` instance ``mol``, is equivalent to:
 
 .. code:: python
 
