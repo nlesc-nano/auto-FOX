@@ -354,7 +354,7 @@ class PSFContainer(AbstractDataClass, AbstractFileContainer):
 
     @bonds.setter
     def bonds(self, value: Iterable):
-        self._set_nd_array('_bonds', value, 2, int)
+        self._set_nd_array('_bonds', value, 2, np.int64)
 
     @property
     def angles(self) -> np.ndarray:
@@ -363,7 +363,7 @@ class PSFContainer(AbstractDataClass, AbstractFileContainer):
 
     @angles.setter
     def angles(self, value: Iterable):
-        self._set_nd_array('_angles', value, 2, int)
+        self._set_nd_array('_angles', value, 2, np.int64)
 
     @property
     def dihedrals(self) -> np.ndarray:
@@ -372,7 +372,7 @@ class PSFContainer(AbstractDataClass, AbstractFileContainer):
 
     @dihedrals.setter
     def dihedrals(self, value: Iterable):
-        self._set_nd_array('_dihedrals', value, 2, int)
+        self._set_nd_array('_dihedrals', value, 2, np.int64)
 
     @property
     def impropers(self) -> np.ndarray:
@@ -381,7 +381,7 @@ class PSFContainer(AbstractDataClass, AbstractFileContainer):
 
     @impropers.setter
     def impropers(self, value: Iterable):
-        self._set_nd_array('_impropers', value, 2, int)
+        self._set_nd_array('_impropers', value, 2, np.int64)
 
     @property
     def donors(self) -> np.ndarray:
@@ -390,7 +390,7 @@ class PSFContainer(AbstractDataClass, AbstractFileContainer):
 
     @donors.setter
     def donors(self, value: Iterable):
-        self._set_nd_array('_donors', value, 2, int)
+        self._set_nd_array('_donors', value, 2, np.int64)
 
     @property
     def acceptors(self) -> np.ndarray:
@@ -399,7 +399,7 @@ class PSFContainer(AbstractDataClass, AbstractFileContainer):
 
     @acceptors.setter
     def acceptors(self, value: Iterable):
-        self._set_nd_array('_acceptors', value, 2, int)
+        self._set_nd_array('_acceptors', value, 2, np.int64)
 
     @property
     def no_nonbonded(self) -> np.ndarray:
@@ -408,7 +408,7 @@ class PSFContainer(AbstractDataClass, AbstractFileContainer):
 
     @no_nonbonded.setter
     def no_nonbonded(self, value: Iterable):
-        self._set_nd_array('_no_nonbonded', value, 2, int)
+        self._set_nd_array('_no_nonbonded', value, 2, np.int64)
 
     def _set_nd_array(self, name: str, value: Optional[np.ndarray],
                       ndmin: int, dtype: type) -> None:
