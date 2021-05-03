@@ -21,7 +21,7 @@ import reprlib
 import inspect
 from os import PathLike
 from typing import (Dict, Optional, Any, Set, Iterator, Iterable, TypeVar, Tuple, cast,
-                    List, Mapping, Union, Collection, Generic, IO, Callable)
+                    List, Mapping, Union, Collection, Generic, IO, Callable, overload)
 from itertools import chain
 from collections import defaultdict
 from types import MappingProxyType
@@ -31,7 +31,10 @@ import pandas as pd
 
 from scm.plams import Molecule, Atom, Bond
 from assertionlib.dataclass import AbstractDataClass
-from nanoutils import group_by_values, raise_if, AbstractFileContainer, set_docstring, TypedDict
+from nanoutils import (
+    group_by_values, raise_if, AbstractFileContainer, set_docstring,
+    TypedDict, Literal,
+)
 
 from ..utils import read_str_file, read_rtf_file
 from ..functions.molecule_utils import get_bonds, get_angles, get_dihedrals, get_impropers
@@ -65,6 +68,9 @@ class _ShapeDictBase(TypedDict):
 class _ShapeDict(_ShapeDictBase, total=False):
     row_len: int
     header: str
+
+
+_ILLEGAL_SORT_KWARGS = frozenset({"by", "axis"})
 
 
 class PSFContainer(AbstractDataClass, AbstractFileContainer):
@@ -354,7 +360,7 @@ class PSFContainer(AbstractDataClass, AbstractFileContainer):
 
     @bonds.setter
     def bonds(self, value: Iterable):
-        self._set_nd_array('_bonds', value, 2, int)
+        self._set_nd_array('_bonds', value, 2, np.int64)
 
     @property
     def angles(self) -> np.ndarray:
@@ -363,7 +369,7 @@ class PSFContainer(AbstractDataClass, AbstractFileContainer):
 
     @angles.setter
     def angles(self, value: Iterable):
-        self._set_nd_array('_angles', value, 2, int)
+        self._set_nd_array('_angles', value, 2, np.int64)
 
     @property
     def dihedrals(self) -> np.ndarray:
@@ -372,7 +378,7 @@ class PSFContainer(AbstractDataClass, AbstractFileContainer):
 
     @dihedrals.setter
     def dihedrals(self, value: Iterable):
-        self._set_nd_array('_dihedrals', value, 2, int)
+        self._set_nd_array('_dihedrals', value, 2, np.int64)
 
     @property
     def impropers(self) -> np.ndarray:
@@ -381,7 +387,7 @@ class PSFContainer(AbstractDataClass, AbstractFileContainer):
 
     @impropers.setter
     def impropers(self, value: Iterable):
-        self._set_nd_array('_impropers', value, 2, int)
+        self._set_nd_array('_impropers', value, 2, np.int64)
 
     @property
     def donors(self) -> np.ndarray:
@@ -390,7 +396,7 @@ class PSFContainer(AbstractDataClass, AbstractFileContainer):
 
     @donors.setter
     def donors(self, value: Iterable):
-        self._set_nd_array('_donors', value, 2, int)
+        self._set_nd_array('_donors', value, 2, np.int64)
 
     @property
     def acceptors(self) -> np.ndarray:
@@ -399,7 +405,7 @@ class PSFContainer(AbstractDataClass, AbstractFileContainer):
 
     @acceptors.setter
     def acceptors(self, value: Iterable):
-        self._set_nd_array('_acceptors', value, 2, int)
+        self._set_nd_array('_acceptors', value, 2, np.int64)
 
     @property
     def no_nonbonded(self) -> np.ndarray:
@@ -408,7 +414,7 @@ class PSFContainer(AbstractDataClass, AbstractFileContainer):
 
     @no_nonbonded.setter
     def no_nonbonded(self, value: Iterable):
-        self._set_nd_array('_no_nonbonded', value, 2, int)
+        self._set_nd_array('_no_nonbonded', value, 2, np.int64)
 
     def _set_nd_array(self, name: str, value: Optional[np.ndarray],
                       ndmin: int, dtype: type) -> None:
@@ -938,6 +944,178 @@ class PSFContainer(AbstractDataClass, AbstractFileContainer):
             mol.add_bond(Bond(mol[i], mol[j], mol=mol))
 
         writepdb(mol, pdb_file)
+
+    @overload
+    def sort_values(
+        self,
+        by: str | Iterable[str],
+        *,
+        return_argsort: Literal[False] = ...,
+        inplace: bool = ...,
+        ascending: bool = ...,
+        kind: Literal['quicksort', 'mergesort', 'heapsort'] = ...,
+        na_position: Literal['first', 'last'] = 'last',
+        key: None | Callable[[pd.Series], pd.Series] = None,
+    ) -> PSFContainer:
+        ...
+    @overload  # noqa: E301
+    def sort_values(
+        self,
+        by: str | Iterable[str],
+        *,
+        return_argsort: Literal[True],
+        inplace: bool = True,
+        ascending: bool = True,
+        kind: Literal['quicksort', 'mergesort', 'heapsort'] = ...,
+        na_position: Literal['first', 'last'] = 'last',
+        key: None | Callable[[pd.Series], pd.Series] = None,
+    ) -> Tuple[PSFContainer, np.ndarray]:
+        ...
+    def sort_values(self, by, *, return_argsort=False, inplace=False, **kwargs):  # noqa: E301
+        r"""Sort the :attr:`~PSFContainer.atoms` values by the specified columns.
+
+        Examples
+        --------
+        .. code-block:: python
+
+            >>> from FOX import PSFContainer
+
+            >>> psf: PSFContainer = ...
+            >>> print(psf)
+            PSFContainer(
+                acceptors    = array([], shape=(0, 1), dtype=int64),
+                angles       = array([], shape=(0, 3), dtype=int64),
+                atoms        =     segment name  residue ID residue name atom name atom type  charge       mass  0
+                               1           MOL1           1          COR        Cd        Cd     0.0  112.41400  0
+                               2           MOL1           1          COR        Cd        Cd     0.0  112.41400  0
+                               3           MOL1           1          COR        Cd        Cd     0.0  112.41400  0
+                               4           MOL1           1          COR        Cd        Cd     0.0  112.41400  0
+                               5           MOL1           1          COR        Cd        Cd     0.0  112.41400  0
+                               ..           ...         ...          ...       ...       ...     ...        ... ..
+                               223         MOL3          26          LIG         O         O     0.0   15.99940  0
+                               224         MOL3          27          LIG         C         C     0.0   12.01060  0
+                               225         MOL3          27          LIG         H         H     0.0    1.00798  0
+                               226         MOL3          27          LIG         O         O     0.0   15.99940  0
+                               227         MOL3          27          LIG         O         O     0.0   15.99940  0
+
+                               [227 rows x 8 columns],
+                bonds        = array([[124, 125],
+                                      [126, 124],
+                                      [127, 124],
+                                      [128, 129],
+                                      [130, 128],
+                                      ...,
+                                      [222, 220],
+                                      [223, 220],
+                                      [224, 225],
+                                      [226, 224],
+                                      [227, 224]], dtype=int64),
+                dihedrals    = array([], shape=(0, 4), dtype=int64),
+                donors       = array([], shape=(0, 1), dtype=int64),
+                filename     = array([], dtype='<U1'),
+                impropers    = array([], shape=(0, 4), dtype=int64),
+                no_nonbonded = array([], shape=(0, 2), dtype=int64),
+                title        = array(['PSF file generated with Auto-FOX',
+                                      'https://github.com/nlesc-nano/Auto-FOX'], dtype='<U38')
+            )
+
+            >>> psf.sort_values(["residue ID", "mass"])
+            PSFContainer(
+                acceptors    = array([], shape=(0, 1), dtype=int64),
+                angles       = array([], shape=(0, 3), dtype=int64),
+                atoms        =     segment name  residue ID residue name atom name atom type  charge      mass  0
+                               1           MOL2           1          COR        Se        Se     0.0  78.97100  0
+                               2           MOL2           1          COR        Se        Se     0.0  78.97100  0
+                               3           MOL2           1          COR        Se        Se     0.0  78.97100  0
+                               4           MOL2           1          COR        Se        Se     0.0  78.97100  0
+                               5           MOL2           1          COR        Se        Se     0.0  78.97100  0
+                               ..           ...         ...          ...       ...       ...     ...       ... ..
+                               223         MOL3          26          LIG         O         O     0.0  15.99940  0
+                               224         MOL3          27          LIG         H         H     0.0   1.00798  0
+                               225         MOL3          27          LIG         C         C     0.0  12.01060  0
+                               226         MOL3          27          LIG         O         O     0.0  15.99940  0
+                               227         MOL3          27          LIG         O         O     0.0  15.99940  0
+
+                               [227 rows x 8 columns],
+                bonds        = array([[141, 139],
+                                      [138, 141],
+                                      [136, 141],
+                                      [137, 135],
+                                      [134, 137],
+                                      ...,
+                                      [164, 167],
+                                      [165, 167],
+                                      [163, 162],
+                                      [160, 163],
+                                      [161, 163]], dtype=int64),
+                dihedrals    = array([], shape=(0, 4), dtype=int64),
+                donors       = array([], shape=(0, 1), dtype=int64),
+                filename     = array([], dtype='<U1'),
+                impropers    = array([], shape=(0, 4), dtype=int64),
+                no_nonbonded = array([], shape=(0, 2), dtype=int64),
+                title        = array(['PSF file generated with Auto-FOX',
+                                      'https://github.com/nlesc-nano/Auto-FOX'], dtype='<U38')
+            )
+
+            >>> from scm.plams import Molecule
+
+            # Sort the molecule in the same order as `psf`
+            >>> mol: Molecule = ....
+            >>> psf_new, argsort = psf.sort_values(["residue ID", "mass"], return_argsort=True)
+            >>> mol.atoms = [mol.atoms[i] for i in argsort]
+
+        Parameters
+        ----------
+        by : :class:`str` or :class:`Sequence[str]`
+            One or more strings with the names of columns.
+        return_argsort : :class:`bool`
+            If :data:`True`, also return the array of indices that sorts the dataframe.
+        \**kwargs : :data:`~typing.Any`
+            Further keyword arguments for .
+            Note that ``axis`` and ``ignore_index`` are not supported.
+            Secondly, ``inplace=True`` will always return ``self``.
+
+        See Also
+        --------
+        :meth:`pd.DataFrame.sort_values <pandas.DataFrame.sort_values>`
+            Sort by the values along either axis.
+
+        """  # noqa: E501
+        if not _ILLEGAL_SORT_KWARGS.isdisjoint(kwargs):
+            intersection = _ILLEGAL_SORT_KWARGS.intersection(kwargs.keys())
+            name = next(iter(intersection))
+            raise TypeError(f"sort_psf() got an unexpected keyword argument {name!r}")
+
+        if not inplace:
+            ret = self.copy()
+        else:
+            ret = self
+        df = ret.atoms
+        df['_index'] = df.index
+
+        if isinstance(by, str):
+            by = [by, '_index']
+        else:
+            by = list(by)
+            by.append('_index')
+
+        df.sort_values(by, inplace=True, **kwargs)
+        del df['_index']
+        argsort = np.append(0, df.index.values)
+        df.index = pd.RangeIndex(1, 1 + len(df), name=self.atoms.index.name)
+
+        ar_names = [
+            "acceptors", "angles", "bonds", "dihedrals", "donors", "impropers", "no_nonbonded"
+        ]
+        iterator: Iterator[Tuple[str, np.ndarray]] = ((k, getattr(ret, k)) for k in ar_names)
+        for name, ar in iterator:
+            ar_sort = argsort[ar]
+            setattr(ret, name, ar_sort)
+
+        if not return_argsort:
+            return ret
+        else:
+            return ret, argsort[1:] - 1
 
 
 def overlay_str_file(psf: PSFContainer, filename: Union[str, bytes, PathLike],

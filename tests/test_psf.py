@@ -1,28 +1,28 @@
 """Tests for :class:`FOX.io.read_psf.PSFContainer`."""
 
 import os
-from os.path import join
+from pathlib import Path
 from tempfile import TemporaryFile
 from itertools import zip_longest
 
+import pytest
 import numpy as np
-
 from scm.plams import Molecule
 from assertionlib import assertion
 
 from FOX import PSFContainer
 
-PATH: str = join('tests', 'test_files', 'psf')
-PSF: PSFContainer = PSFContainer.read(join(PATH, 'mol.psf'))
+PATH = Path('tests') / 'test_files' / 'psf'
+PSF = PSFContainer.read(PATH / 'mol.psf')
 
-MOL: Molecule = Molecule(join(PATH, 'mol.pdb'))
+MOL = Molecule(PATH / 'mol.pdb')
 MOL.guess_bonds(atom_subset=[at for at in MOL if at.symbol in ('C', 'O', 'H')])
 
 
 def test_write() -> None:
     """Tests for :meth:`PSFContainer.write`."""
-    filename1 = join(PATH, 'mol.psf')
-    filename2 = join(PATH, 'tmp.psf')
+    filename1 = PATH / 'mol.psf'
+    filename2 = PATH / 'tmp.psf'
 
     try:
         PSF.write(filename2)
@@ -63,7 +63,7 @@ def test_update_atom_type() -> None:
 def test_generate_bonds() -> None:
     """Tests for :meth:`PSFContainer.generate_bonds`."""
     psf = PSF.copy()
-    ref = np.load(join(PATH, 'generate_bonds.npy'))
+    ref = np.load(PATH / 'generate_bonds.npy')
     psf.generate_bonds(MOL)
     np.testing.assert_array_equal(ref, psf.bonds)
 
@@ -71,7 +71,7 @@ def test_generate_bonds() -> None:
 def test_generate_angles() -> None:
     """Tests for :meth:`PSFContainer.generate_angles`."""
     psf = PSF.copy()
-    ref = np.load(join(PATH, 'generate_angles.npy'))
+    ref = np.load(PATH / 'generate_angles.npy')
     psf.generate_angles(MOL)
     np.testing.assert_array_equal(ref, psf.angles)
 
@@ -79,7 +79,7 @@ def test_generate_angles() -> None:
 def test_generate_dihedrals() -> None:
     """Tests for :meth:`PSFContainer.generate_dihedrals`."""
     psf = PSF.copy()
-    ref = np.load(join(PATH, 'generate_dihedrals.npy'))
+    ref = np.load(PATH / 'generate_dihedrals.npy')
     psf.generate_dihedrals(MOL)
     np.testing.assert_array_equal(ref, psf.dihedrals)
 
@@ -87,7 +87,7 @@ def test_generate_dihedrals() -> None:
 def test_generate_impropers() -> None:
     """Tests for :meth:`PSFContainer.generate_impropers`."""
     psf = PSF.copy()
-    ref = np.load(join(PATH, 'generate_impropers.npy'))
+    ref = np.load(PATH / 'generate_impropers.npy')
     psf.generate_impropers(MOL)
     np.testing.assert_array_equal(ref, psf.impropers)
 
@@ -98,3 +98,19 @@ def test_to_atom_alias_dict() -> None:
     for at1, (at2, idx) in dct.items():
         at2_slice = PSF.atom_type[PSF.atom_name == at2]
         np.testing.assert_array_equal(at2_slice.iloc[idx], at1)
+
+
+def test_sort_values() -> None:
+    """Tests for :meth:`PSFContainer.sort_values`."""
+    psf = PSF.copy()
+    assertion.is_(psf, psf.sort_values([], inplace=True))
+
+    argsort_ref = np.load(PATH / "sort_values_argsort.npy")
+    psf2_ref = PSFContainer.read(PATH / 'sort_values.psf')
+
+    psf2, argsort = psf.sort_values(["residue ID", "mass"], return_argsort=True)
+    np.testing.assert_array_equal(argsort, argsort_ref)
+    assertion.eq(psf2, psf2_ref)
+
+    with pytest.raises(TypeError):
+        psf.sort_values([], axis=0)
