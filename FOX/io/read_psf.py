@@ -73,6 +73,17 @@ class _ShapeDict(_ShapeDictBase, total=False):
 _ILLEGAL_SORT_KWARGS = frozenset({"by", "axis"})
 
 
+def _get_res_iter(idx_ar: np.ndarray, values: pd.Series) -> Iterator[Tuple[slice, int]]:
+    value_iter = sorted(set(values))
+    if len(value_iter) == 1:
+        yield slice(None, None), value_iter[0]
+    else:
+        iter1 = chain([None], idx_ar[1::2])
+        iter2 = chain(idx_ar[1::2], [None])
+        ziperator = ((slice(i, j), v) for i, j, v in zip(iter1, iter2, value_iter))
+        yield from ziperator
+
+
 class PSFContainer(AbstractDataClass, AbstractFileContainer):
     r"""A container for managing protein structure files.
 
@@ -1103,6 +1114,13 @@ class PSFContainer(AbstractDataClass, AbstractFileContainer):
         del df['_index']
         argsort = np.append(0, df.index.values)
         df.index = pd.RangeIndex(1, 1 + len(df), name=self.atoms.index.name)
+
+        # Update the residue ID
+        res_id = df['residue ID']
+        res_grad = df.index[np.gradient(res_id).astype(np.bool_)]
+        iterator = _get_res_iter(res_grad, res_id)
+        for slc, value in iterator:
+            df.loc[slc, 'residue ID'] = value
 
         ar_names = [
             "acceptors", "angles", "bonds", "dihedrals", "donors", "impropers", "no_nonbonded"
