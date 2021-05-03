@@ -316,7 +316,7 @@ class PackageManager(PackageManagerABC):
 
         Returns
         -------
-        :class:`list` [:class:`~FOX.classes.multi_mol.MultiMolecule`], optional
+        :class:`list` [:class:`FOX.MultiMolecule`], optional
             Returns ``None`` if one of the jobs crashed;
             a list of MultiMolecule is returned otherwise.
 

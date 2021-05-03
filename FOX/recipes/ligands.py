@@ -131,7 +131,7 @@ def get_lig_center(mol: MultiMolecule, start: int, step: int, stop: Optional[int
 
     Parameters
     ----------
-    mol : :class:`MultiMolecule<FOX.classes.multi_mol.MultiMolecule>`
+    mol : :class:`FOX.MultiMolecule`
         A MultiMolecule instance.
 
     start : :class:`int`
@@ -178,7 +178,7 @@ def get_multi_lig_center(mol: MultiMolecule, idx_iter: Iterable[Sequence[int]],
 
     Parameters
     ----------
-    mol : :class:`MultiMolecule<FOX.classes.multi_mol.MultiMolecule>`
+    mol : :class:`FOX.MultiMolecule`
         A MultiMolecule instance.
 
     idx_iter : :class:`Iterable<collections.abc.Iterable>` [:class:`Sequence<collections.abc.Sequence>` [:class:`int`]]

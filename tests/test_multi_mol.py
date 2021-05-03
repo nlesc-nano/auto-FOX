@@ -1,4 +1,4 @@
-"""A module for testing the :class:`FOX.classes.multi_mol.MultiMolecule` class."""
+"""A module for testing the :class:`FOX.MultiMolecule` class."""
 
 from __future__ import annotations
 
