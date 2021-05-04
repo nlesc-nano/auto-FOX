@@ -49,6 +49,14 @@ __all__ = ['PSFContainer']
 
 T = TypeVar('T')
 
+_GenerateNames = Literal["angles", "bonds", "impropers", "dihedrals"]
+_FUNC_DICT: MappingProxyType[_GenerateNames, Callable[[Molecule], np.ndarray]] = MappingProxyType({
+    "angles": get_angles,
+    "bonds": get_bonds,
+    "impropers": get_impropers,
+    "dihedrals": get_dihedrals,
+})
+
 
 class DummyGetter(Generic[T]):
     def __init__(self, return_value: T) -> None:
@@ -761,49 +769,176 @@ class PSFContainer(AbstractDataClass, AbstractFileContainer):
         condition = self.atom_type == atom_type_old
         self.atoms.loc[condition, 'atom type'] = atom_type_new
 
-    def generate_bonds(self, mol: Molecule) -> None:
+    def _generate_from_res_dict(
+        self,
+        residue_dict: Mapping[str, Molecule],
+        name: _GenerateNames,
+    ) -> np.ndarray:
+        """Helper function for the ``PSFContainer.generate_x()`` functions."""
+        func = _FUNC_DICT[name]
+
+        offset_dict: dict[tuple[str, int], int] = {}
+        for offset, ij in enumerate(zip(self.segment_name, self.residue_id)):
+            offset_dict.setdefault(ij, offset)
+
+        # Validate that all `residue_dict` keys are valid
+        segment_set = {i for i, _ in offset_dict}
+        if not segment_set.issuperset(residue_dict.keys()):
+            key = next(iter(residue_dict.keys()))
+            raise KeyError(key)
+
+        cls = type(self)
+        angle_dict = {i: func(m) for i, m in residue_dict.items()}
+        ret = np.concatenate(
+            [np.ravel(angle_dict[i] + offset) for (i, _), offset in offset_dict.items() if
+             i in angle_dict]
+        )
+        ret.shape = -1, cls._SHAPE_DICT[name]["shape"]
+        return ret
+
+    @overload
+    def generate_bonds(self, mol: Molecule, *, segment_dict: None = ...) -> None:
+        ...
+    @overload  # noqa: E301
+    def generate_bonds(self, mol: None = ..., *, segment_dict: Mapping[str, Molecule]) -> None:
+        ...
+    def generate_bonds(self, mol=None, *, segment_dict=None) -> None:  # noqa: E301
         """Update :attr:`PSFContainer.bonds` with the indices of all bond-forming atoms from **mol**.
 
+        Notes
+        -----
+        The **mol** and **segment_dict** parameters are mutually exclusive.
+
+        Examples
+        --------
+        .. code-block:: python
+
+            >>> from FOX import PSFContainer
+            >>> from scm.plams import Molecule
+
+            >>> psf = PSFContainer(...)
+            >>> segment_dict = {"MOL3": Molecule(...)}
+
+            >>> psf.generate_bonds(segment_dict=segment_dict)
+
         Parameters
         ----------
         mol : :class:`plams.Molecule <scm.plams.mol.molecule.Molecule>`
             A PLAMS Molecule.
+        segment_dict : :class:`Mapping[str, plams.Molecule] <collections.abc.Mapping>`
+            A dictionary mapping segment names to individual ligands.
+            This can result in dramatic speed ups for systems wherein each segment
+            contains a large number of residues.
 
-        """  # noqa
-        self.bonds = get_bonds(mol)
+        """  # noqa: E501
+        if mol is segment_dict is None:
+            raise TypeError("One of `mol` and `segment_dict` must be specified")
+        elif mol is not None and segment_dict is not None:
+            raise TypeError("Only one of `mol` and `segment_dict` can be specified")
 
-    def generate_angles(self, mol: Molecule) -> None:
+        if mol is not None:
+            self.bonds = get_bonds(mol)
+        else:
+            self.bonds = self._generate_from_res_dict(segment_dict, "bonds")
+
+    @overload
+    def generate_angles(self, mol: Molecule, *, segment_dict: None = ...) -> None:
+        ...
+    @overload  # noqa: E301
+    def generate_angles(self, mol: None = ..., *, segment_dict: Mapping[str, Molecule]) -> None:
+        ...
+    def generate_angles(self, mol=None, *, segment_dict=None) -> None:  # noqa: E301
         """Update :attr:`PSFContainer.angles` with the indices of all angle-defining atoms from **mol**.
 
+        Notes
+        -----
+        The **mol** and **segment_dict** parameters are mutually exclusive.
+
         Parameters
         ----------
         mol : :class:`plams.Molecule <scm.plams.mol.molecule.Molecule>`
             A PLAMS Molecule.
+        segment_dict : :class:`Mapping[str, plams.Molecule] <collections.abc.Mapping>`
+            A dictionary mapping segment names to individual ligands.
+            This can result in dramatic speed ups for systems wherein each segment
+            contains a large number of residues.
 
-        """  # noqa
-        self.angles = get_angles(mol)
+        """  # noqa: E501
+        if mol is segment_dict is None:
+            raise TypeError("One of `mol` and `segment_dict` must be specified")
+        elif mol is not None and segment_dict is not None:
+            raise TypeError("Only one of `mol` and `segment_dict` can be specified")
 
-    def generate_dihedrals(self, mol: Molecule) -> None:
+        if mol is not None:
+            self.angles = get_angles(mol)
+        else:
+            self.angles = self._generate_from_res_dict(segment_dict, "angles")
+
+    @overload
+    def generate_dihedrals(self, mol: Molecule, *, segment_dict: None = ...) -> None:
+        ...
+    @overload  # noqa: E301
+    def generate_dihedrals(self, mol: None = ..., *, segment_dict: Mapping[str, Molecule]) -> None:
+        ...
+    def generate_dihedrals(self, mol=None, *, segment_dict=None) -> None:  # noqa: E301
         """Update :attr:`PSFContainer.dihedrals` with the indices of all proper dihedral angle-defining atoms from **mol**.
 
+        Notes
+        -----
+        The **mol** and **segment_dict** parameters are mutually exclusive.
+
         Parameters
         ----------
         mol : :class:`plams.Molecule <scm.plams.mol.molecule.Molecule>`
             A PLAMS Molecule.
+        segment_dict : :class:`Mapping[str, plams.Molecule] <collections.abc.Mapping>`
+            A dictionary mapping segment names to individual ligands.
+            This can result in dramatic speed ups for systems wherein each segment
+            contains a large number of residues.
 
-        """  # noqa
-        self.dihedrals = get_dihedrals(mol)
+        """  # noqa: E501
+        if mol is segment_dict is None:
+            raise TypeError("One of `mol` and `segment_dict` must be specified")
+        elif mol is not None and segment_dict is not None:
+            raise TypeError("Only one of `mol` and `segment_dict` can be specified")
 
-    def generate_impropers(self, mol: Molecule) -> None:
+        if mol is not None:
+            self.dihedrals = get_dihedrals(mol)
+        else:
+            self.dihedrals = self._generate_from_res_dict(segment_dict, "dihedrals")
+
+    @overload
+    def generate_impropers(self, mol: Molecule, *, segment_dict: None = ...) -> None:
+        ...
+    @overload  # noqa: E301
+    def generate_impropers(self, mol: None = ..., *, segment_dict: Mapping[str, Molecule]) -> None:
+        ...
+    def generate_impropers(self, mol=None, *, segment_dict=None) -> None:  # noqa: E301
         """Update :attr:`PSFContainer.impropers` with the indices of all improper dihedral angle-defining atoms from **mol**.
 
+        Notes
+        -----
+        The **mol** and **segment_dict** parameters are mutually exclusive.
+
         Parameters
         ----------
         mol : :class:`plams.Molecule <scm.plams.mol.molecule.Molecule>`
             A PLAMS Molecule.
+        segment_dict : :class:`Mapping[str, plams.Molecule] <collections.abc.Mapping>`
+            A dictionary mapping segment names to individual ligands.
+            This can result in dramatic speed ups for systems wherein each segment
+            contains a large number of residues.
 
-        """  # noqa
-        self.impropers = get_impropers(mol)
+        """  # noqa: E501
+        if mol is segment_dict is None:
+            raise TypeError("One of `mol` and `segment_dict` must be specified")
+        elif mol is not None and segment_dict is not None:
+            raise TypeError("Only one of `mol` and `segment_dict` can be specified")
+
+        if mol is not None:
+            self.impropers = get_impropers(mol)
+        else:
+            self.impropers = self._generate_from_res_dict(segment_dict, "impropers")
 
     def generate_atoms(self, mol: Molecule,
                        id_map: Optional[Mapping[int, Any]] = None) -> None:
