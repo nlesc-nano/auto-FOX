@@ -1,6 +1,7 @@
 """Tests for :class:`FOX.io.read_psf.PSFContainer`."""
 
 import os
+from types import MappingProxyType
 from pathlib import Path
 from tempfile import TemporaryFile
 from itertools import zip_longest
@@ -17,6 +18,11 @@ PSF = PSFContainer.read(PATH / 'mol.psf')
 
 MOL = Molecule(PATH / 'mol.pdb')
 MOL.guess_bonds(atom_subset=[at for at in MOL if at.symbol in ('C', 'O', 'H')])
+LIGAND = MOL.separate()[-1]
+
+SEGMENT_DICT = MappingProxyType({
+    "MOL3": LIGAND,
+})
 
 
 def test_write() -> None:
@@ -62,34 +68,54 @@ def test_update_atom_type() -> None:
 
 def test_generate_bonds() -> None:
     """Tests for :meth:`PSFContainer.generate_bonds`."""
-    psf = PSF.copy()
-    ref = np.load(PATH / 'generate_bonds.npy')
-    psf.generate_bonds(MOL)
-    np.testing.assert_array_equal(ref, psf.bonds)
+    psf1 = PSF.copy()
+    psf1.generate_bonds(MOL)
+    ref1 = np.load(PATH / 'generate_bonds.npy')
+    np.testing.assert_array_equal(psf1.bonds, ref1)
+
+    psf2 = PSF.copy()
+    psf2.generate_bonds(segment_dict=SEGMENT_DICT)
+    ref2 = np.load(PATH / 'generate_bonds2.npy')
+    np.testing.assert_array_equal(psf2.bonds, ref2)
 
 
 def test_generate_angles() -> None:
     """Tests for :meth:`PSFContainer.generate_angles`."""
-    psf = PSF.copy()
-    ref = np.load(PATH / 'generate_angles.npy')
-    psf.generate_angles(MOL)
-    np.testing.assert_array_equal(ref, psf.angles)
+    psf1 = PSF.copy()
+    psf1.generate_angles(MOL)
+    ref1 = np.load(PATH / 'generate_angles.npy')
+    np.testing.assert_array_equal(psf1.angles, ref1)
+
+    psf2 = PSF.copy()
+    psf2.generate_angles(segment_dict=SEGMENT_DICT)
+    ref2 = np.load(PATH / 'generate_angles2.npy')
+    np.testing.assert_array_equal(psf2.angles, ref2)
 
 
 def test_generate_dihedrals() -> None:
     """Tests for :meth:`PSFContainer.generate_dihedrals`."""
-    psf = PSF.copy()
-    ref = np.load(PATH / 'generate_dihedrals.npy')
-    psf.generate_dihedrals(MOL)
-    np.testing.assert_array_equal(ref, psf.dihedrals)
+    psf1 = PSF.copy()
+    psf1.generate_dihedrals(MOL)
+    ref1 = np.load(PATH / 'generate_dihedrals.npy')
+    np.testing.assert_array_equal(psf1.dihedrals, ref1)
+
+    psf2 = PSF.copy()
+    psf2.generate_dihedrals(segment_dict=SEGMENT_DICT)
+    ref2 = np.load(PATH / 'generate_dihedrals2.npy')
+    np.testing.assert_array_equal(psf2.dihedrals, ref2)
 
 
 def test_generate_impropers() -> None:
     """Tests for :meth:`PSFContainer.generate_impropers`."""
-    psf = PSF.copy()
-    ref = np.load(PATH / 'generate_impropers.npy')
-    psf.generate_impropers(MOL)
-    np.testing.assert_array_equal(ref, psf.impropers)
+    psf1 = PSF.copy()
+    psf1.generate_impropers(MOL)
+    ref1 = np.load(PATH / 'generate_impropers.npy')
+    np.testing.assert_array_equal(psf1.impropers, ref1)
+
+    psf2 = PSF.copy()
+    psf2.generate_impropers(segment_dict=SEGMENT_DICT)
+    ref2 = np.load(PATH / 'generate_impropers2.npy')
+    np.testing.assert_array_equal(psf2.impropers, ref2)
 
 
 def test_to_atom_alias_dict() -> None:
