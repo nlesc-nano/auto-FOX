@@ -109,6 +109,7 @@ def dict_to_armc(input_dict: MainMapping) -> Tuple[MonteCarloABC, RunDict]:
         mc.pes_post_process = [AtomsFromPSF.from_psf(*psf_list)]  # type: ignore[assignment]
         workdir = Path(run_kwargs['path']) / run_kwargs['folder']
         _update_psf_settings(package.values(), phi.phi, workdir)  # type: ignore[arg-type]
+        _update_psf_charge(param, psf_list)
 
     # Guess parameters
     if _param_frozen is not None:
@@ -494,6 +495,18 @@ def _update_psf_settings(job_lists: Iterable[Iterable[MutableMapping[str, Any]]]
 
         for i, job in iterator:
             job['settings'].psf = os.path.join(workdir, f'mol.{i}.psf')
+
+
+def _update_psf_charge(param: ParamMapping, psf_list: Iterable[PSFContainer]) -> None:
+    """Add all (frozen) charges in the .psf files to the passed ``ParamMapping``."""
+    metadata = {'min': -np.inf, 'max': np.inf, 'count': 0, 'frozen': True,
+                'guess': False, 'unit': ''}
+
+    for i, psf in enumerate(psf_list):
+        charge_dict = {("charge", "charge", k): v for k, v in zip(psf.atom_type, psf.charge)}
+        for k, v in charge_dict.items():  # type: Tuple[str, str, str], float
+            if k not in param.param.index:
+                param.add_param(k, v, **metadata)
 
 
 PrmTuple = Tuple[str, str, str, float]
