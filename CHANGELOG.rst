@@ -6,6 +6,18 @@ All notable changes to this project will be documented in this file.
 This project adheres to `Semantic Versioning <http://semver.org/>`_.
 
 
+0.9.1
+*****
+* Added the new ``segment_dict`` parameter to the ``PSFContainer.generate_x()`` functions.
+* Added the new ``PSFContainer.sort_values`` method.
+* Store metadata and net charges for each individual system in PES-averaged ARMC and ARMCPT.
+* Fixed an issue wherein frozen atomic charges were ignored when not explicitly specified.
+* Fixed in issue wherein PSFContainer.sort_values did not not update the residue ID.
+* Fixed an issue wherein guessed parameters could overwrite ones that were explicitly specified.
+* Fixed an issue wherein frozen parameters weren't properly sorted.
+* Fixed an issue wherein the mean pair-density was computed using lattice vectors in non-periodic calculations.
+
+
 0.9.0
 *****
 * Fixed an issue wherein `PSFContainer.to_atom_alias_dict` would assign incorrect indices to atom aliases.
