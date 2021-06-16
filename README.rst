@@ -14,10 +14,11 @@
     :target: https://docs.python.org/3.7/
 .. image:: https://img.shields.io/badge/python-3.8-blue.svg
     :target: https://docs.python.org/3.8/
-
+.. image:: https://img.shields.io/badge/python-3.9-blue.svg
+    :target: https://docs.python.org/3.9/
 
 #################################################
-Automated Forcefield Optimization Extension 0.9.0
+Automated Forcefield Optimization Extension 0.9.1
 #################################################
 
 **Auto-FOX** is a library for analyzing potential energy surfaces (PESs) and
