@@ -19,7 +19,7 @@ from __future__ import annotations
 import copy
 import warnings
 from os import PathLike
-from collections import abc
+from collections import abc, defaultdict
 from itertools import (
     chain, combinations_with_replacement, zip_longest, islice, repeat, permutations
 )
@@ -203,6 +203,70 @@ class MultiMolecule(_MultiMolecule):
                     alias_dct[k1] = AliasTuple(k2, idx_ar_new)
             ret.atoms_alias = alias_dct
         return ret
+
+    def concatenate(
+        self: MT,
+        other: Iterable[MT],
+        lattice: None | npt.ArrayLike = None,
+        axis: Literal[1] = 1,
+    ) -> MT:
+        """Concatenate one or more molecules along the user-specified axis.
+
+        Parameters
+        ----------
+        other : :class:`Iterable[FOX.MultiMolecule] <collections.abc.Iterable>`
+            The to-be concatenated molecules.
+        lattice : :class:`np.ndarray <numpy.ndarray>`, optional
+            The lattice of the new molecule.
+
+        Returns
+        -------
+        :class:`FOX.MultiMolecule`
+            The newly concatenated molecule.
+
+        """
+        if axis != 1:
+            raise NotImplementedError
+
+        mol_list = [self, *other]
+        if any(m.lattice is not None for m in mol_list) and lattice is None:
+            raise ValueError("Cannot concatenate lattice-containing molecules without explicitly "
+                             "specifying the new `lattice`")
+        elif any(len(m.atoms_alias) for m in mol_list):
+            raise NotImplementedError
+        elif len({m.shape[0] for m in mol_list}) != 1:
+            raise ValueError("All `MultiMolecule` instances must be of the same length")
+
+        # Construct the new atoms
+        proto_atoms = defaultdict(list)
+        offset = 0
+        for i, m in enumerate(mol_list):
+            if i:
+                offset += m.shape[1]
+            for k, v in m.atoms.items():
+                proto_atoms[k](v + offset)
+        atoms = {k: np.fromiter(chain.from_iterable(v), np.int64) for k, v in proto_atoms.items()}
+
+        # Construct the new coordinates
+        coords_shape = (self.shape[0], sum(m.shape[1] for m in mol_list), 3)
+        coords = np.empty(coords_shape, dtype=np.float64)
+        i, j = 0, 0
+        for m in mol_list:
+            j += m.shape[1]
+            coords[:, i:j] = m
+            i += m.shape[1]
+
+        # Construct the new bonds
+        bonds_shape = (sum(m.bonds.shape[0] for m in mol_list), 3)
+        bonds = np.empty(bonds_shape, dtype=np.int64)
+        i, j = 0, 0
+        for m in mol_list:
+            j += m.bonds.shape[0]
+            bonds[i:j] = m.bonds
+            i += m.bonds.shape[0]
+
+        cls = type(self)
+        return cls(coords, atoms, bonds, self.properties.copy(), {}, lattice)
 
     def add_atoms(self: MT, coords: np.ndarray, symbols: Union[str, Iterable[str]] = 'Xx') -> MT:
         """Create a copy of this instance with all atoms in **atom_subset** appended.
