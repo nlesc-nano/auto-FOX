@@ -204,6 +204,44 @@ class MultiMolecule(_MultiMolecule):
             ret.atoms_alias = alias_dct
         return ret
 
+    def get_supercell(self: MT, supercell_size: tuple[int, int, int]) -> MT:
+        """Construct a new supercell by duplicating the molecule.
+
+        Parameters
+        ----------
+        supercell_size : :class:`tuple[int, int, int]`
+            The number of new unit cells along each of the three Cartesian axes.
+
+        Returns
+        -------
+        :class:`FOX.MultiMolecule`
+            The new supercell constructed from **self**.
+
+        """
+        if self.lattice is None:
+            raise ValueError(f"Cannot construct a supercell from a {self.__class__.__name__} "
+                             "without a lattice")
+
+        # Parse and validate th
+        ar = np.array(supercell_size).astype(np.int64, copy=False, casting="same_kind")
+        if ar.shape != (3,):
+            raise ValueError('`duplicates` expected a sequence of length 3')
+        elif not (ar >= 1).all():
+            raise ValueError('`duplicates` values must be larger than or equal to 1')
+
+        mult = np.array(
+            [(i, j, k) for i in range(ar[0]) for j in range(ar[1]) for k in range(ar[2])]
+        )
+        lat = self.lattice if self.lattice.ndim == 2 else self.lattice[None, ...]
+        lat_trans = (lat[:, None, ...] * mult[None, ..., None]).sum(axis=-1)
+
+        mol_trans = lat_trans[..., None, :] + self[:, None, ...]
+        if mol_trans.shape[1] == 1:
+            return mol_trans[..., 0]
+        else:
+            mol, other = mol_trans[..., 0], mol_trans[..., 1:]
+            return mol.concatenate(other[..., 1:], lattice=lat * ar)
+
     def concatenate(
         self: MT,
         other: Iterable[MT],
