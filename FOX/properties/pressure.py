@@ -129,11 +129,6 @@ class GetPressure(FromResult[FT, CP2K_Result]):
         if result.status in {'failed', 'crashed'}:
             raise RuntimeError(f"Cannot extract data from a job with status {result.status!r}")
 
-        # Check the cache
-        ret1 = self._cache_get(result, return_unit)
-        if ret1 is not None:
-            return self._reduce(ret1, reduce, axis)
-
         a_to_au = Units.conversion_ratio('angstrom', 'bohr')
         with warnings.catch_warnings():
             warnings.simplefilter('error', QMFlows_Warning)
@@ -147,6 +142,5 @@ class GetPressure(FromResult[FT, CP2K_Result]):
                 kwargs, 'volume', callback=lambda: getattr(result, 'volume') * a_to_au**3
             )
 
-        ret2 = self(forces, coords, volume, temp, return_unit=return_unit, **kwargs)
-        self._cache[result] = (ret2, return_unit)
-        return self._reduce(ret2, reduce, axis)
+        ret = self(forces, coords, volume, temp, return_unit=return_unit, **kwargs)
+        return self._reduce(ret, reduce, axis)

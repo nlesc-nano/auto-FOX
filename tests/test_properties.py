@@ -9,7 +9,6 @@ import inspect
 import weakref
 from typing import Callable, Any
 from pathlib import Path
-from weakref import WeakKeyDictionary
 
 import pytest
 import numpy as np
@@ -68,7 +67,6 @@ class TestABC:
         '__globals__': types.MappingProxyType,
         '__kwdefaults__': types.MappingProxyType,
         '__call__': Callable,
-        '_cache': WeakKeyDictionary,
     }
     FUNC_TUP = (_get_pressure, len, len.__call__, cp2k_mm, lambda n: n)
 

@@ -7,12 +7,10 @@ import textwrap
 from abc import ABCMeta, abstractmethod
 from types import MappingProxyType, ModuleType
 from typing import Generic, TypeVar, Any, Callable, Dict, Union
-from weakref import WeakKeyDictionary
 
 import scipy.special
 import numpy as np
 from qmflows.packages import Result
-from scm.plams import Units
 
 __all__ = ['FromResult', 'get_attr', 'call_method']
 
@@ -124,10 +122,6 @@ class FromResult(Generic[FT, RT], metaclass=ABCMeta):
         kwd = getattr(self._func, '__kwdefaults__', None)
         self.__kwdefaults__ = MappingProxyType({}) if kwd is None else MappingProxyType(kwd)
 
-        # Cache the output from `from_result`, keeping it alive as
-        # longs as the respective `qmflows.Result` instance exists
-        self._cache = WeakKeyDictionary({})
-
     @property
     def __code__(self):
         """Get the :attr:`~types.FunctionType.__code__>` of the underlying function.
@@ -167,10 +161,10 @@ class FromResult(Generic[FT, RT], metaclass=ABCMeta):
 
     def __eq__(self, value):
         """Implement :meth:`self == value <object.__eq__>`."""
-        try:
-            return hash(self) == hash(value)
-        except TypeError:
-            return False
+        cls = type(self)
+        if not isinstance(value, cls):
+            return NotImplemented
+        return self._func == value._func
 
     def __repr__(self):
         """Implement :class:`str(self) <str>` and :func:`repr(self) <repr>`."""
@@ -214,14 +208,6 @@ class FromResult(Generic[FT, RT], metaclass=ABCMeta):
 
         """  # noqa: E501
         raise NotImplementedError("Trying to call an abstract method")
-
-    def _cache_get(self, result, return_unit):
-        """Pull a property from the cache if possible."""
-        try:
-            value, unit = self._cache[result]
-        except KeyError:
-            return None
-        return value * Units.conversion_ratio(unit, return_unit)
 
     @classmethod
     def _reduce(cls, value, reduce, axis=None):
