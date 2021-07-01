@@ -1,12 +1,14 @@
 """Tests for :mod:`FOX.properties`."""
 
+from __future__ import annotations
+
 import copy
 import types
 import pickle
 import inspect
-from typing import Callable, Any, List
+import weakref
+from typing import Callable, Any
 from pathlib import Path
-from weakref import WeakKeyDictionary
 
 import pytest
 import numpy as np
@@ -25,7 +27,7 @@ PATH = Path('tests') / 'test_files'
 
 RESULT = CP2KMM_Result(
     None, None, 'md',
-    dill_path=PATH / 'properties' / 'md' / 'md.002.dill',
+    dill_path=PATH / 'properties' / 'md.002.dill',
     plams_dir=PATH / 'properties',
     work_dir=PATH / 'properties',
 )
@@ -49,75 +51,81 @@ class _FromResultTest(FromResult):
         raise NotImplementedError
 
 
-def test_from_result_abc() -> None:
-    """Tests for :class:`FOX.properties.CP2KMM_Result`."""
-    assertion.assert_(hash, get_pressure)
-    assertion.eq(get_pressure, get_pressure)
-    assertion.ne(get_pressure, get_bulk_modulus)
+class TestABC:
+    """Tests for :class:`FromResult`."""
 
-    assertion.eq(get_pressure, copy.deepcopy(get_pressure))
-    assertion.eq(get_pressure, pickle.loads(pickle.dumps(get_pressure)))
-
-    NoneType = type(None)
-    attr_dict = {
-        '__doc__': (str, NoneType),
+    ATTR_DICT = {
+        '__doc__': (str, type(None)),
         '__name__': str,
         '__qualname__': str,
         '__module__': str,
         '__annotations__': types.MappingProxyType,
-        '__signature__': (inspect.Signature, NoneType),
-        '__text_signature__': (str, NoneType),
-        '__closure__': (tuple, NoneType),
-        '__defaults__': (tuple, NoneType),
+        '__signature__': (inspect.Signature, type(None)),
+        '__text_signature__': (str, type(None)),
+        '__closure__': (tuple, type(None)),
+        '__defaults__': (tuple, type(None)),
         '__globals__': types.MappingProxyType,
         '__kwdefaults__': types.MappingProxyType,
         '__call__': Callable,
-        '_cache': WeakKeyDictionary,
     }
+    FUNC_TUP = (_get_pressure, len, len.__call__, cp2k_mm, lambda n: n)
 
-    func_list: List[Callable[..., Any]] = [_get_pressure, len, len.__call__, cp2k_mm, lambda n: n]
-    for func in func_list:
+    @pytest.mark.parametrize("name,typ", ATTR_DICT.items(), ids=ATTR_DICT.keys())
+    @pytest.mark.parametrize("func", FUNC_TUP)
+    def test_attr(self, func: Callable[..., Any], name: str, typ: type | tuple[type, ...]) -> None:
         obj = _FromResultTest(func, func.__name__)
-        for name, typ in attr_dict.items():
-            assertion.isinstance(getattr(obj, name), typ,
-                                 message=f'func={func!r}, name={name!r}')
+        assertion.isinstance(getattr(obj, name), typ)
 
+    @pytest.mark.parametrize("func", FUNC_TUP)
+    def test_attr2(self, func: Callable[..., Any]) -> None:
+        obj = _FromResultTest(func, func.__name__)
         if hasattr(func, '__get__'):
-            assertion.isinstance(obj.__get__, types.MethodWrapperType,
-                                 message=f'func={func!r}, name="__get__"')
+            assertion.isinstance(obj.__get__, types.MethodWrapperType)
         if hasattr(func, '__code__'):
-            assertion.isinstance(obj.__code__, types.CodeType,
-                                 message=f'func={func!r}, name="__code__"')
+            assertion.isinstance(obj.__code__, types.CodeType)
+
+    def test_misc(self) -> None:
+        assertion.assert_(hash, get_pressure)
+        assertion.eq(get_pressure, get_pressure)
+        assertion.ne(get_pressure, get_bulk_modulus)
+
+        assertion.eq(get_pressure, copy.deepcopy(get_pressure))
+        assertion.eq(get_pressure, pickle.loads(pickle.dumps(get_pressure)))
+        assertion.eq(get_pressure, weakref.ref(get_pressure)())
 
 
-@pytest.mark.parametrize('func', FROM_RESULT_DICT.keys())
 @pytest.mark.xfail(NP_15, reason="Precision issues in numpy 1.15")
-def test_from_result(func: FromResult) -> None:
-    """Tests for :class:`FOX.properties.CP2KMM_Result` subclasses."""
-    prop1 = func.from_result(RESULT)
-    ref1 = np.load(FROM_RESULT_DICT[func])
-    np.testing.assert_allclose(prop1, ref1)
+@pytest.mark.parametrize('func', FROM_RESULT_DICT.keys())
+class TestFromResult:
+    def test_no_reduce(self, func: FromResult) -> None:
+        prop = func.from_result(RESULT)
+        ref = np.load(FROM_RESULT_DICT[func])
+        np.testing.assert_allclose(prop, ref)
 
-    prop2 = func.from_result(RESULT, reduce='mean', axis=0)
-    ref2 = ref1.mean(axis=0)
-    np.testing.assert_allclose(prop2, ref2)
+    def test_reduce_mean(self, func: FromResult) -> None:
+        prop = func.from_result(RESULT, reduce='mean', axis=0)
+        ref = np.load(FROM_RESULT_DICT[func]).mean(axis=0)
+        np.testing.assert_allclose(prop, ref)
 
-    prop3 = func.from_result(RESULT, reduce=np.linalg.norm)
-    ref3 = np.linalg.norm(ref1)
-    np.testing.assert_allclose(prop3, ref3)
+    def test_reduce_norm(self, func: FromResult) -> None:
+        prop = func.from_result(RESULT, reduce=np.linalg.norm)
+        ref = np.linalg.norm(np.load(FROM_RESULT_DICT[func]))
+        np.testing.assert_allclose(prop, ref)
 
 
 @pytest.mark.parametrize('name', GET_ATTR_TUP)
-def test_get_attr(name: str) -> None:
-    """Tests for :func:`FOX.properties.get_attr`."""
-    prop1 = get_attr(RESULT, name)
-    ref1 = np.load(PATH / f'{name}.npy')
-    np.testing.assert_allclose(prop1, ref1)
+class TestGetAttr:
+    def test_no_reduce(self, name: str) -> None:
+        prop = get_attr(RESULT, name)
+        ref = np.load(PATH / f'{name}.npy')
+        np.testing.assert_allclose(prop, ref)
 
-    prop2 = get_attr(RESULT, name, reduce='mean', axis=0)
-    ref2 = ref1.mean(axis=0)
-    np.testing.assert_allclose(prop2, ref2)
+    def test_reduce_mean(self, name: str) -> None:
+        prop = get_attr(RESULT, name, reduce='mean', axis=0)
+        ref = np.load(PATH / f'{name}.npy').mean(axis=0)
+        np.testing.assert_allclose(prop, ref)
 
-    prop3 = get_attr(RESULT, name, reduce=np.linalg.norm)
-    ref3 = np.linalg.norm(ref1)
-    np.testing.assert_allclose(prop3, ref3)
+    def test_reduce_norm(self, name: str) -> None:
+        prop = get_attr(RESULT, name, reduce=np.linalg.norm)
+        ref = np.linalg.norm(np.load(PATH / f'{name}.npy'))
+        np.testing.assert_allclose(prop, ref)

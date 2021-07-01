@@ -112,11 +112,6 @@ class GetBulkMod(FromResult[FT, CP2K_Result]):
         if result.status in {'failed', 'crashed'}:
             raise RuntimeError(f"Cannot extract data from a job with status {result.status!r}")
 
-        # Check the cache
-        ret1 = self._cache_get(result, return_unit)
-        if ret1 is not None:
-            return self._reduce(ret1, reduce, axis)
-
         a_to_au = Units.conversion_ratio('angstrom', 'bohr')
         bar_to_au = Units.conversion_ratio('bar', 'ha/bohr^3')
         with warnings.catch_warnings():
@@ -129,6 +124,5 @@ class GetBulkMod(FromResult[FT, CP2K_Result]):
                 kwargs, 'pressure', callback=lambda: getattr(result, 'pressure') * bar_to_au
             )
 
-        ret2 = self(pressure, volume, return_unit=return_unit, **kwargs)
-        self._cache[result] = (ret2, return_unit)
-        return self._reduce(ret2, reduce, axis)
+        ret = self(pressure, volume, return_unit=return_unit, **kwargs)
+        return self._reduce(ret, reduce, axis)

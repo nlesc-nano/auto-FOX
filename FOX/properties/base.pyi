@@ -2,7 +2,6 @@ import types
 import inspect
 from abc import ABCMeta, abstractmethod
 from typing import Generic, Callable, Any, ClassVar, TypeVar, overload, Optional, MutableMapping, Tuple, Type, Union
-from weakref import WeakKeyDictionary
 
 from qmflows.packages import Result
 import numpy as np
@@ -38,10 +37,6 @@ class FromResult(Generic[FT, RT], types.FunctionType, metaclass=ABCMeta):
     __globals__: types.MappingProxyType[str, Any]  # type: ignore[assignment]
     __kwdefaults__: types.MappingProxyType[str, Any]  # type: ignore[assignment]
     @property
-    def _cache(self: FromResult[Callable[..., T1], RT]) -> WeakKeyDictionary[RT, Tuple[T1, str]]: ...
-    @_cache.setter
-    def _cache(self: FromResult[Callable[..., T1], RT], value: WeakKeyDictionary[RT, Tuple[T1, str]]) -> None: ...
-    @property
     def __code__(self) -> types.CodeType: ...  # type: ignore[override]
     def __get__(self, obj: Optional[object], type: Optional[type]) -> types.MethodType: ...
 
@@ -75,8 +70,6 @@ class FromResult(Generic[FT, RT], types.FunctionType, metaclass=ABCMeta):
     @overload
     @abstractmethod
     def from_result(self, result: RT, reduce: BoolNames, axis: ShapeLike, *, return_unit: str = ...) -> ScalarOrArray[np.bool_]: ...
-
-    def _cache_get(self: FromResult[Callable[..., T1], RT], result: RT, return_unit: str) -> Optional[T1]: ...
 
     @overload
     @classmethod
