@@ -24,7 +24,10 @@ API
 
 """
 
-from typing import Union, Tuple, Optional
+from __future__ import annotations
+
+import os
+from typing import Any, TYPE_CHECKING
 from itertools import permutations
 
 import numpy as np
@@ -37,11 +40,24 @@ from ..classes.multi_mol import MultiMolecule
 from ..io.read_psf import PSFContainer
 from ..io.read_prm import PRMContainer
 
+if TYPE_CHECKING:
+    from numpy.typing import NDArray
+    from numpy import float64 as f8
+
 __all__ = ['get_bonded']
 
 
-def get_bonded(mol: Union[str, MultiMolecule], psf: Union[str, PSFContainer],
-               prm: Union[str, PRMContainer]) -> Tuple[Optional[pd.DataFrame], ...]:
+def get_bonded(
+    mol: str | bytes | os.PathLike[Any] | MultiMolecule,
+    psf: str | bytes | os.PathLike[Any] | PSFContainer,
+    prm: str | bytes | os.PathLike[Any] | PRMContainer,
+) -> tuple[
+    None | pd.DataFrame,
+    None | pd.DataFrame,
+    None | pd.DataFrame,
+    None | pd.DataFrame,
+    None | pd.DataFrame,
+]:
     r"""Collect forcefield parameters and calculate all intra-ligand interactions in **mol**.
 
     Forcefield parameters are collected from the provided **psf** and **prm** files.
@@ -95,33 +111,49 @@ def get_bonded(mol: Union[str, MultiMolecule], psf: Union[str, PSFContainer],
     # Calculate the various potential energies
     if bonds is not None:
         parse_wildcards(bonds, symbols, prm_type='bonds')
-        bonds = get_V_bonds(bonds, mol, psf_.bonds)
-        bonds *= kcal2au
+        bonds_ret = get_V_bonds(bonds, mol, psf_.bonds)
+        bonds_ret *= kcal2au
+    else:
+        bonds_ret = None
 
     if angles is not None:
         parse_wildcards(angles, symbols, prm_type='angles')
-        angles = get_V_angles(angles, mol, psf_.angles)
-        angles *= kcal2au
+        angles_ret = get_V_angles(angles, mol, psf_.angles)
+        angles_ret *= kcal2au
+    else:
+        angles_ret = None
 
     if urey_bradley is not None:
         parse_wildcards(urey_bradley, symbols, prm_type='urey_bradley')
-        urey_bradley = get_V_UB(urey_bradley, mol, psf_.angles)
-        urey_bradley *= kcal2au
+        urey_bradley_ret = get_V_UB(urey_bradley, mol, psf_.angles)
+        urey_bradley_ret *= kcal2au
+    else:
+        urey_bradley_ret = None
 
     if dihedrals is not None:
         parse_wildcards(dihedrals, symbols, prm_type='dihedrals')
-        dihedrals = get_V_dihedrals(dihedrals, mol, psf_.dihedrals)
-        dihedrals *= kcal2au
+        dihedrals_ret = get_V_dihedrals(dihedrals, mol, psf_.dihedrals)
+        dihedrals_ret *= kcal2au
+    else:
+        dihedrals_ret = None
 
     if impropers is not None:
         parse_wildcards(impropers, symbols, prm_type='impropers')
-        impropers = get_V_impropers(impropers, mol, psf_.impropers)
-        impropers *= kcal2au
+        impropers_ret = get_V_impropers(impropers, mol, psf_.impropers)
+        impropers_ret *= kcal2au
+    else:
+        impropers_ret = None
 
-    return bonds, angles, urey_bradley, dihedrals, impropers
+    return bonds_ret, angles_ret, urey_bradley_ret, dihedrals_ret, impropers_ret
 
 
-def process_prm(prm: Union[PRMContainer, str]) -> tuple:
+def process_prm(prm: str | bytes | os.PathLike[Any] | PRMContainer) -> tuple[
+    None | NDArray[f8],
+    None | NDArray[f8],
+    None | NDArray[f8],
+    None | NDArray[f8],
+    None | NDArray[f8],
+]:
     """Extract all bond, angle, dihedral and improper parameters from **prm**."""
     if not isinstance(prm, PRMContainer):
         prm_ = PRMContainer.read(prm)
@@ -147,6 +179,8 @@ def process_prm(prm: Union[PRMContainer, str]) -> tuple:
         angles = angles[[3, 4]].copy()
         angles[4] *= np.radians(1)
         angles['V'] = np.nan
+    else:
+        urey_bradley = None
 
     dihedrals = prm_.dihedrals
     if dihedrals is not None:
@@ -163,7 +197,11 @@ def process_prm(prm: Union[PRMContainer, str]) -> tuple:
     return bonds, angles, urey_bradley, dihedrals, impropers
 
 
-def get_V_bonds(df: pd.DataFrame, mol: MultiMolecule, bond_idx: np.ndarray) -> pd.DataFrame:
+def get_V_bonds(
+    df: pd.DataFrame,
+    mol: MultiMolecule,
+    bond_idx: NDArray[np.integer[Any]],
+) -> pd.DataFrame:
     """Calculate and set :math:`V_{bonds}` in **df**.
 
     Parameters
@@ -190,7 +228,11 @@ def get_V_bonds(df: pd.DataFrame, mol: MultiMolecule, bond_idx: np.ndarray) -> p
     return ret
 
 
-def get_V_angles(df: pd.DataFrame, mol: MultiMolecule, angle_idx: np.ndarray) -> pd.DataFrame:
+def get_V_angles(
+    df: pd.DataFrame,
+    mol: MultiMolecule,
+    angle_idx: NDArray[np.integer[Any]],
+) -> pd.DataFrame:
     """Calculate and set :math:`V_{angles}` in **df**.
 
     Parameters
@@ -217,7 +259,11 @@ def get_V_angles(df: pd.DataFrame, mol: MultiMolecule, angle_idx: np.ndarray) ->
     return ret
 
 
-def get_V_UB(df: pd.DataFrame, mol: MultiMolecule, angle_idx: np.ndarray) -> pd.DataFrame:
+def get_V_UB(
+    df: pd.DataFrame,
+    mol: MultiMolecule,
+    angle_idx: NDArray[np.integer[Any]],
+) -> pd.DataFrame:
     """Calculate and set :math:`V_{Urey-Bradley}` in **df**.
 
     Parameters
@@ -245,7 +291,11 @@ def get_V_UB(df: pd.DataFrame, mol: MultiMolecule, angle_idx: np.ndarray) -> pd.
     return ret
 
 
-def get_V_dihedrals(df: pd.DataFrame, mol: MultiMolecule, dihed_idx: np.ndarray) -> pd.DataFrame:
+def get_V_dihedrals(
+    df: pd.DataFrame,
+    mol: MultiMolecule,
+    dihed_idx: NDArray[np.integer[Any]],
+) -> pd.DataFrame:
     """Calculate and set :math:`V_{dihedrals}` in **df**.
 
     Parameters
@@ -277,7 +327,11 @@ def get_V_dihedrals(df: pd.DataFrame, mol: MultiMolecule, dihed_idx: np.ndarray)
     return ret
 
 
-def get_V_impropers(df: pd.DataFrame, mol: MultiMolecule, improp_idx: np.ndarray) -> pd.DataFrame:
+def get_V_impropers(
+    df: pd.DataFrame,
+    mol: MultiMolecule,
+    improp_idx: NDArray[np.integer[Any]],
+) -> pd.DataFrame:
     """Calculate and set :math:`V_{impropers}` in **df**.
 
     Parameters
