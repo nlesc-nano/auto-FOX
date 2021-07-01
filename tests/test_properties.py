@@ -27,7 +27,7 @@ PATH = Path('tests') / 'test_files'
 
 RESULT = CP2KMM_Result(
     None, None, 'md',
-    dill_path=PATH / 'properties' / 'md' / 'md.002.dill',
+    dill_path=PATH / 'properties' / 'md.002.dill',
     plams_dir=PATH / 'properties',
     work_dir=PATH / 'properties',
 )
