@@ -25,7 +25,7 @@ from itertools import (
 )
 from typing import (
     Sequence, Optional, Union, List, Hashable, Callable, Iterable, Dict, Tuple, Any, Mapping,
-    overload, TypeVar, Type, Container, cast, TYPE_CHECKING,
+    overload, TypeVar, Type, Container, cast, TYPE_CHECKING, Sized, Iterator
 )
 
 import numpy as np
@@ -69,6 +69,7 @@ __all__ = ['MultiMolecule']
 
 MT = TypeVar('MT', bound='MultiMolecule')
 _DType = TypeVar("_DType", bound=np.dtype)
+_T = TypeVar("_T")
 
 MolSubset = Union[None, slice, int]
 AtomSubset = Union[
@@ -994,8 +995,7 @@ class MultiMolecule(_MultiMolecule):
         j = self._get_atom_subset(atom_subset)
 
         # Slice the XYZ array and reset the origin
-        xyz = self[i, j]
-        xyz.reset_origin()
+        xyz = self[i, j].reset_origin(inplace=False)
 
         if norm:
             return np.gradient(np.linalg.norm(xyz, axis=2), timestep, axis=0)
@@ -1589,8 +1589,15 @@ class MultiMolecule(_MultiMolecule):
             **atom_subset**.
 
         """
+        def slice_iter(iterable: Iterable[tuple[_T, Sized]]) -> Iterator[tuple[_T, slice]]:
+            i = j = 0
+            for name, sized in iterable:
+                j += len(sized)
+                yield name, slice(i, j)
+                i += len(sized)
+
         # Construct the velocity autocorrelation function
-        vacf = self.get_vacf(mol_subset, atom_subset)
+        vacf = self.get_vacf(mol_subset, atom_subset, timestep)
 
         # Create the to-be returned DataFrame
         freq_max = int(freq_max) + 1
@@ -1602,11 +1609,10 @@ class MultiMolecule(_MultiMolecule):
         power_complex = fft(vacf, n, axis=0) / len(vacf)
         power_abs = np.abs(power_complex)
 
-        iterable = self._get_at_iterable(atom_subset)
-        for at, idx in iterable:
-            slice_ = power_abs[:, idx]
-            df[at] = np.einsum('ij,ij->i', slice_, slice_)[:freq_max]
-
+        iterator = slice_iter(self._get_at_iterable(atom_subset))
+        for at, slc in iterator:
+            power_slice = power_abs[:, slc]
+            df[at] = np.einsum('ij,ij->i', power_slice, power_slice)[:freq_max]
         return df
 
     def get_vacf(
