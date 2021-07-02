@@ -1558,9 +1558,13 @@ class MultiMolecule(_MultiMolecule):
 
     """####################################  Power spectrum  ###################################"""
 
-    def init_power_spectrum(self, mol_subset: MolSubset = None,
-                            atom_subset: AtomSubset = None,
-                            freq_max: int = 4000) -> pd.DataFrame:
+    def init_power_spectrum(
+        self,
+        mol_subset: MolSubset = None,
+        atom_subset: AtomSubset = None,
+        freq_max: int = 4000,
+        timestep: float = 1,
+    ) -> pd.DataFrame:
         """Calculate and return the power spectrum associated with this instance.
 
         Parameters
@@ -1575,6 +1579,8 @@ class MultiMolecule(_MultiMolecule):
             Include all :math:`n` atoms per molecule in this instance if :data:`None`.
         freq_max : :class:`int`
             The maximum to be returned wavenumber (cm**-1).
+        timestep : :class:`float`
+            The stepsize, in femtoseconds, between subsequent frames.
 
         Returns
         -------
@@ -1603,8 +1609,12 @@ class MultiMolecule(_MultiMolecule):
 
         return df
 
-    def get_vacf(self, mol_subset: MolSubset = None,
-                 atom_subset: AtomSubset = None) -> np.ndarray:
+    def get_vacf(
+        self,
+        mol_subset: MolSubset = None,
+        atom_subset: AtomSubset = None,
+        timestep: float = 1,
+    ) -> np.ndarray:
         """Calculate and return the velocity autocorrelation function (VACF).
 
         Parameters
@@ -1617,6 +1627,8 @@ class MultiMolecule(_MultiMolecule):
             Perform the calculation on a subset of atoms in this instance, as
             determined by their atomic index or atomic symbol.
             Include all :math:`n` atoms per molecule in this instance if :data:`None`.
+        timestep : :class:`float`
+            The stepsize, in femtoseconds, between subsequent frames.
 
         Returns
         -------
@@ -1628,7 +1640,9 @@ class MultiMolecule(_MultiMolecule):
         from scipy.signal import fftconvolve
 
         # Get atomic velocities
-        v = self.get_velocity(1e-15, mol_subset=mol_subset, atom_subset=atom_subset)  # A / s
+        v = self.get_velocity(  # A / s
+            timestep * 1e-15, mol_subset=mol_subset, atom_subset=atom_subset
+        )
 
         # Construct the velocity autocorrelation function
         vacf = fftconvolve(v, v[::-1], axes=0)[len(v)-1:]
