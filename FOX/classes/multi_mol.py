@@ -1699,6 +1699,8 @@ class MultiMolecule(_MultiMolecule):
             return [(atom_subset, self.atoms[atom_subset])]
         elif isinstance(atom_subset, int):
             return [(False, (atom_subset,))]
+        elif len(atom_subset) == 0:
+            return []
         elif isinstance(atom_subset[0], (int, np.integer)):
             return enumerate(atom_subset)
         elif isinstance(atom_subset[0], str):
@@ -1895,7 +1897,11 @@ class MultiMolecule(_MultiMolecule):
                 return slice(atom_subset.start, atom_subset.stop, atom_subset.step)
 
         ret = np.array(atom_subset, ndmin=1, copy=False).ravel()
-        i = ret[0]
+        try:
+            i = ret[0]
+        except IndexError:  # Empty sequence
+            return np.empty((0,), dtype=np.intp)
+
         if isinstance(i, np.str_):
             return np.concatenate([self._atoms_get(j) for j in ret]).astype(np.intp, copy=False)
         elif isinstance(i, np.integer):
