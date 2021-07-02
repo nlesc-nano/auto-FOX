@@ -7,7 +7,7 @@ import pickle
 import weakref
 from os.path import join
 from pathlib import Path
-from itertools import chain, combinations
+from itertools import chain, combinations, permutations
 from typing import Mapping, Any, Type, Set, Sequence, Callable
 
 import pytest
@@ -24,15 +24,19 @@ PATH = Path('tests') / 'test_files'
 
 MOL = MultiMolecule.from_xyz(example_xyz)
 MOL.guess_bonds(['C', 'H', 'O'])
+MOL.setflags(write=False)
 
 MOL_ALIAS = MOL.copy()
 MOL_ALIAS.atoms_alias = {"Cd2": ("Cd", np.s_[:10])}
+MOL_ALIAS.setflags(write=False)
 
 MOL_LATTICE_3D = MultiMolecule.from_xyz(PATH / "md_lattice.xyz")[::10]
 MOL_LATTICE_3D.lattice = lattice_from_cell(PATH / "md_lattice.cell")[::10]
+MOL_LATTICE_3D.setflags(write=False)
 
 MOL_LATTICE_2D = MOL_LATTICE_3D.copy()
 MOL_LATTICE_2D.lattice = MOL_LATTICE_2D.lattice[0]
+MOL_LATTICE_2D.setflags(write=False)
 
 
 @delete_finally(join(PATH, '.tmp.xyz'))
@@ -161,13 +165,26 @@ def test_get_bonds_per_atom():
     np.testing.assert_allclose(bond_count, ref)
 
 
-def test_power_spectrum():
+class TestPowerSpectrum:
     """Test :meth:`.MultiMolecule.init_power_spectrum`."""
-    mol = MOL.copy()
 
-    p = mol.init_power_spectrum()
-    p_ref = np.load(join(PATH, 'power_spectrum.npy'))
-    np.testing.assert_allclose(p, p_ref)
+    REF = np.load(join(PATH, 'power_spectrum.npy'))
+
+    _ATOMS = chain.from_iterable(permutations(sorted(MOL.atoms), i) for i in range(len(MOL.atoms)))
+    ATOMS: dict[str, None | tuple[str, ...]] = {" ".join(k): k for k in _ATOMS}
+    ATOMS["None"] = None
+    del ATOMS[""]
+
+    @pytest.mark.parametrize("key,atoms", ATOMS.items(), ids=ATOMS.keys())
+    def test(self, key: str, atoms: None | tuple[str, ...]) -> None:
+        p = MOL[:100].init_power_spectrum(atom_subset=atoms)
+        p_ref = self.REF[key]
+        np.testing.assert_allclose(p, p_ref)
+
+    def test_empty(self) -> None:
+        with pytest.warns(RuntimeWarning):
+            p = MOL[:100].init_power_spectrum(atom_subset=[])
+        assertion.shape_eq(p, (4001, 0))
 
 
 def test_vacf():
