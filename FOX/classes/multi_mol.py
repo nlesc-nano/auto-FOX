@@ -25,7 +25,7 @@ from itertools import (
 )
 from typing import (
     Sequence, Optional, Union, List, Hashable, Callable, Iterable, Dict, Tuple, Any, Mapping,
-    overload, TypeVar, Type, Container, cast, TYPE_CHECKING,
+    overload, TypeVar, Type, Container, cast, TYPE_CHECKING, Sized, Iterator
 )
 
 import numpy as np
@@ -69,6 +69,7 @@ __all__ = ['MultiMolecule']
 
 MT = TypeVar('MT', bound='MultiMolecule')
 _DType = TypeVar("_DType", bound=np.dtype)
+_T = TypeVar("_T")
 
 MolSubset = Union[None, slice, int]
 AtomSubset = Union[
@@ -994,8 +995,7 @@ class MultiMolecule(_MultiMolecule):
         j = self._get_atom_subset(atom_subset)
 
         # Slice the XYZ array and reset the origin
-        xyz = self[i, j]
-        xyz.reset_origin()
+        xyz = self[i, j].reset_origin(inplace=False)
 
         if norm:
             return np.gradient(np.linalg.norm(xyz, axis=2), timestep, axis=0)
@@ -1558,9 +1558,13 @@ class MultiMolecule(_MultiMolecule):
 
     """####################################  Power spectrum  ###################################"""
 
-    def init_power_spectrum(self, mol_subset: MolSubset = None,
-                            atom_subset: AtomSubset = None,
-                            freq_max: int = 4000) -> pd.DataFrame:
+    def init_power_spectrum(
+        self,
+        mol_subset: MolSubset = None,
+        atom_subset: AtomSubset = None,
+        freq_max: int = 4000,
+        timestep: float = 1,
+    ) -> pd.DataFrame:
         """Calculate and return the power spectrum associated with this instance.
 
         Parameters
@@ -1575,6 +1579,8 @@ class MultiMolecule(_MultiMolecule):
             Include all :math:`n` atoms per molecule in this instance if :data:`None`.
         freq_max : :class:`int`
             The maximum to be returned wavenumber (cm**-1).
+        timestep : :class:`float`
+            The stepsize, in femtoseconds, between subsequent frames.
 
         Returns
         -------
@@ -1583,8 +1589,15 @@ class MultiMolecule(_MultiMolecule):
             **atom_subset**.
 
         """
+        def slice_iter(iterable: Iterable[tuple[_T, Sized]]) -> Iterator[tuple[_T, slice]]:
+            i = j = 0
+            for name, sized in iterable:
+                j += len(sized)
+                yield name, slice(i, j)
+                i += len(sized)
+
         # Construct the velocity autocorrelation function
-        vacf = self.get_vacf(mol_subset, atom_subset)
+        vacf = self.get_vacf(mol_subset, atom_subset, timestep)
 
         # Create the to-be returned DataFrame
         freq_max = int(freq_max) + 1
@@ -1596,15 +1609,18 @@ class MultiMolecule(_MultiMolecule):
         power_complex = fft(vacf, n, axis=0) / len(vacf)
         power_abs = np.abs(power_complex)
 
-        iterable = self._get_at_iterable(atom_subset)
-        for at, idx in iterable:
-            slice_ = power_abs[:, idx]
-            df[at] = np.einsum('ij,ij->i', slice_, slice_)[:freq_max]
-
+        iterator = slice_iter(self._get_at_iterable(atom_subset))
+        for at, slc in iterator:
+            power_slice = power_abs[:, slc]
+            df[at] = np.einsum('ij,ij->i', power_slice, power_slice)[:freq_max]
         return df
 
-    def get_vacf(self, mol_subset: MolSubset = None,
-                 atom_subset: AtomSubset = None) -> np.ndarray:
+    def get_vacf(
+        self,
+        mol_subset: MolSubset = None,
+        atom_subset: AtomSubset = None,
+        timestep: float = 1,
+    ) -> np.ndarray:
         """Calculate and return the velocity autocorrelation function (VACF).
 
         Parameters
@@ -1617,6 +1633,8 @@ class MultiMolecule(_MultiMolecule):
             Perform the calculation on a subset of atoms in this instance, as
             determined by their atomic index or atomic symbol.
             Include all :math:`n` atoms per molecule in this instance if :data:`None`.
+        timestep : :class:`float`
+            The stepsize, in femtoseconds, between subsequent frames.
 
         Returns
         -------
@@ -1628,7 +1646,9 @@ class MultiMolecule(_MultiMolecule):
         from scipy.signal import fftconvolve
 
         # Get atomic velocities
-        v = self.get_velocity(1e-15, mol_subset=mol_subset, atom_subset=atom_subset)  # A / s
+        v = self.get_velocity(  # A / s
+            timestep * 1e-15, mol_subset=mol_subset, atom_subset=atom_subset
+        )
 
         # Construct the velocity autocorrelation function
         vacf = fftconvolve(v, v[::-1], axes=0)[len(v)-1:]
@@ -1699,6 +1719,8 @@ class MultiMolecule(_MultiMolecule):
             return [(atom_subset, self.atoms[atom_subset])]
         elif isinstance(atom_subset, int):
             return [(False, (atom_subset,))]
+        elif len(atom_subset) == 0:
+            return []
         elif isinstance(atom_subset[0], (int, np.integer)):
             return enumerate(atom_subset)
         elif isinstance(atom_subset[0], str):
@@ -1895,7 +1917,11 @@ class MultiMolecule(_MultiMolecule):
                 return slice(atom_subset.start, atom_subset.stop, atom_subset.step)
 
         ret = np.array(atom_subset, ndmin=1, copy=False).ravel()
-        i = ret[0]
+        try:
+            i = ret[0]
+        except IndexError:  # Empty sequence
+            return np.empty((0,), dtype=np.intp)
+
         if isinstance(i, np.str_):
             return np.concatenate([self._atoms_get(j) for j in ret]).astype(np.intp, copy=False)
         elif isinstance(i, np.integer):
