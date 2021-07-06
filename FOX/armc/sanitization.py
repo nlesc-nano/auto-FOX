@@ -15,6 +15,7 @@ API
 from __future__ import annotations
 
 import os
+import math
 import copy
 import warnings
 from pathlib import Path
@@ -503,7 +504,17 @@ def _update_psf_charge(param: ParamMapping, psf_list: Iterable[PSFContainer]) ->
                 'guess': False, 'unit': ''}
 
     for i, psf in enumerate(psf_list):
-        charge_dict = {("charge", "charge", k): v for k, v in zip(psf.atom_type, psf.charge)}
+        # Map atom types to atom charges and
+        # validate that each atom type only has a single unique charge
+        charge_dict = {}
+        for _k, v in zip(psf.atom_type, psf.charge):
+            k = ("charge", "charge", _k)
+            if not math.isclose(charge_dict.get(k, v), v):
+                v_old = charge_dict[k]
+                raise ValueError(f"Found multiple charges for atom type {k!r}: {v_old} and {v}")
+            charge_dict[k] = v
+
+        # Update the charges in `param`
         for k, v in charge_dict.items():  # type: Tuple[str, str, str], float
             if k not in param.param.index:
                 param.add_param(k, v, **metadata)
