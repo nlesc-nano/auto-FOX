@@ -5,8 +5,8 @@ channels:
 
 dependencies:
     - pip
-    - python=3.8
-    - h5py
+    - python=3.9
+    - h5py>=2.10
     - rdkit
-    - matplotlib
-    - sphinx
+    - matplotlib>=3.0
+    - sphinx>=2.4
