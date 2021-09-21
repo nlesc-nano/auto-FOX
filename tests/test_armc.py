@@ -17,7 +17,6 @@ import yaml
 from nanoutils import delete_finally, UniqueLoader
 from assertionlib import assertion
 
-from FOX.entry_points import main_armc
 from FOX.testing_utils import load_results, compare_hdf5
 from FOX.armc import dict_to_armc, run_armc
 from FOX.armc.sanitization import _sort_atoms
@@ -284,16 +283,34 @@ HAS_CP2K = _has_cp2k()
 
 @delete_finally(PATH / '_ARMC', PATH / '_ARMCPT')
 @pytest.mark.skipif(not HAS_CP2K, reason="Requires CP2K")
-@pytest.mark.parametrize('name', ['armc_cp2k.yaml', 'armcpt_cp2k.yaml'])
-def test_with_cp2k(name: str) -> None:
+@pytest.mark.parametrize('name,dir_name', [
+    ('armc_cp2k.yaml', '_ARMC'),
+    ('armcpt_cp2k.yaml', '_ARMCPT'),
+], ids=['armc', 'armcpt'])
+def test_with_cp2k(name: str, dir_name: str) -> None:
     """Test :class:`ARMC` and :class:`ARMCPT`."""
+    with open(f'tests/test_files/{name}', 'r') as f:
+        dct = yaml.load(f.read(), Loader=UniqueLoader)
+    dct["monte_carlo"]["keep_files"] = True
+    armc, job_kwargs = dict_to_armc(dct)
+
     try:
-        main_armc([f'tests/test_files/{name}'])
+        run_armc(armc, restart=False, **job_kwargs)
     except Exception as ex:
-        err_file = PATH / name / 'md' / 'md.err'
-        if not os.path.isfile(err_file):
+        err_file = PATH / dir_name / 'md' / 'md.err'
+        out_file = PATH / dir_name / 'md' / 'md.out'
+        has_err_file = os.path.isfile(err_file)
+        has_out_file = os.path.isfile(out_file)
+
+        if not (has_err_file or has_out_file):
             raise
 
-        with open(err_file, 'r', encoding='utf-8') as f:
-            msg = f.read()
+        msg = ""
+        if has_err_file:
+            with open(err_file, 'r', encoding='utf-8') as f:
+                msg += f"{err_file}:\n{f.read()}"
+        if out_file:
+            with open(out_file, 'r', encoding='utf-8') as f:
+                msg += f"{out_file}:\n{f.read()}"
+
         raise AssertionError(msg) from ex
