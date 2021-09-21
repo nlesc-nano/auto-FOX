@@ -43,11 +43,11 @@ jobs:
                     conda-channels: anaconda
 
             -   name: Install CP2K
-                if: matrix.os == 'ubuntu-latest'
+                if: (matrix.os == 'ubuntu-latest') && (matrix.special != '; pre-release')
                 run: sudo apt install cp2k
 
             -   name: Info CP2K
-                if: matrix.os == 'ubuntu-latest'
+                if: (matrix.os == 'ubuntu-latest') && (matrix.special != '; pre-release')
                 run: cp2k.popt --version
 
             -   name: Install dependencies
