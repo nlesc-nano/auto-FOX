@@ -18,6 +18,7 @@ API
 
 from __future__ import annotations
 
+from itertools import chain
 from copy import deepcopy
 from abc import ABC, abstractmethod
 from types import MappingProxyType
@@ -143,6 +144,7 @@ class ParamMappingABC(AbstractDataClass, ABC):
 
     _net_charge: Optional[np.ndarray]
     _move_range: np.ndarray
+    _is_independent: bool
 
     #: Fill values for when optional keys are absent.
     FILL_VALUE: ClassVar[MappingProxyType[MetadataKeys, np.generic]] = MappingProxyType({
@@ -162,6 +164,7 @@ class ParamMappingABC(AbstractDataClass, ABC):
         move_range: Iterable[float],
         func: MoveFunc,
         constraints: Optional[Mapping[Tup2, Optional[Iterable[Mapping[str, float]]]]] = None,
+        is_independent: bool = False,
         **kwargs: Any,
     ) -> None:
         r"""Initialize an :class:`ParamMappingABC` instance.
@@ -194,6 +197,9 @@ class ParamMappingABC(AbstractDataClass, ABC):
             The callable used for applying :math:`\phi` to the auxiliary error.
             The callable should take an two floats as arguments and return a new float.
             See :attr:`ParamMappingABC.func`.
+        is_independent : :class:`bool`
+            Whether the parameters from different parameter-sets are shared or independent
+            w.r.t. each other.
         \**kwargs : :data:`~typing.Any`
             Further keyword arguments for **func**.
 
@@ -203,8 +209,13 @@ class ParamMappingABC(AbstractDataClass, ABC):
         self.move_range = cast(np.ndarray, move_range)
         self.func: Callable[[float, float], float] = wraps(func)(partial(func, **kwargs))
         self.constraints = cast(Dict[Tup2, Optional[Tuple[pd.Series, ...]]], constraints)
+        self._is_independent = is_independent
 
     # Properties
+
+    @property
+    def is_independent(self) -> bool:
+        return self._is_independent
 
     @property
     def constraints(self) -> Dict[Tup2, Optional[Tuple[pd.Series, ...]]]:
@@ -300,12 +311,12 @@ class ParamMappingABC(AbstractDataClass, ABC):
         if not ret:
             return False
 
-        names = ("func", "args", "keywords")
+        names = ["func", "args", "keywords"]
         v1, v2 = self.func, value.func
         if not all(getattr(v1, n, None) == getattr(v2, n, None) for n in names):
             return False
 
-        names = ("param", "param_old", "metadata")
+        names = ["param", "param_old", "metadata", "is_independent"]
         return all(np.array_equal(getattr(self, n, None), getattr(value, n, None)) for n in names)
 
     @AbstractDataClass.inherit_annotations()
@@ -364,7 +375,7 @@ class ParamMappingABC(AbstractDataClass, ABC):
         ----------
         logger : :class:`logging.Logger`, optional
             A logger for reporting the updated value.
-        param_idx : :class:`int`, optional
+        param_idx : :class:`int`
             The index of the parameter.
             Only relevant when multiple parameter sets have to be stored
             (see :class:`MultiParamMaping`).
@@ -378,7 +389,7 @@ class ParamMappingABC(AbstractDataClass, ABC):
         # Prepare arguments a move
         idx, x1, x2 = self.identify_move(param_idx)
         _value = self.func(x1, x2)
-        value = self.clip_move(idx, _value)
+        value = self.clip_move(idx, _value, param_idx)
 
         # Create a call to the logger
         if logger is not None:
@@ -393,12 +404,12 @@ class ParamMappingABC(AbstractDataClass, ABC):
         return idx
 
     @abstractmethod
-    def identify_move(self, param: int) -> Tuple[Tup3, float, float]:
+    def identify_move(self, param_idx: int) -> Tuple[Tup3, float, float]:
         """Identify the to-be moved parameter and the size of the move.
 
         Parameters
         ----------
-        param : :class:`str`
+        param_idx : :class:`str`
             The name of the parameter-containg column.
 
         Returns
@@ -409,7 +420,7 @@ class ParamMappingABC(AbstractDataClass, ABC):
         """  # noqa
         raise NotImplementedError('Trying to call an abstract method')
 
-    def clip_move(self, idx: Tup3, value: float) -> float:
+    def clip_move(self, idx: Tup3, value: float, param_idx: int) -> float:
         """An optional function for clipping the value of **value**.
 
         Parameters
@@ -418,6 +429,8 @@ class ParamMappingABC(AbstractDataClass, ABC):
             The index of the moved parameter.
         value : :class:`float`
             The value of the moved parameter.
+        param_idx : :class:`str`
+            The name of the parameter-containg column.
 
         Returns
         -------
@@ -427,7 +440,7 @@ class ParamMappingABC(AbstractDataClass, ABC):
         """  # noqa
         return value
 
-    def apply_constraints(self, idx: Tup3, value: float, param: int) -> Optional[Exception]:
+    def apply_constraints(self, idx: Tup3, value: float, param: int) -> None | BaseException:
         """An optional function for applying further constraints based on **idx** and **value**.
 
         Should perform an inplace update of this instance.
@@ -576,7 +589,7 @@ class ParamMapping(ParamMappingABC):
 
         """  # noqa
         # Define a random parameter
-        variable = ~self.metadata[0, 'frozen']
+        variable = ~self.metadata[param_idx, 'frozen']
         random_prm: pd.Series = self.param.loc[variable, param_idx].sample()
         idx, x1 = next(random_prm.items())  # Type: Tup3, float
 
@@ -584,7 +597,7 @@ class ParamMapping(ParamMappingABC):
         x2: float = np.random.choice(self.move_range[param_idx], 1)[0]
         return idx, x1, x2
 
-    def clip_move(self, idx: Tup3, value: float) -> np.float64:
+    def clip_move(self, idx: Tup3, value: float, param_idx: int) -> np.float64:
         """Ensure that **value** falls within a user-specified range.
 
         Parameters
@@ -593,6 +606,8 @@ class ParamMapping(ParamMappingABC):
             The index of the moved parameter.
         value : :class:`float`
             The value of the moved parameter.
+        param_idx : :class:`int`
+            The name of the parameter-containg column.
 
         Returns
         -------
@@ -600,10 +615,11 @@ class ParamMapping(ParamMappingABC):
             The newly clipped value of the moved parameter.
 
         """  # noqa
-        prm_min, prm_max = self.metadata.loc[idx, [(0, 'min'), (0, 'max')]]
-        return np.clip(value, prm_min, prm_max)
+        value_min = self.metadata.loc[idx, (param_idx, 'min')]
+        value_max = self.metadata.loc[idx, (param_idx, 'max')]
+        return np.clip(value, value_min, value_max)
 
-    def apply_constraints(self, idx: Tup3, value: float, param_idx: int) -> Optional[ChargeError]:
+    def apply_constraints(self, idx: Tup3, value: float, param_idx: int) -> None | ChargeError:
         """Apply further constraints based on **idx** and **value**.
 
         Performs an inplace update of this instance.
@@ -620,18 +636,50 @@ class ParamMapping(ParamMappingABC):
         """  # noqa
         key = idx[:2]
         atom = idx[2]
-        charge = self._net_charge[0] if key[1] in self.CHARGE_LIKE else None
+        is_charge_like = key[1] in self.CHARGE_LIKE
 
-        frozen_idx = self.metadata.loc[key, (0, 'frozen')]
-        frozen = frozen_idx.index[frozen_idx] if frozen_idx.any() else None
+        if self.is_independent:
+            iterator: Iterable[int] = [param_idx]
+        else:
+            iterator = chain([param_idx], (i for i in self.param.columns if i != param_idx))
 
-        return update_charge(
-            atom, value,
-            param=self.param.loc[key, param_idx],
-            count=self.metadata.loc[key, (0, 'count')],
-            atom_coefs=self.constraints[key],
-            prm_min=self.metadata.loc[key, (0, 'min')],
-            prm_max=self.metadata.loc[key, (0, 'max')],
-            net_charge=charge,
-            exclude=frozen,
-        )
+        param_backup = self.param.copy()
+        exclude_old: set[str] = set()
+        for i in iterator:
+            charge = self._net_charge[i] if is_charge_like else None
+
+            frozen = self.metadata.loc[key, (i, 'frozen')]
+            count = self.metadata.loc[key, (i, 'count')]
+
+            count_zero: set[str] = set(count.index[count == 0])
+            if frozen.any():
+                exclude: None | set[str] = set(frozen.index[frozen]) | exclude_old | count_zero
+            else:
+                exclude = None if not exclude_old else exclude_old | count_zero
+            exclude_old.update(count.index[count != 0])
+
+            ret = update_charge(
+                atom, value,
+                param=self.param.loc[key, i],
+                count=count,
+                atom_coefs=self.constraints[key],
+                prm_min=self.metadata.loc[key, (i, 'min')],
+                prm_max=self.metadata.loc[key, (i, 'max')],
+                net_charge=charge,
+                exclude=exclude,
+            )
+
+            # NOTE: pandas bugs out if the assignment is carried out with the help of
+            # a dataframe, instead setting all values `nan`; use an `ndarray` instead.
+            if not self.is_independent:
+                if exclude is not None:
+                    include = self.param.loc[key, :].index.difference(exclude)
+                    key_list = [(*key, i) for i in include]
+                    self.param.loc[key_list] = self.param.loc[key_list, i].values[..., None]
+                else:
+                    self.param.loc[key, :] = self.param.loc[key, i].values[..., None]
+
+            if ret is not None:
+                self.param[:] = param_backup
+                return ret
+        return None
