@@ -38,6 +38,7 @@ from .monte_carlo import MonteCarloABC
 from .package_manager import PackageManager, PackageManagerABC
 from .phi_updater import PhiUpdater, PhiUpdaterABC
 from .param_mapping import ParamMapping, ParamMappingABC
+from .err_funcs import default_error_func
 from ..type_hints import ArrayLike, Scalar, ArrayLikeOrScalar
 from ..classes import MultiMolecule
 from ..utils import get_move_range
@@ -45,8 +46,7 @@ from ..io.cp2k import lattice_from_cell
 from ..io.read_xyz import read_multi_xyz
 
 if TYPE_CHECKING:
-    SCT = TypeVar("SCT", bound=np.generic)
-    NDArray = np.ndarray[Any, np.dtype[SCT]]
+    from numpy.typing import NDArray
 
 __all__ = [
     'validate_phi', 'validate_monte_carlo', 'validate_psf', 'validate_pes',
@@ -341,7 +341,14 @@ pes_schema = Schema({
             Use(tuple)
         ),
         error=Formatter(f"'pes.*.kwargs' expected a Mapping or Sequence of Mappings{EPILOG}")
-    )
+    ),
+
+    Optional_('err_func', default=lambda: default_error_func): Or(
+        And(None, Default(default_error_func, call=False)),
+        And(str, Use(import_func)),
+        abc.Callable,
+        error=Formatter(f"'pes.*.err_func' expected a callable object{EPILOG}")
+    ),
 }, name='pes_schema', description='Schema for validating the "pes" block.')
 
 
@@ -354,6 +361,7 @@ class PESMapping(_PESMapping, total=False):
 
     ref: Optional[Sequence[ArrayLike]]
     kwargs: Union[None, Mapping[str, Any], Sequence[Mapping[str, Any]]]
+    err_func: None | str | Callable[[ArrayLike, ArrayLike], np.number | float]
 
 
 class PESDict(TypedDict):
@@ -362,6 +370,7 @@ class PESDict(TypedDict):
     func: Callable[..., ArrayLike]
     ref: Optional[List[ArrayLike]]
     kwargs: Union[Mapping[str, Any], Tuple[Mapping[str, Any], ...]]
+    err_func: Callable[[ArrayLike, ArrayLike], np.number | float]
 
 
 #: Schema for validating the ``"job"`` block.

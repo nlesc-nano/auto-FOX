@@ -13,6 +13,8 @@ API
 
 """
 
+from __future__ import annotations
+
 import copy
 import warnings
 from os import PathLike
@@ -36,6 +38,7 @@ from ..logger import DEFAULT_LOGGER
 from ..type_hints import ArrayOrScalar
 
 if TYPE_CHECKING:
+    from numpy.typing import ArrayLike
     from .package_manager import PackageManager
     from .param_mapping import ParamMapping
     from ..classes import MultiMolecule
@@ -224,6 +227,7 @@ class MonteCarloABC(AbstractDataClass, ABC, Mapping[Key, np.ndarray]):
         self,
         name: str,
         func: GetPesDescriptor,
+        err_func: Callable[[ArrayLike, ArrayLike], np.number | float],
         args: Sequence[Any],
         kwargs: Mapping[str, Any] = ...,
         validation: bool = ...,
@@ -234,12 +238,13 @@ class MonteCarloABC(AbstractDataClass, ABC, Mapping[Key, np.ndarray]):
         self,
         name: str,
         func: GetPesDescriptor,
+        err_func: Callable[[ArrayLike, ArrayLike], np.number | float],
         args: Sequence[Any],
         kwargs: Iterable[Mapping[str, Any]],
         validation: bool = ...,
         ref: Optional[Sequence[np.ndarray]] = None,
     ) -> None: ...
-    def add_pes_evaluator(self, name, func, args=(), kwargs=EMPTY_MAPPING, validation=False, ref=None):  # noqa: E301, E501
+    def add_pes_evaluator(self, name, func, err_func, args=(), kwargs=EMPTY_MAPPING, validation=False, ref=None):  # noqa: E301, E501
         r"""Add a callable to this instance for constructing PES-descriptors.
 
         Examples
@@ -267,6 +272,8 @@ class MonteCarloABC(AbstractDataClass, ABC, Mapping[Key, np.ndarray]):
             The callable for constructing the PES-descriptor.
             The callable should take an array-like object as input and
             return a new array-like object as output.
+        err_func : :class:`~Collections.abc.Callable`
+            The function for computing the auxilary error.
         args : :class:`~collections.abc.Sequence`
             A sequence of positional arguments.
         kwargs : :class:`dict` or :class:`Iterable[dict] <collections.abc.Iterable>`
@@ -297,10 +304,12 @@ class MonteCarloABC(AbstractDataClass, ABC, Mapping[Key, np.ndarray]):
                 f2 = wraps(func)(partial(_template_func1, func, *args, **kwarg))
                 f2.ref = f2(mol, None)
                 f2.use_mol = True
+                f2.err_func = err_func
             else:
                 f2 = wraps(func)(partial(_template_func2, func, *args, **kwarg))
                 f2.ref = copy.deepcopy(ref_)
                 f2.use_mol = False
+                f2.err_func = err_func
 
             # Check that a numeric value is returned
             dtype = np.asanyarray(f2.ref).dtype

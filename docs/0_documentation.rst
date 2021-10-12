@@ -22,3 +22,4 @@ Auto-FOX Documentation
     _5_package_manager
     _6_monte_carlo
     _7_phi_updater
+    _8_err_func

@@ -30,7 +30,7 @@ jobs:
 
         steps:
             -   name: Cancel Previous Runs
-                uses: styfle/cancel-workflow-action@0.6.0
+                uses: styfle/cancel-workflow-action@0.9.1
                 with:
                     access_token: ${{ github.token }}
 
@@ -40,7 +40,7 @@ jobs:
                 uses: s-weigand/setup-conda@v1
                 with:
                     update-conda: true
-                    conda-channels: anaconda
+                    conda-channels: anaconda, conda-forge
 
             -   name: Install CP2K
                 if: (matrix.os == 'ubuntu-latest') && (matrix.special != '; pre-release')
@@ -51,38 +51,31 @@ jobs:
                 run: cp2k.popt --version
 
             -   name: Install dependencies
-                if: matrix.special == ''
+                shell: bash
+                env:
+                    SPECIAL: ${{ matrix.special }}
+                    VERSION: ${{ matrix.version }}
                 run: |
-                    conda create -n test -c conda-forge python=${{ matrix.version }} rdkit
-                    source $CONDA/bin/activate test
-                    pip install -e .[test]
-
-            -   name: Install dependencies (minimum version)
-                if: matrix.special == '; minimum version'
-                run: |
-                    conda create -n test -c conda-forge python=${{ matrix.version }} pyyaml=5.1 rdkit=2018.09 numpy=1.15 h5py=2.10 pandas=0.24 scipy=1.2.0 matplotlib=3.0
-                    source $CONDA/bin/activate test
-                    pip install ase==3.21.1 Nano-Utils==1.2.1 schema==0.7.1 AssertionLib==2.2 noodles==0.3.3 sphinx==2.4 sphinx_rtd_theme==0.3.0
-                    pip install -e .[test]
-
-            -   name: Install dependencies (pre-release)
-                if: matrix.special == '; pre-release'
-                run: |
-                    conda create -n test -c conda-forge python=${{ matrix.version }} rdkit
-                    source $CONDA/bin/activate test
-                    pip install --pre -e .[test] --upgrade --force-reinstall
+                    if [[ $SPECIAL == '; pre-release' ]]; then
+                        conda create -n test -c conda-forge python=$VERSION rdkit
+                        source $CONDA/bin/activate test
+                        pip install --pre -e .[test] --upgrade --force-reinstall
+                    elif [[ $SPECIAL == '; minimum version' ]]; then
+                        conda create -n test -c conda-forge python=$VERSION pyyaml=5.1 rdkit=2018.09 numpy=1.15 h5py=2.10 pandas=0.24 scipy=1.2.0 matplotlib=3.0
+                        source $CONDA/bin/activate test
+                        pip install ase==3.21.1 Nano-Utils==1.2.1 schema==0.7.1 AssertionLib==2.2 noodles==0.3.3 sphinx==2.4 sphinx_rtd_theme==0.3.0
+                        pip install -e .[test]
+                    else
+                        conda create -n test -c conda-forge python=$VERSION rdkit
+                        source $CONDA/bin/activate test
+                        pip install -e .[test]
+                    fi
 
             -   name: Info Conda
                 run: conda info
 
             -   name: Info installed packages
                 run: conda list -n test
-
-            -   name: Check code style
-                run: |
-                    source $CONDA/bin/activate test
-                    flake8 FOX tests
-                    pydocstyle FOX tests
 
             -   name: Run tests
                 run: |
@@ -91,7 +84,36 @@ jobs:
                     pytest -m "not slow"
 
             -   name: Run codecov
-                uses: codecov/codecov-action@v1
+                uses: codecov/codecov-action@v2
                 with:
                     file: ./coverage.xml
                     name: codecov-umbrella
+
+    Linting:
+        runs-on: ubuntu-latest
+        steps:
+            -   uses: actions/checkout@v2
+
+            -   name: Set up Python 3.9 on ubuntu-latest
+                uses: actions/setup-python@v2
+                with:
+                    python-version: 3.9
+
+            -   name: Install linters
+                run: pip install flake8 pydocstyle
+
+            -   name: Python info
+                run: |
+                    which python
+                    python --version
+
+            -   name: Installed packages
+                run: pip list
+
+            -   name: Run flake8
+                run: flake8 FOX tests
+                continue-on-error: true
+
+            -   name: Run pydocstyle
+                run: pydocstyle FOX tests
+                continue-on-error: true
