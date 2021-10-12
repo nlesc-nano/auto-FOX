@@ -29,7 +29,7 @@ from nanoutils import Literal
 
 from .monte_carlo import MonteCarloABC
 from ..classes.multi_mol import MultiMolecule
-from ..type_hints import ArrayLikeOrScalar, ArrayOrScalar
+from ..type_hints import ArrayOrScalar
 from ..io.hdf5_utils import (
     create_hdf5, to_hdf5, create_xyz_hdf5, _get_filename_xyz, hdf5_clear_status
 )
@@ -174,6 +174,7 @@ class ARMC(MonteCarloABC):
                         'func': f'{v.args[0].__module__}.{v.args[0].__qualname__}',
                         'kwargs': i_max * [None],
                         'ref': None if v.use_mol else [],
+                        'err_func': f'{v.err_func.__module__}.{v.err_func.__qualname__}',
                     }
                     pes[k]['kwargs'][i] = v.keywords
                 if not v.use_mol:
@@ -447,16 +448,9 @@ class ARMC(MonteCarloABC):
         """
         pes_dict_ref = self.pes if not validation else self.pes_validation
 
-        def norm_mean(key: str, mm_pes: ArrayLikeOrScalar) -> float:
-            qm_pes = pes_dict_ref[key].ref  # type: ignore
-            QM = np.asarray(qm_pes, dtype=np.float64)
-            MM = np.asarray(mm_pes, dtype=np.float64)
-            ret: np.ndarray = (QM - MM)**2
-            return ret.sum() / QM.sum()
-
         length = 1 + max((int(k.rsplit('.')[-1]) for k in pes_dict.keys()), default=0)
 
-        generator = (norm_mean(k, v) for k, v in pes_dict.items())
+        generator = (pes_dict_ref[k].err_func(pes_dict_ref[k].ref, v) for k, v in pes_dict.items())
         ret = np.fromiter(generator, dtype=float, count=len(pes_dict))
         ret.shape = length, -1
         return ret
