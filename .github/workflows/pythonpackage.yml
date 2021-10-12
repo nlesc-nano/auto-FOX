@@ -40,7 +40,7 @@ jobs:
                 uses: s-weigand/setup-conda@v1
                 with:
                     update-conda: true
-                    conda-channels: anaconda
+                    conda-channels: anaconda, conda-forge
 
             -   name: Install CP2K
                 if: (matrix.os == 'ubuntu-latest') && (matrix.special != '; pre-release')
