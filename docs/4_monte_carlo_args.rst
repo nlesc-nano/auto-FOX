@@ -49,6 +49,7 @@ Index
     :attr:`pes.block.func`                      The callable for performing the Monte Carlo moves.
     :attr:`pes.block.ref`                       A list of reference values for when :attr:`~pes.block.func` operates on :class:`qmflows.Result` objects.
     :attr:`pes.block.kwargs`                    A dictionary with keyword arguments for :attr:`pes.block.func`.
+    :attr:`pes.block.err_func`                  A function for computing the auxilary error of the specified PES descriptor.
     =========================================== ===================================================================================================================
 
 .. table::
@@ -452,6 +453,23 @@ each containg the :attr:`func<pes.block.func>` and, optionally,
                         * **Default Value** - ``{}``
 
         A dictionary with keyword arguments for :attr:`func<pes.block.func>`.
+
+
+    .. attribute:: pes.block.err_func
+
+        :Parameter:     * **Type** - :class:`str` or :class:`Callable[[ArrayLike, ArrayLike], float] <collections.abc.Callable>`
+                        * **Default Value** - :func:`FOX.armc.default_error_func <FOX.armc.mse_normalized>`
+
+        A function for computing the auxilary error of the specified PES descriptor.
+        The callable should be able to take two array-like objects as arguments and return a scalar.
+
+        .. admonition:: See Also
+
+            :func:`FOX.armc.mse_normalized`
+                Return a normalized mean square error (MSE) over the flattened input.
+
+            :func:`FOX.armc.mse_normalized_weighted`
+                Return a normalized mean square error (MSE) over the flattened subarrays of the input.
 
 
 .. _monte_carlo_parameters.pes_validation:
