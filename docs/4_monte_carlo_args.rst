@@ -471,6 +471,9 @@ each containg the :attr:`func<pes.block.func>` and, optionally,
             :func:`FOX.armc.mse_normalized_weighted`
                 Return a normalized mean square error (MSE) over the flattened subarrays of the input.
 
+            :func:`FOX.armc.mse_normalized_max`
+                Return a maximum normalized mean square error (MSE) over the flattened subarrays of the input.
+
 
 .. _monte_carlo_parameters.pes_validation:
 
