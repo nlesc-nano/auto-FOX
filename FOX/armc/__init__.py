@@ -9,7 +9,12 @@ from .sanitization import dict_to_armc
 from .phi_updater import PhiUpdater, PhiUpdaterABC
 from .package_manager import PackageManager, PackageManagerABC
 from .param_mapping import ParamMapping, ParamMappingABC
-from .err_funcs import mse_normalized, mse_normalized_weighted, default_error_func
+from .err_funcs import (
+    default_error_func,
+    mse_normalized,
+    mse_normalized_weighted,
+    mse_normalized_max,
+)
 
 __all__ = [
     'MonteCarloABC', 'ARMC', 'ARMCPT',
@@ -19,5 +24,5 @@ __all__ = [
     'PhiUpdater', 'PhiUpdaterABC',
     'PackageManager', 'PackageManagerABC',
     'ParamMapping', 'ParamMappingABC',
-    'mse_normalized', 'mse_normalized_weighted', 'default_error_func',
+    'default_error_func', 'mse_normalized', 'mse_normalized_weighted', 'mse_normalized_max',
 ]
