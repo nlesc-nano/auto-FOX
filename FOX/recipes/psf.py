@@ -111,14 +111,12 @@ from FOX.io.read_psf import overlay_rtf_file, overlay_str_file
 from FOX.functions.molecule_utils import fix_bond_orders
 from FOX.armc.sanitization import _assign_residues
 
-if TYPE_CHECKING:
-    from rdkit.Chem import Mol
-
 try:
     from scm.plams import from_smiles, to_rdmol
 except ImportError as ex:
     RDKIT_EX: None | ImportError = ex
 else:
+    from rdkit.Chem import Mol
     RDKIT_EX = None
 
     # A somewhat contrived way of loading :exc:`~Boost.Python.ArgumentError`

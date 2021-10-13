@@ -20,13 +20,16 @@ docs_require = [
     'matplotlib>=3.0',
 ]
 
-tests_require = [
+tests_require_no_optional = [
     'pytest>=5.4.0',
     'pytest-cov',
     'auto-FOX-data@git+https://github.com/nlesc-nano/auto-FOX-data@1.1.8',
+]
+tests_require = [
     'ase>=3.21.1',
     'CAT@git+https://github.com/nlesc-nano/CAT@master',
 ]
+tests_require += tests_require_no_optional
 tests_require += docs_require
 
 setup(
@@ -113,5 +116,9 @@ setup(
         'pytest-runner'
     ],
     tests_require=tests_require,
-    extras_require={'docs': docs_require, 'test': tests_require}
+    extras_require={
+        'docs': docs_require,
+        'test': tests_require,
+        'test_no_optional': tests_require_no_optional,
+    }
 )
