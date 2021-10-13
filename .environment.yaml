@@ -7,6 +7,5 @@ dependencies:
     - pip
     - python=3.9
     - h5py>=2.10
-    - rdkit
     - matplotlib>=3.0
     - sphinx>=2.4
