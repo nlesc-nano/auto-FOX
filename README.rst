@@ -82,7 +82,7 @@ Anaconda environments
 - Anaconda environments can be created, enabled and disabled by,
   respectively, typing:
 
-  - Create environment: ``conda create -n FOX -c conda-forge python rdkit "h5py>=2.10"``
+  - Create environment: ``conda create -n FOX -c conda-forge python pip``
 
   - Enable environment: ``conda activate FOX``
 
@@ -111,6 +111,9 @@ Optional dependencies
 
   - Anaconda:   ``conda install -name FOX -y -c conda-forge dask``
 
+- RDKit is required for a number of .psf-related recipes.
+
+  - Anaconda:   ``conda install -name FOX -y -c conda-forge rdkit``
 
 
 .. _1: https://auto-fox.readthedocs.io/en/latest/3_multimolecule.html
@@ -128,3 +131,4 @@ Optional dependencies
 .. _FOX.data: https://github.com/nlesc-nano/auto-FOX/blob/master/FOX/data
 .. _FOX.examples: https://github.com/nlesc-nano/auto-FOX/blob/master/FOX/examples/input.py
 .. _DASK: https://dask.org/
+.. _RDKit: https://www.rdkit.org/

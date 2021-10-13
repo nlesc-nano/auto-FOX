@@ -11,6 +11,7 @@ from assertionlib import assertion
 
 from FOX import PSFContainer
 from FOX.recipes import generate_psf, generate_psf2, extract_ligand
+from FOX.recipes.psf import RDKIT_EX
 
 PATH = Path('tests') / 'test_files'
 STR_FILE = PATH / 'ligand.str'
@@ -68,6 +69,7 @@ class TestGeneratePSF:
             generate_psf(**kwargs)
 
 
+@pytest.mark.skipif(RDKIT_EX is not None, reason="Requires RDKit")
 def test_generate_psf2() -> None:
     """Tests for :func:`extract_ligand`."""
     qd = QD.copy()

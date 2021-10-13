@@ -22,6 +22,15 @@ jobs:
                 special: ['']
                 include:
                     -   os: ubuntu-latest
+                        special: '; conda'
+                        version: 3.7
+                    -   os: ubuntu-latest
+                        special: '; conda'
+                        version: 3.8
+                    -   os: ubuntu-latest
+                        special: '; conda'
+                        version: 3.9
+                    -   os: ubuntu-latest
                         special: '; pre-release'
                         version: 3.9
                     -   os: ubuntu-latest
@@ -37,17 +46,24 @@ jobs:
             -   uses: actions/checkout@v2
 
             -   name: Set up Conda
+                if: matrix.special == '; conda'
                 uses: s-weigand/setup-conda@v1
                 with:
                     update-conda: true
                     conda-channels: anaconda, conda-forge
 
+            -   name: Set up Python
+                if: matrix.special != '; conda'
+                uses: actions/setup-python@v2
+                with:
+                    python-version: ${{ matrix.version }}
+
             -   name: Install CP2K
-                if: (matrix.os == 'ubuntu-latest') && (matrix.special != '; pre-release')
+                if: matrix.os == 'ubuntu-latest'
                 run: sudo apt install cp2k
 
             -   name: Info CP2K
-                if: (matrix.os == 'ubuntu-latest') && (matrix.special != '; pre-release')
+                if: matrix.os == 'ubuntu-latest'
                 run: cp2k.popt --version
 
             -   name: Install dependencies
@@ -56,30 +72,51 @@ jobs:
                     SPECIAL: ${{ matrix.special }}
                     VERSION: ${{ matrix.version }}
                 run: |
-                    if [[ $SPECIAL == '; pre-release' ]]; then
+                    if [[ $SPECIAL == '; conda' ]]; then
                         conda create -n test -c conda-forge python=$VERSION rdkit
                         source $CONDA/bin/activate test
-                        pip install --pre -e .[test] --upgrade --force-reinstall
+                        pip install -e .[test]
+                    elif [[ $SPECIAL == '; pre-release' ]]; then
+                        pip install --pre -e .[test_no_optional] --upgrade --force-reinstall
                     elif [[ $SPECIAL == '; minimum version' ]]; then
-                        conda create -n test -c conda-forge python=$VERSION pyyaml=5.1 rdkit=2018.09 numpy=1.15 h5py=2.10 pandas=0.24 scipy=1.2.0 matplotlib=3.0
-                        source $CONDA/bin/activate test
-                        pip install ase==3.21.1 Nano-Utils==1.2.1 schema==0.7.1 AssertionLib==2.2 noodles==0.3.3 sphinx==2.4 sphinx_rtd_theme==0.3.0
-                        pip install -e .[test]
+                        pip install Nano-Utils==1.2.1 schema==0.7.1 AssertionLib==2.2 noodles==0.3.3 pyyaml==5.1 numpy==1.15 h5py==2.10 pandas==0.24 scipy==1.2.0
+                        pip install -e .[test_no_optional]
                     else
-                        conda create -n test -c conda-forge python=$VERSION rdkit
-                        source $CONDA/bin/activate test
-                        pip install -e .[test]
+                        pip install -e .[test_no_optional]
                     fi
 
-            -   name: Info Conda
-                run: conda info
+            -   name: Info Python
+                shell: bash
+                env:
+                    SPECIAL: ${{ matrix.special }}
+                run: |
+                    if [[ $SPECIAL == '; conda' ]]; then
+                        source $CONDA/bin/activate test
+                        conda info
+                    else
+                        which python
+                        python --version
+                    fi
 
             -   name: Info installed packages
-                run: conda list -n test
+                shell: bash
+                env:
+                    SPECIAL: ${{ matrix.special }}
+                run: |
+                    if [[ $SPECIAL == '; conda' ]]; then
+                        conda list -n test
+                    else
+                        pip list
+                    fi
 
             -   name: Run tests
+                shell: bash
+                env:
+                    SPECIAL: ${{ matrix.special }}
                 run: |
-                    source $CONDA/bin/activate test
+                    if [[ $SPECIAL == '; conda' ]]; then
+                        source $CONDA/bin/activate test
+                    fi
                     export CP2K_DATA_DIR="/usr/share/cp2k"
                     pytest -m "not slow"
 

@@ -5,7 +5,7 @@ Examples
 Example code for generating a .psf file.
 Ligand atoms within the ligand .xyz file and the qd .xyz file should be in the *exact* same order.
 For example, implicit hydrogen atoms added by the
-:func:`from_smiles<scm.plams.interfaces.molecule.rdkit.from_smiles>` functions are not guaranteed
+:func:`~scm.plams.interfaces.molecule.rdkit.from_smiles` functions are not guaranteed
 to be ordered, even when using canonical SMILES strings.
 
 .. code:: python
@@ -98,34 +98,41 @@ import math
 import warnings
 from types import MappingProxyType
 from typing import (Union, Iterable, Optional, Callable, Mapping, Type, Iterator, TypeVar,
-                    Any, Tuple, List, cast, Sequence, Dict)
+                    Any, Tuple, List, cast, Sequence, Dict, TYPE_CHECKING)
 from itertools import chain
 from collections import abc
 
 import numpy as np
-from scm.plams import Molecule, Atom, Bond, MoleculeError, PT, from_smiles, to_rdmol
-from rdkit.Chem import Mol
-from nanoutils import group_by_values, PathType
+from scm.plams import Molecule, Atom, Bond, MoleculeError, PT
+from nanoutils import group_by_values, PathType, raise_if
 
 from FOX import PSFContainer
 from FOX.io.read_psf import overlay_rtf_file, overlay_str_file
 from FOX.functions.molecule_utils import fix_bond_orders
 from FOX.armc.sanitization import _assign_residues
 
+try:
+    from scm.plams import from_smiles, to_rdmol
+except ImportError as ex:
+    RDKIT_EX: None | ImportError = ex
+else:
+    from rdkit.Chem import Mol
+    RDKIT_EX = None
+
+    # A somewhat contrived way of loading :exc:`~Boost.Python.ArgumentError`
+    _MOL = Molecule()
+    _MOL.atoms = [Atom(symbol='H', coords=[0, 0, 0], mol=_MOL)]
+    _MOL[1].properties.charge = -0.5
+    try:
+        to_rdmol(_MOL)
+    except Exception as ex:
+        ArgumentError: type[Exception] = type(ex)
+    else:
+        raise TypeError("Failed to extract Boost.Python.ArgumentError") from None
+    del _MOL
+
 KT = TypeVar("KT")
 VT = TypeVar("VT")
-
-# A somewhat contrived way of loading :exc:`ArgumentError<Boost.Python.ArgumentError>`
-_MOL = Molecule()
-_MOL.atoms = [Atom(symbol='H', coords=[0, 0, 0], mol=_MOL)]
-_MOL[1].properties.charge = -0.5
-try:
-    to_rdmol(_MOL)
-except Exception as ex:
-    ArgumentError: Type[Exception] = type(ex)
-else:
-    raise TypeError("Failed to extract Boost.Python.ArgumentError")
-del _MOL
 
 __all__ = ['generate_psf', 'generate_psf2', 'extract_ligand']
 
@@ -278,6 +285,7 @@ def extract_ligand(
     return ligand
 
 
+@raise_if(RDKIT_EX)
 def generate_psf2(
     qd: str | Molecule,
     *ligands: str | Molecule | Mol,
@@ -286,6 +294,10 @@ def generate_psf2(
     ret_failed_lig: bool = False,
 ) -> PSFContainer:
     r"""Generate a :class:`PSFContainer` instance for **qd** with multiple different **ligands**.
+
+    Note
+    ----
+    Requires the optional RDKit package.
 
     Parameters
     ----------
@@ -448,14 +460,16 @@ class MoleculeWarning(RuntimeWarning):  # Molecule related warnings
     pass
 
 
-MolType = Union[Molecule, str, Mol]
-
 #: Map a :class:`type` object to a callable for creating :class:`rdkit.Chem.Mol` instances.
-MOL_MAPPING: Mapping[Type[MolType], Callable[[Any], Mol]] = MappingProxyType({
-    str: lambda mol: to_rdmol(from_smiles(mol)),
-    Molecule: to_rdmol,
-    Mol: lambda mol: mol
-})
+if TYPE_CHECKING or RDKIT_EX is None:
+    MolType = Union[Molecule, str, Mol]
+    MOL_MAPPING: MappingProxyType[Type[MolType], Callable[[Any], Mol]] = MappingProxyType({
+        str: lambda mol: to_rdmol(from_smiles(mol)),
+        Molecule: to_rdmol,
+        Mol: lambda mol: mol
+    })
+else:
+    MOL_MAPPING = MappingProxyType({})
 
 
 def _overlay(
@@ -486,6 +500,7 @@ def _items_sorted(dct: Mapping[KT, VT]) -> Iterator[Tuple[KT, VT]]:
     return iter(sorted(dct.items(), key=lambda kv: kv[1], reverse=True))
 
 
+@raise_if(RDKIT_EX)
 def _get_matches(mol: Molecule, ref: Mol) -> bool:
     """Check if the structures of **mol** and **ref** match."""
     try:
@@ -497,6 +512,7 @@ def _get_matches(mol: Molecule, ref: Mol) -> bool:
     return match_set == set(range(len(mol))) and len(match_set) == len(mol)
 
 
+@raise_if(RDKIT_EX)
 def _get_rddict(ligands: Iterable[str | Molecule | Mol]) -> Dict[Mol, int]:
     """Create an ordered dict with rdkit molecules and delta atom counts for :func:`generate_psf`."""  # noqa
     tmp_dct = {MOL_MAPPING[type(lig)](lig): 0 for lig in ligands}

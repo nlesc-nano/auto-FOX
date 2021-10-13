@@ -19,6 +19,7 @@ from nanoutils import delete_finally, Literal
 
 from FOX import MultiMolecule, example_xyz
 from FOX.io import lattice_from_cell
+from FOX.classes.multi_mol import ASE_EX
 
 PATH = Path('tests') / 'test_files'
 
@@ -534,6 +535,7 @@ class TestAtoms:
         (MOL_LATTICE_2D, {'masses': MOL_LATTICE_2D.mass}),
     ],
 )
+@pytest.mark.skipif(ASE_EX is not None, reason="Requires ASE")
 def test_ase(mol: MultiMolecule, kwargs: Mapping[str, Any]) -> None:
     """Test :meth:`MultiMolecule.as_ase` and :meth:`MultiMolecule.from_ase`."""
     ase_mols = mol.as_ase(**kwargs)

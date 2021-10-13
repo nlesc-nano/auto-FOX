@@ -1059,6 +1059,10 @@ class PSFContainer(AbstractDataClass, AbstractFileContainer):
                   copy_mol: bool = True) -> None:
         """Construct a .pdb file from this instance and **mol**.
 
+        Note
+        ----
+        Requires the optional RDKit package.
+
         Parameters
         ----------
         mol : :class:`plams.Molecule <scm.plams.mol.molecule.Molecule>`

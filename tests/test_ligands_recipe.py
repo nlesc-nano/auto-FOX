@@ -1,13 +1,21 @@
 """A module for testing :mod:`FOX.recipes.param`."""
 
+from __future__ import annotations
+
 import os
 from pathlib import Path
 
+import pytest
 import numpy as np
 from assertionlib import assertion
-from matplotlib.image import imread
-
 from FOX.recipes import get_best, overlay_descriptor, plot_descriptor
+
+try:
+    from matplotlib.image import imread
+except ImportError as ex:
+    MATPLOTLIB_EX: None | ImportError = ex
+else:
+    MATPLOTLIB_EX = None
 
 PATH = Path('tests') / 'test_files' / 'recipes'
 HDF5 = Path('tests') / 'test_files' / 'armc_test.hdf5'
@@ -39,6 +47,7 @@ def test_overlay_descriptor() -> None:
         np.testing.assert_allclose(rdf, ref)
 
 
+@pytest.mark.skipif(MATPLOTLIB_EX is not None, reason="Requires matplotlib")
 def test_plot_descriptor() -> None:
     """Test :func:`FOX.recipes.param.plot_descriptor`."""
     rdf = get_best(HDF5, name='rdf')

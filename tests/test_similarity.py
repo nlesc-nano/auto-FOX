@@ -16,6 +16,7 @@ from nanoutils import SetAttr
 import FOX
 from FOX import MultiMolecule, example_xyz
 from FOX.recipes import compare_trajectories, fps_reduce
+from FOX.recipes.similarity import CAT_EX
 
 if TYPE_CHECKING:
     import numpy.typing as npt
@@ -38,6 +39,7 @@ def rmsd(a: np.ndarray, axis: int | Sequence[int]) -> np.ndarray:
     return np.mean(a**2, axis=axis)**0.5
 
 
+@pytest.mark.skipif(CAT_EX is not None, reason="Requires CAT")
 class TestCompareTrajectories:
     """Tests for :func:`FOX.recipes.compare_trajectories`."""
 
