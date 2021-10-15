@@ -465,10 +465,10 @@ each containg the :attr:`func<pes.block.func>` and, optionally,
 
         .. admonition:: See Also
 
-            :func:`FOX.armc.mse_normalized`
+            :func:`FOX.armc.mse_normalized` & :func:`FOX.armc.mse_normalized_v2`
                 Return a normalized mean square error (MSE) over the flattened input.
 
-            :func:`FOX.armc.mse_normalized_weighted`
+            :func:`FOX.armc.mse_normalized_weighted` & :func:`FOX.armc.mse_normalized_weighted_v2`
                 Return a normalized mean square error (MSE) over the flattened subarrays of the input.
 
             :func:`FOX.armc.mse_normalized_max`
