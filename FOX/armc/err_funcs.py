@@ -7,6 +7,8 @@ Index
     mse_normalized
     mse_normalized_weighted
     mse_normalized_max
+    mse_normalized_v2
+    mse_normalized_weighted_v2
     default_error_func
 
 API
@@ -14,6 +16,8 @@ API
 .. autofunction:: mse_normalized
 .. autofunction:: mse_normalized_weighted
 .. autofunction:: mse_normalized_max
+.. autofunction:: mse_normalized_v2
+.. autofunction:: mse_normalized_weighted_v2
 .. data:: default_error_func
     :value: FOX.armc.mse_normalized
 
@@ -30,7 +34,13 @@ if TYPE_CHECKING:
     from numpy.typing import ArrayLike, NDArray
     from numpy import float64 as f8
 
-__all__ = ["mse_normalized", "mse_normalized_weighted", "default_error_func"]
+__all__ = [
+    "mse_normalized",
+    "mse_normalized_weighted",
+    "default_error_func",
+    "mse_normalized_v2",
+    "mse_normalized_weighted_v2",
+]
 
 
 @overload
@@ -83,6 +93,41 @@ def mse_normalized_max(qm: ArrayLike, mm: ArrayLike) -> f8:
     vector = _get_mse(qm, mm, axis=axes_qm_mm)
     vector /= np.abs(qm).sum(axis=axes_qm)
     return vector.max()
+
+
+def mse_normalized_v2(qm: ArrayLike, mm: ArrayLike) -> f8:
+    """Return a normalized mean square error (MSE) over the flattened input.
+
+    Normalize before squaring the error.
+
+    """  # noqa: E501
+    qm = np.asarray(qm, dtype=np.float64)
+    mm = np.asarray(mm, dtype=np.float64)
+
+    delta = np.abs(qm - mm)
+    delta /= np.abs(qm).sum()
+    return (delta**2).sum()
+
+
+def mse_normalized_weighted_v2(qm: ArrayLike, mm: ArrayLike) -> f8:
+    """Return a normalized mean square error (MSE) over the flattened subarrays of the input.
+
+    >1D array-likes are herein treated as stacks of flattened arrays.
+
+    Normalize before squaring the error.
+
+    """
+    qm = np.array(qm, dtype=np.float64, ndmin=1, copy=False)
+    mm = np.array(mm, dtype=np.float64, ndmin=1, copy=False)
+
+    axes_qm_mm = tuple(range(1, max(qm.ndim, mm.ndim)))
+    axes_qm = tuple(range(1, qm.ndim))
+    padding_qm = len(axes_qm) * (None,)
+
+    delta = np.abs(qm - mm)
+    delta /= np.abs(qm).sum(axis=axes_qm)[(..., *padding_qm)]
+    err_vec = np.sum(delta**2, axis=axes_qm_mm)
+    return (err_vec**2).sum() / err_vec.size
 
 
 default_error_func = mse_normalized
