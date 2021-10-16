@@ -3,21 +3,18 @@
 from __future__ import annotations
 
 import copy
-import types
 import pickle
-import inspect
 import weakref
-from typing import Callable, Any
+import inspect
+from typing import Callable
 from pathlib import Path
 
 import pytest
 import numpy as np
 from assertionlib import assertion
-from qmflows import cp2k_mm
 from qmflows.packages.cp2k_mm import CP2KMM_Result
 
 from FOX.properties import FromResult, get_pressure, get_bulk_modulus, get_attr
-from FOX.properties.pressure import get_pressure as _get_pressure
 
 # Fix for a precision issue in older numpy versions
 NP_VERSION = tuple(int(i) for i in np.__version__.split('.')[:2])
@@ -32,100 +29,110 @@ RESULT = CP2KMM_Result(
     work_dir=PATH / 'properties',
 )
 
-FROM_RESULT_DICT = {
-    get_pressure: PATH / 'pressure.npy',
-    get_bulk_modulus: PATH / 'bulk_modulus.npy',
-}
 
-GET_ATTR_TUP = (
-    'volume',
-    'lattice',
-    'coordinates',
-    'temperature',
-    'forces',
-)
-
-
-class _FromResultTest(FromResult):
-    def from_result(self, result, reduce=None, axis=None, **kwargs):
-        raise NotImplementedError
-
-
-class TestABC:
+class TestFromResultType:
     """Tests for :class:`FromResult`."""
 
-    ATTR_DICT = {
-        '__doc__': (str, type(None)),
-        '__name__': str,
-        '__qualname__': str,
-        '__module__': str,
-        '__annotations__': types.MappingProxyType,
-        '__signature__': (inspect.Signature, type(None)),
-        '__text_signature__': (str, type(None)),
-        '__closure__': (tuple, type(None)),
-        '__defaults__': (tuple, type(None)),
-        '__globals__': types.MappingProxyType,
-        '__kwdefaults__': types.MappingProxyType,
-        '__call__': Callable,
-    }
-    FUNC_TUP = (_get_pressure, len, len.__call__, cp2k_mm, lambda n: n)
+    @pytest.mark.parametrize("func", [
+        lambda i: pickle.loads(pickle.dumps(i)),
+        lambda i: weakref.ref(i)(),
+        copy.copy,
+        copy.deepcopy,
+    ], ids=["pickle", "weakref", "copy", "deepcopy"])
+    def test_eq(self, func: Callable[[FromResult], FromResult]) -> None:
+        obj = func(get_pressure)
+        assertion.eq(obj, get_pressure)
+        assertion.is_(obj, get_pressure)
+        assertion.ne(obj, 1)
+        assertion.ne(obj, get_bulk_modulus)
 
-    @pytest.mark.parametrize("name,typ", ATTR_DICT.items(), ids=ATTR_DICT.keys())
-    @pytest.mark.parametrize("func", FUNC_TUP)
-    def test_attr(self, func: Callable[..., Any], name: str, typ: type | tuple[type, ...]) -> None:
-        obj = _FromResultTest(func, func.__name__)
-        assertion.isinstance(getattr(obj, name), typ)
-
-    @pytest.mark.parametrize("func", FUNC_TUP)
-    def test_attr2(self, func: Callable[..., Any]) -> None:
-        obj = _FromResultTest(func, func.__name__)
-        if hasattr(func, '__get__'):
-            assertion.isinstance(obj.__get__, types.MethodWrapperType)
-        if hasattr(func, '__code__'):
-            assertion.isinstance(obj.__code__, types.CodeType)
-
-    def test_misc(self) -> None:
+    def test_hash(self) -> None:
         assertion.assert_(hash, get_pressure)
-        assertion.eq(get_pressure, get_pressure)
-        assertion.ne(get_pressure, get_bulk_modulus)
 
-        assertion.eq(get_pressure, copy.deepcopy(get_pressure))
-        assertion.eq(get_pressure, pickle.loads(pickle.dumps(get_pressure)))
-        assertion.eq(get_pressure, weakref.ref(get_pressure)())
+    def test_dir(self) -> None:
+        ref = object.__dir__(get_pressure) + dir(get_pressure.__call__)
+        ref_sorted = sorted(set(ref))
 
+        assertion.eq(ref_sorted, dir(get_pressure))
+        for name in ref_sorted:
+            assertion.hasattr(get_pressure, name)
 
-@pytest.mark.xfail(NP_15, reason="Precision issues in numpy 1.15")
-@pytest.mark.parametrize('func', FROM_RESULT_DICT.keys())
-class TestFromResult:
-    def test_no_reduce(self, func: FromResult) -> None:
-        prop = func.from_result(RESULT)
-        ref = np.load(FROM_RESULT_DICT[func])
-        np.testing.assert_allclose(prop, ref)
+    @pytest.mark.parametrize(
+        "name", ["__call__", "__code__", "bob", "__module__", "__annotations__"]
+    )
+    def test_settatr(self, name: str) -> None:
+        with pytest.raises(AttributeError):
+            setattr(get_pressure, name, None)
 
-    def test_reduce_mean(self, func: FromResult) -> None:
-        prop = func.from_result(RESULT, reduce='mean', axis=0)
-        ref = np.load(FROM_RESULT_DICT[func]).mean(axis=0)
-        np.testing.assert_allclose(prop, ref)
+    @pytest.mark.parametrize(
+        "name", ["__call__", "__code__", "bob", "__module__", "__annotations__"]
+    )
+    def test_delattr(self, name: str) -> None:
+        with pytest.raises(AttributeError):
+            delattr(get_pressure, name)
 
-    def test_reduce_norm(self, func: FromResult) -> None:
-        prop = func.from_result(RESULT, reduce=np.linalg.norm)
-        ref = np.linalg.norm(np.load(FROM_RESULT_DICT[func]))
-        np.testing.assert_allclose(prop, ref)
+    def test_getattr(self) -> None:
+        assertion.truth(get_pressure.__call__)
+        assertion.is_(get_pressure.__code__, get_pressure.__call__.__code__)
+        with pytest.raises(AttributeError):
+            get_pressure.bob
 
+    @pytest.mark.parametrize("func", [repr, str], ids=["repr", "str"])
+    def test_repr(self, func: Callable[[FromResult], str]) -> None:
+        ref = (
+            "<FromResult instance FOX.properties.pressure.get_pressure("
+            "forces: 'ArrayLike', "
+            "coords: 'ArrayLike', "
+            "volume: 'ArrayLike', "
+            "temp: 'float' = 298.15, "
+            "*, "
+            "forces_unit: 'str' = 'ha/bohr', "
+            "coords_unit: 'str' = 'bohr', "
+            "volume_unit: 'str' = 'bohr', "
+            "return_unit: 'str' = 'ha/bohr^3'"
+            ") -> 'NDArray[f8]'>"
+        )
+        assertion.str_eq(get_pressure, ref, str_converter=func)
 
-@pytest.mark.parametrize('name', GET_ATTR_TUP)
-class TestGetAttr:
-    def test_no_reduce(self, name: str) -> None:
-        prop = get_attr(RESULT, name)
-        ref = np.load(PATH / f'{name}.npy')
-        np.testing.assert_allclose(prop, ref)
+    def test_signature(self) -> None:
+        sgn1 = inspect.signature(get_pressure)
+        sgn2 = inspect.signature(get_pressure.__call__)
+        assertion.eq(sgn1, sgn2)
 
-    def test_reduce_mean(self, name: str) -> None:
-        prop = get_attr(RESULT, name, reduce='mean', axis=0)
-        ref = np.load(PATH / f'{name}.npy').mean(axis=0)
-        np.testing.assert_allclose(prop, ref)
+    @pytest.mark.xfail(NP_15, reason="Precision issues in numpy 1.15")
+    @pytest.mark.parametrize('func,ref', [
+        (get_pressure, np.load(PATH / 'pressure.npy')),
+        (get_bulk_modulus, np.load(PATH / 'bulk_modulus.npy')),
+    ], ids=["get_pressure", "get_bulk_modulus"])
+    class TestFromResult:
+        def test_no_reduce(self, func: FromResult, ref: np.ndarray) -> None:
+            prop = func.from_result(RESULT)
+            np.testing.assert_allclose(prop, ref)
 
-    def test_reduce_norm(self, name: str) -> None:
-        prop = get_attr(RESULT, name, reduce=np.linalg.norm)
-        ref = np.linalg.norm(np.load(PATH / f'{name}.npy'))
-        np.testing.assert_allclose(prop, ref)
+        def test_reduce_mean(self, func: FromResult, ref: np.ndarray) -> None:
+            prop = func.from_result(RESULT, reduce='mean', axis=0)
+            np.testing.assert_allclose(prop, ref.mean(axis=0))
+
+        def test_reduce_norm(self, func: FromResult, ref: np.ndarray) -> None:
+            prop = func.from_result(RESULT, reduce=np.linalg.norm)
+            np.testing.assert_allclose(prop, np.linalg.norm(ref))
+
+    @pytest.mark.parametrize('name,ref', [
+        ('volume', np.load(PATH / 'volume.npy')),
+        ('lattice', np.load(PATH / 'lattice.npy')),
+        ('coordinates', np.load(PATH / 'coordinates.npy')),
+        ('temperature', np.load(PATH / 'temperature.npy')),
+        ('forces', np.load(PATH / 'forces.npy')),
+    ], ids=['volume', 'lattice', 'coordinates', 'temperature', 'forces'])
+    class TestGetAttr:
+        def test_no_reduce(self, name: str, ref: np.ndarray) -> None:
+            prop = get_attr(RESULT, name)
+            np.testing.assert_allclose(prop, ref)
+
+        def test_reduce_mean(self, name: str, ref: np.ndarray) -> None:
+            prop = get_attr(RESULT, name, reduce='mean', axis=0)
+            np.testing.assert_allclose(prop, ref.mean(axis=0))
+
+        def test_reduce_norm(self, name: str, ref: np.ndarray) -> None:
+            prop = get_attr(RESULT, name, reduce=np.linalg.norm)
+            np.testing.assert_allclose(prop, np.linalg.norm(ref))
