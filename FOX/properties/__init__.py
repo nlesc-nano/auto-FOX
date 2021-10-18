@@ -71,81 +71,40 @@ Index
    :widths: 50 50
    :header-rows: 0
 
-   * - :class:`FromResult` (func, name[, module, doc])
-     - A class for wrapping :class:`~collections.abc.Callable` objects.
-   * - :func:`get_attr <get_attr>` (obj, name[, default, reduce, axis])
-     - :func:`gettattr` with support for keyword argument.
-   * - :func:`call_method <call_method>` (obj, name, \*args[, reduce, axis])
-     - Call the **name** method of **obj**.
    * - :func:`get_pressure <get_pressure>` (forces, coords, volume[...])
      - Calculate the pressure from the passed **forces**.
    * - :func:`get_bulk_modulus <get_bulk_modulus>` (pressure, volume[...])
      - Calculate the bulk modulus via differentiation of **pressure** w.r.t. **volume**.
+   * - :func:`get_attr <get_attr>` (obj, name[, default, reduce, axis])
+     - :func:`getattr` with support for additional keyword argument.
+   * - :func:`call_method <call_method>` (obj, name, \*args[, reduce, axis])
+     - Call the **name** method of **obj**.
+   * - :class:`FromResult` (func[, result_func])
+     - A class for wrapping :data:`~types.FunctionType` objects.
 
 API
 ---
+.. autofunction:: get_pressure
+.. autofunction:: get_bulk_modulus
+.. autofunction:: get_attr
+.. autofunction:: call_method
 .. autoclass:: FromResult(func, name, module=None, doc=None)
-    :members: __call__, from_result
 
     .. data:: REDUCTION_NAMES
-        :annotation: : Mapping[str, Callable[[np.ndarray], np.float64]]
-        :value: ...
 
         A mapping that maps :meth:`from_result` aliases to callbacks.
 
         In addition to the examples below, all reducable ufuncs
         from :ref:`numpy <numpy:ufuncs>` and :mod:`scipy.special` are available.
 
-        .. code-block:: python
-
-            >>> from types import MappingProxyType
-            >>> import numpy as np
-            >>> import scipy.special
-
-            >>> REDUCTION_NAMES = MappingProxyType({
-            ...     'min': np.min,
-            ...     'max': np.max,
-            ...     'mean': np.mean,
-            ...     'sum': np.sum,
-            ...     'product': np.product,
-            ...     'var': np.var,
-            ...     'std': np.std,
-            ...     'ptp': np.ptp,
-            ...     'norm': np.linalg.norm,
-            ...     'argmin': np.argmin,
-            ...     'argmax': np.argmax,
-            ...     'all': np.all,
-            ...     'any': np.any,
-            ...     'add': np.add.reduce,
-            ...     'eval_legendre': scipy.special.eval_legendre.reduce,
-            ...     ...
-            ... })
-
-.. autofunction:: get_attr
-.. autofunction:: call_method
-.. autofunction:: get_pressure
-.. autofunction:: get_bulk_modulus
+        :type: :class:`types.MappingProxyType[str, Callable[[np.ndarray], np.float64]] <types.MappingProxyType>`
 
 """
 
 # flake8: noqa: E402
 
 from .base import FromResult, get_attr, call_method
-
-from .pressure import get_pressure as _get_pressure, GetPressure
-get_pressure = GetPressure(
-    _get_pressure,
-    name='get_pressure',
-    module='FOX.properties',
-)
-del _get_pressure, GetPressure
-
-from .bulk_modulus import get_bulk_modulus as _get_bulk_modulus, GetBulkMod
-get_bulk_modulus = GetBulkMod(
-    _get_bulk_modulus,
-    name='get_bulk_modulus',
-    module='FOX.properties',
-)
-del _get_bulk_modulus, GetBulkMod
+from .pressure import get_pressure
+from .bulk_modulus import get_bulk_modulus
 
 __all__ = ['FromResult', 'get_attr', 'call_method', 'get_pressure', 'get_bulk_modulus']
