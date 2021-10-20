@@ -434,6 +434,9 @@ class PackageManager(PackageManagerABC):
         mol_list = []
         results_list = list(results)
         for result in results_list:
+            if result.status in {'failed', 'crashed'}:
+                return None, None
+
             try:
                 lattice: None | np.ndarray[Any, np.dtype[np.float64]] = result.lattice
                 assert lattice is not None
