@@ -29,6 +29,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, overload
 import numpy as np
+import pandas as pd
 
 if TYPE_CHECKING:
     from numpy.typing import ArrayLike, NDArray
@@ -67,8 +68,15 @@ def mse_normalized_weighted(qm: ArrayLike, mm: ArrayLike) -> f8:
     >1D array-likes are herein treated as stacks of flattened arrays.
 
     """
-    qm = np.array(qm, dtype=np.float64, ndmin=1, copy=False)
-    mm = np.array(mm, dtype=np.float64, ndmin=1, copy=False)
+    if isinstance(qm, pd.DataFrame):
+        qm = np.array(qm, dtype=np.float64, ndmin=1, copy=False).T
+    else:
+        qm = np.array(qm, dtype=np.float64, ndmin=1, copy=False)
+
+    if isinstance(mm, pd.DataFrame):
+        mm = np.array(mm, dtype=np.float64, ndmin=1, copy=False).T
+    else:
+        mm = np.array(mm, dtype=np.float64, ndmin=1, copy=False)
 
     axes_qm = tuple(range(1, qm.ndim))
     axes_qm_mm = tuple(range(1, max(qm.ndim, mm.ndim)))
@@ -84,8 +92,15 @@ def mse_normalized_max(qm: ArrayLike, mm: ArrayLike) -> f8:
     >1D array-likes are herein treated as stacks of flattened arrays.
 
     """  # noqa: E501
-    qm = np.array(qm, dtype=np.float64, ndmin=1, copy=False)
-    mm = np.array(mm, dtype=np.float64, ndmin=1, copy=False)
+    if isinstance(qm, pd.DataFrame):
+        qm = np.array(qm, dtype=np.float64, ndmin=1, copy=False).T
+    else:
+        qm = np.array(qm, dtype=np.float64, ndmin=1, copy=False)
+
+    if isinstance(mm, pd.DataFrame):
+        mm = np.array(mm, dtype=np.float64, ndmin=1, copy=False).T
+    else:
+        mm = np.array(mm, dtype=np.float64, ndmin=1, copy=False)
 
     axes_qm = tuple(range(1, qm.ndim))
     axes_qm_mm = tuple(range(1, max(qm.ndim, mm.ndim)))
@@ -100,7 +115,7 @@ def mse_normalized_v2(qm: ArrayLike, mm: ArrayLike) -> f8:
 
     Normalize before squaring the error.
 
-    """  # noqa: E501
+    """
     qm = np.asarray(qm, dtype=np.float64)
     mm = np.asarray(mm, dtype=np.float64)
 
@@ -117,8 +132,15 @@ def mse_normalized_weighted_v2(qm: ArrayLike, mm: ArrayLike) -> f8:
     Normalize before squaring the error.
 
     """
-    qm = np.array(qm, dtype=np.float64, ndmin=1, copy=False)
-    mm = np.array(mm, dtype=np.float64, ndmin=1, copy=False)
+    if isinstance(qm, pd.DataFrame):
+        qm = np.array(qm, dtype=np.float64, ndmin=1, copy=False).T
+    else:
+        qm = np.array(qm, dtype=np.float64, ndmin=1, copy=False)
+
+    if isinstance(mm, pd.DataFrame):
+        mm = np.array(mm, dtype=np.float64, ndmin=1, copy=False).T
+    else:
+        mm = np.array(mm, dtype=np.float64, ndmin=1, copy=False)
 
     axes_qm_mm = tuple(range(1, max(qm.ndim, mm.ndim)))
     axes_qm = tuple(range(1, qm.ndim))
