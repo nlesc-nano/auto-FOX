@@ -18,6 +18,8 @@ API
 .. autofunction:: mse_normalized_max
 .. autofunction:: mse_normalized_v2
 .. autofunction:: mse_normalized_weighted_v2
+.. autofunction:: err_normalized
+.. autofunction:: err_normalized_weighted
 .. data:: default_error_func
     :value: FOX.armc.mse_normalized
 
@@ -41,6 +43,8 @@ __all__ = [
     "default_error_func",
     "mse_normalized_v2",
     "mse_normalized_weighted_v2",
+    "err_normalized",
+    "err_normalized_weighted",
 ]
 
 
@@ -149,6 +153,46 @@ def mse_normalized_weighted_v2(qm: ArrayLike, mm: ArrayLike) -> f8:
     delta = np.abs(qm - mm)
     delta /= np.abs(qm).sum(axis=axes_qm)[(..., *padding_qm)]
     err_vec = np.sum(delta**2, axis=axes_qm_mm)
+    return (err_vec**2).sum() / err_vec.size
+
+
+def err_normalized(qm: ArrayLike, mm: ArrayLike) -> f8:
+    """Return a normalized wrror over the flattened input.
+
+    Normalize before taking the exponent - 1 of the error.
+
+    """
+    qm = np.asarray(qm, dtype=np.float64)
+    mm = np.asarray(mm, dtype=np.float64)
+
+    delta = np.abs(qm - mm)
+    delta /= np.abs(qm).sum()
+    return delta.sum()
+
+
+def err_normalized_weighted(qm: ArrayLike, mm: ArrayLike) -> f8:
+    """Return a normalized error over the flattened subarrays of the input.
+
+    >1D array-likes are herein treated as stacks of flattened arrays.
+
+    """
+    if isinstance(qm, pd.DataFrame):
+        qm = np.asarray(qm, dtype=np.float64).T
+    else:
+        qm = np.array(qm, dtype=np.float64, ndmin=1, copy=False)
+
+    if isinstance(mm, pd.DataFrame):
+        mm = np.asarray(mm, dtype=np.float64).T
+    else:
+        mm = np.array(mm, dtype=np.float64, ndmin=1, copy=False)
+
+    axes_qm_mm = tuple(range(1, max(qm.ndim, mm.ndim)))
+    axes_qm = tuple(range(1, qm.ndim))
+    padding_qm = len(axes_qm) * (None,)
+
+    delta = np.abs(qm - mm)
+    delta /= np.abs(qm).sum(axis=axes_qm)[(..., *padding_qm)]
+    err_vec = delta.sum(axis=axes_qm_mm)
     return (err_vec**2).sum() / err_vec.size
 
 

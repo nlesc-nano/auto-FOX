@@ -16,6 +16,8 @@ from .err_funcs import (
     mse_normalized_max,
     mse_normalized_v2,
     mse_normalized_weighted_v2,
+    err_normalized,
+    err_normalized_weighted,
 )
 
 __all__ = [
@@ -27,5 +29,5 @@ __all__ = [
     'PackageManager', 'PackageManagerABC',
     'ParamMapping', 'ParamMappingABC',
     'default_error_func', 'mse_normalized', 'mse_normalized_weighted', 'mse_normalized_max',
-    'mse_normalized_v2', 'mse_normalized_weighted_v2',
+    'mse_normalized_v2', 'mse_normalized_weighted_v2', 'err_normalized', 'err_normalized_weighted',
 ]
