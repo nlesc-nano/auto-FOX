@@ -124,6 +124,7 @@ def dict_to_armc(input_dict: MainMapping) -> Tuple[MonteCarloABC, RunDict]:
     param._set_net_charge()
     validate_charge(param._net_charge, tolerance=validation_dict['charge_tolerance'])
     validate_constraints(param, enforce_constraints=validation_dict['enforce_constraints'])
+    param._net_charge_to_integer()
 
     mc.param.param.sort_index(inplace=True)
     mc.param.param_old.sort_index(inplace=True)

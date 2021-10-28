@@ -52,6 +52,7 @@ def wrap_plams_logger(logfile: Union[None, str, os.PathLike] = None,
 
     # Modify the plams logger
     config.log.time = False
+    config.log.date = False
     config.log.file = 0
 
     # Replace the plams logger with a proper logging.Logger instance
