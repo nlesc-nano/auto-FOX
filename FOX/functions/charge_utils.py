@@ -312,6 +312,6 @@ def _check_net_charge(
         return
 
     raise ChargeError(
-        f"Failed to conserve the net charge: ref = {net_charge:.4f}); {net_charge_new:.4f} != ref",
+        f"Failed to conserve the net charge: ref = {net_charge:.4f}; {net_charge_new:.4f} != ref",
         reference=net_charge, value=net_charge_new, tol=tolerance
     )
