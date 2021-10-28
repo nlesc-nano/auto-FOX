@@ -25,7 +25,7 @@ from itertools import (
 )
 from typing import (
     Sequence, Optional, Union, List, Hashable, Callable, Iterable, Dict, Tuple, Any, Mapping,
-    overload, TypeVar, Type, Container, cast, TYPE_CHECKING, Sized, Iterator
+    overload, TypeVar, Type, Container, cast, TYPE_CHECKING, Sized, Iterator, NoReturn
 )
 
 import numpy as np
@@ -1217,158 +1217,36 @@ class MultiMolecule(_MultiMolecule):
 
     """#############################  Determining shell structures  ##########################"""
 
-    def init_shell_search(self, mol_subset: MolSubset = None,
-                          atom_subset: AtomSubset = None,
-                          rdf_cutoff: float = 0.5
-                          ) -> Tuple[pd.DataFrame, pd.Series, pd.DataFrame]:
+    def init_shell_search(
+        self,
+        mol_subset: MolSubset = None,
+        atom_subset: AtomSubset = None,
+        rdf_cutoff: float = 0.5
+    ) -> NoReturn:
         """Calculate and return properties which can help determining shell structures.
 
-        The following two properties are calculated and returned:
-
-        * The mean distance (per atom) with respect to the center of mass (*i.e.* a modified RMSF).
-        * A series mapping abritrary atomic indices in the RMSF to the actual atomic indices.
-        * The radial distribution function (RDF) with respect to the center of mass.
-
-        Parameters
-        ----------
-        mol_subset : :class:`slice`, optional
-            Perform the calculation on a subset of molecules in this instance, as
-            determined by their moleculair index.
-            Include all :math:`m` molecules in this instance if :data:`None`.
-        atom_subset : :class:`Sequence[str] <collections.abc.Sequence>`, optional
-            Perform the calculation on a subset of atoms in this instance, as
-            determined by their atomic index or atomic symbol.
-            Include all :math:`n` atoms per molecule in this instance if :data:`None`.
-        rdf_cutoff : :class:`float`
-            Remove all values in the RDF below this value (Angstrom).
-            Usefull for dealing with divergence as the "inter-atomic" distance approaches 0.0 A.
-
-        Returns
+        Warning
         -------
-        :class:`pd.DataFrame <pandas.DataFrame>`, :class:`pd.Series <pandas.Series>` and :class:`pd.DataFrame <pandas.DataFrame>`
-            Returns the following items:
-                * A dataframe holding the mean distance of all atoms with respect the to center
-                  of mass.
-
-                * A series mapping the indices from 1. to the actual atomic indices.
-
-                * A dataframe holding the RDF with respect to the center of mass.
+        Depercated.
 
         """  # noqa: E501
-        def _get_mean_dist(mol_cp, at):
-            ret = np.linalg.norm(mol_cp[:, mol_cp.atoms[at]], axis=2).mean(axis=0)
-            at_idx = np.argsort(ret)
-            return at_idx, sorted(ret)
-
-        # Prepare slices
-        i = self._get_mol_subset(mol_subset)
-        at_subset = atom_subset or tuple(self.atoms.keys())
-
-        # Calculate the mean distance (per atom) with respect to the center of mass
-        # Conceptually similar an RMSF, the "fluctuation" being with respect to the center of mass
-        mol_cp = self.copy()[i]
-        mol_cp -= mol_cp.get_center_of_mass()[:, None, :]
-        at_idx, dist_mean = zip(*[_get_mean_dist(mol_cp, at) for at in at_subset])
-
-        # Create Series containing the actual atomic indices
-        at_idx = list(chain.from_iterable(at_idx))
-        idx_series = pd.Series(np.arange(0, self.shape[1]), name='Actual atomic index')
-        idx_series.loc[0:len(at_idx)-1] = at_idx
-        idx_series.index.name = 'Arbitrary atomic index'
-
-        # Cast the modified RMSF results in a dataframe
-        index = np.arange(0, self.shape[1])
-        kwargs = {'loop': True, 'atom_subset': at_subset}
-        columns, data = mol_cp._get_rmsf_columns(dist_mean, index, **kwargs)
-        rmsf = pd.DataFrame(data, columns=columns, index=index)
-        rmsf.columns.name = 'Distance from origin\n  /  Ångström'
-        rmsf.index.name = 'Arbitrary atomic index'
-
-        # Calculate the RDF with respect to the center of mass
-        at_dummy = np.zeros_like(mol_cp[:, 0, :])[:, None, :]
-        mol_cp = MultiMolecule(np.hstack((mol_cp, at_dummy)), atoms=mol_cp.atoms)
-        mol_cp._atoms['origin'] = np.array([mol_cp.shape[1] - 1], dtype=np.intp)
-        at_subset2 = ('origin',) + at_subset
-        with np.errstate(divide='ignore', invalid='ignore'):
-            rdf = mol_cp.init_rdf(atom_subset=at_subset2)
-        del rdf['origin origin']
-        rdf = rdf.loc[rdf.index >= rdf_cutoff, [i for i in rdf.columns if 'origin' in i]]
-
-        return rmsf, idx_series, rdf
+        cls = type(self)
+        raise DeprecationWarning(f"`{cls.__name__}.init_shell_search` is deprecated")
 
     @staticmethod
-    def get_at_idx(rmsf: pd.DataFrame,
-                   idx_series: pd.Series,
-                   dist_dict: Dict[str, List[float]]) -> Dict[str, List[int]]:
+    def get_at_idx(
+        rmsf: pd.DataFrame,
+        idx_series: pd.Series,
+        dist_dict: Dict[str, List[float]],
+    ) -> NoReturn:
         """Create subsets of atomic indices.
 
-        The subset is created (using **rmsf** and **idx_series**) based on
-        distance criteria in **dist_dict**.
-
-        For example, ``dist_dict = {'Cd': [3.0, 6.5]}`` will create and return a dictionary with
-        three keys: One for all atoms whose RMSF is smaller than 3.0, one where the RMSF is
-        between 3.0 and 6.5, and finally one where the RMSF is larger than 6.5.
-
-        Examples
-        --------
-        .. code:: python
-
-            >>> dist_dict = {'Cd': [3.0, 6.5]}
-            >>> idx_series = pd.Series(np.arange(12))
-            >>> rmsf = pd.DataFrame({'Cd': np.arange(12, dtype=float)})
-            >>> get_at_idx(rmsf, idx_series, dist_dict)
-
-            {'Cd_1': [0, 1, 2],
-             'Cd_2': [3, 4, 5],
-             'Cd_3': [7, 8, 9, 10, 11]
-            }
-
-        Parameters
-        ----------
-        rmsf : :class:`pd.DataFrame <pandas.DataFrame>`
-            A dataframe holding the results of an RMSF calculation.
-        idx_series : :class:`pd.DataFrame <pandas.Series>`
-            A series mapping the indices from **rmsf** to actual atomic indices.
-        dist_dict : :class:`dict[str, list[float]] <dict>`
-            A dictionary with atomic symbols (see **rmsf.columns**)
-            and a list of interatomic distances.
-
-        Returns
+        Warning
         -------
-        :class:`dict[str, list[int]] <dict>`
-            A dictionary with atomic symbols as keys, and matching atomic indices as values.
-
-        Raises
-        ------
-        KeyError
-            Raised if a key in **dist_dict** is absent from **rmsf**.
+        Depercated.
 
         """
-        # Double check if all keys in **dist_dict** are available in **rmsf.columns**
-        for key in dist_dict:
-            if key not in rmsf:
-                err = "'{}' was found in 'dist_dict' yet is absent from 'rmsf'"
-                raise KeyError(err.format(key))
-
-        ret = {}
-        for key, value in rmsf.items():
-            try:
-                dist_range = sorted(dist_dict[key])
-            except KeyError:
-                dist_range = [np.inf]
-            dist_min = 0.0
-            name = key + '_{:d}'
-
-            for i, dist_max in enumerate(dist_range, 1):
-                idx = rmsf[(value >= dist_min) & (value < dist_max)].index
-                if idx.any():
-                    ret[name.format(i)] = sorted(idx_series[idx].values.tolist())
-                dist_min = dist_max
-
-            idx = rmsf[(rmsf[key] > dist_max)].index
-            if idx.any():
-                ret[name.format(i+1)] = sorted(idx_series[idx].values.tolist())
-        return ret
+        raise DeprecationWarning(f"`MultiMolecule.get_at_idx` is deprecated")
 
     """#############################  Radial Distribution Functions  ##########################"""
 
