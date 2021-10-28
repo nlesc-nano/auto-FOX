@@ -200,14 +200,12 @@ def test_vacf():
 class TestRDF:
     """Test :meth:`.MultiMolecule.init_rdf`."""
 
-    @pytest.mark.parametrize(
-        "kwargs,filename",
-        [
-            ({'atom_subset': ('Cd', 'Se', 'O')}, 'rdf.npy'),
-            ({'mol_subset': np.s_[::10]}, 'rdf_10.npy'),
-            ({'mol_subset': np.s_[::100]}, 'rdf_100.npy')
-        ]
-    )
+    @pytest.mark.parametrize("kwargs,filename", [
+        ({'atom_subset': ('Cd', 'Se', 'O')}, 'rdf.npy'),
+        ({'mol_subset': np.s_[::10]}, 'rdf_10.npy'),
+        ({'mol_subset': np.s_[::100]}, 'rdf_100.npy'),
+        ({"atom_pairs": [("Cd", "Se")]}, 'rdf_atom_pairs.npy'),
+    ])
     def test_passes(self, kwargs: Mapping[str, Any], filename: str) -> None:
         rdf = MOL.init_rdf(**kwargs)
         ref = rdf.copy()
@@ -233,13 +231,12 @@ class TestRDF:
 
         np.testing.assert_allclose(rdf, ref)
 
-    @pytest.mark.parametrize(
-        "mol,kwargs,exc",
-        [
-            (MOL_LATTICE_3D, {"periodic": "bob"}, ValueError),
-            (MOL, {"periodic": "xyz"}, TypeError),
-        ]
-    )
+    @pytest.mark.parametrize("mol,kwargs,exc", [
+        (MOL_LATTICE_3D, {"periodic": "bob"}, ValueError),
+        (MOL, {"periodic": "xyz"}, TypeError),
+        (MOL, {"atom_subset": "Cd", "atom_pairs": [("Cd", "Cd")]}, TypeError),
+        (MOL, {"atom_pairs": [("Cd", "Bob")]}, ValueError),
+    ])
     def test_raises(
         self, mol: MultiMolecule, kwargs: Mapping[str, Any], exc: Type[Exception]
     ) -> None:
@@ -298,6 +295,7 @@ class TestADF:
         "name,mol,kwargs",
         [
             ("adf_weighted", MOL, {"atom_subset": ("Cd", "Se")}),
+            ("adf_atom_pairs", MOL, {"atom_pairs": [("Cd", "Se", "Cd")]}),
             ("adf", MOL, {"atom_subset": ("Cd", "Se"), "weight": None}),
             ("adf_periodic_2d", MOL_LATTICE_2D, {"atom_subset": ("Pb",), "periodic": "xyz"}),
             ("adf_periodic_3d", MOL_LATTICE_3D, {"atom_subset": ("Pb",), "periodic": "xy"}),
@@ -308,7 +306,7 @@ class TestADF:
             ("adf_periodic_3d_inf", MOL_LATTICE_3D,
              {"atom_subset": ("Pb",), "periodic": "xy", "r_max": np.inf}),
         ],
-        ids=["adf_weighted", "adf", "adf_periodic_2d", "adf_periodic_3d",
+        ids=["adf_weighted", "adf_atom_pairs", "adf", "adf_periodic_2d", "adf_periodic_3d",
              "adf_2d_inf", "adf_3d_inf", "adf_periodic_2d_inf", "adf_periodic_3d_inf"],
     )
     def test_passes(self, name: str, mol: MultiMolecule, kwargs: Mapping[str, Any]) -> None:
@@ -316,13 +314,13 @@ class TestADF:
         ref = np.load(PATH / f"{name}.npy")
         np.testing.assert_allclose(adf, ref)
 
+    @pytest.mark.parametrize("kwargs,exc", [
+        ({"periodic": "bob"}, ValueError),
+        ({"atom_subset": "Cd", "atom_pairs": [("Cd", "Cd", "Cd")]}, TypeError),
+    ], ids=["periodic", "mutually_exclusive"])
     @pytest.mark.parametrize(
-        "kwargs,exc",
-        [
-            ({"periodic": "bob"}, ValueError),
-        ]
+        "mol", [MOL_LATTICE_2D, MOL_LATTICE_3D], ids=["lattice_2d", "lattice_3d"]
     )
-    @pytest.mark.parametrize("mol", [MOL_LATTICE_2D, MOL_LATTICE_3D])
     def test_raises(
         self, mol: MultiMolecule, kwargs: Mapping[str, Any], exc: Type[Exception]
     ) -> None:

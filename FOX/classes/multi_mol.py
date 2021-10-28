@@ -87,6 +87,30 @@ class _GetNone:
         return None
 
 
+def _parse_atom_pairs(
+    mol: MultiMolecule,
+    atom_pairs: Iterable[tuple[str, str]],
+) -> dict[str, list[npt.NDArray[np.intp]]]:
+    """Helper function for translating atom-pairs into a dict of indice-array-pairs."""
+    pair_dict = {}
+    for atoms in atom_pairs:
+        key = " ".join(atoms)
+
+        idx_list = []
+        try:
+            for at in atoms:
+                idx = mol.atoms.get(at)
+                if idx is None:
+                    super_at, slc = mol.atoms_alias[at]
+                    idx = mol.atoms[super_at][slc]
+                idx_list.append(idx)
+        except KeyError as ex:
+            raise ValueError(f"Unknown atom type: {ex}") from None
+
+        pair_dict[key] = idx_list
+    return pair_dict
+
+
 class MultiMolecule(_MultiMolecule):
     """A class designed for handling a and manipulating large numbers of molecules.
 
@@ -1246,7 +1270,7 @@ class MultiMolecule(_MultiMolecule):
         Depercated.
 
         """
-        raise DeprecationWarning(f"`MultiMolecule.get_at_idx` is deprecated")
+        raise DeprecationWarning("`MultiMolecule.get_at_idx` is deprecated")
 
     """#############################  Radial Distribution Functions  ##########################"""
 
@@ -1258,6 +1282,7 @@ class MultiMolecule(_MultiMolecule):
         dr: float = 0.05,
         r_max: float = 12.0,
         periodic: None | Sequence[Literal["x", "y", "z"]] | Sequence[Literal[0, 1, 2]] = None,
+        atom_pairs: None | Iterable[tuple[str, str]] = None,
     ) -> pd.DataFrame:
         """Initialize the calculation of radial distribution functions (RDFs).
 
@@ -1283,6 +1308,9 @@ class MultiMolecule(_MultiMolecule):
             If specified, correct for the systems periodicity if
             :attr:`self.lattice is not None <MultiMolecule.lattice>`.
             Accepts ``"x"``, ``"y"`` and/or ``"z"``.
+        atom_pairs : :class:`Iterable[tuple[str, str]] <collections.abc.Iterable>`
+            An explicit list of atom-pairs for the to-be calculated distances.
+            Note that **atom_pairs** and **atom_subset** are mutually exclusive.
 
         Returns
         -------
@@ -1293,14 +1321,18 @@ class MultiMolecule(_MultiMolecule):
             Radii are used as index.
 
         """
-        # If **atom_subset** is None: extract atomic symbols from they keys of **self.atoms**
-        if atom_subset is not None:
-            atom_pairs = self.get_pair_dict(atom_subset, r=2)
+        if atom_subset is not None and atom_pairs is not None:
+            raise TypeError("`atom_subset` and `atom_pairs` are mutually exclusive")
+        elif atom_pairs is not None:
+            pair_dict = _parse_atom_pairs(self, atom_pairs)
+        elif atom_subset is not None:
+            pair_dict = self.get_pair_dict(atom_subset, r=2)
         else:
-            atom_pairs = self.get_pair_dict(sorted(self.atoms, key=str), r=2)
+            # If **atom_subset** is None: extract atomic symbols from they keys of **self.atoms**
+            pair_dict = self.get_pair_dict(sorted(self.atoms, key=str), r=2)
 
         # Construct an empty dataframe with appropiate dimensions, indices and keys
-        df = get_rdf_df(atom_pairs, dr, r_max)
+        df = get_rdf_df(pair_dict, dr, r_max)
 
         # Define the subset
         m_subset = self._get_mol_subset(mol_subset)
@@ -1321,7 +1353,7 @@ class MultiMolecule(_MultiMolecule):
 
         # Fill the dataframe with RDF's, averaged over all conformations in this instance
         n_mol = len(m_self)
-        for key, (i, j) in atom_pairs.items():
+        for key, (i, j) in pair_dict.items():
             shape = n_mol, len(i), len(j)
             iterator = slice_iter(shape, m_self.dtype.itemsize)
             for slc in iterator:
@@ -1615,9 +1647,11 @@ class MultiMolecule(_MultiMolecule):
         self,
         mol_subset: MolSubset = None,
         atom_subset: AtomSubset = None,
+        *,
         r_max: Union[float, str] = 8.0,
         weight: Callable[[np.ndarray], np.ndarray] = neg_exp,
         periodic: None | Sequence[Literal["x", "y", "z"]] | Sequence[Literal[0, 1, 2]] = None,
+        atom_pairs: None | Iterable[tuple[str, str]] = None,
     ) -> pd.DataFrame:
         r"""Initialize the calculation of distance-weighted angular distribution functions (ADFs).
 
@@ -1650,6 +1684,9 @@ class MultiMolecule(_MultiMolecule):
             If specified, correct for the systems periodicity if
             :attr:`self.lattice is not None <MultiMolecule.lattice>`.
             Accepts ``"x"``, ``"y"`` and/or ``"z"``.
+        atom_pairs : :class:`Iterable[tuple[str, str, str]] <collections.abc.Iterable>`
+            An explicit list of atom-triples for the to-be calculated angles.
+            Note that **atom_pairs** and **atom_subset** are mutually exclusive.
 
         Returns
         -------
@@ -1676,21 +1713,36 @@ class MultiMolecule(_MultiMolecule):
 
         # Identify atom and molecule subsets
         m_subset = self._get_mol_subset(mol_subset)
-        at_subset = self._get_atom_subset(atom_subset, as_array=True)
+        if atom_subset is not None and atom_pairs is not None:
+            raise TypeError("`atom_subset` and `atom_pairs` are mutually exclusive")
+        elif atom_pairs is not None:
+            if not isinstance(atom_pairs, abc.Collection):
+                atom_pairs = list(atom_pairs)
+            at_subset = self._get_atom_subset(list(chain.from_iterable(atom_pairs)), as_array=True)
+        else:
+            at_subset = self._get_atom_subset(atom_subset, as_array=True)
 
         # Slice this MultiMolecule instance based on **atom_subset** and **mol_subset**
         del_atom = np.ones(self.shape[1], dtype=bool)
         del_atom[at_subset] = False
         mol = self.delete_atoms(del_atom)[m_subset]
 
-        atom_pairs = mol.get_pair_dict(atom_subset or sorted(mol.atoms, key=str), r=3)
-        for k, v in atom_pairs.items():
+        if atom_pairs is not None:
+            at_pairs = _parse_atom_pairs(self, atom_pairs)
+        elif atom_subset is not None:
+            at_pairs = mol.get_pair_dict(atom_subset or sorted(mol.atoms, key=str), r=3)
+        else:
+            at_pairs = mol.get_pair_dict(sorted(mol.atoms, key=str), r=3)
+
+        for k, v in at_pairs.items():
             v_new = []
             for at in v:
                 bool_ar = np.zeros(mol.shape[1], dtype=bool)
                 bool_ar[mol.atoms[at] if isinstance(at, str) else at] = True
                 v_new.append(bool_ar)
-            atom_pairs[k] = v_new
+            at_pairs[k] = v_new
+
+        # import pdb; pdb.set_trace()
 
         # Periodic calculations
         if periodic is not None:
@@ -1718,24 +1770,24 @@ class MultiMolecule(_MultiMolecule):
         # Perform the task in parallel (with dask) if possible
         if DASK_EX is None and r_max_:
             func = dask.delayed(_adf_inner_cdktree)
-            jobs = [func(m, n, r_max_, atom_pairs.values(), l, p, weight) for m, l, p in
+            jobs = [func(m, n, r_max_, at_pairs.values(), l, p, weight) for m, l, p in
                     zip(mol, lattice_iter, periodic_iter)]
             results = dask.compute(*jobs)
         elif DASK_EX is None and not r_max_:
             func = dask.delayed(_adf_inner)
-            jobs = [func(m, atom_pairs.values(), l, p, weight) for m, l, p in
+            jobs = [func(m, at_pairs.values(), l, p, weight) for m, l, p in
                     zip(mol, lattice_iter, periodic_iter)]
             results = dask.compute(*jobs)
         elif DASK_EX is not None and r_max_:
             func = _adf_inner_cdktree
-            results = [func(m, n, r_max_, atom_pairs.values(), l, p, weight) for m, l, p in
+            results = [func(m, n, r_max_, at_pairs.values(), l, p, weight) for m, l, p in
                        zip(mol, lattice_iter, periodic_iter)]
         elif DASK_EX is not None and not r_max_:
             func = _adf_inner
-            results = [func(m, atom_pairs.values(), l, p, weight) for m, l, p in
+            results = [func(m, at_pairs.values(), l, p, weight) for m, l, p in
                        zip(mol, lattice_iter, periodic_iter)]
 
-        df = get_adf_df(atom_pairs)
+        df = get_adf_df(at_pairs)
         df.loc[:, :] = np.array(results).mean(axis=0).T
         return df
 
