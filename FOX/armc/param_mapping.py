@@ -338,6 +338,11 @@ class ParamMappingABC(AbstractDataClass, ABC):
         else:
             self._net_charge = None
 
+    def _net_charge_to_integer(self) -> None:
+        if self._net_charge is not None:
+            self._net_charge = np.round(self._net_charge).astype(np.int64)
+            self._net_charge.setflags(write=False)
+
     # The actual meat of the class
 
     def add_param(self, idx: Tup3, value: float, **kwargs: Any) -> None:
