@@ -6,6 +6,20 @@ All notable changes to this project will be documented in this file.
 This project adheres to `Semantic Versioning <http://semver.org/>`_.
 
 
+0.10.0
+******
+* Add a new ``MultiMolecule`` method for constructing supercells.
+* Add a timestep parameter to ``MultiMolecule.init_power_spectrum``.
+* Fixed an issue wherein ``init_power_spectrum`` could raise when the atom subset is specified.
+* Raise a ``ValueError`` if an atom type with multiple charges is found.
+* Fixed an issue wherein net charges weren't properly conserved in PES-averaged ARMC.
+* Allow users to pass custom error functions.
+* Make rdkit an optional dependency.
+* Fixed an issue wherein auto-FOX would not check the status of jobs.
+* Add the new atom_pairs keyword to init_rdf and init_adf.
+* Round the net charge to the nearest integer.
+
+
 0.9.1
 *****
 * Added the new ``segment_dict`` parameter to the ``PSFContainer.generate_x()`` functions.

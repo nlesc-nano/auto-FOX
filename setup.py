@@ -23,11 +23,10 @@ docs_require = [
 tests_require_no_optional = [
     'pytest>=5.4.0',
     'pytest-cov',
-    'auto-FOX-data@git+https://github.com/nlesc-nano/auto-FOX-data@1.1.8',
 ]
 tests_require = [
     'ase>=3.21.1',
-    'CAT@git+https://github.com/nlesc-nano/CAT@master',
+    'nlesc-CAT>=0.10.0',
 ]
 tests_require += tests_require_no_optional
 tests_require += docs_require
@@ -85,7 +84,7 @@ setup(
     classifiers=[
         'Development Status :: 4 - Beta',
         'Intended Audience :: Science/Research',
-        'License :: OSI Approved :: GNU Lesser General Public License',
+        'License :: OSI Approved :: GNU General Public License v3 or later (GPLv3+)',
         'Natural Language :: English',
         'Operating System :: Unix',
         'Operating System :: MacOS',
@@ -109,11 +108,8 @@ setup(
         'AssertionLib>=2.3',
         'noodles>=0.3.3',
         'h5py>=2.10',
-        'qmflows@git+https://github.com/SCM-NV/qmflows@master',
+        'qmflows>=0.11.0',
         'plams>=1.5.1',
-    ],
-    setup_requires=[
-        'pytest-runner'
     ],
     tests_require=tests_require,
     extras_require={

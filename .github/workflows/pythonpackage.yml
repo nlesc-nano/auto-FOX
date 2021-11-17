@@ -84,6 +84,7 @@ jobs:
                     else
                         pip install -e .[test_no_optional]
                     fi
+                    pip install auto-FOX-data@git+https://github.com/nlesc-nano/auto-FOX-data@1.1.8
 
             -   name: Info Python
                 shell: bash
