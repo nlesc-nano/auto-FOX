@@ -111,9 +111,6 @@ setup(
         'qmflows>=0.11.0',
         'plams>=1.5.1',
     ],
-    setup_requires=[
-        'pytest-runner'
-    ],
     tests_require=tests_require,
     extras_require={
         'docs': docs_require,
