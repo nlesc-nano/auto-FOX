@@ -11,7 +11,6 @@ from itertools import chain, combinations, permutations
 from typing import Mapping, Any, Type, Set, Sequence, Callable
 
 import pytest
-import yaml
 import numpy as np
 
 from assertionlib import assertion
