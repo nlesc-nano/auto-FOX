@@ -18,24 +18,24 @@ jobs:
             fail-fast: false
             matrix:
                 os: [ubuntu-latest, macos-latest]
-                version: [3.7, 3.8, 3.9]
+                version: ['3.7', '3.8', '3.9', '3.10']
                 special: ['']
                 include:
                     -   os: ubuntu-latest
                         special: '; conda'
-                        version: 3.7
+                        version: '3.7'
                     -   os: ubuntu-latest
                         special: '; conda'
-                        version: 3.8
+                        version: '3.8'
                     -   os: ubuntu-latest
                         special: '; conda'
-                        version: 3.9
+                        version: '3.9'
                     -   os: ubuntu-latest
                         special: '; pre-release'
-                        version: 3.9
+                        version: '3.9'
                     -   os: ubuntu-latest
                         special: '; minimum version'
-                        version: 3.7
+                        version: '3.7'
 
         steps:
             -   name: Cancel Previous Runs
@@ -78,6 +78,7 @@ jobs:
                         pip install -e .[test]
                     elif [[ $SPECIAL == '; pre-release' ]]; then
                         pip install --pre -e .[test_no_optional] --upgrade --force-reinstall
+                        pip install git+https://github.com/SCM-NV/PLAMS@master --upgrade
                     elif [[ $SPECIAL == '; minimum version' ]]; then
                         pip install Nano-Utils==1.2.1 schema==0.7.1 AssertionLib==2.2 noodles==0.3.3 pyyaml==5.1 numpy==1.15 h5py==2.10 pandas==0.24 scipy==1.2.0
                         pip install -e .[test_no_optional]
@@ -150,8 +151,6 @@ jobs:
 
             -   name: Run flake8
                 run: flake8 FOX tests
-                continue-on-error: true
 
             -   name: Run pydocstyle
-                run: pydocstyle FOX tests
-                continue-on-error: true
+                run: pydocstyle FOX

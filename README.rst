@@ -7,6 +7,8 @@
     :target: https://codecov.io/gh/nlesc-nano/auto-FOX
 .. image:: https://zenodo.org/badge/DOI/10.5281/zenodo.3988142.svg
     :target: https://doi.org/10.5281/zenodo.3988142
+.. image:: https://badge.fury.io/py/Auto-FOX.svg
+    :target: https://badge.fury.io/py/Auto-FOX
 
 |
 
@@ -16,9 +18,11 @@
     :target: https://docs.python.org/3.8/
 .. image:: https://img.shields.io/badge/python-3.9-blue.svg
     :target: https://docs.python.org/3.9/
+.. image:: https://img.shields.io/badge/python-3.10-blue.svg
+    :target: https://docs.python.org/3.10/
 
 ##################################################
-Automated Forcefield Optimization Extension 0.10.0
+Automated Forcefield Optimization Extension 0.10.1
 ##################################################
 
 **Auto-FOX** is a library for analyzing potential energy surfaces (PESs) and
