@@ -18,24 +18,24 @@ jobs:
             fail-fast: false
             matrix:
                 os: [ubuntu-latest, macos-latest]
-                version: [3.7, 3.8, 3.9]
+                version: ['3.7', '3.8', '3.9', '3.10']
                 special: ['']
                 include:
                     -   os: ubuntu-latest
                         special: '; conda'
-                        version: 3.7
+                        version: '3.7'
                     -   os: ubuntu-latest
                         special: '; conda'
-                        version: 3.8
+                        version: '3.8'
                     -   os: ubuntu-latest
                         special: '; conda'
-                        version: 3.9
+                        version: '3.9'
                     -   os: ubuntu-latest
                         special: '; pre-release'
-                        version: 3.9
+                        version: '3.9'
                     -   os: ubuntu-latest
                         special: '; minimum version'
-                        version: 3.7
+                        version: '3.7'
 
         steps:
             -   name: Cancel Previous Runs
