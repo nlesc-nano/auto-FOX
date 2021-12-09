@@ -78,6 +78,7 @@ jobs:
                         pip install -e .[test]
                     elif [[ $SPECIAL == '; pre-release' ]]; then
                         pip install --pre -e .[test_no_optional] --upgrade --force-reinstall
+                        pip install git+https://github.com/SCM-NV/PLAMS@master --upgrade
                     elif [[ $SPECIAL == '; minimum version' ]]; then
                         pip install Nano-Utils==1.2.1 schema==0.7.1 AssertionLib==2.2 noodles==0.3.3 pyyaml==5.1 numpy==1.15 h5py==2.10 pandas==0.24 scipy==1.2.0
                         pip install -e .[test_no_optional]
