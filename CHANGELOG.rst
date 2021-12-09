@@ -8,7 +8,7 @@ This project adheres to `Semantic Versioning <http://semver.org/>`_.
 
 0.10.1
 ******
-* *placeholder*.
+* Avoid `schema` 0.7.5.
 
 
 0.10.0

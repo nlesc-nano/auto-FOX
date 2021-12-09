@@ -106,7 +106,7 @@ setup(
         'numpy>=1.15',
         'scipy>=1.2',
         'pandas>=0.24',
-        'schema>=0.7.1',
+        'schema>=0.7.1,!=0.7.5',
         'AssertionLib>=2.3',
         'noodles>=0.3.3',
         'h5py>=2.10',
