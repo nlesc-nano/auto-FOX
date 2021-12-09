@@ -150,8 +150,6 @@ jobs:
 
             -   name: Run flake8
                 run: flake8 FOX tests
-                continue-on-error: true
 
             -   name: Run pydocstyle
-                run: pydocstyle FOX tests
-                continue-on-error: true
+                run: pydocstyle FOX
