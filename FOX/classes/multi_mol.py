@@ -34,7 +34,7 @@ from scipy import constants
 from scipy.fftpack import fft
 from scipy.spatial.distance import cdist
 
-from scm.plams import Molecule, Atom, Bond, PeriodicTable
+from scm.plams import Molecule, Atom, Bond, PeriodicTable, Units
 from nanoutils import group_by_values, Literal
 
 from ..utils import slice_iter, lattice_to_volume
@@ -45,6 +45,7 @@ from ..functions.rdf import get_rdf, get_rdf_df
 from ..functions.adf import get_adf_df, _adf_inner_cdktree, _adf_inner
 from ..functions.molecule_utils import fix_bond_orders, separate_mod
 from ..functions.periodic import parse_periodic
+from ..functions.debye import get_debye_scattering
 
 if TYPE_CHECKING:
     import numpy.typing as npt
@@ -1362,6 +1363,101 @@ class MultiMolecule(_MultiMolecule):
                     lattice=lattice_ar[slc], periodicity=periodic_ar,
                 )
                 df[key] += get_rdf(dist_mat, dr=dr, r_max=r_max, volume=volume)
+        df /= n_mol
+        return df
+
+    def init_debye_scattering(
+        self,
+        half_angle: float | npt.NDArray[np.float64],
+        wavelength: float | npt.NDArray[np.float64],
+        mol_subset: MolSubset = None,
+        atom_subset: AtomSubset = None,
+        *,
+        periodic: None | Sequence[Literal["x", "y", "z"]] | Sequence[Literal[0, 1, 2]] = None,
+        atom_pairs: None | Iterable[tuple[str, str]] = None,
+    ) -> pd.DataFrame:
+        """Initialize the calculation of Debye scattering factors.
+
+        Scatering factors are calculated for all possible atom-pairs in **atom_subset** and
+        returned as a dataframe.
+
+        Parameters
+        ----------
+        half_angle : :class:`float` or :class:`np.ndarray`
+            One or more half angles. Units should be in radian.
+        wavelength : :class:`float`
+            One or wavelengths. Units should be in nanometer.
+        mol_subset : :class:`slice`, optional
+            Perform the calculation on a subset of molecules in this instance, as
+            determined by their moleculair index.
+            Include all :math:`m` molecules in this instance if :data:`None`.
+        atom_subset : :class:`Sequence[str] <collections.abc.Sequence>`, optional
+            Perform the calculation on a subset of atoms in this instance, as
+            determined by their atomic index or atomic symbol.
+            Include all :math:`n` atoms per molecule in this instance if :data:`None`.
+        periodic : :class:`str`, optional
+            If specified, correct for the systems periodicity if
+            :attr:`self.lattice is not None <MultiMolecule.lattice>`.
+            Accepts ``"x"``, ``"y"`` and/or ``"z"``.
+        atom_pairs : :class:`Iterable[tuple[str, str]] <collections.abc.Iterable>`
+            An explicit list of atom-pairs for the to-be calculated distances.
+            Note that **atom_pairs** and **atom_subset** are mutually exclusive.
+
+        Returns
+        -------
+        :class:`pd.DataFrame <pandas.DataFrame>`
+            A dataframe of with the Debye scattering, averaged over all conformations.
+            Keys are of the form: at_symbol1 + ' ' + at_symbol2 (*e.g.* ``"Cd Cd"``).
+
+        """
+        if atom_subset is not None and atom_pairs is not None:
+            raise TypeError("`atom_subset` and `atom_pairs` are mutually exclusive")
+        elif atom_pairs is not None:
+            pair_dict = _parse_atom_pairs(self, atom_pairs)
+        elif atom_subset is not None:
+            pair_dict = self.get_pair_dict(atom_subset, r=2)
+        else:
+            # If **atom_subset** is None: extract atomic symbols from they keys of **self.atoms**
+            pair_dict = self.get_pair_dict(sorted(self.atoms, key=str), r=2)
+
+        # Construct an empty dataframe with appropiate dimensions, indices and keys
+        q = np.atleast_1d(np.abs(4 * np.pi * np.sin(half_angle / wavelength)))
+        q *= Units.conversion_ratio("nm", "angstrom")
+        df = pd.DataFrame(
+            0.0,
+            columns=pd.Index(pair_dict.keys(), name='Atom pairs'),
+            index=pd.Index(q, name="Q  /  Angstrom**-1"),
+        )
+
+        # Define the subset
+        m_subset = self._get_mol_subset(mol_subset)
+        m_self = self[m_subset] * Units.conversion_ratio("angstrom", "au")
+
+        # Parse the lattice and periodicty settings
+        if periodic is not None:
+            periodic_ar = parse_periodic(periodic)
+            if self.lattice is None:
+                raise TypeError("cannot perform periodic calculations if the "
+                                "molecules `lattice` is None")
+            lattice_ar = self.lattice if self.lattice.ndim == 2 else self.lattice[m_subset]
+        else:
+            lattice_ar = _GetNone()
+            periodic_ar = np.arange(3, dtype=np.int64)
+
+        # Fill the dataframe with Debye scatterings, averaged over all conformations
+        n_mol = len(m_self)
+        symbol_ar = self.symbol
+        for key, (i, j) in pair_dict.items():
+            shape = n_mol, len(i), len(j)
+            iterator = slice_iter(shape, m_self.dtype.itemsize)
+            for slc in iterator:
+                dist_mat = m_self.get_dist_mat(
+                    mol_subset=slc, atom_subset=(i, j),
+                    lattice=lattice_ar[slc], periodicity=periodic_ar,
+                )
+                df[key] += get_debye_scattering(
+                    dist_mat, symbol_ar[i], symbol_ar[j], q, validate_param=False
+                ).sum(axis=0)
         df /= n_mol
         return df
 

@@ -243,6 +243,48 @@ class TestRDF:
             mol.init_rdf(**kwargs)
 
 
+class TestDebye:
+    """Test :meth:`.MultiMolecule.init_debye_scattering`."""
+
+    @pytest.mark.parametrize("kwargs", [
+        ({'atom_subset': ('Cd', 'Se', 'O')}),
+        ({'mol_subset': np.s_[::10]}),
+        ({"atom_pairs": [("Cd", "Se")]}),
+    ])
+    def test_passes(self, kwargs: Mapping[str, Any]) -> None:
+        debye = MOL[:100].init_debye_scattering(1, 1, **kwargs)
+        assertion.assert_(np.isfinite, debye, post_process=np.all)
+
+    @pytest.mark.parametrize("mol", [MOL_LATTICE_3D, MOL_LATTICE_2D])
+    @pytest.mark.parametrize(
+        "periodic",
+        chain(
+            [None],
+            combinations("xyz", 1),
+            combinations("xyz", 2),
+            combinations("xyz", 3),
+        ),
+    )
+    def test_lattice(
+        self, mol: MultiMolecule, periodic: None | Sequence[Literal["x", "y", "z"]]
+    ) -> None:
+        assert mol.lattice is not None
+        debye = mol.init_debye_scattering(1, 1, periodic=periodic)
+        assertion.assert_(np.isfinite, debye, post_process=np.all)
+
+    @pytest.mark.parametrize("mol,kwargs,exc", [
+        (MOL_LATTICE_3D, {"periodic": "bob"}, ValueError),
+        (MOL, {"periodic": "xyz"}, TypeError),
+        (MOL, {"atom_subset": "Cd", "atom_pairs": [("Cd", "Cd")]}, TypeError),
+        (MOL, {"atom_pairs": [("Cd", "Bob")]}, ValueError),
+    ])
+    def test_raises(
+        self, mol: MultiMolecule, kwargs: Mapping[str, Any], exc: Type[Exception]
+    ) -> None:
+        with pytest.raises(exc):
+            mol.init_debye_scattering(1, 1, **kwargs)
+
+
 def test_rmsf():
     """Test :meth:`.MultiMolecule.init_rmsf`."""
     mol = MOL.copy()
