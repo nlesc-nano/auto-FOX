@@ -97,11 +97,6 @@ def dict_to_armc(input_dict: MainMapping) -> Tuple[MonteCarloABC, RunDict]:
     param, _param, _param_frozen, validation_dict = get_param(dct['param'])
     mc, run_kwargs = get_armc(dct['monte_carlo'], package, param, phi, mol_list)
 
-    # Update the job Settings
-    if _param_frozen is not None:
-        package.update_settings(list(prm_iter(_param_frozen)), new_keys=True)
-    package.update_settings(list(prm_iter(_param)), new_keys=True)
-
     # Handle psf stuff
     psf_list: Optional[List[PSFContainer]] = get_psf(dct['psf'], mol_list)
     run_kwargs['psf'] = psf_list
@@ -126,9 +121,13 @@ def dict_to_armc(input_dict: MainMapping) -> Tuple[MonteCarloABC, RunDict]:
     validate_constraints(param, enforce_constraints=validation_dict['enforce_constraints'])
     param._net_charge_to_integer()
 
+    # Sort the index
     mc.param.param.sort_index(inplace=True)
     mc.param.param_old.sort_index(inplace=True)
     mc.param.metadata.sort_index(inplace=True)
+
+    # Update the job settings
+    mc.package_manager.update_settings(mc.param.get_cp2k_dicts())
 
     # Add PES evaluators
     pes = get_pes(dct['pes'], len(mol_list))
@@ -251,9 +250,6 @@ def _guess_param(mc: MonteCarloABC, prm: dict,
         prm_dict = {' '.join(_k for _k in sorted(k)): v for k, v in prm_series.items()}
         prm_dict['param'] = param
         seq.append((k, prm_dict))
-
-    # Update the constant parameters
-    package.update_settings(seq, new_keys=True)
 
     # Update the variable parameters
     metadata = {'min': -np.inf, 'max': np.inf, 'count': 0, 'guess': True}

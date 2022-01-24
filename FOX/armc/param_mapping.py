@@ -24,9 +24,10 @@ from abc import ABC, abstractmethod
 from types import MappingProxyType
 from logging import Logger
 from functools import wraps, partial
+from collections import defaultdict
 from typing import (
     Any, TypeVar, Optional, Tuple, Mapping, Iterable, ClassVar, Union,
-    Callable, FrozenSet, cast, MutableMapping, TYPE_CHECKING, Dict
+    Callable, FrozenSet, cast, MutableMapping, TYPE_CHECKING, Dict,
 )
 
 import h5py
@@ -37,6 +38,7 @@ from nanoutils import Literal, TypedDict, set_docstring
 
 from ..type_hints import ArrayLike
 from ..functions.charge_utils import update_charge, get_net_charge, ChargeError
+from ..functions.cp2k_utils import UNIT_MAP_REVERSED
 
 if TYPE_CHECKING:
     from pandas.core.generic import NDFrame
@@ -554,6 +556,24 @@ class ParamMappingABC(AbstractDataClass, ABC):
             else:
                 ret[key][i][atom] = value.item()
             ret[key][i]['unit'] = unit or None
+        return ret
+
+    def get_cp2k_dicts(self) -> list[defaultdict[str, pd.DataFrame]]:
+        """Get dictionaries with CP2K parameters that are parsable by QMFlows."""
+        ret = []
+        df_template = pd.DataFrame(columns=["param", "unit"], dtype=object)
+        for i, series in self.param.items():
+            dct: defaultdict[str, pd.DataFrame] = defaultdict(df_template.copy)
+            visited = set()
+            for (k, param, atom), v in series.items():
+                visited_key = (k, param)
+                if visited_key not in visited:
+                    unit = self.metadata.at[(k, param, atom), (i, "unit")] or None
+                    visited.add(visited_key)
+                    dct[k].at[param, "param"] = param
+                    dct[k].at[param, "unit"] = UNIT_MAP_REVERSED.get(unit, unit)
+                dct[k].at[param, atom] = v
+            ret.append(dct)
         return ret
 
 

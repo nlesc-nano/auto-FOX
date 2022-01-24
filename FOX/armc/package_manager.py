@@ -266,7 +266,7 @@ class PackageManagerABC(ABC, Mapping[str, Value]):
         raise NotImplementedError('Trying to call an abstract method')
 
     @abstractmethod
-    def update_settings(self, dct: Any, **kwargs: Any) -> None:
+    def update_settings(self, dct_seq: Sequence[dict[str, pd.DataFrame]]) -> None:
         """Update the Settings embedded in this instance using **dct**."""
         raise NotImplementedError('Trying to call an abstract method')
 
@@ -387,31 +387,11 @@ class PackageManager(PackageManagerABC):
         job_manager.jobs = []
         job_manager.names = {}
 
-    def update_settings(self, dct: Sequence[Tuple[str, Mapping]], new_keys: bool = True) -> None:
+    def update_settings(self, dct_seq: Sequence[dict[str, pd.DataFrame]]) -> None:
         """Update all forcefield parameter blocks in this instance's CP2K settings."""
-        iterator = (job['settings'] for job in chain.from_iterable(self.values()))
-        for settings in iterator:
-            for key_alias, sub_dict in dct:
-                param = sub_dict['param']
-
-                if key_alias not in settings:
-                    settings[key_alias] = pd.DataFrame(sub_dict, index=[param])
-                    continue
-
-                # Ensure all column-keys in **sub_dict** are also in **df**
-                df: pd.DataFrame = settings[key_alias]
-                if new_keys:
-                    keys = set(sub_dict.keys()).difference(df.columns)
-                    for k in keys:
-                        df[k] = np.nan
-
-                # Ensure that the **param** index-key is in **df** and update
-                df_update = pd.DataFrame(sub_dict, index=[param])
-                if param not in df.index:
-                    df.loc[param] = np.nan
-                if 'guess' in df.columns:
-                    del df['guess']
-                df.update(df_update)
+        for job_list in self.values():
+            for job, dct in zip(job_list, dct_seq):
+                job['settings'].update(dct)
 
     @overload
     @staticmethod

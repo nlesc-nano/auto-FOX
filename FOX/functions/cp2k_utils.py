@@ -7,25 +7,27 @@ Index
     parse_cp2k_value
     get_xyz_path
     UNIT_MAP
+    UNIT_MAP_REVERSED
 
 API
 ---
 .. autofunction:: parse_cp2k_value
 .. autofunction:: update_charge
 .. autodata:: UNIT_MAP
+.. autodata:: UNIT_MAP_REVERSED
 
 """
 
 import os
 from types import MappingProxyType
-from typing import Mapping, Union, Optional, TypeVar
+from typing import Union, Optional, TypeVar
 
 import numpy as np
 from scipy import constants
 
 from scm.plams import Units
 
-__all__ = ['UNIT_MAP', 'parse_cp2k_value', 'get_xyz_path']
+__all__ = ['UNIT_MAP', 'UNIT_MAP_REVERSED', 'parse_cp2k_value', 'get_xyz_path']
 
 # Multiplicative factor for converting Hartree into Kelvin
 Units.energy['k'] = Units.energy['kelvin'] = (
@@ -33,7 +35,7 @@ Units.energy['k'] = Units.energy['kelvin'] = (
 )
 
 #: Map CP2K units to PLAMS units.
-UNIT_MAP: Mapping[str, str] = MappingProxyType({
+UNIT_MAP = MappingProxyType({
     'hartree': 'hartree',
     'ev': 'eV',
     'kcalmol': 'kcal/mol',
@@ -48,6 +50,9 @@ UNIT_MAP: Mapping[str, str] = MappingProxyType({
     'rad': 'radian',
     'deg': 'degree'
 })
+
+#: Map PLAMS units to CP2K units.
+UNIT_MAP_REVERSED = {k: v for v, k in UNIT_MAP.items()}
 
 T = TypeVar('T', float, np.ndarray)
 
