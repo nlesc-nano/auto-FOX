@@ -103,7 +103,7 @@ setup(
     install_requires=[
         'Nano-Utils>=2.3',
         'pyyaml>=5.1',
-        'numpy>=1.15',
+        'numpy>=1.17',
         'scipy>=1.2',
         'pandas>=0.24',
         'schema>=0.7.1,!=0.7.5',
