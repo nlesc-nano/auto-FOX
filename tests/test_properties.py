@@ -107,7 +107,7 @@ class TestFromResultType:
     class TestFromResult:
         def test_no_reduce(self, func: FromResult, ref: np.ndarray) -> None:
             prop = func.from_result(RESULT)
-            np.testing.assert_allclose(prop, ref)
+            np.testing.assert_allclose(prop, ref, rtol=1e-06)
 
         def test_reduce_mean(self, func: FromResult, ref: np.ndarray) -> None:
             prop = func.from_result(RESULT, reduce='mean', axis=0)

@@ -545,12 +545,29 @@ each containg the :attr:`func<pes_validation.block.func>` and, optionally,
 
     .. attribute:: pes_validation.block.kwargs
 
-        :Parameter:     * **Type** - :class:`dict[str, object] <dict>`
+        :Parameter:     * **Type** - :class:`dict[str, object] <dict>` or :class:`list[dict[str, object]] <list>`
                         * **Default Value** - ``{}``
 
         A dictionary with keyword arguments for :attr:`func<pes_validation.block.func>`.
 
         The structure of this block is identintical to its counterpart in :attr:`pes.block.kwargs`.
+
+        Passing a list of dictionaries allows one the use different kwargs for
+        different jobs in PES-averaged ARMC or ARMCPT:
+
+        .. code-block:: yaml
+
+            job:
+                molecule:
+                    - mol_CdSeO.xyz
+                    - mol_CdSeN.xyz
+
+            pes_validation:
+                rdf:
+                    func: FOX.MultiMolecule.init_rdf
+                    kwargs:
+                        - atom_subset: [Cd, Se, O]
+                        - atom_subset: [Cd, Se, N]
 
 
 .. _monte_carlo_parameters.job:

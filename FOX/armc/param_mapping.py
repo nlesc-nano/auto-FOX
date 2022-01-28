@@ -410,6 +410,15 @@ class ParamMappingABC(AbstractDataClass, ABC):
         self.param.loc[idx, param_idx] = value
         return idx
 
+    def set_n_columns(self, n: int) -> None:
+        if len(self.param.columns) != 1:
+            raise ValueError
+        for i in range(1, n):
+            self.param[i] = self.param[0]
+            self.param_old[i] = self.param_old[0]
+            for j in self.metadata.columns.levels[1]:
+                self.metadata[i, j] = self.metadata[0, j]
+
     @abstractmethod
     def identify_move(self, param_idx: int) -> Tuple[Tup3, float, float]:
         """Identify the to-be moved parameter and the size of the move.

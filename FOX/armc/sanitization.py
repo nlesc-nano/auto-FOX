@@ -95,6 +95,8 @@ def dict_to_armc(input_dict: MainMapping) -> Tuple[MonteCarloABC, RunDict]:
     phi = get_phi(dct['phi'])
     package, mol_list = get_package(dct['job'], phi.phi)
     param, _param, _param_frozen, validation_dict = get_param(dct['param'])
+    if len(mol_list) > 1:
+        param.set_n_columns(len(mol_list))
     mc, run_kwargs = get_armc(dct['monte_carlo'], package, param, phi, mol_list)
 
     # Handle psf stuff
@@ -758,11 +760,10 @@ def update_count(param, psf=None, mol=None):  # noqa: E302
     index = param.metadata.index
     prm_count_list = [param.metadata[i, 'count'] for i in param.metadata.columns.levels[0]]
     at_sequence = [atoms.split() for *_, atoms in index]
-    for count in count_iter:
+    for prm_count, count in zip(prm_count_list, count_iter):
         data = get_atom_count(at_sequence, count)
         series = pd.Series({k: v for k, v in zip(index, data) if v is not None}, name='unit')
-        for prm_count in prm_count_list:
-            prm_count.update(series)
+        prm_count.update(series)
 
 
 def _assign_residues(plams_mol: Molecule, res_list: Iterable[Iterable[int]]) -> None:
