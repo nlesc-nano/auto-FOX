@@ -35,6 +35,7 @@ from ..io.hdf5_utils import (
 )
 
 if TYPE_CHECKING:
+    import functools
     from .phi_updater import PhiUpdater
     from ..io.read_psf import PSFContainer
 else:
