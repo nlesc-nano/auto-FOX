@@ -17,10 +17,10 @@ from __future__ import annotations
 
 import os
 from pathlib import Path
-from collections import abc
+from itertools import repeat
 from typing import (
     Tuple, TYPE_CHECKING, Any, Optional, Iterable, Mapping, Callable,
-    overload, Dict, List, ClassVar
+    overload, Dict, List, ClassVar, Collection
 )
 
 import h5py
@@ -47,7 +47,7 @@ PesDict = Dict[str, ArrayOrScalar]
 PesMapping = Mapping[str, ArrayOrScalar]
 
 MolList = List[MultiMolecule]
-MolIter = Iterable[MultiMolecule]
+MolCollection = Collection[MultiMolecule]
 
 Key = Tuple[float, ...]
 
@@ -323,7 +323,7 @@ class ARMC(MonteCarloABC):
             self[key_old] = self.apply_phi(self[key_old])
             return key_old
 
-    def _do_inner5(self, mol_list: Optional[MolIter], accept: bool,
+    def _do_inner5(self, mol_list: Optional[MolCollection], accept: bool,
                    aux_new: np.ndarray, aux_validation: np.ndarray,
                    pes_new: PesMapping, pes_validation: PesMapping,
                    kappa: int, omega: int) -> None:
@@ -331,7 +331,7 @@ class ARMC(MonteCarloABC):
         self.to_hdf5(mol_list, accept, aux_new, aux_validation,
                      pes_new, pes_validation, kappa, omega)
 
-        not_accept = ~np.array(accept, ndmin=1, dtype=bool, copy=False)
+        not_accept = ~np.full_like(self.param.param_old.columns, accept, dtype=np.bool_)
         self.param.param.loc[:, not_accept] = self.param.param_old.loc[:, not_accept]
 
     @property
@@ -363,8 +363,8 @@ class ARMC(MonteCarloABC):
         self.param.param_old[idx] = self.param.param[idx]
         return key
 
-    def to_hdf5(self, mol_list: Optional[MolIter],
-                accept: bool, aux_new: np.ndarray, aux_validation: np.ndarray,
+    def to_hdf5(self, mol_list: Optional[MolCollection],
+                accept: np.bool_, aux_new: np.ndarray, aux_validation: np.ndarray,
                 pes_new: PesMapping, pes_validation: PesMapping,
                 kappa: int, omega: int) -> None:
         r"""Construct a dictionary with the **hdf5_kwarg** and pass it to :func:`.to_hdf5`.
@@ -397,14 +397,14 @@ class ARMC(MonteCarloABC):
         self.logger.info(f"Exporting results to {os.path.basename(self.hdf5_file)!r}\n")
 
         phi = self.phi.phi
-        if not isinstance(accept, abc.Iterable):
-            param_key: Literal['param', 'param_old'] = 'param' if accept else 'param_old'
-            aux_error_mod = np.append(getattr(self.param, param_key).values, phi)
+        if accept.size == 1:
+            iterator = repeat(('param' if accept else 'param_old'), len(self.param.param.columns))
         else:
-            _aux_error_mod = [getattr(self.param, 'param' if acc else 'param_old')[i].values for
-                              i, acc in enumerate(accept)]
-            aux_error_mod = np.append(_aux_error_mod, phi)
-            aux_error_mod.shape = len(self.phi), -1
+            iterator = ('param' if acc else 'param_old' for acc in accept)
+        _aux_error_mod = [getattr(self.param, n)[i].values for i, n in enumerate(iterator)]
+        aux_error_mod = np.empty((len(self.param.param.columns), 1 + len(_aux_error_mod[0])))
+        aux_error_mod[..., :-1] = _aux_error_mod
+        aux_error_mod[..., -1] = phi
 
         hdf5_kwarg = {
             'param': self.param.param.values.T,
