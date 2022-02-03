@@ -16,6 +16,7 @@ API
 
 """
 
+import re
 import warnings
 from types import MappingProxyType
 from os import listdir
@@ -256,8 +257,9 @@ def load_results(workdir, *, result_type=CP2KMM_Result, n=1):  # noqa: E302
     ret = []
     tmp = []
     i = -n
+    file_pattern = re.compile(r"md(\.([0-9]+))?")
     for jobname in sorted(listdir(workdir_path)):
-        if jobname == '__pycache__':
+        if file_pattern.fullmatch(jobname) is None:
             continue
 
         plams_dir = workdir_path / jobname
