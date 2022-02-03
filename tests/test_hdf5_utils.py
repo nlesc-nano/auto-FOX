@@ -235,6 +235,6 @@ def test_from_hdf5():
     assertion.eq(hdf5_dict['aux_error'], out['aux_error']['rdf.0'][0])
     assertion.eq(hdf5_dict['phi'], out['aux_error_mod'].values[:, -1])
     assertion.eq(hdf5_dict['phi'][0], out['phi'].loc[0, 0])
-    np.testing.assert_allclose(hdf5_dict['param'], out['param'].values)
+    np.testing.assert_allclose(hdf5_dict['param'], out['param'][0].T)
     np.testing.assert_allclose(hdf5_dict['rdf.0'], out['rdf.0'][0].values)
     np.testing.assert_array_equal(PARAM_METADATA, out['param_metadata'])

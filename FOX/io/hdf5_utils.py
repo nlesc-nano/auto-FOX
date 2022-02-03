@@ -126,7 +126,7 @@ def create_hdf5(filename: PathType, armc: ARMC) -> None:
     pd_dict = {
         'aux_error': pd.Series(np.nan, index=aux_error_idx, name='aux_error'),
         'aux_error_mod': pd.Series(np.nan, index=idx, name='aux_error_mod'),
-        'param': armc.param.param[0],
+        'param': armc.param.param,
         'phi': pd.Series(np.nan, index=np.arange(kappa), name='phi'),
     }
     pd_dict2 = {
@@ -810,6 +810,9 @@ def dset_to_df(f: File, key: str) -> Union[pd.DataFrame, List[pd.DataFrame]]:
         data = _read_chunked(f, key)
     else:
         data = f[key][:]
+
+    if key == "/param":
+        data = np.swapaxes(data, 1, 2)
 
     # Return a DataFrame or list of DataFrames
     if data.ndim == 2:
