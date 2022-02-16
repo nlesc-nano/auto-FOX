@@ -208,7 +208,7 @@ def get_multi_lig_center(mol: MultiMolecule, idx_iter: Iterable[Sequence[int]],
             continue
 
         mass = mass_[idx][None, ..., None]
-        ligand *= mass
+        ligand = ligand * mass
         ret_append(ligand.sum(axis=1) / mass.sum(axis=1))
 
-    return np.array(ret)
+    return np.array(ret, dtype=mol.dtype).swapaxes(0, 1)
