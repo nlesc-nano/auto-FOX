@@ -35,10 +35,12 @@ API
 
 from __future__ import annotations
 
+import os
 import operator
 import inspect
 import textwrap
 import warnings
+import subprocess
 from pprint import pformat
 from logging import Logger
 from functools import wraps
@@ -57,7 +59,7 @@ if TYPE_CHECKING:
 __all__ = [
     'get_move_range', 'array_to_index', 'serialize_array', 'read_str_file',
     'get_shape', 'slice_str', 'get_atom_count', 'read_rtf_file', 'prepend_exception',
-    'log_traceback_locals', 'slice_iter', 'lattice_to_volume',
+    'log_traceback_locals', 'slice_iter', 'lattice_to_volume', 'get_commit_hash',
 ]
 
 T = TypeVar('T')
@@ -522,3 +524,29 @@ def lattice_to_volume(a: npt.ArrayLike) -> np.ndarray[Any, np.dtype[np.float64]]
     # Calculate and return the triple product
     cross = np.cross(ar[..., 1, :], ar[..., 2, :])
     return np.einsum("...j,...j->...", ar[..., 0, :], cross)
+
+
+def get_commit_hash(path: str | os.PathLike[str]) -> str | None:
+    """Get the commit hash of the passed git repository.
+
+    Parameters
+    ----------
+    path : path-like
+        The path to the git repository.
+
+    Returns
+    -------
+    :data:`None` or :class:`str`
+        The hash of the repo or ``None`` if it cannot be retrieved.
+
+    """
+    path = os.path.join(path, ".git")
+    try:
+        out = subprocess.run(
+            f"git --git-dir={path!r} rev-parse HEAD",
+            check=True, shell=True, capture_output=True, encoding="utf8",
+        )
+    except subprocess.CalledProcessError:
+        return None
+    else:
+        return out.stdout.strip("\n")
