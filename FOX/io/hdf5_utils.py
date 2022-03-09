@@ -33,6 +33,7 @@ import subprocess
 from os import remove, PathLike, fsdecode
 from time import sleep
 from os.path import isfile
+from pathlib import Path
 from typing import (
     Dict, Iterable, Optional, Union, List, Tuple, TYPE_CHECKING, Mapping, Any, overload,
 )
@@ -43,8 +44,9 @@ import pandas as pd
 from scm.plams import Settings
 from nanoutils import PathType, group_by_values, recursive_keys
 
+from .. import __file__ as _fox_file
 from ..__version__ import __version__
-from ..utils import get_shape, array_to_index
+from ..utils import get_shape, array_to_index, get_commit_hash
 
 if TYPE_CHECKING:
     from pandas.core.generic import NDFrame
@@ -102,6 +104,9 @@ def create_hdf5(filename: PathType, armc: ARMC) -> None:
         f.attrs['super-iteration'] = -1
         f.attrs['sub-iteration'] = -1
         f.attrs['__version__'] = np.fromiter(__version__.split('.'), count=3, dtype=int)
+
+        commit_hash = get_commit_hash(Path(_fox_file).parents[1])
+        f.attrs['commit_hash'] = commit_hash if commit_hash is not None else ""
 
         str_dtype = h5py.string_dtype(encoding='ascii')
         index: pd.MultiIndex = armc.param.param.index
