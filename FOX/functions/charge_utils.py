@@ -271,6 +271,7 @@ def _update_1st_charge(
     return exclude_set
 
 
+@np.errstate(divide="raise")
 def unconstrained_update(
     net_charge: float,
     param: pd.Series,
@@ -290,7 +291,10 @@ def unconstrained_update(
 
     # Identify the multplicative factor that yields a net-neutral charge
     i = net_charge - get_net_charge(param, count, ~include)
-    i /= get_net_charge(param, count, include)
+    try:
+        i /= get_net_charge(param, count, include)
+    except FloatingPointError:
+        return  # Abort if a division by 0 occurs
 
     # Define the minimum and maximum values
     s_min = prm_min if prm_min is not None else -np.inf
