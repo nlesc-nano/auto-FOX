@@ -10,6 +10,10 @@ on:
             - Auto-FOX-0.8
     pull_request:
 
+defaults:
+    run:
+        shell: bash
+
 jobs:
     build:
         name: ${{ matrix.os }} (py ${{ matrix.version }}${{ matrix.special }})
@@ -69,7 +73,6 @@ jobs:
                 run: cp2k.popt --version
 
             -   name: Install dependencies
-                shell: bash
                 run: |
                     if [[ "${{ matrix.special }}" == '; conda' ]]; then
                         conda create -n test -c conda-forge python="${{ matrix.version }}" rdkit
@@ -87,7 +90,6 @@ jobs:
                     pip install auto-FOX-data@git+https://github.com/nlesc-nano/auto-FOX-data@1.1.8
 
             -   name: Info Python
-                shell: bash
                 run: |
                     if [[ "${{ matrix.special }}" == '; conda' ]]; then
                         source $CONDA/bin/activate test
@@ -98,7 +100,6 @@ jobs:
                     fi
 
             -   name: Info installed packages
-                shell: bash
                 run: |
                     if [[ "${{ matrix.special }}" == '; conda' ]]; then
                         conda list -n test
@@ -107,7 +108,6 @@ jobs:
                     fi
 
             -   name: Run tests
-                shell: bash
                 run: |
                     if [[ "${{ matrix.special }}" == '; conda' ]]; then
                         source $CONDA/bin/activate test
