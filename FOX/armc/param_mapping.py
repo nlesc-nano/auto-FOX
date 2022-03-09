@@ -715,5 +715,9 @@ class ParamMapping(ParamMappingABC):
 
             if ret is not None:
                 self.param[:] = param_backup
+                if exclude is not None:
+                    ret.atoms = self.param.loc[key, :].index.difference(exclude)
+                else:
+                    ret.atoms = self.param.loc[key, :].index
                 return ret
         return None
