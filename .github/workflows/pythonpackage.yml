@@ -9,6 +9,7 @@ on:
             - master
             - Auto-FOX-0.8
     pull_request:
+    workflow_dispatch:
 
 defaults:
     run:
