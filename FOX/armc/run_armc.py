@@ -13,6 +13,7 @@ API
 """
 
 import os
+import logging
 from typing import Union, TYPE_CHECKING, Optional, Iterable
 from pathlib import Path
 from contextlib import redirect_stdout
@@ -58,7 +59,11 @@ def run_armc(armc: MonteCarloABC,
                               lambda n: 'Trying to obtain results of crashed or failed job' in n)
 
         with redirect_stdout(writer):
+            stream_handler = armc.logger.handlers[0]
+            warning_logger = logging.getLogger('py.warnings')
             try:
+                logging.captureWarnings(True)
+                warning_logger.addHandler(stream_handler)
                 if not restart:  # To restart or not? That's the question
                     armc()
                 else:
@@ -68,3 +73,6 @@ def run_armc(armc: MonteCarloABC,
                 logger.debug("Unexpected exception encounterd, dumping local variables:")
                 log_traceback_locals(logger)
                 raise
+            finally:
+                logging.captureWarnings(False)
+                warning_logger.removeHandler(stream_handler)
