@@ -36,6 +36,8 @@ jobs:
                     -   os: ubuntu-latest
                         special: '; minimum version'
                         version: '3.7'
+        env:
+            CP2K_DATA_DIR: /usr/share/cp2k/data
 
         steps:
             -   name: Cancel Previous Runs
@@ -119,7 +121,6 @@ jobs:
                     if [[ $SPECIAL == '; conda' ]]; then
                         source $CONDA/bin/activate test
                     fi
-                    export CP2K_DATA_DIR="/usr/share/cp2k"
                     pytest -m "not slow"
 
             -   name: Run codecov
