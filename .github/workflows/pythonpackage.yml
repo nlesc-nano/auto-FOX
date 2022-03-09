@@ -9,6 +9,15 @@ on:
             - master
             - Auto-FOX-0.8
     pull_request:
+    workflow_dispatch:
+
+concurrency:
+    group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
+    cancel-in-progress: true
+
+defaults:
+    run:
+        shell: bash
 
 jobs:
     build:
@@ -32,17 +41,14 @@ jobs:
                         version: '3.9'
                     -   os: ubuntu-latest
                         special: '; pre-release'
-                        version: '3.9'
+                        version: '3.10'
                     -   os: ubuntu-latest
                         special: '; minimum version'
                         version: '3.7'
+        env:
+            CP2K_DATA_DIR: /usr/share/cp2k/data
 
         steps:
-            -   name: Cancel Previous Runs
-                uses: styfle/cancel-workflow-action@0.9.1
-                with:
-                    access_token: ${{ github.token }}
-
             -   uses: actions/checkout@v2
 
             -   name: Set up Conda
@@ -67,19 +73,17 @@ jobs:
                 run: cp2k.popt --version
 
             -   name: Install dependencies
-                shell: bash
-                env:
-                    SPECIAL: ${{ matrix.special }}
-                    VERSION: ${{ matrix.version }}
                 run: |
-                    if [[ $SPECIAL == '; conda' ]]; then
-                        conda create -n test -c conda-forge python=$VERSION rdkit
+                    if [[ "${{ matrix.special }}" == '; conda' ]]; then
+                        conda create -n test -c conda-forge python="${{ matrix.version }}" rdkit
                         source $CONDA/bin/activate test
                         pip install -e .[test]
-                    elif [[ $SPECIAL == '; pre-release' ]]; then
+                    elif [[ "${{ matrix.special }}" == '; pre-release' ]]; then
                         pip install --pre -e .[test_no_optional] --upgrade --force-reinstall
+                        pip install git+https://github.com/SCM-NV/qmflows@master --upgrade
                         pip install git+https://github.com/SCM-NV/PLAMS@master --upgrade
-                    elif [[ $SPECIAL == '; minimum version' ]]; then
+                        pip install git+https://github.com/NLeSC/noodles@master --upgrade
+                    elif [[ $SPECIAL"${{ matrix.special }}" == '; minimum version' ]]; then
                         pip install Nano-Utils==1.2.1 schema==0.7.1 AssertionLib==2.2 noodles==0.3.3 pyyaml==5.1 numpy==1.17 h5py==2.10 pandas==0.24 scipy==1.2.0
                         pip install -e .[test_no_optional]
                     else
@@ -88,11 +92,8 @@ jobs:
                     pip install auto-FOX-data@git+https://github.com/nlesc-nano/auto-FOX-data@1.1.8
 
             -   name: Info Python
-                shell: bash
-                env:
-                    SPECIAL: ${{ matrix.special }}
                 run: |
-                    if [[ $SPECIAL == '; conda' ]]; then
+                    if [[ "${{ matrix.special }}" == '; conda' ]]; then
                         source $CONDA/bin/activate test
                         conda info
                     else
@@ -101,25 +102,18 @@ jobs:
                     fi
 
             -   name: Info installed packages
-                shell: bash
-                env:
-                    SPECIAL: ${{ matrix.special }}
                 run: |
-                    if [[ $SPECIAL == '; conda' ]]; then
+                    if [[ "${{ matrix.special }}" == '; conda' ]]; then
                         conda list -n test
                     else
                         pip list
                     fi
 
             -   name: Run tests
-                shell: bash
-                env:
-                    SPECIAL: ${{ matrix.special }}
                 run: |
-                    if [[ $SPECIAL == '; conda' ]]; then
+                    if [[ "${{ matrix.special }}" == '; conda' ]]; then
                         source $CONDA/bin/activate test
                     fi
-                    export CP2K_DATA_DIR="/usr/share/cp2k"
                     pytest -m "not slow"
 
             -   name: Run codecov
@@ -133,10 +127,10 @@ jobs:
         steps:
             -   uses: actions/checkout@v2
 
-            -   name: Set up Python 3.9 on ubuntu-latest
+            -   name: Set up Python 3.10 on ubuntu-latest
                 uses: actions/setup-python@v2
                 with:
-                    python-version: 3.9
+                    python-version: "3.10"
 
             -   name: Install linters
                 run: pip install flake8 pydocstyle
