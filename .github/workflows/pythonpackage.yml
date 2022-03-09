@@ -80,7 +80,9 @@ jobs:
                         pip install -e .[test]
                     elif [[ "${{ matrix.special }}" == '; pre-release' ]]; then
                         pip install --pre -e .[test_no_optional] --upgrade --force-reinstall
+                        pip install git+https://github.com/SCM-NV/qmflows@master --upgrade
                         pip install git+https://github.com/SCM-NV/PLAMS@master --upgrade
+                        pip install git+https://github.com/NLeSC/noodles@master --upgrade
                     elif [[ $SPECIAL"${{ matrix.special }}" == '; minimum version' ]]; then
                         pip install Nano-Utils==1.2.1 schema==0.7.1 AssertionLib==2.2 noodles==0.3.3 pyyaml==5.1 numpy==1.17 h5py==2.10 pandas==0.24 scipy==1.2.0
                         pip install -e .[test_no_optional]
