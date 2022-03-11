@@ -711,7 +711,7 @@ class ParamMapping(ParamMappingABC):
                     key_list = [(*key, i) for i in include]
                     self.param.loc[key_list] = self.param.loc[key_list, i].values[..., None]
                 else:
-                    self.param.loc[key, :] = self.param.loc[key, i].values[..., None]
+                    self.param.loc[key] = self.param.loc[key, i].values[..., None]
 
             if ret is not None:
                 self.param[:] = param_backup
