@@ -49,18 +49,17 @@ jobs:
             CP2K_DATA_DIR: /usr/share/cp2k/data
 
         steps:
-            -   uses: actions/checkout@v2
+            -   uses: actions/checkout@v3
 
             -   name: Set up Conda
                 if: matrix.special == '; conda'
                 uses: s-weigand/setup-conda@v1
                 with:
-                    update-conda: true
-                    conda-channels: anaconda, conda-forge
+                    update-conda: false
 
             -   name: Set up Python
                 if: matrix.special != '; conda'
-                uses: actions/setup-python@v2
+                uses: actions/setup-python@v3
                 with:
                     python-version: ${{ matrix.version }}
 
