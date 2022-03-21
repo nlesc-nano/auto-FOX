@@ -257,7 +257,7 @@ class ARMC(MonteCarloABC):
 
         """
         # Step 1: Perform a random move
-        _key_new = self._do_inner1(key_old)
+        _key_new = self._do_inner1(key_old, idx=None)
 
         # Step 2: Calculate PES descriptors
         pes_new, pes_validation, mol_list = self._do_inner2()
@@ -276,17 +276,17 @@ class ARMC(MonteCarloABC):
                         pes_new, pes_validation, kappa, omega)
         return key_new
 
-    def _do_inner1(self, key_old: Key, idx: int = 0) -> Key:
+    def _do_inner1(self, key_old: Key, idx: None | int) -> Key:
         """Perform a random move."""
         key_new = self.move(idx=idx)
 
         if isinstance(key_new, Exception):
             self.logger.warning(f"Recalculating move; {key_new}")
-            return self._do_inner1(key_old)
+            return self._do_inner1(key_old, idx=idx)
 
         elif key_new in self:
             self.logger.info("Recalculating move; move has already been visited")
-            return self._do_inner1(key_old)
+            return self._do_inner1(key_old, idx=idx)
 
         return key_new
 

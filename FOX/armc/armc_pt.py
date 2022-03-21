@@ -192,7 +192,7 @@ class ARMCPT(ARMC):
 
         """
         # Step 1: Perform a random move
-        _key_new = [self._do_inner1(key, i) for i, key in enumerate(key_old)]
+        _key_new = [self._do_inner1(key, idx=i) for i, key in enumerate(key_old)]
 
         # Step 2: Calculate PES descriptors
         pes_new, pes_validation, mol_list = self._do_inner2()
