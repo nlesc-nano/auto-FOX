@@ -250,9 +250,10 @@ def get_impropers(mol: Molecule) -> np.ndarray:
         return ret
 
     # Sort along the rows of columns 2, 3 & 4 based on atomic mass in descending order
-    mass = np.array([[mol[j].mass for j in i] for i in ret[:, 1:]])
-    idx1 = np.argsort(mass, axis=1)
-    idx1[:, 1:] = idx1[:, 1:][::-1]
+    dtype = [("mass", "f8"), ("id", "i8")]
+    mass = np.array([[(mol[j].mass, -j) for j in i] for i in ret[:, 1:]], dtype=dtype)
+    idx1 = np.argsort(mass, axis=1, order=["mass", "id"])
+    idx1[:, 1:] = idx1[:, 1:][:, ::-1]
     ret[:, 1:] = np.take_along_axis(ret[:, 1:], idx1, axis=1)
 
     # Sort vertically
