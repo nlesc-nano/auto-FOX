@@ -19,7 +19,7 @@ API
 """
 
 import reprlib
-from typing import Tuple, Dict, Iterable, List, Union, Iterator, Generator, overload
+from typing import Tuple, Dict, Iterable, List, Iterator, Generator, overload
 from itertools import islice, chain
 
 import numpy as np
@@ -72,24 +72,14 @@ def read_multi_xyz(filename, return_comment=True, unit='angstrom'):  # noqa: E30
     with open(filename, 'r') as f:
         atom_count = _get_atom_count(f)
         idx_dict = _get_idx_dict(f, atom_count)
-        try:
-            line_count = _get_line_count(f, add=[2, atom_count])
-        except UnboundLocalError:  # The .xyz file contains a single molecule
-            line_count = 2 + atom_count
 
-    # Check if mol_count is fractional, smaller than 1 or if atom_count is smaller than 1
-    mol_count = line_count / (2 + atom_count)
-    validate_xyz(mol_count, atom_count, filename)
-
-    # Create the to-be returned xyz array
-    shape = int(mol_count), atom_count, 3
     with open(filename, 'r') as f:
         iterator = chain.from_iterable(_xyz_generator(f, atom_count))
         try:
-            xyz = np.fromiter(iterator, dtype=float, count=np.product(shape))
+            xyz = np.fromiter(iterator, dtype=np.float64)
         except ValueError as ex:  # Failed to parse the .xyz file
-            raise XYZError(str(ex)).with_traceback(ex.__traceback__)
-    xyz.shape = shape  # From 1D to 3D array
+            raise XYZError("Failed to parse the passed xyz file") from ex
+    xyz.shape = (-1, atom_count, 3)
 
     if unit != 'angstrom':
         xyz *= Units.conversion_ratio('angstrom', unit)
@@ -103,7 +93,10 @@ def read_multi_xyz(filename, return_comment=True, unit='angstrom'):  # noqa: E30
 def _xyz_generator(f: Iterable[str], atom_count: int) -> Generator[Iterator[str], None, None]:
     """Create a Cartesian coordinate generator for :func:`.read_multi_xyz`."""
     stop = 1 + atom_count
-    for _ in f:
+    for at_count in f:
+        # Allow for empty lines between xyz blocks
+        if not at_count.strip():
+            continue
         yield chain.from_iterable(at.split()[1:] for at in islice(f, 1, stop))
 
 
@@ -132,37 +125,6 @@ def get_comments(filename: PathType, atom_count: int) -> np.ndarray:
         return np.array([i.rstrip() for i in iterator])
 
 
-def validate_xyz(mol_count: float, atom_count: int, filename: PathType) -> None:
-    """Validate **mol_count** and **atom_count** in **xyz_file**.
-
-    Parameters
-    ----------
-    mol_count : float
-        The number of molecules in the xyz file.
-        Expects float that is finite with integral value
-        (*e.g.* :math:`5.0`, :math:`6.0` or :math:`3.0`).
-
-    atom_count : int
-        The number of atoms per molecule.
-
-    filename : str
-        The path + filename of a (multi) .xyz file.
-
-    Raises
-    ------
-    :exc:`.XYZError`
-        Raised when issues are encountered related to parsing .xyz files.
-
-    """
-    if not mol_count.is_integer():
-        raise XYZError(f"A non-integer number of molecules was found in {filename!r}; "
-                       f"mol count: {mol_count}")
-    elif mol_count < 1.0:
-        raise XYZError(f"No molecules were found in {filename!r}; mol count: {mol_count}")
-    if atom_count < 1:
-        raise XYZError(f"No atoms were found in {filename!r}; atom count: {atom_count}")
-
-
 def _get_atom_count(f: Iterator[str]) -> int:
     """Extract the number of atoms per molecule from the first line in an .xyz file.
 
@@ -189,29 +151,6 @@ def _get_atom_count(f: Iterator[str]) -> int:
         err = (f"{reprlib.repr(ret)} is not a valid integer, the first line in an .xyz file "
                "should contain the number of atoms per molecule")
         raise XYZError(err) from ex
-
-
-def _get_line_count(f: Iterable, add: Union[int, Iterable[int]] = 0) -> int:
-    """Extract the total number lines from **f**.
-
-    Parameters
-    ----------
-    f : |io.TextIOWrapper|_
-        An opened .xyz file.
-
-    add : int or |Iterable|_ [|int|_]
-        Add a constant to the to-be returned line count.
-
-    Returns
-    -------
-    |int|_:
-        The total number of lines in **f**.
-
-    """
-    start = 1 + np.sum(add)
-    for i, _ in enumerate(f, start):
-        pass
-    return i
 
 
 def _get_idx_dict(f: Iterable[str], atom_count: int) -> Dict[str, List[int]]:
