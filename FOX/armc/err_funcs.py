@@ -29,7 +29,9 @@ API
 
 from __future__ import annotations
 
+import warnings
 from typing import TYPE_CHECKING, overload
+
 import numpy as np
 import pandas as pd
 
@@ -58,6 +60,26 @@ def _get_mse(qm, mm, axis=None):  # noqa: E302
     return mse.sum(axis=axis)
 
 
+def _check_zeros(qm: NDArray[f8], mm: NDArray[f8]) -> "f8 | None":
+    """Add special-casing for zero checking.
+
+    Return ``0.0`` if both operands are all zero.
+    Return ``inf`` if ``mm`` is all zero.
+    Return ``None`` otherwhise.
+
+    """
+    mm_all_0 = ~np.any(mm)
+    qm_all_0 = ~np.any(qm)
+    if mm_all_0 & qm_all_0:
+        return np.float64(0)
+    elif mm_all_0:
+        # Mimick the numpy division by 0 warning that would otherwise occur
+        warnings.warn("divide by zero encountered in true_divide", RuntimeWarning, stacklevel=2)
+        return np.float64(np.inf)
+    else:
+        return None
+
+
 def mse_normalized(qm: ArrayLike, mm: ArrayLike) -> f8:
     """Return a normalized mean square error (MSE) over the flattened input."""
     qm = np.asarray(qm, dtype=np.float64)
@@ -81,6 +103,10 @@ def mse_normalized_weighted(qm: ArrayLike, mm: ArrayLike) -> f8:
         mm = np.array(mm, dtype=np.float64, ndmin=1, copy=False).T
     else:
         mm = np.array(mm, dtype=np.float64, ndmin=1, copy=False)
+
+    zeros_special_casing = _check_zeros(qm, mm)
+    if zeros_special_casing is not None:
+        return zeros_special_casing
 
     axes_qm = tuple(range(1, qm.ndim))
     axes_qm_mm = tuple(range(1, max(qm.ndim, mm.ndim)))
@@ -106,6 +132,10 @@ def mse_normalized_max(qm: ArrayLike, mm: ArrayLike) -> f8:
     else:
         mm = np.array(mm, dtype=np.float64, ndmin=1, copy=False)
 
+    zeros_special_casing = _check_zeros(qm, mm)
+    if zeros_special_casing is not None:
+        return zeros_special_casing
+
     axes_qm = tuple(range(1, qm.ndim))
     axes_qm_mm = tuple(range(1, max(qm.ndim, mm.ndim)))
 
@@ -122,6 +152,10 @@ def mse_normalized_v2(qm: ArrayLike, mm: ArrayLike) -> f8:
     """
     qm = np.asarray(qm, dtype=np.float64)
     mm = np.asarray(mm, dtype=np.float64)
+
+    zeros_special_casing = _check_zeros(qm, mm)
+    if zeros_special_casing is not None:
+        return zeros_special_casing
 
     delta = np.abs(qm - mm)
     delta /= np.abs(qm).sum()
@@ -146,6 +180,10 @@ def mse_normalized_weighted_v2(qm: ArrayLike, mm: ArrayLike) -> f8:
     else:
         mm = np.array(mm, dtype=np.float64, ndmin=1, copy=False)
 
+    zeros_special_casing = _check_zeros(qm, mm)
+    if zeros_special_casing is not None:
+        return zeros_special_casing
+
     axes_qm_mm = tuple(range(1, max(qm.ndim, mm.ndim)))
     axes_qm = tuple(range(1, qm.ndim))
     padding_qm = len(axes_qm) * (None,)
@@ -164,6 +202,10 @@ def err_normalized(qm: ArrayLike, mm: ArrayLike) -> f8:
     """
     qm = np.asarray(qm, dtype=np.float64)
     mm = np.asarray(mm, dtype=np.float64)
+
+    zeros_special_casing = _check_zeros(qm, mm)
+    if zeros_special_casing is not None:
+        return zeros_special_casing
 
     delta = np.abs(qm - mm)
     delta /= np.abs(qm).sum()
@@ -185,6 +227,10 @@ def err_normalized_weighted(qm: ArrayLike, mm: ArrayLike) -> f8:
         mm = np.asarray(mm, dtype=np.float64).T
     else:
         mm = np.array(mm, dtype=np.float64, ndmin=1, copy=False)
+
+    zeros_special_casing = _check_zeros(qm, mm)
+    if zeros_special_casing is not None:
+        return zeros_special_casing
 
     axes_qm_mm = tuple(range(1, max(qm.ndim, mm.ndim)))
     axes_qm = tuple(range(1, qm.ndim))
