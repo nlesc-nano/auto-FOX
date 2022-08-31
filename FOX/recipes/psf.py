@@ -113,23 +113,27 @@ from FOX.armc.sanitization import _assign_residues
 
 try:
     from scm.plams import from_smiles, to_rdmol
+    from rdkit.Chem import Mol
 except ImportError as ex:
     RDKIT_EX: None | ImportError = ex
 else:
-    from rdkit.Chem import Mol
-    RDKIT_EX = None
+    def _get_boost_exc() -> type[TypeError]:
+        """Return the Boost ``ArgumentError`` type."""
+        mol = to_rdmol(from_smiles("C"))
+        atom = mol.GetAtoms()[0]
 
-    # A somewhat contrived way of loading :exc:`~Boost.Python.ArgumentError`
-    _MOL = Molecule()
-    _MOL.atoms = [Atom(symbol='H', coords=[0, 0, 0], mol=_MOL)]
-    _MOL[1].properties.charge = -0.5
-    try:
-        to_rdmol(_MOL)
-    except Exception as ex:
-        ArgumentError: type[Exception] = type(ex)
-    else:
-        raise TypeError("Failed to extract Boost.Python.ArgumentError") from None
-    del _MOL
+        ret: None | type[TypeError] = None
+        try:
+            # Trigger an ArgumentError by setting a non-integer charge
+            atom.SetFormalCharge(0.5)
+        except Exception as ex:
+            ret = type(ex)
+            if (ret.__qualname__ == "ArgumentError") and (ret.__module__ == "Boost.Python"):
+                return ret
+        raise TypeError("Failed to extract Boost.Python.ArgumentError") from ret
+
+    ArgumentError = _get_boost_exc()
+    RDKIT_EX = None
 
 KT = TypeVar("KT")
 VT = TypeVar("VT")
