@@ -59,7 +59,7 @@ jobs:
 
             -   name: Set up Python
                 if: matrix.special != '; conda'
-                uses: actions/setup-python@v3
+                uses: actions/setup-python@v4
                 with:
                     python-version: ${{ matrix.version }}
 
@@ -116,7 +116,7 @@ jobs:
                     pytest -m "not slow"
 
             -   name: Run codecov
-                uses: codecov/codecov-action@v2
+                uses: codecov/codecov-action@v3
                 with:
                     file: ./coverage.xml
                     name: codecov-umbrella
@@ -124,12 +124,12 @@ jobs:
     Linting:
         runs-on: ubuntu-latest
         steps:
-            -   uses: actions/checkout@v2
+            -   uses: actions/checkout@v3
 
-            -   name: Set up Python 3.10 on ubuntu-latest
-                uses: actions/setup-python@v2
+            -   name: Set up Python on ubuntu-latest
+                uses: actions/setup-python@v4
                 with:
-                    python-version: "3.10"
+                    python-version: "3.x"
 
             -   name: Install linters
                 run: pip install flake8 pydocstyle
