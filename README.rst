@@ -119,6 +119,7 @@ Optional dependencies
 
   - Anaconda:   ``conda install -name FOX -y -c conda-forge rdkit``
 
+  - PyPi:       ``pip install rdkit``
 
 .. _1: https://auto-fox.readthedocs.io/en/latest/3_multimolecule.html
 .. _2: https://auto-fox.readthedocs.io/en/latest/5_xyz_reader.html

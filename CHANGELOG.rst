@@ -8,7 +8,13 @@ This project adheres to `Semantic Versioning <http://semver.org/>`_.
 
 0.10.2
 ******
-* *placeholder*.
+* Fix the atom-pairs not being sorted if specific parameters are guessed.
+* Add a workflow for computing Debye scattering.
+* Fix various PES-averaged ARMC issues.
+* Fix improper dihedral-indices being incorrectly sorted.
+* Make the .xyz parser more robust.
+* Export warnings to the logger when running ARMC.
+* Fix a Boost issues with the PLAMS master branch.
 
 
 0.10.1
