@@ -6,6 +6,11 @@ All notable changes to this project will be documented in this file.
 This project adheres to `Semantic Versioning <http://semver.org/>`_.
 
 
+0.10.3
+******
+* *Placeholder*.
+
+
 0.10.2
 ******
 * Fix the atom-pairs not being sorted if specific parameters are guessed.
