@@ -27,6 +27,7 @@ tests_require_no_optional = [
 tests_require = [
     'ase>=3.21.1',
     'nlesc-CAT>=0.10.0',
+    'ipython>=5.0.0',
 ]
 tests_require += tests_require_no_optional
 tests_require += docs_require
