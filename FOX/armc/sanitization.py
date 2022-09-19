@@ -359,7 +359,7 @@ def get_param(dct: ParamMapping_) -> Tuple[ParamMapping, dict, dict, ValidationD
             data2[['min', 'max']] = min_max2
             data2['unit'] = units2
             data2['frozen'] = True
-            data = data.append(data2)
+            data = pd.concat([data, data2])
     data.sort_index(inplace=True)
 
     param_type = prm_dict.pop('type')  # type: ignore
