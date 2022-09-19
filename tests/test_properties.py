@@ -12,7 +12,7 @@ from pathlib import Path
 import pytest
 import numpy as np
 from assertionlib import assertion
-from qmflows.packages.cp2k_mm import CP2KMM_Result
+from qmflows.packages import CP2KMM_Result
 
 from FOX.properties import FromResult, get_pressure, get_bulk_modulus, get_attr
 

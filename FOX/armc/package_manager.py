@@ -35,7 +35,7 @@ import pandas as pd
 from scm.plams import config, Molecule, JobManager  # type: ignore
 from qmflows import Settings as QmSettings
 from qmflows.cp2k_utils import prm_to_df
-from qmflows.packages.cp2k_package import CP2K, CP2K_Result
+from qmflows.packages import CP2K, CP2K_Result
 from noodles import gather, schedule, has_scheduled_methods, run_parallel
 from nanoutils import set_docstring, TypedDict
 
@@ -93,7 +93,7 @@ class PackageManagerABC(ABC, Mapping[str, Value]):
         data : :class:`~collections.abc.Mapping` [:class:`str`, :class:`~collections.abc.Iterable` [:class:`~scm.plams.core.basejob.SingleJob`]]
             A mapping with user-defined job descriptor as keys and an iterable of Job
             instances as values.
-        hook : :class:`~collections.abc.Iterator` [:class:`~collections.abc.Iterable` [:class:`~qmflows.packages.packages.Result`]], optional
+        hook : :class:`~collections.abc.Iterator` [:class:`~collections.abc.Iterable` [:class:`~qmflows.packages.Result`]], optional
             An iterator yielding multiple qmflows Result objects.
             Can be used as a hook for the purpose of unit-testing.
         **kwargs : :data:`~typing.Any`

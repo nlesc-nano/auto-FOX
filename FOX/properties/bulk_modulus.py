@@ -6,7 +6,7 @@ from typing import Callable, Any, TYPE_CHECKING
 
 import numpy as np
 from scm.plams import Units
-from qmflows.packages.cp2k_package import CP2K_Result
+from qmflows.packages import CP2K_Result
 from qmflows.warnings_qmflows import QMFlows_Warning
 from nanoutils import warning_filter
 
@@ -85,7 +85,7 @@ def _(
 
     Parameters
     ----------
-    result : :class:`qmflows.CP2K_Result <qmflows.packages.cp2k_package.CP2K_Result>`
+    result : :class:`qmflows.CP2K_Result <qmflows.packages.CP2K_Result>`
         The Result instance that **self** should operator on.
     reduce : :class:`str` or :class:`Callable[[Any], Any] <collections.abc.Callable>`, optional
         A callback for reducing the output of **self**.
