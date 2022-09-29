@@ -345,11 +345,6 @@ def generate_psf2(
     """
     if not isinstance(qd, Molecule):
         qd = Molecule(qd)
-    if not len(qd.bonds):
-        warnings.warn(
-            f'Failed to identify any bonds in the following qd: {qd.get_formula()}',
-            category=MoleculeWarning,
-        )
 
     # Create a dictionary with RDKit molecules and the number of atoms contained therein
     rdmol_dict = _get_rddict(ligands)
