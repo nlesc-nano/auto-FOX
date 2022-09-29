@@ -345,11 +345,6 @@ def generate_psf2(
     """
     if not isinstance(qd, Molecule):
         qd = Molecule(qd)
-    if not len(qd.bonds):
-        warnings.warn(
-            f'Failed to identify any bonds in the following qd: {qd.get_formula()}',
-            category=MoleculeWarning,
-        )
 
     # Create a dictionary with RDKit molecules and the number of atoms contained therein
     rdmol_dict = _get_rddict(ligands)
@@ -375,7 +370,7 @@ def generate_psf2(
         for ref, k in rdmol_dict.items():
             k = 0 if ref is ref0 else k
             new = _update_lig(new, k, copy=False)
-            j += k
+            j = k or j
 
             if _get_matches(new, ref):
                 qd.bonds += [Bond(atom1=qd[bond.atom1.id],
@@ -389,7 +384,7 @@ def generate_psf2(
 
         else:
             err = (f'Failed to identify any ligands {ligands} within the range '
-                   f'[{i}:{i + next(iter(rdmol_dict.items()))[1]}]')
+                   f'[{i}:{i + j}]')
             if not ret_failed_lig:
                 raise MoleculeError(err)
             else:
@@ -536,13 +531,7 @@ def _get_rddict(ligands: Iterable[str | Molecule | Mol]) -> Dict[Mol, int]:
             f'Failed to identify any bonds in the following ligands: {no_bonds!r}',
             category=MoleculeWarning, stacklevel=2,
         )
-
-    v_old = 0
-    rdmol_dict = {}
-    for (_, k), v in _items_sorted(tmp_dct):
-        rdmol_dict[k] = v - v_old
-        v_old = v
-    return rdmol_dict
+    return {k: v for (_, k), v in _items_sorted(tmp_dct)}
 
 
 def set_integer_bonds(self) -> None:
