@@ -52,6 +52,12 @@ def fix_bond_orders(mol: Molecule) -> None:
             if at2_saturation != 0:
                 at2.properties.charge += at2_saturation
 
+    # Explicitly cast integer-valued floats to int
+    for at in mol:
+        charge = at.properties.charge
+        if isinstance(charge, float) and charge.is_integer():
+            at.properties.charge = int(charge)
+
 
 def separate_mod(mol: Molecule) -> List[List[int]]:
     """Modified version of the PLAMS Molecule.separate_ method.
