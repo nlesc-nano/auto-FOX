@@ -35,7 +35,6 @@ from ..io.hdf5_utils import (
 )
 
 if TYPE_CHECKING:
-    import functools
     from .phi_updater import PhiUpdater
     from ..io.read_psf import PSFContainer
 else:
@@ -164,7 +163,7 @@ class ARMC(MonteCarloABC):
             pes: Dict[str, Any] = {}
             ret[name] = pes
             i_max = 1 + max((int(k.split('.')[-1]) for k in attr.keys()), default=0)
-            for _k, v in attr.items():  # type: str, functools.partial # type: ignore[assignment]
+            for _k, v in attr.items():
                 k, _i = _k.split('.')
                 i = int(_i)
                 try:

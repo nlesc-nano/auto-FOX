@@ -45,11 +45,10 @@ from ..logger import DummyLogger
 from ..io.read_xyz import XYZError
 
 if TYPE_CHECKING:
-    from scm.plams.core.basejob import Job
     from qmflows.packages import Result, Package
     from noodles.interface import PromisedObject
 else:
-    from ..type_alias import PromisedObject, Result, Package, Job
+    from ..type_alias import PromisedObject, Result, Package
 
 __all__ = ['PackageManagerABC', 'PackageManager']
 
@@ -377,7 +376,7 @@ class PackageManager(PackageManagerABC):
         job_manager: JobManager = config.default_jobmanager
         workdir: Union[str, os.PathLike] = job_manager.workdir
 
-        for job in job_manager.jobs:  # type: Job
+        for job in job_manager.jobs:
             name = os.path.join(workdir, job.name)
             try:
                 shutil.rmtree(name)
