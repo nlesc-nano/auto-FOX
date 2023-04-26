@@ -125,7 +125,7 @@ def get_intra_non_bonded(mol: Union[str, MultiMolecule], psf: Union[str, PSFCont
     mol_.atoms = psf.to_atom_dict()
 
     # Convert Angstroem to bohr
-    mol_ *= Units.conversion_ratio('angstrom', 'au')  # type: ignore[assignment]
+    mol_ *= Units.conversion_ratio('angstrom', 'au')  # type: ignore[misc]
     distance_upper_bound *= Units.conversion_ratio('angstrom', 'au')
 
     # The .prm format allows one to specify special non-bonded interactions between

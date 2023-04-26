@@ -1,0 +1,16 @@
+[tool.mypy]
+plugins = "numpy.typing.mypy_plugin"
+show_error_codes = true
+
+[[tool.mypy.overrides]]
+module = [
+    "scm.*",
+    "noodles.*",
+    "rdkit.*",
+    "pandas.*",
+    "matplotlib.*",
+    "scipy.*",
+    "schema.*",
+    "h5py.*",
+]
+ignore_missing_imports = true

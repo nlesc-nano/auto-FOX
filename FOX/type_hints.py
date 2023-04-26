@@ -18,12 +18,12 @@ import numpy as np
 from pandas.core.generic import NDFrame
 
 if TYPE_CHECKING:
-    from numpy.typing import ArrayLike, DtypeLike
+    from numpy.typing import ArrayLike, DTypeLike
 else:
-    from numpy import ndarray as ArrayLike, dtype as DtypeLike
+    from numpy import ndarray as ArrayLike, dtype as DTypeLike
 
 __all__ = [
-    'Scalar', 'ScalarType', 'ArrayLike', 'DtypeLike', 'ArrayLikeOrScalar', 'ArrayOrScalar'
+    'Scalar', 'ScalarType', 'ArrayLike', 'DTypeLike', 'ArrayLikeOrScalar', 'ArrayOrScalar'
 ]
 
 #: Annotation for numerical scalars.

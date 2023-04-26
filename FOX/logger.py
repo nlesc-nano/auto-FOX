@@ -12,12 +12,17 @@ API
 
 """
 
+from __future__ import annotations
+
 import os
-from typing import Optional, Iterable, Any, Callable, Union
+from typing import Optional, Iterable, Any, Callable, Union, TYPE_CHECKING
 from logging import Logger, StreamHandler, Handler, FileHandler, DEBUG, getLogger, Formatter
 from functools import wraps
 
 from scm.plams import config
+
+if TYPE_CHECKING:
+    from typing import Literal
 
 __all__ = ['DEFAULT_LOGGER', 'DummyLogger', 'get_logger', 'Plams2Logger', 'wrap_plams_logger']
 
@@ -71,7 +76,7 @@ def wrap_plams_logger(logfile: Union[None, str, os.PathLike] = None,
 def get_logger(name: str,
                handlers: Union[Handler, Iterable[Handler]] = FileHandler,
                level: int = DEBUG,
-               style: str = '{',
+               style: Literal['%', '{', '$'] = '{',
                fmt: Optional[str] = '[{asctime}] {levelname}: {message}',
                datefmt: Optional[str] = '%H:%M:%S') -> Logger:
     r"""Create and return a new :class:`Logger<logging.Logger>` instance.

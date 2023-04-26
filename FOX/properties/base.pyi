@@ -5,7 +5,7 @@ from collections.abc import MutableMapping
 
 import numpy as np
 from numpy.typing import NDArray
-from qmflows.packages.cp2k_package import CP2K_Result
+from qmflows.packages import CP2K_Result
 
 __all__ = ['FromResult', 'get_attr', 'call_method']
 

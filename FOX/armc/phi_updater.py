@@ -26,7 +26,7 @@ import numpy as np
 from assertionlib.dataclass import AbstractDataClass
 from nanoutils import set_docstring, SupportsIndex, as_nd_array, TypedDict
 
-from ..type_hints import ArrayLike, ArrayLikeOrScalar, Scalar, DtypeLike
+from ..type_hints import ArrayLike, ArrayLikeOrScalar, Scalar, DTypeLike
 
 __all__ = ['PhiUpdaterABC', 'PhiUpdater']
 
@@ -180,7 +180,7 @@ class PhiUpdaterABC(AbstractDataClass, ABC, Sized):
 
     def __call__(self, value: ArrayLikeOrScalar, *,
                  idx: Optional[SupportsIndex] = None,
-                 dtype: DtypeLike = np.float64) -> np.ndarray:
+                 dtype: DTypeLike = np.float64) -> np.ndarray:
         """Pass **value** and :attr:`phi` to :attr:`func`.
 
         Parameters

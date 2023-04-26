@@ -314,12 +314,12 @@ def get_package(dct: JobMapping, phi: Iterable) -> Tuple[PackageManager, Tuple[M
         for _ in phi:
             for i, mol in enumerate(mol_list):
                 kwargs2 = kwargs.copy()
-                kwargs2['molecule'] = mol.copy()  # type: ignore[misc]
+                kwargs2['molecule'] = mol.copy()  # type: ignore[typeddict-unknown-key]
 
                 pkg_name = kwargs2['type'].pkg_name
                 kwargs2['settings'] = s_list[i]
                 kwargs2['settings'].specific[pkg_name].soft_update(kwargs2.pop('template'))  # type: ignore[misc] # noqa: E501
-                data[k].append(kwargs2)  # type: ignore[arg-type]
+                data[k].append(kwargs2)  # type: ignore[attr-defined]
 
     pkg_type = job_dict['type']
     return pkg_type(data), job_dict['molecule']  # type: ignore[return-value]
