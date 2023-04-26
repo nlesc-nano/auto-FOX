@@ -19,6 +19,9 @@ defaults:
     run:
         shell: bash
 
+env:
+    CP2K_VERSION: '2023.1'
+
 jobs:
     build:
         name: ${{ matrix.os }} (py ${{ matrix.version }}${{ matrix.special }})
@@ -49,11 +52,13 @@ jobs:
 
             -   name: Install CP2K
                 if: matrix.os == 'ubuntu-latest'
-                run: sudo apt install cp2k
+                run: |
+                    curl -Lsf "https://github.com/cp2k/cp2k/releases/download/v${CP2K_VERSION}/cp2k-${CP2K_VERSION}-Linux-gnu-x86_64.ssmp" -o /usr/local/bin/cp2k.ssmp
+                    chmod u+rx /usr/local/bin/cp2k.ssmp
 
             -   name: Info CP2K
                 if: matrix.os == 'ubuntu-latest'
-                run: cp2k.popt --version
+                run: cp2k.ssmp --version
 
             -   name: Install dependencies
                 run: |

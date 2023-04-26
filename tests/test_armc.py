@@ -270,7 +270,7 @@ def test_yaml_armc(name: str) -> None:
 
 def _has_cp2k() -> bool:
     try:
-        subprocess.run('cp2k.popt --version', shell=True, check=True,
+        subprocess.run('cp2k.ssmp --version', shell=True, check=True,
                        stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     except subprocess.CalledProcessError:
         return False
