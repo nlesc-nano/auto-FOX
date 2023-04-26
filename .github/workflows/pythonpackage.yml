@@ -103,7 +103,7 @@ jobs:
                     python-version: "3.x"
 
             -   name: Install linters
-                run: pip install flake8 pydocstyle
+                run: pip install flake8 "pydocstyle[toml]>=6.1" "Flake8-pyproject>=1.0.1"
 
             -   name: Python info
                 run: |

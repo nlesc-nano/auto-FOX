@@ -21,7 +21,7 @@ docs_require = [
 ]
 
 tests_require_no_optional = [
-    'pytest>=5.4.0',
+    'pytest>=6.0.0',
     'pytest-cov',
 ]
 tests_require = [
