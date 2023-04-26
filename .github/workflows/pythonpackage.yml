@@ -31,15 +31,6 @@ jobs:
                 special: ['']
                 include:
                     -   os: ubuntu-latest
-                        special: '; conda'
-                        version: '3.7'
-                    -   os: ubuntu-latest
-                        special: '; conda'
-                        version: '3.8'
-                    -   os: ubuntu-latest
-                        special: '; conda'
-                        version: '3.9'
-                    -   os: ubuntu-latest
                         special: '; pre-release'
                         version: '3.11'
                     -   os: ubuntu-latest
@@ -51,14 +42,7 @@ jobs:
         steps:
             -   uses: actions/checkout@v3
 
-            -   name: Set up Conda
-                if: matrix.special == '; conda'
-                uses: s-weigand/setup-conda@v1
-                with:
-                    update-conda: false
-
             -   name: Set up Python
-                if: matrix.special != '; conda'
                 uses: actions/setup-python@v4
                 with:
                     python-version: ${{ matrix.version }}
@@ -73,11 +57,7 @@ jobs:
 
             -   name: Install dependencies
                 run: |
-                    if [[ "${{ matrix.special }}" == '; conda' ]]; then
-                        conda create -n test -c conda-forge python="${{ matrix.version }}" rdkit
-                        source $CONDA/bin/activate test
-                        pip install -e .[test]
-                    elif [[ "${{ matrix.special }}" == '; pre-release' ]]; then
+                    if [[ "${{ matrix.special }}" == '; pre-release' ]]; then
                         pip install --pre -e .[test_no_optional] --upgrade --force-reinstall
                         pip install git+https://github.com/SCM-NV/qmflows@master --upgrade
                         pip install git+https://github.com/SCM-NV/PLAMS@master --upgrade
@@ -92,28 +72,14 @@ jobs:
 
             -   name: Info Python
                 run: |
-                    if [[ "${{ matrix.special }}" == '; conda' ]]; then
-                        source $CONDA/bin/activate test
-                        conda info
-                    else
-                        which python
-                        python --version
-                    fi
+                    which python
+                    python --version
 
             -   name: Info installed packages
-                run: |
-                    if [[ "${{ matrix.special }}" == '; conda' ]]; then
-                        conda list -n test
-                    else
-                        pip list
-                    fi
+                run: pip list
 
             -   name: Run tests
-                run: |
-                    if [[ "${{ matrix.special }}" == '; conda' ]]; then
-                        source $CONDA/bin/activate test
-                    fi
-                    pytest -m "not slow"
+                run: pytest -m "not slow"
 
             -   name: Run codecov
                 uses: codecov/codecov-action@v3
