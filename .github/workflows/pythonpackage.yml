@@ -7,7 +7,6 @@ on:
     push:
         branches:
             - master
-            - Auto-FOX-0.8
     pull_request:
     workflow_dispatch:
 
@@ -20,6 +19,7 @@ defaults:
         shell: bash
 
 env:
+    PY_COLORS: '1'
     CP2K_VERSION: '2023.1'
 
 jobs:
