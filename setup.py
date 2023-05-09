@@ -21,7 +21,7 @@ docs_require = [
 ]
 
 tests_require_no_optional = [
-    'pytest>=5.4.0',
+    'pytest>=6.0.0',
     'pytest-cov',
 ]
 tests_require = [
@@ -77,14 +77,11 @@ setup(
         'chemistry',
         'forcefield-parameterization',
         'forcefield',
+        'python',
         'python-3',
-        'python-3.7',
-        'python-3.8',
-        'python-3.9',
-        'python-3.10',
     ],
     classifiers=[
-        'Development Status :: 4 - Beta',
+        'Development Status :: 5 - Production/Stable',
         'Intended Audience :: Science/Research',
         'License :: OSI Approved :: GNU General Public License v3 or later (GPLv3+)',
         'Natural Language :: English',
@@ -92,6 +89,7 @@ setup(
         'Operating System :: MacOS',
         'Programming Language :: Python',
         'Programming Language :: Python :: 3',
+        'Programming Language :: Python :: 3 :: Only',
         'Programming Language :: Python :: 3.7',
         'Programming Language :: Python :: 3.8',
         'Programming Language :: Python :: 3.9',

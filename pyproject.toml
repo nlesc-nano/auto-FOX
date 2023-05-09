@@ -14,3 +14,30 @@ module = [
     "h5py.*",
 ]
 ignore_missing_imports = true
+
+[tool.pydocstyle]
+convention = "numpy"
+add_ignore = ["D401", "D103", "D102", "D105"]
+ignore_decorators = "set_docstring"
+
+[tool.flake8]
+ignore = ["E226", "E704", "E731", "W503", "W504", "E721"]
+exclude = ["FOX/examples/ ALL", "FOX/properties/*.pyi ALL"]
+max-line-length = 100
+
+[tool.pytest.ini_options]
+testpaths = "FOX tests"
+addopts = "--tb=short --cov=FOX --cov-report xml --cov-report term --cov-report html --pdbcls=IPython.terminal.debugger:TerminalPdb"
+filterwarnings = [
+    "ignore::pandas.errors.PerformanceWarning",
+    "ignore:numpy\\.ufunc size changed, may indicate binary incompatibility\\. Expected [0-9]+ from C header, got [0-9]+ from PyObject:RuntimeWarning",
+    "ignore::DeprecationWarning:numpy.distutils.*",
+    "ignore:elementwise comparison failed:FutureWarning:pandas",
+    "error::qmflows.warnings_qmflows.QMFlows_Warning",
+    "ignore:Generic keyword '_pytestfixturefunction' not implemented for package \\w:qmflows.warnings_qmflows.Key_Warning",
+]
+
+[tool.coverage.run]
+branch = true
+source = ["FOX"]
+omit = ["FOX/examples"]

@@ -1,0 +1,23 @@
+# YAML 1.2
+# Metadata for citation of this software according to the CFF format (https://citation-file-format.github.io/)
+cff-version: 1.2.0
+message: If you use this software, please cite it as below.
+title: Auto-FOX
+abstract: A library for analyzing potential energy surfaces (PESs) and using the resulting PES descriptors for constructing forcefield parameters.
+authors:
+- given-names: Bas
+  family-names: van Beek
+  orcid: "https://orcid.org/0000-0003-2463-6559"
+keywords:
+ - computational-chemistry
+ - materials-science
+ - python
+ - Workflows
+ - forcefield
+ - forcefield-parameterization
+version: '0.10.2'
+date-released: "2022-08-31"
+repository-code: https://github.com/nlesc-nano/auto-FOX
+license: "GPL-3.0"
+doi: 10.5281/zenodo.3988142
+type: software
