@@ -8,7 +8,13 @@ This project adheres to `Semantic Versioning <http://semver.org/>`_.
 
 1.0.0
 *****
-* *Placeholder*.
+* Bump the minimum nano-utils version
+* Issue a warning in the psf recipe if the qd or ligands don't have any bonds
+* Fix an issue with parsing multiple ligands in `generate_psf2``
+* Add formal Python 3.11 support
+* Pin pandas to <2.0.0
+* Test using CP2K 2023.1
+* Add a citation.cff file
 
 
 0.10.2

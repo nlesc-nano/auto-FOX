@@ -15,9 +15,9 @@ keywords:
  - Workflows
  - forcefield
  - forcefield-parameterization
-version: '0.10.2'
-date-released: "2022-08-31"
+version: '1.0.0b1'
+date-released: "2023-05-09"
 repository-code: https://github.com/nlesc-nano/auto-FOX
-license: "GPL-3.0"
+license: "LGPL-3.0"
 doi: 10.5281/zenodo.3988142
 type: software
