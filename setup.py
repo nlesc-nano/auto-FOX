@@ -112,6 +112,7 @@ setup(
         'h5py>=2.10',
         'qmflows>=0.12.0',
         'plams>=1.5.1',
+        'packaging>=17.1',
     ],
     tests_require=tests_require,
     extras_require={

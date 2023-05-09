@@ -43,6 +43,7 @@ import numpy as np
 import pandas as pd
 from scm.plams import Settings
 from nanoutils import PathType, group_by_values, recursive_keys
+from packaging.version import Version
 
 from .. import __file__ as _fox_file
 from ..__version__ import __version__
@@ -103,7 +104,7 @@ def create_hdf5(filename: PathType, armc: ARMC) -> None:
 
         f.attrs['super-iteration'] = -1
         f.attrs['sub-iteration'] = -1
-        f.attrs['__version__'] = np.fromiter(__version__.split('.'), count=3, dtype=int)
+        f.attrs['__version__'] = np.fromiter(Version(__version__).release, dtype=np.int64)
 
         commit_hash = get_commit_hash(Path(_fox_file).parents[1])
         f.attrs['commit_hash'] = commit_hash if commit_hash is not None else ""
@@ -180,7 +181,7 @@ def create_xyz_hdf5(filename: PathType,
 
     # Create a new hdf5 xyz files
     with h5py.File(filename_xyz, 'w-', libver='latest') as f:
-        f.attrs['__version__'] = np.fromiter(__version__.split('.'), count=3, dtype=int)
+        f.attrs['__version__'] = np.fromiter(Version(__version__).release, dtype=np.int64)
 
         iterator = (mol for mol in mol_list for _ in phi)
         for i, mol in enumerate(iterator):
