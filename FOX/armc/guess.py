@@ -146,7 +146,8 @@ def guess_param(
     if psf_list is not None:
         atoms: Set[str] = set()
         for mol, p in zip(mol_list, psf_list):
-            psf: PSFContainer = PSFContainer.read(p) if not isinstance(p, PSFContainer) else p
+            psf = PSFContainer.read(p) if not isinstance(p, PSFContainer) else p
+            psf.validate_mol(mol)
             mol.atoms_alias = psf.to_atom_alias_dict()
             atoms |= set(psf.atom_type)
     else:

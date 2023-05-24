@@ -21,7 +21,8 @@ import reprlib
 import inspect
 from os import PathLike
 from typing import (Dict, Optional, Any, Set, Iterator, Iterable, TypeVar, Tuple, cast,
-                    List, Mapping, Union, Collection, Generic, IO, Callable, overload)
+                    List, Mapping, Union, Collection, Generic, IO, Callable, overload,
+                    TYPE_CHECKING)
 from itertools import chain
 from collections import defaultdict
 from types import MappingProxyType
@@ -29,7 +30,7 @@ from types import MappingProxyType
 import numpy as np
 import pandas as pd
 
-from scm.plams import Molecule, Atom, Bond
+from scm.plams import Molecule, Atom, Bond, MoleculeError
 from assertionlib.dataclass import AbstractDataClass
 from nanoutils import (
     group_by_values, raise_if, AbstractFileContainer, set_docstring,
@@ -44,6 +45,9 @@ try:
     RDKIT_EX: Optional[ImportError] = None
 except ImportError as ex:
     RDKIT_EX = ex
+
+if TYPE_CHECKING:
+    from FOX import MultiMolecule
 
 __all__ = ['PSFContainer']
 
@@ -1039,6 +1043,37 @@ class PSFContainer(AbstractDataClass, AbstractFileContainer):
 
         """
         return group_by_values(enumerate(self.atom_type))
+
+    def validate_mol(self, mol: MultiMolecule) -> None:
+        """Check whether the atomic symbols in the passed molecule match the psf.
+
+        Raises
+        ------
+        plams.MoleculeError
+            Raised if there's either an atom count- or type-mismatch
+
+        """
+        atoms_mol = pd.Series(mol.symbol, dtype=str, name=self.atom_name.name)
+        atoms_mol.index += 1
+        if (self.atom_name.size != atoms_mol.size):
+            raise MoleculeError(
+                f"Mismatched atom count between passed psf ({self.atom_name.size}) "
+                f"and mol ({atoms_mol.size})"
+            )
+
+        atoms_mismatch = self.atom_name != atoms_mol
+        if atoms_mismatch.any():
+            mismatch_df = pd.DataFrame(
+                index=atoms_mismatch.index[atoms_mismatch], columns=["psf", "mol"], dtype=str
+            )
+            mismatch_df["psf"] = self.atom_name[atoms_mismatch]
+            mismatch_df["mol"] = atoms_mol[atoms_mismatch]
+            mismatch_df.index.name = "Index (1-based)"
+            with pd.option_context("display.max_columns", 10, "display.show_dimensions", False):
+                raise MoleculeError(
+                    f"Found {atoms_mismatch.sum()} mismatched atoms "
+                    f"between psf and mol:\n\n{mismatch_df.T}"
+                )
 
     def to_atom_alias_dict(self) -> Dict[str, Tuple[str, np.ndarray[Any, np.dtype[np.intp]]]]:
         """Create a with atom aliases."""
