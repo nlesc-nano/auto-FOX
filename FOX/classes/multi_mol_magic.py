@@ -233,7 +233,7 @@ class _MultiMolecule(np.ndarray):
         cls: Type[MT],
         coords: npt.ArrayLike,
         atoms: Optional[IdxMapping] = None,
-        bonds: Optional[np.ndarray] = None,
+        bonds: Optional[npt.NDArray[np.intp]] = None,
         properties: Optional[Mapping] = None,
         atoms_alias: Optional[Mapping[str, slice]] = None,
         lattice: None | npt.ArrayLike = None,
@@ -276,7 +276,7 @@ class _MultiMolecule(np.ndarray):
     @atoms.setter
     def atoms(self, value: None | IdxMapping) -> None:
         if value is None:
-            self._atoms: Dict[str, np.ndarray[Any, np.dtype[np.intp]]] = {}
+            self._atoms: Dict[str, npt.NDArray[np.intp]] = {}
             return None
 
         dct = {k: _to_int_array(v) for k, v in dict(value).items()}
@@ -317,7 +317,7 @@ class _MultiMolecule(np.ndarray):
         return self._bonds
 
     @bonds.setter
-    def bonds(self, value: Optional[np.ndarray[Any, np.dtype[np.integer[Any]]]]) -> None:
+    def bonds(self, value: Optional[npt.NDArray[np.integer[Any]]]) -> None:
         if value is None:
             bonds = np.zeros((0, 3), dtype=np.intp)
         else:
@@ -340,7 +340,7 @@ class _MultiMolecule(np.ndarray):
         self._properties = Settings() if value is None else Settings(value)
 
     @property
-    def lattice(self) -> None | np.ndarray[Any, np.dtype[np.float64]]:
+    def lattice(self) -> None | npt.NDArray[np.float64]:
         return self._lattice
 
     @lattice.setter
@@ -353,39 +353,39 @@ class _MultiMolecule(np.ndarray):
     """###############################  PLAMS-based properties  ################################"""
 
     @property
-    def atom12(self) -> np.ndarray:
+    def atom12(self) -> npt.NDArray[np.intp]:
         """Get or set the indices of the atoms for all bonds in :attr:`.MultiMolecule.bonds` as 2D array."""  # noqa
         return self._bonds[:, 0:2]
 
     @atom12.setter
-    def atom12(self, value: np.ndarray) -> None:
+    def atom12(self, value: npt.NDArray[np.integer[Any]]) -> None:
         self._bonds[:, 0:2] = value
 
     @property
-    def atom1(self) -> _MultiMolecule:
+    def atom1(self) -> npt.NDArray[np.intp]:
         """Get or set the indices of the first atoms in all bonds of :attr:`.MultiMolecule.bonds` as 1D array."""  # noqa
         return self._bonds[:, 0]
 
     @atom1.setter
-    def atom1(self, value: np.ndarray) -> None:
+    def atom1(self, value: npt.NDArray[np.integer[Any]]) -> None:
         self._bonds[:, 0] = value
 
     @property
-    def atom2(self) -> np.ndarray:
+    def atom2(self) -> npt.NDArray[np.intp]:
         """Get or set the indices of the second atoms in all bonds of :attr:`.MultiMolecule.bonds` as 1D array."""  # noqa
         return self._bonds[:, 1]
 
     @atom2.setter
-    def atom2(self, value: np.ndarray) -> None:
+    def atom2(self, value: npt.NDArray[np.integer[Any]]) -> None:
         self._bonds[:, 1] = value
 
     @property
-    def order(self) -> np.ndarray:
+    def order(self) -> npt.NDArray[np.float64]:
         """Get or set the bond orders for all bonds in :attr:`.MultiMolecule.bonds` as 1D array."""
         return self._bonds[:, 2] / 10.0
 
     @order.setter
-    def order(self, value: np.ndarray) -> None:
+    def order(self, value: npt.NDArray[np.integer[Any] | np.floating[Any]]) -> None:
         self._bonds[:, 2] = value * 10
 
     @property
@@ -394,7 +394,7 @@ class _MultiMolecule(np.ndarray):
         return self[:, :, 0]
 
     @x.setter
-    def x(self, value: np.ndarray) -> None:
+    def x(self, value: npt.NDArray[np.floating[Any] | np.integer[Any]]) -> None:
         self[:, :, 0] = value
 
     @property
@@ -403,7 +403,7 @@ class _MultiMolecule(np.ndarray):
         return self[:, :, 1]
 
     @y.setter
-    def y(self, value: np.ndarray) -> None:
+    def y(self, value: npt.NDArray[np.floating[Any] | np.integer[Any]]) -> None:
         self[:, :, 1] = value
 
     @property
@@ -412,31 +412,31 @@ class _MultiMolecule(np.ndarray):
         return self[:, :, 2]
 
     @z.setter
-    def z(self, value: np.ndarray) -> None:
+    def z(self, value: npt.NDArray[np.floating[Any] | np.integer[Any]]) -> None:
         self[:, :, 2] = value
 
     @property
-    def symbol(self) -> np.ndarray:
+    def symbol(self) -> npt.NDArray[np.str_]:
         """Get the atomic symbols of all atoms in :attr:`.MultiMolecule.atoms` as 1D array."""
         return self._get_atomic_property('symbol')
 
     @property
-    def atnum(self) -> np.ndarray:
+    def atnum(self) -> npt.NDArray[np.int_]:
         """Get the atomic numbers of all atoms in :attr:`.MultiMolecule.atoms` as 1D array."""
         return self._get_atomic_property('atnum')
 
     @property
-    def mass(self) -> np.ndarray:
+    def mass(self) -> npt.NDArray[np.float64]:
         """Get the atomic masses of all atoms in :attr:`.MultiMolecule.atoms` as 1D array."""
         return self._get_atomic_property('mass')
 
     @property
-    def radius(self) -> np.ndarray:
+    def radius(self) -> npt.NDArray[np.float64]:
         """Get the atomic radii of all atoms in :attr:`.MultiMolecule.atoms` as 1d array."""
         return self._get_atomic_property('radius')
 
     @property
-    def connectors(self) -> np.ndarray:
+    def connectors(self) -> npt.NDArray[np.int_]:
         """Get the atomic connectors of all atoms in :attr:`.MultiMolecule.atoms` as 1D array."""
         return self._get_atomic_property('connectors')
 
