@@ -1,6 +1,7 @@
 """Tests for :class:`FOX.io.read_psf.PSFContainer`."""
 
 import os
+import re
 from types import MappingProxyType
 from pathlib import Path
 from tempfile import TemporaryFile
@@ -8,10 +9,10 @@ from itertools import zip_longest
 
 import pytest
 import numpy as np
-from scm.plams import Molecule
+from scm.plams import Molecule, MoleculeError
 from assertionlib import assertion
 
-from FOX import PSFContainer
+from FOX import PSFContainer, example_xyz, MultiMolecule
 
 PATH = Path('tests') / 'test_files' / 'psf'
 PSF = PSFContainer.read(PATH / 'mol.psf')
@@ -140,3 +141,20 @@ def test_sort_values() -> None:
 
     with pytest.raises(TypeError):
         psf.sort_values([], axis=0)
+
+
+class TestValidateMol:
+    MOL = MultiMolecule.from_xyz(example_xyz)
+
+    def test_length(self) -> None:
+        with pytest.raises(
+            MoleculeError,
+            match=re.escape("Mismatched atom count between passed psf (305) and molecule (227)"),
+        ):
+            PSF.validate_mol(self.MOL)
+
+    def test_count(self) -> None:
+        atom_count = len(PSF.atoms) - self.MOL.shape[1]
+        mol = self.MOL.add_atoms(np.zeros((len(self.MOL), atom_count, 3)), "H")
+        with pytest.raises(MoleculeError, match="Found 140 mismatched atoms"):
+            PSF.validate_mol(mol)

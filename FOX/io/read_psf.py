@@ -1058,7 +1058,7 @@ class PSFContainer(AbstractDataClass, AbstractFileContainer):
         if (self.atom_name.size != atoms_mol.size):
             raise MoleculeError(
                 f"Mismatched atom count between passed psf ({self.atom_name.size}) "
-                f"and mol ({atoms_mol.size})"
+                f"and molecule ({atoms_mol.size})"
             )
 
         atoms_mismatch = self.atom_name != atoms_mol
@@ -1072,7 +1072,7 @@ class PSFContainer(AbstractDataClass, AbstractFileContainer):
             with pd.option_context("display.max_columns", 10, "display.show_dimensions", False):
                 raise MoleculeError(
                     f"Found {atoms_mismatch.sum()} mismatched atoms "
-                    f"between psf and mol:\n\n{mismatch_df.T}"
+                    f"between psf and molecule:\n\n{mismatch_df.T}"
                 )
 
     def to_atom_alias_dict(self) -> Dict[str, Tuple[str, np.ndarray[Any, np.dtype[np.intp]]]]:
