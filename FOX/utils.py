@@ -369,7 +369,7 @@ def get_atom_count(iterable: Iterable[Sequence[KT]],
                 int1 = count[tup[0]]
                 return (int1**2 - int1) // 2
             elif len(tup) == 2:
-                return np.product([count[i] for i in tup])
+                return np.prod([count[i] for i in tup])
             elif len(tup) == 1:
                 return count[tup[0]]
             return None
@@ -501,7 +501,7 @@ def slice_iter(
         yield slice(None)
         return
 
-    size = np.product(shape, dtype=np.int64) * itemsize
+    size = np.prod(shape, dtype=np.int64) * itemsize
     n = shape[0]
     n_step = max(1, np.ceil(n / (size / nbytes_max)).astype(np.int64))
 

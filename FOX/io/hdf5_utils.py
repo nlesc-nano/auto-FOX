@@ -587,7 +587,7 @@ def _get_dset(f: File, key: str) -> Union[pd.Series, pd.DataFrame, List[pd.DataF
 
     elif f[key].ndim == 3:
         data = _read_chunked(f, key)
-        data.shape = np.product(data.shape[:-1]), -1
+        data.shape = np.prod(data.shape[:-1]), -1
         columns = pd.MultiIndex.from_product([[key], np.arange(data.shape[-1])])
         return pd.DataFrame(data, columns=columns)
 
@@ -777,7 +777,7 @@ def dset_to_series(f: File, key: str) -> Union[pd.Series, pd.DataFrame]:
         data = _read_chunked(f, key)
     else:
         data = f[key][:]
-    data.shape = np.product(data.shape[:-1], dtype=int), -1
+    data.shape = np.prod(data.shape[:-1], dtype=int), -1
 
     # Return a Series or DataFrame
     if data.ndim == 1:
@@ -846,7 +846,7 @@ def _aux_err_to_df(f: File, key: str) -> Union[pd.DataFrame, List[pd.DataFrame]]
     """
     columns = array_to_index(f[key].attrs['index'][:])
     data = _read_chunked(f, key)
-    data.shape = np.product(data.shape[:-2], dtype=int), -1
+    data.shape = np.prod(data.shape[:-2], dtype=int), -1
 
     ret = pd.DataFrame(data, columns=columns)
     ret.index.name = f[key].attrs['name'][0].decode()

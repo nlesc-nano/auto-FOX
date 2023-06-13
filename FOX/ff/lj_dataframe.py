@@ -291,7 +291,7 @@ class LJDataFrame(pd.DataFrame):
 
     def set_charge(self, charge_mapping: Mapping[str, float]) -> None:
         """Set :math:`q_{i} * q_{j}`."""
-        self._set_prm(charge_mapping, 'charge', func=np.product, unit=None)
+        self._set_prm(charge_mapping, 'charge', func=np.prod, unit=None)
 
     def set_epsilon(self, epsilon_mapping: Mapping[str, float], unit: str = 'kj/mol') -> None:
         r"""Set :math:`\sqrt{\varepsilon_{i} * \varepsilon_{j}}`."""

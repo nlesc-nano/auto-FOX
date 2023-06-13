@@ -154,6 +154,8 @@ filterwarnings = [
     "ignore:elementwise comparison failed:FutureWarning:pandas",
     "error::qmflows.warnings_qmflows.QMFlows_Warning",
     "ignore:Generic keyword '_pytestfixturefunction' not implemented for package \\w:qmflows.warnings_qmflows.Key_Warning",
+    "ignore:`(product|cumproduct)` is deprecated as of NumPy 1\\.25\\.0, and will be removed in NumPy 2\\.0:DeprecationWarning:h5py",
+    "ignore:`(product|cumproduct)` is deprecated as of NumPy 1\\.25\\.0, and will be removed in NumPy 2\\.0:DeprecationWarning:pandas",
 ]
 
 [tool.coverage.run]
