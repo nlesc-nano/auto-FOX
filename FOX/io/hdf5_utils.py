@@ -46,7 +46,7 @@ from nanoutils import PathType, group_by_values, recursive_keys
 from packaging.version import Version
 
 from .. import __file__ as _fox_file
-from ..__version__ import __version__
+from .._version import __version__
 from ..utils import get_shape, array_to_index, get_commit_hash
 
 if TYPE_CHECKING:

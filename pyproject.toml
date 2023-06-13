@@ -1,3 +1,122 @@
+# Minimum requirements for the build system to execute.
+[build-system]
+requires = [
+    "setuptools>=61.0",
+    "wheel>=0.21",
+    "setuptools_scm[toml]>=6.2",
+]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "Auto-FOX"
+dynamic = [
+    "version",
+    "readme",
+]
+description = "A library for analyzing potential energy surfaces (PESs) and using the resulting PES descriptors for constructing forcefield parameters."
+license = { file = "LICENSE" }
+authors = [
+    { name = "Bas van Beek", email = "b.f.van.beek@vu.nl" },
+]
+keywords = [
+    "quantum-mechanics",
+    "molecular-mechanics",
+    "science",
+    "chemistry",
+    "forcefield-parameterization",
+    "forcefield",
+    "python",
+    "python-3",
+]
+classifiers = [
+    "Development Status :: 5 - Production/Stable",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: GNU Lesser General Public License v3 (LGPLv3)",
+    "Natural Language :: English",
+    "Operating System :: Unix",
+    "Operating System :: MacOS",
+    "Programming Language :: Python",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3 :: Only",
+    "Programming Language :: Python :: 3.7",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Topic :: Scientific/Engineering :: Chemistry",
+    "Topic :: Software Development :: Libraries ",
+    "Typing :: Typed",
+]
+requires-python = ">=3.7"
+dependencies = [
+    "Nano-Utils>=2.3.1",
+    "pyyaml>=5.1",
+    "numpy>=1.17",
+    "scipy>=1.2",
+    "pandas>=0.24,<2.0.0",
+    "schema>=0.7.1,!=0.7.5",
+    "AssertionLib>=2.3",
+    "noodles>=0.3.3",
+    "h5py>=2.10",
+    "qmflows>=0.12.0",
+    "plams>=1.5.1",
+    "packaging>=17.1",
+]
+
+[project.scripts]
+init_armc = "FOX.entry_points:main_armc"
+armc2yaml = "FOX.entry_points:main_armc2yaml"
+
+[project.urls]
+Homepage = "https://github.com/nlesc-nano/Auto-FOX"
+"Bug Tracker" = "https://github.com/nlesc-nano/auto-FOX/issues"
+Documentation = "https://auto-fox.readthedocs.io/en/latest/"
+
+[project.optional-dependencies]
+docs = [
+    "sphinx>=2.4",
+    "sphinx_rtd_theme>=0.3.0",
+    "matplotlib>=3.0",
+]
+lint = [
+    "flake8",
+    "pydocstyle[toml]>=6.1",
+    "Flake8-pyproject>=1.2.2",
+]
+test = [
+    "Auto-FOX[test-no-optional,docs]",
+    "ase>=3.21.1",
+    "nlesc-CAT>=0.10.0",
+    "ipython>=5.0.0",
+]
+test-no-optional = [
+    "pytest>=6.0.0",
+    "pytest-cov",
+]
+
+[tool.setuptools]
+license-files = ["LICENSE*.txt"]
+
+[tool.setuptools.packages.find]
+include = ["FOX*"]
+
+[tool.setuptools.package-data]
+FOX = [
+    "data/*.xyz",
+    "data/*.yaml",
+    "data/*.csv",
+    "properties/*.pyi",
+    "recipes/*.pyi",
+    "py.typed",
+    "*.pyi",
+]
+
+[tool.setuptools.dynamic]
+readme = { file = ["README.rst"], content-type = "text/x-rst" }
+
+[tool.setuptools_scm]
+write_to = "FOX/_version.py"
+
 [tool.mypy]
 plugins = "numpy.typing.mypy_plugin"
 show_error_codes = true

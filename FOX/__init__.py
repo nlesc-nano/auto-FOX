@@ -12,7 +12,7 @@ from os.path import join, dirname
 import pandas as pd
 from nanoutils import VersionInfo
 
-from .__version__ import __version__
+from ._version import __version__ as __version__
 
 from .io import (
     PSFContainer,
