@@ -9,6 +9,7 @@ Various recipes implemented in Auto-FOX.
     FOX.recipes.ligands
     FOX.recipes.time_resolution
     FOX.recipes.similarity
+    FOX.recipes.top
 
 FOX.recipes.param
 -----------------
@@ -29,3 +30,7 @@ FOX.recipes.time_resolution
 FOX.recipes.similarity
 ----------------------
 .. automodule:: FOX.recipes.similarity
+
+FOX.recipes.top
+---------------
+.. automodule:: FOX.recipes.create_top
