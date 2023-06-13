@@ -1054,12 +1054,13 @@ class PSFContainer(AbstractDataClass, AbstractFileContainer):
 
         """
         atoms_mol = pd.Series(mol.symbol, dtype=str, name=self.atom_name.name)
-        atoms_mol.index += 1
-        if (self.atom_name.size != atoms_mol.size):
+        if self.atom_name.size != atoms_mol.size:
             raise MoleculeError(
                 f"Mismatched atom count between passed psf ({self.atom_name.size}) "
                 f"and molecule ({atoms_mol.size})"
             )
+        else:
+            atoms_mol.index = self.atoms.index
 
         atoms_mismatch = self.atom_name != atoms_mol
         if atoms_mismatch.any():
