@@ -374,6 +374,13 @@ def get_param(dct: ParamMapping_) -> Tuple[ParamMapping, dict, dict, ValidationD
 def get_pes(dct: Mapping[str, PESMapping], mol_len: int) -> Dict[str, PESDict]:
     """Construct a :class:`dict` with PES-descriptor workflows."""
     ret = {k: validate_pes(v) for k, v in dct.items()}
+    for v in ret.values():
+        weight = mol_len * (1.0,) if v['weight'] is None else tuple(v['weight'])
+        assert mol_len == len(weight)
+        if len(weight) == 1:
+            v['weight'] = weight[0]
+        else:
+            v['weight'] = weight
 
     iterator = (len(v['ref']) for v in ret.values() if v['ref'] is not None)
     assert all(mol_len == i for i in iterator)

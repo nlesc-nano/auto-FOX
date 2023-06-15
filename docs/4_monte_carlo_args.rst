@@ -50,6 +50,7 @@ Index
     :attr:`pes.block.ref`                       A list of reference values for when :attr:`~pes.block.func` operates on :class:`qmflows.Result` objects.
     :attr:`pes.block.kwargs`                    A dictionary with keyword arguments for :attr:`pes.block.func`.
     :attr:`pes.block.err_func`                  A function for computing the auxilary error of the specified PES descriptor.
+    :attr:`pes.block.weight`                    A list of weights for the :attr:`~pes.block.err_func` output.
     =========================================== ===================================================================================================================
 
 .. table::
@@ -473,6 +474,15 @@ each containg the :attr:`func<pes.block.func>` and, optionally,
 
             :func:`FOX.armc.mse_normalized_max`
                 Return a maximum normalized mean square error (MSE) over the flattened subarrays of the input.
+
+
+    .. attribute:: pes.block.weight
+
+        :Parameter:     * **Type** - :class:`list[float] <list>`
+                        * **Default Value** - ``[1.0]``
+
+        A list of positive weights for the :attr:`~pes.block.err_func` output.
+        The list must contain exactly one entry for every molecule in :attr:`job.molecule`.
 
 
 .. _monte_carlo_parameters.pes_validation:

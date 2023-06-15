@@ -232,6 +232,7 @@ class MonteCarloABC(AbstractDataClass, ABC, Mapping[Key, np.ndarray]):
         kwargs: Mapping[str, Any] = ...,
         validation: bool = ...,
         ref: Optional[Sequence[np.ndarray]] = None,
+        weight: float | Sequence[float] = ...,
     ) -> None: ...
     @overload  # noqa: E301
     def add_pes_evaluator(
@@ -243,8 +244,9 @@ class MonteCarloABC(AbstractDataClass, ABC, Mapping[Key, np.ndarray]):
         kwargs: Iterable[Mapping[str, Any]],
         validation: bool = ...,
         ref: Optional[Sequence[np.ndarray]] = None,
+        weight: float | Sequence[float] = ...,
     ) -> None: ...
-    def add_pes_evaluator(self, name, func, err_func, args=(), kwargs=EMPTY_MAPPING, validation=False, ref=None):  # noqa: E301, E501
+    def add_pes_evaluator(self, name, func, err_func, args=(), kwargs=EMPTY_MAPPING, validation=False, ref=None, weight=0.0):  # noqa: E301, E501
         r"""Add a callable to this instance for constructing PES-descriptors.
 
         Examples
@@ -293,23 +295,27 @@ class MonteCarloABC(AbstractDataClass, ABC, Mapping[Key, np.ndarray]):
         else:
             ref_iter = [ar for _ in self.param.move_range for ar in ref]
 
-        if not isinstance(kwargs, abc.Mapping):
-            _Iterator = Iterator[Tuple[MultiMolecule, Any, Mapping[str, Any]]]
-            iterator: _Iterator = zip(mol_list, ref_iter, kwargs)
-        else:
-            iterator = zip(mol_list, ref_iter, repeat(kwargs, len(mol_list)))
+        weight_iter = repeat(weight) if not isinstance(weight, abc.Iterable) else weight
 
-        for i, (mol, ref_, kwarg) in enumerate(iterator):
+        if not isinstance(kwargs, abc.Mapping):
+            _Iterator = Iterator[Tuple[MultiMolecule, Any, Mapping[str, Any], float]]
+            iterator: _Iterator = zip(mol_list, ref_iter, kwargs, weight_iter)
+        else:
+            iterator = zip(mol_list, ref_iter, repeat(kwargs, len(mol_list)), weight_iter)
+
+        for i, (mol, ref_, kwarg, w) in enumerate(iterator):
             if ref_ is None:
                 f2 = wraps(func)(partial(_template_func1, func, *args, **kwarg))
                 f2.ref = f2(mol, None)
                 f2.use_mol = True
                 f2.err_func = err_func
+                f2.weight = w
             else:
                 f2 = wraps(func)(partial(_template_func2, func, *args, **kwarg))
                 f2.ref = copy.deepcopy(ref_)
                 f2.use_mol = False
                 f2.err_func = err_func
+                f2.weight = w
 
             # Check that a numeric value is returned
             dtype = np.asanyarray(f2.ref).dtype

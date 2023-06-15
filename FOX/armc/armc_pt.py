@@ -287,4 +287,8 @@ class ARMCPT(ARMC):
             if k in {'molecule', 'type', 'lattice'}:
                 continue
             v['settings'] = v['settings'][0]
+
+        for k in ('pes', 'pes_validation'):
+            for _k, v in ret[k].items():
+                ret[k][_k]["weight"] = ret[k][_k]["weight"][:1]
         return ret

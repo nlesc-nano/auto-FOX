@@ -349,6 +349,16 @@ pes_schema = Schema({
         abc.Callable,
         error=Formatter(f"'pes.*.err_func' expected a callable object{EPILOG}")
     ),
+
+    Optional_('weight', default=None): Or(
+        And(None),
+        And(
+            abc.Sequence,
+            lambda n: all(supports_float(i) and float(i) > 0.0 for i in n),
+            Use(lambda n: [float(i) for i in n]),
+        ),
+        error=Formatter(f"'pes.*.weight' expected a list of positive floats{EPILOG}")
+    ),
 }, name='pes_schema', description='Schema for validating the "pes" block.')
 
 
@@ -362,6 +372,7 @@ class PESMapping(_PESMapping, total=False):
     ref: Optional[Sequence[ArrayLike]]
     kwargs: Union[None, Mapping[str, Any], Sequence[Mapping[str, Any]]]
     err_func: None | str | Callable[[ArrayLike, ArrayLike], np.number | float]
+    weight: None | Sequence[float]
 
 
 class PESDict(TypedDict):
@@ -371,6 +382,7 @@ class PESDict(TypedDict):
     ref: Optional[List[ArrayLike]]
     kwargs: Union[Mapping[str, Any], Tuple[Mapping[str, Any], ...]]
     err_func: Callable[[ArrayLike, ArrayLike], np.number | float]
+    weight: None | Sequence[float]
 
 
 #: Schema for validating the ``"job"`` block.

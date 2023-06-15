@@ -168,12 +168,14 @@ class ARMC(MonteCarloABC):
                 i = int(_i)
                 try:
                     pes[k]['kwargs'][i] = v.keywords
+                    pes[k]['weight'].append(v.weight)
                 except KeyError:
                     pes[k] = {
                         'func': f'{v.args[0].__module__}.{v.args[0].__qualname__}',
                         'kwargs': i_max * [None],
                         'ref': None if v.use_mol else [],
                         'err_func': f'{v.err_func.__module__}.{v.err_func.__qualname__}',
+                        'weight': [v.weight],
                     }
                     pes[k]['kwargs'][i] = v.keywords
                 if not v.use_mol:
@@ -449,7 +451,10 @@ class ARMC(MonteCarloABC):
 
         length = 1 + max((int(k.rsplit('.')[-1]) for k in pes_dict.keys()), default=0)
 
-        generator = (pes_dict_ref[k].err_func(pes_dict_ref[k].ref, v) for k, v in pes_dict.items())
+        generator = (
+            pes_dict_ref[k].err_func(pes_dict_ref[k].ref, v) * pes_dict_ref[k].weight
+            for k, v in pes_dict.items()
+        )
         ret = np.fromiter(generator, dtype=float, count=len(pes_dict))
         ret.shape = length, -1
         return ret
