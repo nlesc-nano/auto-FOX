@@ -157,7 +157,7 @@ filterwarnings = [
     "ignore:`(product|cumproduct)` is deprecated as of NumPy 1\\.25\\.0, and will be removed in NumPy 2\\.0:DeprecationWarning:h5py",
     "ignore:`(product|cumproduct)` is deprecated as of NumPy 1\\.25\\.0, and will be removed in NumPy 2\\.0:DeprecationWarning:pandas",
     "ignore:`(product|cumproduct)` is deprecated as of NumPy 1\\.25\\.0, and will be removed in NumPy 2\\.0:DeprecationWarning:FOX.io.hdf5_utils",
-    "ignore:`np\\.find_common_type is deprecated:DeprecationWarning:pandas",
+    "ignore:`np\\.find_common_type is deprecated:DeprecationWarning:pandas.*",
 ]
 
 [tool.coverage.run]

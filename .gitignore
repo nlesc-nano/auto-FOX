@@ -109,3 +109,6 @@ venv.bak/
 
 # Visual Studio Code
 .vscode/
+
+tests/test_files/_ARMC
+tests/test_files/_ARMCPT
