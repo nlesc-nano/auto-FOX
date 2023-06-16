@@ -46,7 +46,7 @@ classifiers = [
     "Topic :: Software Development :: Libraries ",
     "Typing :: Typed",
 ]
-requires-python = ">=3.7"
+requires-python = ">=3.8"
 dependencies = [
     "Nano-Utils>=2.3.1",
     "pyyaml>=5.1",
