@@ -36,7 +36,6 @@ def test_get_best() -> None:
 
 def test_overlay_descriptor() -> None:
     """Test :func:`FOX.recipes.param.overlay_descriptor`."""
-    # Required for Python <= 3.6, as dictionaries are not necessarily ordered prior to 3.7
     idx_map = {'Cd Cd': 0, 'Cd Se': 1, 'Cd O': 2, 'Se Se': 3, 'Se O': 4, 'O O': 5}
 
     rdf_dict = overlay_descriptor(HDF5, name='rdf')
