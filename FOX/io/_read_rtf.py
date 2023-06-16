@@ -32,6 +32,7 @@ from typing import TYPE_CHECKING, Any, ClassVar, Literal
 from collections.abc import Mapping
 from collections import defaultdict
 
+import h5py
 import numpy as np
 import pandas as pd
 from scm.plams import Molecule, Atom
@@ -46,6 +47,7 @@ else:
 
 if TYPE_CHECKING:
     from typing_extensions import Self
+    from numpy.typing import NDArray
 
 __all__ = ["RTFContainer"]
 
@@ -96,8 +98,8 @@ class RTFContainer:
     #: Print options as used by :meth:`~RTFContainer.__repr__`.
     _pd_printoptions: dict[str, Any]
 
-    #: A mapping with strucutred dtypes for each dataframe column and index
-    DTYPES: ClassVar[types.MappingProxyType[str, np.dtype[Any]]] = types.MappingProxyType({
+    #: A mapping with strucutred dtypes for each dataframe column and index.
+    DTYPES: ClassVar[types.MappingProxyType[str, np.dtype[np.void]]] = types.MappingProxyType({
         "MASS": np.dtype([
             ("index", "i8"),
             ("atom_type", "U4"),
@@ -317,6 +319,21 @@ class RTFContainer:
         df = pd.DataFrame(total_array)
         df.set_index("res_name", inplace=True, drop=True)
         return df
+
+    def _to_hdf5_dict(self) -> dict[str, NDArray[np.void]]:
+        dct: dict[str, NDArray[np.void]] = {}
+        for name, _dtype in self.DTYPES.items():
+            # Construct a h5py-compatible structured dtype
+            dtype_list = []
+            for sub_field, (sub_dtype, _) in _dtype.fields.items():
+                if sub_dtype.kind == "U":
+                    sub_dtype = h5py.string_dtype('utf-8', sub_dtype.itemsize // 4)
+                dtype_list.append((sub_field, sub_dtype))
+            dtype = np.dtype(dtype_list)
+
+            df: pd.DataFrame = getattr(self, name.lower()).reset_index(inplace=False, drop=False)
+            dct[name] = df.to_records(index=False).astype(dtype)
+        return dct
 
     @classmethod
     def from_file(cls, path: str | os.PathLike[str]) -> Self:
