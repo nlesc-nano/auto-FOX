@@ -23,13 +23,12 @@ API
 from __future__ import annotations
 
 import os
-import sys
 import types
 import textwrap
 import itertools
 import warnings
 from typing import TYPE_CHECKING, Any, ClassVar, Literal
-from collections.abc import Mapping
+from collections.abc import Mapping, Iterator
 from collections import defaultdict
 
 import h5py
@@ -39,11 +38,6 @@ from scm.plams import Molecule, Atom
 
 from . import FileIter
 from ..functions.molecule_utils import get_angles, get_dihedrals
-
-if sys.version_info >= (3, 9):
-    from collections.abc import Iterator
-else:
-    from typing import Iterator
 
 if TYPE_CHECKING:
     from typing_extensions import Self
@@ -393,7 +387,7 @@ class RTFContainer:
             "DIHE": [],
             "MASS": [],
         }
-        auto = set()
+        auto: set[str] = set()
         atom_dict: dict[str, int] = {}
 
         with open(path, "r", encoding="utf8") as _f:
