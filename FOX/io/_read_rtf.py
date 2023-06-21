@@ -96,36 +96,36 @@ class RTFContainer:
     DTYPES: ClassVar[types.MappingProxyType[str, np.dtype[np.void]]] = types.MappingProxyType({
         "MASS": np.dtype([
             ("index", "i8"),
-            ("atom_type", "U4"),
+            ("atom_type", "U5"),
             ("mass", "f8"),
             ("atom_name", "U2"),
         ]),
         "ATOM": np.dtype([
-            ("res_name", "U4"),
+            ("res_name", "U5"),
             ("atom1", "i8"),
-            ("atom_type", "U4"),
+            ("atom_type", "U5"),
             ("charge", "f8"),
         ]),
         "BOND": np.dtype([
-            ("res_name", "U4"),
+            ("res_name", "U5"),
             ("atom1", "i8"),
             ("atom2", "i8"),
         ]),
         "ANGLES": np.dtype([
-            ("res_name", "U4"),
+            ("res_name", "U5"),
             ("atom1", "i8"),
             ("atom2", "i8"),
             ("atom3", "i8"),
         ]),
         "DIHE": np.dtype([
-            ("res_name", "U4"),
+            ("res_name", "U5"),
             ("atom1", "i8"),
             ("atom2", "i8"),
             ("atom3", "i8"),
             ("atom4", "i8"),
         ]),
         "IMPR": np.dtype([
-            ("res_name", "U4"),
+            ("res_name", "U5"),
             ("atom1", "i8"),
             ("atom2", "i8"),
             ("atom3", "i8"),
