@@ -336,11 +336,46 @@ class RTFContainer:
         return dct
 
     @classmethod
+    def _get_err_msg(cls, statement: str, lst: list[tuple[Any, ...]]) -> None | str:
+        """Construct an error message for when :meth:`~RTFContainer.from_file` fails to \
+        construct an array.
+
+        Parameters
+        ----------
+        statement : str
+            The name of the match statement
+        lst : list[tuple[Any, ...]]
+            A list of tuples with structured data.
+            The first field is guaranteed to be the residue name (a string)
+
+        Returns
+        -------
+        str | None
+            A newly constructed error message or :data:`None` if one could not be constructed
+
+        """
+        dtype = cls.DTYPES[statement]
+        i = 0
+        residue_old = ""
+        for tup in lst:
+            residue: str = tup[0]
+            if residue != residue_old:
+                i = 1
+            else:
+                i += 1
+            residue_old = residue
+            try:
+                np.array(tup, dtype=dtype)
+            except Exception:
+                return f"failed to parse {statement!r} statement {i} in residue {residue!r}"
+        return None
+
+    @classmethod
     def from_file(cls, path: str | os.PathLike[str]) -> Self:
         """Construct a new :class:`RTFContainer` from the passed file path.
 
-        Parameter
-        ---------
+        Parameters
+        ----------
         path : :term:`python:path-like` object
             The path to the .rtf file
 
@@ -350,13 +385,13 @@ class RTFContainer:
             A newly constructed .rtf container
 
         """
-        mass = []
         dct: dict[str, list[tuple[Any, ...]]] = {
             "ATOM": [],
             "BOND": [],
             "IMPR": [],
             "ANGLES": [],
             "DIHE": [],
+            "MASS": [],
         }
         auto = set()
         atom_dict: dict[str, int] = {}
@@ -375,7 +410,7 @@ class RTFContainer:
                 i = next(f)
                 statement = "MASS"
                 while i.startswith("MASS"):
-                    mass.append(tuple(i.split()[1:]))
+                    dct["MASS"].append(tuple(i.split()[1:]))
                     i = next(f)
 
                 # Find the first RESI statement
@@ -401,7 +436,6 @@ class RTFContainer:
                                 lst.append((res_name, j, *rest[1:]))
                             else:
                                 lst.append((res_name, *(atom_dict[at] for at in rest)))
-
             except StopIteration as ex:
                 raise ValueError(
                     f"{f.name!r}: failed to find a `END` statement at the end of the file"
@@ -413,9 +447,15 @@ class RTFContainer:
 
         kwargs: dict[str, pd.DataFrame] = {}
         for k, v in dct.items():
-            df = pd.DataFrame(np.fromiter(v, dtype=cls.DTYPES[k], count=len(v)))
-            df.set_index("res_name", drop=True, inplace=True)
+            try:
+                rec_array = np.fromiter(v, dtype=cls.DTYPES[k], count=len(v))
+            except Exception as ex:
+                msg = cls._get_err_msg(k, v)
+                if msg is None:
+                    raise
+                else:
+                    raise ValueError(f"{f.name!r}: {msg}") from ex
+            df = pd.DataFrame(rec_array)
+            df.set_index("res_name" if k != "MASS" else "index", drop=True, inplace=True)
             kwargs[k.lower()] = df
-        kwargs["mass"] = pd.DataFrame(np.fromiter(mass, dtype=cls.DTYPES["MASS"], count=len(mass)))
-        kwargs["mass"].set_index("index", inplace=True, drop=True)
         return cls(charmm_version=version, auto=auto, **kwargs)
