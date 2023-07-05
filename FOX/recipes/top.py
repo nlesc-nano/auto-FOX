@@ -45,7 +45,7 @@ def create_top(
     out_path: StrPath,
     *,
     mol_count: Iterable[SupportsIndex],
-    rtf_files: Iterable[StrPath | FOX.io.RTFContainer],
+    rtf_files: Iterable[StrPath | FOX.RTFContainer],
     prm_files: Iterable[StrPath | FOX.PRMContainer],
 ) -> None:
     """Construct a GROMACS .top file from the passed CHARMM .rtf and .prm files.
@@ -80,7 +80,7 @@ def create_top(
 
     """
     with open(out_path, "w", encoding="utf8") as f_out:
-        rtf_list: list[FOX.io.RTFContainer] = []
+        rtf_list: list[FOX.RTFContainer] = []
         atomtypes_dct: dict[str, _AtomTypesDict] = {}
         for _rtf in rtf_files:
             rtf = _rtf if isinstance(_rtf, FOX.RTFContainer) else FOX.RTFContainer.from_file(_rtf)
@@ -88,7 +88,7 @@ def create_top(
             rtf_list.append(rtf)
 
             charge_dict = rtf.collapse_charges()
-            for _, (at_type, symbol, mass) in rtf.mass.iterrows():
+            for _, (at_type, mass, symbol) in rtf.mass.iterrows():
                 atomtypes_dct[at_type] = {
                     "atnum": PT.get_atomic_number(symbol),
                     "symbol": symbol,
