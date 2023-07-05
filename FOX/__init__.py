@@ -10,9 +10,8 @@ import warnings
 from os.path import join, dirname
 
 import pandas as pd
-from nanoutils import VersionInfo
 
-from ._version import __version__ as __version__
+from ._version import __version__, __version_tuple__
 
 from .io import (
     PSFContainer,
@@ -34,20 +33,15 @@ from .ff import (
 
 from . import recipes, properties
 
-__author__ = "Bas van Beek"
-__email__ = 'b.f.van.beek@vu.nl'
-
 #: The path+filename of the example multi-xyz file.
 example_xyz: str = join(dirname(__file__), 'data', 'Cd68Se55_26COO_MD_trajec.xyz')
 del join, dirname
-
-version_info = VersionInfo.from_str(__version__)
-del VersionInfo
 
 warnings.simplefilter(action='ignore', category=pd.errors.PerformanceWarning)
 del pd, warnings
 
 __all__ = [
+    '__version__', '__version_tuple__',
     'example_xyz',
 
     'PSFContainer',
