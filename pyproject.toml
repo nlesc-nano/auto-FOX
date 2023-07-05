@@ -84,7 +84,7 @@ lint = [
     "Flake8-pyproject>=1.2.2",
 ]
 test = [
-    "Auto-FOX[test-no-optional,docs]",
+    "Auto-FOX[test-no-optional]",
     "ase>=3.21.1",
     "nlesc-CAT>=0.10.0",
     "ipython>=5.0.0",
