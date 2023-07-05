@@ -33,4 +33,4 @@ FOX.recipes.similarity
 
 FOX.recipes.top
 ---------------
-.. automodule:: FOX.recipes.create_top
+.. automodule:: FOX.recipes.top
