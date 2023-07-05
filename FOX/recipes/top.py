@@ -68,14 +68,14 @@ def create_top(
 
     Parameters
     ----------
-    out_path : :term:`python:path-like` object
+    out_path : path-like object
         The name of the to-be created output file. Will be overriden if it already exists
     mol_count : ``list[int]``
         The number of molecules of a given residue.
         Note that rtf files *may* contain multiple residues.
-    rtf_files : list of :term:`python:path-like` objects
+    rtf_files : list of path-like objects
         The names of all to-be converted .rtf files
-    prm_files : list of :term:`python:path-like` and/or :class:`FOX.PRMContainer` objects
+    prm_files : list of path-like and/or :class:`FOX.PRMContainer` objects
         The names of all to-be converted .prm files
 
     """

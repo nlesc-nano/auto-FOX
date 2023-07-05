@@ -118,7 +118,7 @@ def guess_param(
         Accepted values are ``"rdf"``, ``"uff"``, ``"crystal_radius"`` and ``"ion_radius"``.
     cp2k_settings : :class:`~collections.abc.MutableMapping`, optional
         The CP2K input settings.
-    prm : :term:`python:path-like` or :class:`~FOX.PRMContainer`, optional
+    prm : path-like or :class:`~FOX.PRMContainer`, optional
         An optional .prm file.
     psf_list : :class:`Iterable[str|FOX.PSFContainer] <collections.abc.Iterable>`, optional
         An optional list of .psf files.

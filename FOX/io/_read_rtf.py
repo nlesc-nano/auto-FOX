@@ -370,7 +370,7 @@ class RTFContainer:
 
         Parameters
         ----------
-        path : :term:`python:path-like` object
+        path : path-like object
             The path to the .rtf file
 
         Returns
