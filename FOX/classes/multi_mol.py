@@ -2024,7 +2024,7 @@ class MultiMolecule(_MultiMolecule):
 
         Parameters
         ----------
-        filename : :term:`python:path-like`
+        filename : path-like
             The path+filename (including extension) of the to be created file.
         outputformat : :class:`str`
             The outputformat.

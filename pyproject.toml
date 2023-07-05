@@ -76,6 +76,7 @@ docs = [
     "sphinx>=2.4",
     "sphinx_rtd_theme>=0.3.0",
     "matplotlib>=3.0",
+    "rdkit",
 ]
 lint = [
     "flake8",
@@ -83,7 +84,7 @@ lint = [
     "Flake8-pyproject>=1.2.2",
 ]
 test = [
-    "Auto-FOX[test-no-optional,docs]",
+    "Auto-FOX[test-no-optional]",
     "ase>=3.21.1",
     "nlesc-CAT>=0.10.0",
     "ipython>=5.0.0",
