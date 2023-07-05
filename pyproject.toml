@@ -76,6 +76,7 @@ docs = [
     "sphinx>=2.4",
     "sphinx_rtd_theme>=0.3.0",
     "matplotlib>=3.0",
+    "rdkit",
 ]
 lint = [
     "flake8",
