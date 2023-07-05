@@ -50,6 +50,22 @@ def create_top(
 ) -> None:
     """Construct a GROMACS .top file from the passed CHARMM .rtf and .prm files.
 
+    Examples
+    --------
+    .. code:: python
+
+        >>> from FOX.recipes import create_top
+
+        >>> output_path: str = ...
+        >>> rtf_files = ["ligand1.rtf", "ligand2.rtf"]
+        >>> prm_files = ["ligand1.prm", "ligand2.prm"]
+        >>> mol_count = [30, 15]  # 30 ligand1 residues and 15 ligand2 residues
+
+        >>> create_top(
+        ...     output_path,
+        ...     mol_count=mol_count, rtf_files=rtf_files, prm_files=prm_files,
+        ... )
+
     Parameters
     ----------
     out_path : :term:`python:path-like` object
