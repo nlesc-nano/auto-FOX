@@ -415,8 +415,16 @@ class RTFContainer:
                 statement = "RESI"
 
                 # Keep parsing all REST-related statements until END has been reached
+                res_index = 1
                 while i != "END":
-                    _, res_name, _ = i.split()
+                    # RESI-statements are not guaranteed to contain a residue name
+                    res_fields = i.split()
+                    if len(res_fields) == 2:
+                        res_name = f"RES{res_index}"
+                    else:
+                        res_name = res_fields[1]
+                    res_index += 1
+
                     j = 0
                     for i in f:
                         statement, *rest = i.split()
