@@ -32,6 +32,14 @@ from scm.plams import PeriodicTable, PTError, Settings  # type: ignore
 from assertionlib.ndrepr import NDRepr
 from nanoutils import ArrayLike, Literal
 
+
+class AliasTuple(NamedTuple):
+    """A 2-tuple used for :attr:`FOX.MultiMolecule.atoms` values."""
+
+    alias: str
+    slice: Union[slice, ellipsis, np.ndarray[Any, np.dtype[np.intp]]]  # noqa: F821
+
+
 if TYPE_CHECKING:
     import numpy.typing as npt
 
@@ -46,14 +54,6 @@ if TYPE_CHECKING:
     AliasMapping = Mapping[str, Tuple[str, Union[slice, ellipsis, _ArLikeInt]]]  # noqa: F821
 
 __all__: List[str] = ["_MultiMolecule", "AliasTuple"]
-
-
-class AliasTuple(NamedTuple):
-    """A 2-tuple used for :attr:`FOX.MultiMolecule.atoms` values."""
-
-    alias: str
-    slice: Union[slice, ellipsis, np.ndarray[Any, np.dtype[np.intp]]]  # noqa: F821
-
 
 T = TypeVar('T')
 MT = TypeVar('MT', bound='_MultiMolecule')
