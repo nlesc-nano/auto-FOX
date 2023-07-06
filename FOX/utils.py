@@ -36,6 +36,7 @@ API
 from __future__ import annotations
 
 import os
+import argparse
 import operator
 import inspect
 import textwrap
@@ -60,6 +61,7 @@ __all__ = [
     'get_move_range', 'array_to_index', 'serialize_array', 'read_str_file',
     'get_shape', 'slice_str', 'get_atom_count', 'read_rtf_file', 'prepend_exception',
     'log_traceback_locals', 'slice_iter', 'lattice_to_volume', 'get_commit_hash',
+    'LicenseAction',
 ]
 
 T = TypeVar('T')
@@ -550,3 +552,44 @@ def get_commit_hash(path: str | os.PathLike[str]) -> str | None:
         return None
     else:
         return out.stdout.strip("\n")
+
+
+class LicenseAction(argparse.Action):
+    """Custom action for displaying license info."""
+
+    LICENSE = textwrap.dedent(
+        """
+        Copyright 2023 Nanomaterial Simulation Packages (https://github.com/nlesc-nano)
+
+        Licensed under the GNU Lesser General Public License v3 (the "License");
+        you may not use this file except in compliance with the License.
+        You may obtain a copy of the License at
+
+            https://www.gnu.org/licenses/gpl-3.0.en.html
+            https://www.gnu.org/licenses/lgpl-3.0.en.html
+
+        Unless required by applicable law or agreed to in writing, software
+        distributed under the License is distributed on an "AS IS" BASIS,
+        WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+        See the License for the specific language governing permissions and
+        limitations under the License.
+    """)  # noqa: E501
+
+    def __init__(
+        self,
+        option_strings,
+        dest=argparse.SUPPRESS,
+        default=argparse.SUPPRESS,
+        help="show program's license and exit",
+    ):
+        super().__init__(
+            option_strings=option_strings,
+            dest=dest,
+            default=default,
+            nargs=0,
+            help=help,
+        )
+
+    def __call__(self, parser, namespace, values, option_string=None):
+        print(self.LICENSE)
+        parser.exit()

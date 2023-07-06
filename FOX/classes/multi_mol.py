@@ -16,8 +16,12 @@ API
 
 from __future__ import annotations
 
+import os
 import copy
+import operator
 import warnings
+import functools
+import sys
 from os import PathLike
 from collections import abc, defaultdict
 from itertools import (
@@ -25,7 +29,8 @@ from itertools import (
 )
 from typing import (
     Sequence, Optional, Union, List, Hashable, Callable, Iterable, Dict, Tuple, Any, Mapping,
-    overload, TypeVar, Type, Container, cast, TYPE_CHECKING, Sized, Iterator, NoReturn
+    overload, TypeVar, Type, Container, cast, TYPE_CHECKING, Sized, Iterator, NoReturn,
+    SupportsIndex,
 )
 
 import numpy as np
@@ -37,6 +42,7 @@ from scipy.spatial.distance import cdist
 from scm.plams import Molecule, Atom, Bond, PeriodicTable, Units
 from nanoutils import group_by_values, Literal
 
+from .. import __version__
 from ..utils import slice_iter, lattice_to_volume
 from .multi_mol_magic import _MultiMolecule, AliasTuple
 from ..io.read_kf import read_kf
@@ -2147,6 +2153,45 @@ class MultiMolecule(_MultiMolecule):
         with open(filename, 'wb') as file:
             for i, xyz in iterator:
                 np.savetxt(file, np.hstack((at, xyz)), header=header.format(i), **kwargs)
+
+    def as_gro(
+        self,
+        filename: str | os.PathLike[str],
+        mol_subset: SupportsIndex = 0,
+    ) -> None:
+        """Create an GROMACS .gro file out of this instance.
+
+        Parameters
+        ----------
+        filename : :term:`python:path-like object`
+            The path+filename (including extension) of the to be created file.
+        mol_subset : :class:`int`, optional
+            The index of the molecule in this instance that will be converted into the .gro file.
+
+        """
+        mol_subset = operator.index(mol_subset)
+
+        header = f"Generated with Auto-FOX {__version__}"
+        if 'comments' in self.properties:
+            try:
+                header += f", {self.properties.comments[mol_subset]}"
+            except Exception:
+                pass
+
+        symbols = self.symbol.astype("U5")
+        for (sub_symbol, (super_symbol, idx)) in self.atoms_alias.items():
+            symbols[self.atoms[super_symbol][idx]] = sub_symbol
+
+        if TYPE_CHECKING:
+            strict_zip = zip
+        else:
+            strict_zip = functools.partial(zip, strict=True) if sys.version_info >= (3, 10) else zip
+        with open(filename, "w", encoding="utf8") as f:
+            f.write(f"{header}\n")
+            f.write(f"{self.shape[1]}\n")
+            for (i, (symbol, (x, y, z))) in enumerate(strict_zip(symbols, self[mol_subset])):
+                f.write((f"{1:5d}{'':5s}{symbol:5s}{i:5d}{x:8.3f}{y:8.3f}{z:8.3f}\n"))
+            f.write("0.0 0.0 0.0\n")
 
     @overload
     def as_mass_weighted(self: MT, mol_subset: MolSubset = ..., atom_subset: AtomSubset = ..., inplace: Literal[False] = ...) -> MT: ...  # type: ignore[misc] # noqa: E501

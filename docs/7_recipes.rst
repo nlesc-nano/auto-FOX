@@ -34,3 +34,7 @@ FOX.recipes.similarity
 FOX.recipes.top
 ---------------
 .. automodule:: FOX.recipes.top
+
+FOX.recipes.xyz_to_gro
+----------------------
+.. automodule:: FOX.recipes._xyz_to_gro

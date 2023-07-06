@@ -65,6 +65,7 @@ dependencies = [
 [project.scripts]
 init_armc = "FOX.entry_points:main_armc"
 armc2yaml = "FOX.entry_points:main_armc2yaml"
+"FOX.recipes.xyz_to_gro" = "FOX.recipes._xyz_to_gro:main"
 
 [project.urls]
 Homepage = "https://github.com/nlesc-nano/Auto-FOX"
@@ -92,6 +93,7 @@ test = [
 test-no-optional = [
     "pytest>=6.0.0",
     "pytest-cov",
+    "numpy>=1.17.3,<1.25",
 ]
 
 [tool.setuptools]
