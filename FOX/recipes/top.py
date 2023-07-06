@@ -173,20 +173,24 @@ def create_top(
                 )
 
             f_out.write("\n[ bonds ]\n")
-            for at_i, at_j in rtf.bond.loc[[res], :].values:
-                f_out.write(f"{at_i:>5n} {at_j:>5n} {1:>5n}\n")
+            if res in rtf.bond.index:
+                for at_i, at_j in rtf.bond.loc[[res], :].values:
+                    f_out.write(f"{at_i:>5n} {at_j:>5n} {1:>5n}\n")
 
             f_out.write("\n[ angles ]\n")
-            for at_i, at_j, at_k in rtf.angles.loc[[res], :].values:
-                f_out.write(f"{at_i:>5n} {at_j:>5n} {at_k:>5n} {1:>5n}\n")
+            if res in rtf.angles.index:
+                for at_i, at_j, at_k in rtf.angles.loc[[res], :].values:
+                    f_out.write(f"{at_i:>5n} {at_j:>5n} {at_k:>5n} {1:>5n}\n")
 
             f_out.write("\n[ dihedrals ]\n")
-            for at_i, at_j, at_k, at_l in rtf.dihedrals.loc[[res], :].values:
-                f_out.write(f"{at_i:>5n} {at_j:>5n} {at_k:>5n} {at_l:>5n} {9:>5n}\n")
+            if res in rtf.dihedrals.index:
+                for at_i, at_j, at_k, at_l in rtf.dihedrals.loc[[res], :].values:
+                    f_out.write(f"{at_i:>5n} {at_j:>5n} {at_k:>5n} {at_l:>5n} {9:>5n}\n")
 
             f_out.write("\n[ dihedrals ]\n")
-            for at_i, at_j, at_k, at_l in rtf.impropers.loc[[res], :].values:
-                f_out.write(f"{at_i:>5n} {at_j:>5n} {at_k:>5n} {at_l:>5n} {2:>5n}\n")
+            if res in rtf.impropers.index:
+                for at_i, at_j, at_k, at_l in rtf.impropers.loc[[res], :].values:
+                    f_out.write(f"{at_i:>5n} {at_j:>5n} {at_k:>5n} {at_l:>5n} {2:>5n}\n")
 
         f_out.write("\n[ system ]\n")
         f_out.write("system1\n")
