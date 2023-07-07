@@ -2190,7 +2190,7 @@ class MultiMolecule(_MultiMolecule):
             f.write(f"{header}\n")
             f.write(f"{self.shape[1]}\n")
             for (i, (symbol, (x, y, z))) in enumerate(strict_zip(symbols, self[mol_subset])):
-                f.write((f"{1:5d}{'':5s}{symbol:5s}{i:5d}{x:8.3f}{y:8.3f}{z:8.3f}\n"))
+                f.write((f"{1:5d}{'':5s}{symbol:>5s}{i:5d}{x:8.3f}{y:8.3f}{z:8.3f}\n"))
             f.write("0.0 0.0 0.0\n")
 
     @overload
