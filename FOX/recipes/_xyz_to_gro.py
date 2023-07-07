@@ -88,7 +88,8 @@ def gro_to_xyz(
         f_out.write(f"{atom_count_str}")
         f_out.write(f"{header}")
         for item in itertools.islice(f_inp, atom_count):
-            f_out.write(f"{item[10:15]} {item[20:44]}\n")
+            x, y, z = float(item[20:28]), float(item[28:36]), float(item[36:44])
+            f_out.write(f"{item[10:15]} {x * 10:9.3f} {y * 10:9.3f} {z * 10:9.3f}\n")
 
 
 def main() -> None:

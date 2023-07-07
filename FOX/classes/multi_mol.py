@@ -2189,7 +2189,22 @@ class MultiMolecule(_MultiMolecule):
         with open(filename, "w", encoding="utf8") as f:
             f.write(f"{header}\n")
             f.write(f"{self.shape[1]}\n")
-            for (i, (symbol, (x, y, z))) in enumerate(strict_zip(symbols, self[mol_subset])):
+
+            coords: npt.NDArray[np.float64] = self[mol_subset] / 10
+            if (coords_max := coords.max()) >= 10000:
+                raise ValueError(
+                    "Atomic coordinates must be 99999 angstrom at most; "
+                    f"observed max: {coords_max * 10}"
+                )
+            elif (coords_min := coords.min()) <= -1000:
+                raise ValueError(
+                    "Atomic coordinates must be -9999 angstrom at minimum; "
+                    f"observed min: {coords_min * 10}"
+                )
+
+            iterator = enumerate(strict_zip(symbols, coords))
+            for (i, (symbol, (x, y, z))) in iterator:
+                i = 1 + i % 99999
                 f.write((f"{1:5d}{'':5s}{symbol:>5s}{i:5d}{x:8.3f}{y:8.3f}{z:8.3f}\n"))
             f.write("0.0 0.0 0.0\n")
 
