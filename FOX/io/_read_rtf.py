@@ -221,15 +221,15 @@ class RTFContainer:
         indent = width + 3
 
         # Gather string representations of all attributes
-        ret = ''
+        ret = ""
         with pd.option_context(*self.pd_printoptions):
             items = ((k, getattr(self, k)) for k in attr_names)
             for k, _v in items:
-                v = textwrap.indent(repr(_v), ' ' * indent)[indent:]
-                ret += f'{k:{width}} = {v},\n'
-            ret += f'{"auto":{width}} = {self.auto!r},\n'
-            ret += f'{"charmm_version":{width}} = {self.charmm_version!r},\n'
-        return f'{cls.__name__}(\n{textwrap.indent(ret[:-2], 4 * " ")}\n)'
+                v = textwrap.indent(repr(_v), " " * indent)[indent:]
+                ret += f"{k:{width}} = {v},\n"
+            ret += f"{'auto':{width}} = {self.auto!r},\n"
+            ret += f"{'charmm_version':{width}} = {self.charmm_version!r},\n"
+        return f"{cls.__name__}(\n{textwrap.indent(ret[:-2], 4 * ' ')}\n)"
 
     def collapse_charges(self) -> dict[str, float]:
         """Return a dictionary mapping atom types to atomic charges.
@@ -293,6 +293,7 @@ class RTFContainer:
         else:
             raise ValueError(key)
         dtype = self.DTYPES[key]
+        assert dtype.names is not None
 
         # Computer the angles/dihedrals for all molecules
         array_dict = {}
@@ -317,11 +318,13 @@ class RTFContainer:
     def _to_hdf5_dict(self) -> dict[str, NDArray[np.void]]:
         dct: dict[str, NDArray[np.void]] = {}
         for name, _dtype in self.DTYPES.items():
+            assert _dtype.fields is not None
+
             # Construct a h5py-compatible structured dtype
             dtype_list = []
-            for sub_field, (sub_dtype, _) in _dtype.fields.items():
+            for sub_field, (sub_dtype, *_) in _dtype.fields.items():
                 if sub_dtype.kind == "U":
-                    sub_dtype = h5py.string_dtype('utf-8', sub_dtype.itemsize // 4)
+                    sub_dtype = h5py.string_dtype("utf-8", sub_dtype.itemsize // 4)
                 dtype_list.append((sub_field, sub_dtype))
             dtype = np.dtype(dtype_list)
 
@@ -447,6 +450,9 @@ class RTFContainer:
                     f"{f.name!r}: failed to parse the {statement!r} statement on line {f.index!r}"
                 ) from ex
 
+        # Convert the lists into dataframes via a structured array intermediate
+        # Numpy arrays have much better dtype control compared to pandas dataframes/series,
+        # hence the array intermediate
         kwargs: dict[str, pd.DataFrame] = {}
         for k, v in dct.items():
             try:
