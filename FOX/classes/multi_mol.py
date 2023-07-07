@@ -2178,7 +2178,7 @@ class MultiMolecule(_MultiMolecule):
             except Exception:
                 pass
 
-        symbols = self.symbol.astype("U5")
+        symbols = self.symbol.astype("U5", casting="safe")
         for (sub_symbol, (super_symbol, idx)) in self.atoms_alias.items():
             symbols[self.atoms[super_symbol][idx]] = sub_symbol
 
