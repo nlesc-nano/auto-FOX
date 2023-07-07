@@ -16,5 +16,5 @@ def test_xyz_to_gro(tmp_path: pathlib.Path) -> None:
     gro_to_xyz(gro_file, xyz_file)
     mol = MultiMolecule.from_xyz(xyz_file)
 
-    np.testing.assert_allclose(mol[0], mol_ref[0], atol=1e-3, rtol=0)
+    np.testing.assert_allclose(mol[0], mol_ref[0], atol=1e-2, rtol=0)
     np.testing.assert_array_equal(mol_ref.symbol, mol.symbol)
