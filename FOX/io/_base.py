@@ -39,9 +39,14 @@ class FileIter(Iterator[str]):
         self,
         iterable: Iterable[str],
         start: int = 1,
-        stripper: Callable[[str], str] = str.strip,
+        stripper: None | Callable[[str], str] = str.strip,
     ) -> None:
-        self._enumerator = ((i, j) for i, _j in enumerate(iterable, start) if (j := stripper(_j)))
+        if stripper is None:
+            self._enumerator: Iterator[tuple[int, str]] = enumerate(iterable, start)
+        else:
+            self._enumerator = (
+                (i, j) for i, _j in enumerate(iterable, start) if (j := stripper(_j))
+            )
         self._name = getattr(iterable, "name", "<unknown>")
         self._index = None
 

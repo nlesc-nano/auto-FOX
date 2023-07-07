@@ -32,6 +32,7 @@ import warnings
 
 import FOX
 from FOX.utils import LicenseAction
+from FOX.io import FileIter
 
 __all__ = ["xyz_to_gro", "gro_to_xyz"]
 
@@ -77,7 +78,8 @@ def gro_to_xyz(
         The name of the to-be read .xyz file.
 
     """
-    with open(gro_path, "r", encoding="utf8") as f_inp, open(xyz_path, "w", encoding="utf8") as f_out:  # noqa: E501
+    with open(gro_path, "r", encoding="utf8") as _f_inp, open(xyz_path, "w", encoding="utf8") as f_out:  # noqa: E501
+        f_inp = FileIter(_f_inp, stripper=None)
         header = next(f_inp)
         atom_count_str = next(f_inp)
         try:
@@ -87,8 +89,12 @@ def gro_to_xyz(
 
         f_out.write(f"{atom_count_str}")
         f_out.write(f"{header}")
-        for item in itertools.islice(f_inp, atom_count):
-            f_out.write(f"{item[10:15]} {item[20:44]}\n")
+        try:
+            for item in itertools.islice(f_inp, atom_count):
+                x, y, z = float(item[20:28]), float(item[28:36]), float(item[36:44])
+                f_out.write(f"{item[10:15]} {x * 10:9.3f} {y * 10:9.3f} {z * 10:9.3f}\n")
+        except ValueError as ex:
+            raise ValueError(f"Failed to parse line {f_inp.index} in {f_inp.name!r}") from ex
 
 
 def main() -> None:
