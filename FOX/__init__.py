@@ -17,6 +17,7 @@ from .io import (
     PSFContainer,
     PRMContainer,
     RTFContainer,
+    TOPContainer,
     create_hdf5, create_xyz_hdf5, to_hdf5, from_hdf5
 )
 
@@ -47,6 +48,7 @@ __all__ = [
     'PSFContainer',
     'PRMContainer',
     'RTFContainer',
+    'TOPContainer',
     'create_hdf5', 'create_xyz_hdf5', 'to_hdf5', 'from_hdf5',
 
     'MultiMolecule',
