@@ -8,6 +8,7 @@ Index
     RTFContainer.collapse_charges
     RTFContainer.auto_to_explicit
     RTFContainer.from_file
+    RTFContainer.concatenate
 
 API
 ---
@@ -18,6 +19,7 @@ API
 .. automethod:: RTFContainer.collapse_charges
 .. automethod:: RTFContainer.auto_to_explicit
 .. automethod:: RTFContainer.from_file
+.. automethod:: RTFContainer.concatenate
 
 """
 from __future__ import annotations
@@ -28,7 +30,7 @@ import textwrap
 import itertools
 import warnings
 from typing import TYPE_CHECKING, Any, ClassVar, Literal
-from collections.abc import Mapping, Iterator
+from collections.abc import Mapping, Iterator, Iterable
 from collections import defaultdict
 
 import h5py
@@ -101,31 +103,31 @@ class RTFContainer:
             ("atom_name", "U2"),
         ]),
         "ATOM": np.dtype([
-            ("res_name", "U5"),
+            ("molecule", "U5"),
             ("atom1", "i8"),
             ("atom_type", "U5"),
             ("charge", "f8"),
         ]),
         "BOND": np.dtype([
-            ("res_name", "U5"),
+            ("molecule", "U5"),
             ("atom1", "i8"),
             ("atom2", "i8"),
         ]),
         "ANGLES": np.dtype([
-            ("res_name", "U5"),
+            ("molecule", "U5"),
             ("atom1", "i8"),
             ("atom2", "i8"),
             ("atom3", "i8"),
         ]),
         "DIHE": np.dtype([
-            ("res_name", "U5"),
+            ("molecule", "U5"),
             ("atom1", "i8"),
             ("atom2", "i8"),
             ("atom3", "i8"),
             ("atom4", "i8"),
         ]),
         "IMPR": np.dtype([
-            ("res_name", "U5"),
+            ("molecule", "U5"),
             ("atom1", "i8"),
             ("atom2", "i8"),
             ("atom3", "i8"),
@@ -305,14 +307,14 @@ class RTFContainer:
         total_array = np.empty(sum(len(i) for i in array_dict.values()), dtype=dtype)
         for res, array in array_dict.items():
             j += len(array)
-            total_array["res_name"][i:j] = res
+            total_array["molecule"][i:j] = res
             for k, field_name in enumerate(dtype.names[1:]):
                 total_array[field_name][i:j] = array[..., k]
             i += len(array)
 
         # Convert the strucutred array into a dataframe
         df = pd.DataFrame(total_array)
-        df.set_index("res_name", inplace=True, drop=True)
+        df.set_index("molecule", inplace=True, drop=True)
         return df
 
     def _to_hdf5_dict(self) -> dict[str, NDArray[np.void]]:
@@ -423,9 +425,9 @@ class RTFContainer:
                     # RESI-statements are not guaranteed to contain a residue name
                     res_fields = i.split()
                     if len(res_fields) == 2:
-                        res_name = f"RES{res_index}"
+                        molecule = f"RES{res_index}"
                     else:
-                        res_name = res_fields[1]
+                        molecule = res_fields[1]
                     res_index += 1
 
                     j = 0
@@ -438,9 +440,9 @@ class RTFContainer:
                             if statement == "ATOM":
                                 j += 1
                                 atom_dict[rest[0]] = j
-                                lst.append((res_name, j, *rest[1:]))
+                                lst.append((molecule, j, *rest[1:]))
                             else:
-                                lst.append((res_name, *(atom_dict[at] for at in rest)))
+                                lst.append((molecule, *(atom_dict[at] for at in rest)))
             except StopIteration as ex:
                 raise ValueError(
                     f"{f.name!r}: failed to find a `END` statement at the end of the file"
@@ -464,6 +466,40 @@ class RTFContainer:
                 else:
                     raise ValueError(f"{f.name!r}: {msg}") from ex
             df = pd.DataFrame(rec_array)
-            df.set_index("res_name" if k != "MASS" else "index", drop=True, inplace=True)
+            df.set_index("molecule" if k != "MASS" else "index", drop=True, inplace=True)
             kwargs[k.lower()] = df
         return cls(charmm_version=version, auto=auto, **kwargs)
+
+    def concatenate(self, rtf_iter: Iterable[RTFContainer]) -> Self:
+        """Concatenate multiple RTFContainers into a single instance.
+
+        Parameters
+        ----------
+        prm_iter : list[FOX.RTFContainer]
+            A list with other RTFContainers to concatenate
+
+        Returns
+        -------
+        FOX.PRMContainer
+            The new concatenated RTFContainer
+
+        """
+        rtf_list: list[RTFContainer] = []
+        for rtf in rtf_iter:
+            if not isinstance(rtf, RTFContainer):
+                raise TypeError("Expected a RTFContainer")
+            rtf.auto_to_explicit()
+            rtf_list.append(rtf)
+
+        dct = {
+            "mass": pd.concat([self.mass] + [rtf.mass for rtf in rtf_list], ignore_index=True),
+            "atom": pd.concat([self.atom] + [rtf.atom for rtf in rtf_list]),
+            "bond": pd.concat([self.bond] + [rtf.bond for rtf in rtf_list]),
+            "impr": pd.concat([self.impropers] + [rtf.impropers for rtf in rtf_list]),
+            "angles": pd.concat([self.angles] + [rtf.angles for rtf in rtf_list]),
+            "dihe": pd.concat([self.dihedrals] + [rtf.dihedrals for rtf in rtf_list]),
+        }
+        dct["mass"].drop_duplicates("atom_type", inplace=True, ignore_index=True)
+
+        cls = type(self)
+        return cls(**dct)
