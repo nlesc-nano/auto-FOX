@@ -9,6 +9,7 @@ Index
     PRMContainer.write
     PRMContainer.overlay_mapping
     PRMContainer.overlay_cp2k_settings
+    PRMContainer.concatenate
 
 API
 ---
@@ -20,13 +21,17 @@ API
 .. automethod:: PRMContainer.write
 .. automethod:: PRMContainer.overlay_mapping
 .. automethod:: PRMContainer.overlay_cp2k_settings
+.. automethod:: PRMContainer.concatenate
 
 """
+
+from __future__ import annotations
+
 import copy
 import textwrap
 from types import MappingProxyType
 from typing import (Any, Iterator, Dict, Tuple, Mapping, List, Union, Iterable, Sequence,
-                    Optional, ClassVar, MutableSequence, Type, TypeVar, NamedTuple)
+                    Optional, ClassVar, MutableSequence, Type, NamedTuple, TYPE_CHECKING)
 from itertools import chain, repeat
 from contextlib import nullcontext
 
@@ -40,9 +45,21 @@ from nanoutils import AbstractFileContainer, set_docstring
 from .cp2k_to_prm import CP2K_TO_PRM as _CP2K_TO_PRM, PRMMapping, PostProcess
 from ..functions.cp2k_utils import parse_cp2k_value
 
-__all__ = ['PRMContainer']
+if TYPE_CHECKING:
+    from typing_extensions import Self, Literal
 
-ST = TypeVar('ST', bound='PRMContainer')
+    _DFNames = Literal[
+        "atoms",
+        "bonds",
+        "angles",
+        "dihedrals",
+        "nbfix",
+        "nonbonded",
+        "improper",
+        "impropers",
+    ]
+
+__all__ = ['PRMContainer']
 
 # e.g. a Pandas.Series with an Index
 SeriesIdx = Mapping[str, float]
@@ -123,7 +140,7 @@ class PRMContainer(AbstractFileContainer):
     )
 
     #: Define the columns for each DataFrame which hold its index
-    _INDEX: ClassVar[Mapping[str, List[int]]] = MappingProxyType({
+    _INDEX: ClassVar[Mapping[_DFNames, List[int]]] = MappingProxyType({
         'atoms': [2],
         'bonds': [0, 1],
         'angles': [0, 1, 2],
@@ -135,7 +152,7 @@ class PRMContainer(AbstractFileContainer):
     })
 
     #: Placeholder values for DataFrame columns
-    _COLUMNS: ClassVar[Mapping[str, Tuple[Any, ...]]] = MappingProxyType({
+    _COLUMNS: ClassVar[Mapping[_DFNames, Tuple[Any, ...]]] = MappingProxyType({
         'atoms': (None, -1, None, np.nan),
         'bonds': (None, None, np.nan, np.nan),
         'angles': (None, None, None, np.nan, np.nan, np.nan, np.nan),
@@ -233,7 +250,7 @@ class PRMContainer(AbstractFileContainer):
                 return False
         return ret
 
-    def __reduce__(self: ST) -> Tuple[Type[ST], _PRMAttrTup, Dict[str, Any]]:
+    def __reduce__(self) -> Tuple[Type[Self], _PRMAttrTup, Dict[str, Any]]:
         """Helper function for :mod:`pickle`."""
         cls = type(self)
         attr_names = cls.__slots__[:-2]
@@ -244,7 +261,7 @@ class PRMContainer(AbstractFileContainer):
         """Helper function for :meth:`__reduce__`."""
         self._pd_printoptions = state
 
-    def copy(self: ST, deep: bool = True) -> ST:
+    def copy(self, deep: bool = True) -> Self:
         """Create and return a copy of this instance.
 
         Parameters
@@ -315,7 +332,7 @@ class PRMContainer(AbstractFileContainer):
                     kwargs[k] = None
 
     @classmethod
-    def _process_df(cls, df: pd.DataFrame, key: str) -> None:
+    def _process_df(cls, df: pd.DataFrame, key: _DFNames) -> None:
         """Fill in all columns, set their data type and assign an index to **df**."""
         for i, default in enumerate(cls._COLUMNS[key]):
             if i not in df:
@@ -497,11 +514,17 @@ class PRMContainer(AbstractFileContainer):
                                             name, columns, key_path, key, unit,
                                             default_unit, post_process)
 
-    def _overlay_cp2k_settings(self, cp2k_settings: Settings,
-                               name: str, columns: MutableSequence[int],
-                               key_path: Sequence[str], key: Iterable[str],
-                               unit: Iterable[str], default_unit: Iterable[Optional[str]],
-                               post_process: Iterable[Optional[PostProcess]]) -> None:
+    def _overlay_cp2k_settings(
+        self,
+        cp2k_settings: Settings,
+        name: _DFNames,
+        columns: MutableSequence[int],
+        key_path: Sequence[str],
+        key: Iterable[str],
+        unit: Iterable[str],
+        default_unit: Iterable[Optional[str]],
+        post_process: Iterable[Optional[PostProcess]],
+    ) -> None:
         """Helper function for :meth:`PRMContainer.overlay_cp2k_settings`."""
         # Extract the appropiate dict or sequence of dicts
         try:
@@ -538,3 +561,52 @@ class PRMContainer(AbstractFileContainer):
 
             # Assign the values
             df.loc[index, columns] = value_list
+
+    def _concatenate(
+        self,
+        prm_iter: Iterable[PRMContainer],
+        field: _DFNames,
+    ) -> None | pd.DataFrame:
+        iterator: Iterator[pd.DataFrame | None] = chain(
+            [getattr(self, field)],
+            (getattr(i, field) for i in prm_iter),
+        )
+        df_list = [i for i in iterator if i is not None]
+        if len(df_list) == 0:
+            return None
+
+        df = pd.concat(df_list)
+        return df.loc[df.index.drop_duplicates(), :]
+
+    def concatenate(self, prm_iter: Iterable[PRMContainer]) -> Self:
+        """Concatenate multiple PRMContainers into a single instance.
+
+        Parameters
+        ----------
+        prm_iter : list[FOX.PRMContainer]
+            A list with other PRMContainers to concatenate
+
+        Returns
+        -------
+        FOX.PRMContainer
+            The new concatenated PRMContainer
+
+        """
+        prm_list: list[PRMContainer] = []
+        for prm in prm_iter:
+            if not isinstance(prm, PRMContainer):
+                raise TypeError("Expected a PRMContainer")
+            prm_list.append(prm)
+
+        cls = type(self)
+        return cls(
+            hbond=self.hbond,
+            nonbonded_header=self.nonbonded_header,
+            atoms=self._concatenate(prm_list, "atoms"),
+            bonds=self._concatenate(prm_list, "bonds"),
+            angles=self._concatenate(prm_list, "angles"),
+            dihedrals=self._concatenate(prm_list, "dihedrals"),
+            nbfix=self._concatenate(prm_list, "nbfix"),
+            nonbonded=self._concatenate(prm_list, "nonbonded"),
+            impropers=self._concatenate(prm_list, "impropers"),
+        )
