@@ -33,6 +33,7 @@ from collections import defaultdict
 from collections.abc import Callable, Mapping
 from typing import TYPE_CHECKING, Any, ClassVar, TypeVar, Literal, cast
 
+import h5py
 import numpy as np
 import pandas as pd
 
@@ -40,6 +41,7 @@ from . import FileIter
 
 if TYPE_CHECKING:
     from typing_extensions import Self
+    from numpy.typing import NDArray
 
     _KT = TypeVar("_KT")
     _DFType = TypeVar("_DFType", bound=None | pd.DataFrame | dict[int, pd.DataFrame])
@@ -914,3 +916,46 @@ class TOPContainer:
                 f.write(";")
                 self.molecules.to_string(f, **kwargs)
                 f.write("\n")
+
+    def _to_hdf5_dict(self) -> dict[str, NDArray[np.void]]:
+        dtype_dct: dict[str, NDArray[np.void]] = {}
+        for name1, _dtype in itertools.chain(
+            self.DF_DTYPES.items(),
+            self.DF_OPTIONAL_DTYPES.items()
+        ):
+            df: pd.DataFrame | None = getattr(self, name1, None)
+            if df is None:
+                continue
+            assert _dtype.fields is not None
+
+            # Construct a h5py-compatible structured dtype
+            dtype_list = []
+            for sub_field, (sub_dtype, *_) in _dtype.fields.items():
+                if sub_dtype.kind == "U":
+                    sub_dtype = h5py.string_dtype("utf-8", sub_dtype.itemsize // 4)
+                elif sub_dtype.kind == "O":
+                    sub_dtype = h5py.string_dtype("utf-8")
+                dtype_list.append((sub_field, sub_dtype))
+            dtype = np.dtype(dtype_list)
+            dtype_dct[name1] = df.to_records(index=False).astype(dtype)
+
+        iterator = (
+            (k, i, _dtype) for k, dct in self.DF_DICT_DTYPES.items() for i, _dtype in dct.items()
+        )
+        for (name2, func, _dtype) in iterator:
+            df = (pre_df.get(func) if (pre_df := getattr(self, name2)) is not None else None)
+            if df is None:
+                continue
+            assert _dtype.fields is not None
+
+            # Construct a h5py-compatible structured dtype
+            dtype_list = []
+            for sub_field, (sub_dtype, *_) in _dtype.fields.items():
+                if sub_dtype.kind == "U":
+                    sub_dtype = h5py.string_dtype("utf-8", sub_dtype.itemsize // 4)
+                elif sub_dtype.kind == "O":
+                    sub_dtype = h5py.string_dtype("utf-8")
+                dtype_list.append((sub_field, sub_dtype))
+            dtype = np.dtype(dtype_list)
+            dtype_dct[f"{name2}/{func}"] = df.to_records(index=False).astype(dtype)
+        return dtype_dct
