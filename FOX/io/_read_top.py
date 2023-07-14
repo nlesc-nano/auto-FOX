@@ -14,7 +14,7 @@ API
     :noindex:
     :members: defaults, atomtypes, pairtypes, bondtypes, angletypes, dihedraltypes,
         constrainttypes, nonbond_params, moleculetype, atoms, pairs, bonds, angles,
-        dihedrals, system, molecules, DF_DTYPES, DF_OPTIONAL_DTYPES, DF_DICT_DTYPES
+        dihedrals, system, molecules, DF_DTYPES, DF_DICT_DTYPES
 
 .. automethod:: TOPContainer.from_file
 .. automethod:: TOPContainer.to_file
@@ -28,7 +28,6 @@ import types
 import textwrap
 import pprint
 import warnings
-import itertools
 from collections import defaultdict
 from collections.abc import Callable, Mapping
 from typing import TYPE_CHECKING, Any, ClassVar, TypeVar, Literal, cast
@@ -43,8 +42,8 @@ if TYPE_CHECKING:
     from typing_extensions import Self
     from numpy.typing import NDArray
 
-    _KT = TypeVar("_KT")
-    _DFType = TypeVar("_DFType", bound=None | pd.DataFrame | dict[int, pd.DataFrame])
+    _T = TypeVar("_T")
+    _DFType = TypeVar("_DFType", bound=pd.DataFrame | dict[int, pd.DataFrame])
 
     _DFNames = Literal[
         "defaults",
@@ -53,8 +52,6 @@ if TYPE_CHECKING:
         "atoms",
         "system",
         "molecules",
-    ]
-    _OptionalDFNames = Literal[
         "pairs",
         "bonds",
         "angles",
@@ -68,10 +65,10 @@ if TYPE_CHECKING:
         "constrainttypes",
         "nonbond_params",
     ]
-    _DirectiveNames = _DFNames | _OptionalDFNames | _DFDictNames
+    _DirectiveNames = _DFNames | _DFDictNames
 
-    _DtypeMap = types.MappingProxyType[_KT, np.dtype[np.void]]
-    _DFKwargs = dict[_DFNames | _OptionalDFNames, pd.DataFrame]
+    _DtypeMap = types.MappingProxyType[_T, np.dtype[np.void]]
+    _DFKwargs = dict[_DFNames, pd.DataFrame]
     _DFDictKwargs = defaultdict[_DFDictNames, dict[int, pd.DataFrame]]
 
 __all__ = ["TOPContainer", "TOPDirectiveWarning"]
@@ -79,6 +76,30 @@ __all__ = ["TOPContainer", "TOPDirectiveWarning"]
 
 class TOPDirectiveWarning(Warning):
     """Class for warnings related to .top directives."""
+
+
+def _df_isclose(
+    df1: pd.DataFrame,
+    df2: pd.DataFrame,
+    rtol: float,
+    atol: float,
+    equal_nan: bool,
+) -> bool:
+    if (
+        df1.shape != df2.shape
+        or not np.all(df1.columns == df2.columns)
+        or not np.all(df1.index == df2.index)
+    ):
+        return False
+
+    for k, series1 in df1.items():
+        series2 = df2[k]
+        if np.issubdtype(series1.dtype, np.inexact):
+            if not np.allclose(series1, series2, rtol, atol, equal_nan):
+                return False
+        elif not np.array_equal(series1, series2):
+            return False
+    return True
 
 
 _DF_DICT_DTYPES: _DtypeMap[str] = types.MappingProxyType({
@@ -424,10 +445,6 @@ class TOPContainer:
             ("molecule", "O"),
             ("n_mol", "i8"),
         ]),
-    })
-
-    #: A mapping holding the data types of all optional (dataframe based) directives.
-    DF_OPTIONAL_DTYPES: ClassVar[_DtypeMap[_OptionalDFNames]] = types.MappingProxyType({
         "bonds": np.dtype([
             ("molecule", "O"),
             ("atom1", "i8"),
@@ -512,12 +529,12 @@ class TOPContainer:
     def __init__(
         self,
         *,
-        defaults: pd.DataFrame,
-        atomtypes: pd.DataFrame,
-        moleculetype: pd.DataFrame,
-        atoms: pd.DataFrame,
-        system: pd.DataFrame,
-        molecules: pd.DataFrame,
+        defaults: None | pd.DataFrame = None,
+        atomtypes: None | pd.DataFrame = None,
+        moleculetype: None | pd.DataFrame = None,
+        atoms: None | pd.DataFrame = None,
+        system: None | pd.DataFrame = None,
+        molecules: None | pd.DataFrame = None,
         bondtypes: None | dict[int, pd.DataFrame] = None,
         pairtypes: None | dict[int, pd.DataFrame] = None,
         angletypes: None | dict[int, pd.DataFrame] = None,
@@ -550,7 +567,7 @@ class TOPContainer:
         self.molecules = self._validate_attr(molecules, "molecules")
 
     @classmethod
-    def _from_dict(cls, dct: dict[_DFNames | _OptionalDFNames | _DFDictNames, Any]) -> Self:
+    def _from_dict(cls, dct: dict[_DFNames | _DFDictNames, Any]) -> Self:
         """Helper function for :meth:`TOPContainer.__reduce__`."""
         return cls(**dct)
 
@@ -575,20 +592,11 @@ class TOPContainer:
             )
 
     @classmethod
-    def _validate_attr(cls, attr: _DFType, name: _DirectiveNames) -> _DFType:
+    def _validate_attr(cls, attr: None | _DFType, name: _DirectiveNames) -> _DFType:
         """Perform some basic validation on the passed dataframe."""
         if (dtype := cls.DF_DTYPES.get(name)) is not None:
-            if not isinstance(attr, pd.DataFrame):
-                raise TypeError(
-                    f"Argument {name!r} expects None or a dataframe; "
-                    f"observed type: {type(attr).__module__}.{type(attr).__name__}"
-                )
-            else:
-                cls._validate_df(attr, dtype, name)
-
-        elif (dtype := cls.DF_OPTIONAL_DTYPES.get(name)) is not None:
             if attr is None:
-                return attr
+                return pd.DataFrame.from_records(np.empty((0,), dtype=dtype))
             elif not isinstance(attr, pd.DataFrame):
                 raise TypeError(
                     f"Argument {name!r} expects None or a dataframe; "
@@ -599,7 +607,7 @@ class TOPContainer:
 
         elif (dtype_dict := cls.DF_DICT_DTYPES.get(name)) is not None:
             if attr is None:
-                return attr
+                return {}
             elif (
                 not isinstance(attr, dict)
                 or not all(isinstance(v, pd.DataFrame) for v in attr.values())
@@ -685,35 +693,38 @@ class TOPContainer:
         cls = type(self)
         if not isinstance(other, cls):
             return NotImplemented
+        return self._compare(other, lambda i, j: i.equals(j))
 
-        for name1 in cls.DF_DTYPES:
+    def isclose(
+        self,
+        other: TOPContainer,
+        *,
+        rtol: float = 1e-05,
+        atol: float = 1e-08,
+        equal_nan: bool = True,
+    ) -> bool:
+        cls = type(self)
+        if not isinstance(other, cls):
+            raise TypeError(f"Expected a TOPContainer; observed type: {type(other).__name__!r}")
+        return self._compare(other, lambda i, j: _df_isclose(i, j, rtol, atol, equal_nan))
+
+    def _compare(
+        self,
+        other: TOPContainer,
+        callback: Callable[[pd.Series, pd.Series], bool],
+    ) -> bool:
+        for name1 in self.DF_DTYPES:
             df1: pd.DataFrame = getattr(self, name1)
             df2: pd.DataFrame = getattr(other, name1)
-            if not df1.equals(df2):
+            if not callback(df1, df2):
                 return False
 
-        for name2 in cls.DF_OPTIONAL_DTYPES:
-            df3: None | pd.DataFrame = getattr(self, name2)
-            df4: None | pd.DataFrame = getattr(other, name2)
-            if df3 is None and df4 is None:
-                continue
-            elif df3 is not None and df4 is not None:
-                if not df3.equals(df4):
-                    return False
-            else:
+        for name2 in self.DF_DICT_DTYPES:
+            df_dict1: dict[int, pd.DataFrame] = getattr(self, name2)
+            df_dict2: dict[int, pd.DataFrame] = getattr(other, name2)
+            if df_dict1.keys() != df_dict2.keys():
                 return False
-
-        for name3 in cls.DF_DICT_DTYPES:
-            df_dict1: None | dict[int, pd.DataFrame] = getattr(self, name3)
-            df_dict2: None | dict[int, pd.DataFrame] = getattr(other, name3)
-            if df_dict1 is None and df_dict2 is None:
-                continue
-            elif df_dict1 is not None and df_dict2 is not None:
-                if df_dict1.keys() != df_dict2.keys():
-                    return False
-                elif not all(v.equals(df_dict2[k]) for k, v in df_dict1.items()):
-                    return False
-            else:
+            elif not all(callback(v, df_dict2[k]) for k, v in df_dict1.items()):
                 return False
         return True
 
@@ -734,7 +745,7 @@ class TOPContainer:
         """
         df_kwargs: _DFKwargs = {}
         df_dict_kwargs: _DFDictKwargs = defaultdict(dict)
-        requires_mol = {"atoms"} | cls.DF_OPTIONAL_DTYPES.keys()
+        requires_mol = {"atoms", "pairs", "bonds", "angles", "dihedrals"}
         mol: str | None = None
 
         with open(path, "r", encoding="utf8") as _f:
@@ -825,8 +836,6 @@ class TOPContainer:
         func = 1
         if (dtype := cls.DF_DTYPES.get(directive)) is not None:
             pass
-        elif (dtype := cls.DF_OPTIONAL_DTYPES.get(directive)) is not None:
-            pass
         elif (dtype_dict := cls.DF_DICT_DTYPES.get(directive)) is not None:
             if len(lst) == 0:
                 return (new_directive, func, None, mol_new)
@@ -877,9 +886,7 @@ class TOPContainer:
                 f.write("\n")
 
             for dir1 in self.DF_DICT_DTYPES:
-                df_dict: None | Mapping[str, pd.DataFrame] = getattr(self, dir1)
-                if df_dict is None:
-                    continue
+                df_dict: Mapping[str, pd.DataFrame] = getattr(self, dir1)
                 for df in df_dict.values():
                     if df.size:
                         f.write(f"\n[ {dir1} ]\n")
@@ -889,11 +896,11 @@ class TOPContainer:
 
             # Molecule level
             for name in self.moleculetype["molecule"]:
-                for dir2 in itertools.chain(["moleculetype", "atoms"], self.DF_OPTIONAL_DTYPES):
+                for dir2 in ["moleculetype", "atoms", "pairs", "bonds", "angles", "dihedrals"]:
                     if (df := getattr(self, dir2)) is None:
                         continue
                     if dir2 == "moleculetype":
-                        columns = slice(None)
+                        columns: slice | list[str] = slice(None)
                     else:
                         columns = [k for k in df if k != "molecule"]
 
@@ -919,13 +926,8 @@ class TOPContainer:
 
     def _to_hdf5_dict(self) -> dict[str, NDArray[np.void]]:
         dtype_dct: dict[str, NDArray[np.void]] = {}
-        for name1, _dtype in itertools.chain(
-            self.DF_DTYPES.items(),
-            self.DF_OPTIONAL_DTYPES.items()
-        ):
-            df: pd.DataFrame | None = getattr(self, name1, None)
-            if df is None:
-                continue
+        for name1, _dtype in self.DF_DTYPES.items():
+            df: pd.DataFrame = getattr(self, name1, None)
             assert _dtype.fields is not None
 
             # Construct a h5py-compatible structured dtype

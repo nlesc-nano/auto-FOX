@@ -93,9 +93,7 @@ def _get_dihedral_types(prm: FOX.PRMContainer) -> None | dict[int, pd.DataFrame]
     if prm.dihedrals is not None:
         _dihedraltypes = prm.dihedrals.reset_index(drop=False)
         _dihedraltypes.insert(4, "func", 9)
-        _dihedraltypes[5], _dihedraltypes[6], _dihedraltypes[4] = (
-            _dihedraltypes[4], _dihedraltypes[5], _dihedraltypes[6],
-        )
+        _dihedraltypes[[5, 6, 4]] = _dihedraltypes[[4, 5, 6]]
         _dihedraltypes.columns = FOX.TOPContainer.DF_DICT_DTYPES["dihedraltypes"][9].names
         dihedraltypes[9] = _dihedraltypes
     if prm.impropers is not None:
@@ -116,7 +114,7 @@ def _get_nonbonded_params(prm: FOX.PRMContainer) -> None | dict[int, pd.DataFram
     del nonbond_params[4]
     del nonbond_params[5]
     nonbond_params[3] *= 2 / 2**(1/6)
-    nonbond_params[2], nonbond_params[3] = nonbond_params[3], nonbond_params[2]
+    nonbond_params[[2, 3]] = nonbond_params[[3, 2]]
     nonbond_params.insert(2, "func", 1)
     nonbond_params.columns = FOX.TOPContainer.DF_DICT_DTYPES["nonbond_params"][1].names
     return {1: nonbond_params}

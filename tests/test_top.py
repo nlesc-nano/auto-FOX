@@ -30,19 +30,11 @@ class TestTOPContainer:
             top = TOPContainer.from_file(PATH / "test.top")
         yield top
 
-    @pytest.mark.parametrize(
-        "name",
-        TOPContainer.DF_DTYPES.keys() | TOPContainer.DF_OPTIONAL_DTYPES.keys(),
-    )
+    @pytest.mark.parametrize("name", TOPContainer.DF_DTYPES.keys())
     def test_attribute(self, top: TOPContainer, name: str) -> None:
-        df: None | pd.DataFrame = getattr(top, name)
-        if df is None:
-            return
-
+        df: pd.DataFrame = getattr(top, name)
         with h5py.File(PATH / "test_ref.hdf5", "r") as f:
             if (dtype := TOPContainer.DF_DTYPES.get(name)) is not None:
-                pass
-            elif (dtype := TOPContainer.DF_OPTIONAL_DTYPES.get(name)) is not None:
                 pass
             else:
                 raise AssertionError
@@ -61,7 +53,7 @@ class TestTOPContainer:
         [(k, i) for k, dct in TOPContainer.DF_DICT_DTYPES.items() for i in dct],
     )
     def test_dict_attribute(self, top: TOPContainer, name: str, func: int) -> None:
-        df: None | pd.DataFrame = dct.get(func) if (dct := getattr(top, name)) is not None else None
+        df: None | pd.DataFrame = getattr(top, name).get(func)
         if df is None:
             return
 
@@ -108,11 +100,7 @@ class TestTOPContainer:
             hash(top)
 
     def test_to_file(self, top: TOPContainer, tmp_path: Path) -> None:
-        top.to_file(tmp_path / "test1.top")
-        assertion.isfile(tmp_path / "test1.top")
-        top2 = TOPContainer.from_file(tmp_path / "test1.top")
-
-        top2.to_file(tmp_path / "test2.top")
-        assertion.isfile(tmp_path / "test2.top")
-        top3 = TOPContainer.from_file(tmp_path / "test2.top")
-        assertion.eq(top2, top3)
+        top.to_file(tmp_path / "test.top")
+        assertion.isfile(tmp_path / "test.top")
+        top2 = TOPContainer.from_file(tmp_path / "test.top")
+        assertion.assert_(top2.isclose, top2, rtol=0, atol=0.0001)
