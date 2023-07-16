@@ -7,7 +7,6 @@ schema==0.7.1
 AssertionLib==3.1.0
 noodles==0.3.3
 h5py==2.10
-qmflows==0.12.1
 plams==1.5.1
 packaging==17.1
 pytest==6.0.0

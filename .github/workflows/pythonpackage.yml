@@ -64,7 +64,6 @@ jobs:
 
             -   name: Install dependencies
                 run: |
-                    pip install --upgrade pip
                     if [[ "${{ matrix.special }}" == '; pre-release' ]]; then
                         pip install --pre -e .[test-no-optional] --upgrade --force-reinstall
                         pip install git+https://github.com/SCM-NV/qmflows@master --upgrade
