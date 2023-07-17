@@ -104,3 +104,11 @@ class TestTOPContainer:
         assertion.isfile(tmp_path / "test.top")
         top2 = TOPContainer.from_file(tmp_path / "test.top")
         assertion.assert_(top2.allclose, top2, rtol=0, atol=0.0001)
+
+    def generate_pairs(self, top: TOPContainer) -> None:
+        pairs_ref = top.pairs
+
+        top = top.copy()
+        top.pairs = top.pairs.loc[[], :]
+        top.generate_pairs()
+        assertion.assert_(top.pairs.equals, pairs_ref)

@@ -8,6 +8,7 @@ Index
     TOPContainer.from_file
     TOPContainer.to_file
     TOPContainer.allclose
+    TOPContainer.generate_pairs
 
 API
 ---
@@ -20,6 +21,7 @@ API
 .. automethod:: TOPContainer.from_file
 .. automethod:: TOPContainer.to_file
 .. automethod:: TOPContainer.allclose
+.. automethod:: TOPContainer.generate_pairs
 
 """
 
@@ -39,6 +41,7 @@ import numpy as np
 import pandas as pd
 
 from . import FileIter
+from ..ff import degree_of_separation
 
 if TYPE_CHECKING:
     from typing_extensions import Self
@@ -988,3 +991,39 @@ class TOPContainer:
             dtype = np.dtype(dtype_list)
             dtype_dct[f"{name2}/{func}"] = df.to_records(index=False).astype(dtype)
         return dtype_dct
+
+    def generate_pairs(self, func: Literal[1, 2] = 1) -> None:
+        """Construct and populate the ``pairs`` directive with explicit 1,4-pairs based on \
+        the available bonds.
+
+        Parameters
+        ----------
+        func: {1, 2}
+            The func type as used for the new pairs.
+
+        """
+        pair_dfs: list[pd.DataFrame] = []
+        for mol in self.molecules["molecule"]:
+            atom_count = len(self.atoms.loc[self.atoms["molecule"] == mol, :])
+            bonds = self.bonds.loc[self.bonds["molecule"] == mol, ["atom1", "atom2"]] - 1
+            if self.bonds.size == 0:
+                continue
+
+            depth_mat = np.triu(degree_of_separation(
+                atom_count * [None],
+                bond_mat=(np.ones(len(bonds), dtype=np.bool_), (bonds["atom1"], bonds["atom2"]))
+            ))
+            pairs_14 = np.array(np.where(depth_mat == 3))
+            pairs_14 += 1
+            pair_dfs.append(pd.DataFrame({
+                "molecule": mol,
+                "atom1": pairs_14[0],
+                "atom2": pairs_14[1],
+                "func": func,
+            }))
+        if len(pair_dfs) == 0:
+            return
+
+        keys = ["molecule", "atom1", "atom2"]
+        pairs_new = pd.concat(pair_dfs, ignore_index=True)
+        self.pairs = pairs_new[~pairs_new.duplicated(keys)].sort_values(keys, ignore_index=True)
