@@ -103,4 +103,4 @@ class TestTOPContainer:
         top.to_file(tmp_path / "test.top")
         assertion.isfile(tmp_path / "test.top")
         top2 = TOPContainer.from_file(tmp_path / "test.top")
-        assertion.assert_(top2.isclose, top2, rtol=0, atol=0.0001)
+        assertion.assert_(top2.allclose, top2, rtol=0, atol=0.0001)

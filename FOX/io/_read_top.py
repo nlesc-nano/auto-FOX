@@ -7,6 +7,7 @@ Index
     TOPContainer
     TOPContainer.from_file
     TOPContainer.to_file
+    TOPContainer.allclose
 
 API
 ---
@@ -18,6 +19,7 @@ API
 
 .. automethod:: TOPContainer.from_file
 .. automethod:: TOPContainer.to_file
+.. automethod:: TOPContainer.allclose
 
 """
 
@@ -78,7 +80,7 @@ class TOPDirectiveWarning(Warning):
     """Class for warnings related to .top directives."""
 
 
-def _df_isclose(
+def _df_allclose(
     df1: pd.DataFrame,
     df2: pd.DataFrame,
     rtol: float,
@@ -695,7 +697,7 @@ class TOPContainer:
             return NotImplemented
         return self._compare(other, lambda i, j: i.equals(j))
 
-    def isclose(
+    def allclose(
         self,
         other: TOPContainer,
         *,
@@ -703,10 +705,35 @@ class TOPContainer:
         atol: float = 1e-08,
         equal_nan: bool = True,
     ) -> bool:
+        """Return whether two TOPContainers are equivalent within a given tolerance.
+
+        Parameters
+        ----------
+        other: TOPContainer
+            The to-be compared TOPContainer
+        rtol: float
+            The relative tolerance parameter (see Notes).
+        atol: float
+            The absolute tolerance parameter (see Notes).
+        equal_nan: bool
+            Whether to compare NaN's as equal.
+            If True, NaN's in a will be considered equal to NaN's in b in the output array.
+
+        Returns
+        -------
+        bool
+            Whether the two containers are equivalent within a given tolerance.
+
+        See Also
+        --------
+        :func:`numpy.allclose`
+            Returns True if two arrays are element-wise equal within a tolerance.
+
+        """
         cls = type(self)
         if not isinstance(other, cls):
             raise TypeError(f"Expected a TOPContainer; observed type: {type(other).__name__!r}")
-        return self._compare(other, lambda i, j: _df_isclose(i, j, rtol, atol, equal_nan))
+        return self._compare(other, lambda i, j: _df_allclose(i, j, rtol, atol, equal_nan))
 
     def _compare(
         self,
