@@ -375,17 +375,17 @@ class TOPContainer:
     #: A dataframe holding the ``atomtypes`` directive.
     atomtypes: pd.DataFrame
     #: A dictionary of dataframes holding the ``bondtypes`` directive.
-    bondtypes: None | dict[int, pd.DataFrame]
+    bondtypes: dict[int, pd.DataFrame]
     #: A dictionary of dataframes holding the ``pairtypes`` directive.
-    pairtypes: None | dict[int, pd.DataFrame]
+    pairtypes: dict[int, pd.DataFrame]
     #: A dictionary of dataframes holding the ``angletypes`` directive.
-    angletypes: None | dict[int, pd.DataFrame]
+    angletypes: dict[int, pd.DataFrame]
     #: A dictionary of dataframes holding the ``dihedraltypes`` directive.
-    dihedraltypes: None | dict[int, pd.DataFrame]
+    dihedraltypes: dict[int, pd.DataFrame]
     #: A dictionary of dataframes holding the ``constrainttypes`` directive.
-    constrainttypes: None | dict[int, pd.DataFrame]
+    constrainttypes: dict[int, pd.DataFrame]
     #: A dictionary of dataframes holding the ``nonbond_params`` directive.
-    nonbond_params: None | dict[int, pd.DataFrame]
+    nonbond_params: dict[int, pd.DataFrame]
 
     # molecule level
     #: A dataframe holding the ``moleculetype`` directive.
@@ -393,13 +393,13 @@ class TOPContainer:
     #: A dataframe holding the ``atoms`` directive.
     atoms: pd.DataFrame
     #: A dataframe holding the ``pairs`` directive.
-    pairs: None | pd.DataFrame
+    pairs: pd.DataFrame
     #: A dataframe holding the ``bonds`` directive.
-    bonds: None | pd.DataFrame
+    bonds: pd.DataFrame
     #: A dataframe holding the ``angles`` directive.
-    angles: None | pd.DataFrame
+    angles: pd.DataFrame
     #: A dataframe holding the ``dihedrals`` directive.
-    dihedrals: None | pd.DataFrame
+    dihedrals: pd.DataFrame
 
     # system level
     #: A dataframe holding the ``system`` directive.
