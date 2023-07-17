@@ -33,10 +33,8 @@ class TestTOPContainer:
     @pytest.mark.parametrize("name", TOPContainer.DF_DTYPES.keys())
     def test_attribute(self, top: TOPContainer, name: str) -> None:
         df: pd.DataFrame = getattr(top, name)
-        with h5py.File(PATH / "test_ref.hdf5", "r") as f:
-            if (dtype := TOPContainer.DF_DTYPES.get(name)) is not None:
-                pass
-            else:
+        with h5py.File(PATH / "test_ref.hdf5", "r+") as f:
+            if (dtype := TOPContainer.DF_DTYPES.get(name)) is None:
                 raise AssertionError
             ref = f[f"test_top/TestTOPContainer/test_attribute/{name}"][...].astype(dtype)
         assertion.eq(tuple(df.columns), ref.dtype.names)
