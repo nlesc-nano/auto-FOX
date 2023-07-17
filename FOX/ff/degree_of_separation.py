@@ -14,7 +14,10 @@ API
 
 """
 
-from typing import Type, Union, Optional, Any, TypeVar, Tuple, Generator, overload
+from __future__ import annotations
+
+from collections.abc import Generator
+from typing import Any, TypeVar, overload, TYPE_CHECKING
 from itertools import chain
 
 import numpy as np
@@ -23,11 +26,19 @@ from scipy.sparse.csgraph import dijkstra
 
 from scm.plams import Molecule, MoleculeError
 
+if TYPE_CHECKING:
+    import numpy.typing as npt
+
 __all__ = ['degree_of_separation', 'sparse_bond_matrix']
 
+_S = TypeVar('_S', bound=spmatrix)
 
-def degree_of_separation(mol: Molecule, limit: float = np.inf,
-                         bond_mat: Optional[np.ndarray] = None) -> np.ndarray:
+
+def degree_of_separation(
+    mol: Molecule,
+    limit: float = np.inf,
+    bond_mat: None | np.ndarray = None,
+) -> npt.NDArray[np.float64]:
     r"""Construct a matrix with the degree of separation of all atom-pairs in **mol**.
 
     Each element :math:`D_{i, j}^{\text{sep}}` in the to-be returned matrix
@@ -67,7 +78,6 @@ def degree_of_separation(mol: Molecule, limit: float = np.inf,
 
     """
     len_mol = len(mol)
-
     if bond_mat is None:
         if not mol.bonds:
             raise MoleculeError("The passed Molecule has no bonds")
@@ -82,26 +92,23 @@ def degree_of_separation(mol: Molecule, limit: float = np.inf,
                     return_predecessors=False)
 
 
-S = TypeVar('S', bound=spmatrix)
-
-
 @overload
 def sparse_bond_matrix(
     mol: Molecule,
-    dtype: Union[None, type, str, np.dtype] = ...,
-    sparse_type: Type[csr_matrix] = ...,
+    dtype: npt.DTypeLike = ...,
+    *,
+    sparse_type: type[_S],
+    **kwargs: Any,
+) -> _S:
+    ...
+@overload  # noqa: E302
+def sparse_bond_matrix(
+    mol: Molecule,
+    dtype: npt.DTypeLike = ...,
     **kwargs: Any,
 ) -> csr_matrix:
     ...
-@overload  # noqa: E302
-def sparse_bond_matrix(  # type: ignore[misc]
-    mol: Molecule,
-    dtype: Union[None, type, str, np.dtype] = ...,
-    sparse_type: Type[S] = ...,
-    **kwargs: Any,
-) -> S:
-    ...
-def sparse_bond_matrix(mol, dtype=bool, sparse_type=csr_matrix, **kwargs):  # noqa: E302
+def sparse_bond_matrix(mol, dtype=np.bool_, *, sparse_type=csr_matrix, **kwargs):  # noqa: E302
     r"""Create a sparse bond-matrix of a user-specified data type.
 
     Parameters
@@ -150,7 +157,7 @@ def sparse_bond_matrix(mol, dtype=bool, sparse_type=csr_matrix, **kwargs):  # no
     return _sparse_mat(sparse_type, ret_shape, data, *bond_idx.T, **kwargs)
 
 
-def _bond_id_generator(mol: Molecule) -> Generator[Tuple[int, int, int, int], None, None]:
+def _bond_id_generator(mol: Molecule) -> Generator[tuple[int, int, int, int], None, None]:
     """Yield all permutations of the bond-defining atoms indices in **mol**."""
     mol.set_atoms_id(start=0)
     for b in mol.bonds:
@@ -161,8 +168,14 @@ def _bond_id_generator(mol: Molecule) -> Generator[Tuple[int, int, int, int], No
     mol.unset_atoms_id()
 
 
-def _sparse_mat(sparse_type: Type[S], shape: Tuple[int, int], data: np.ndarray,
-                rows: np.ndarray, columns: np.ndarray, **kwargs: Any) -> S:
+def _sparse_mat(
+    sparse_type: type[_S],
+    shape: tuple[int, int],
+    data: np.ndarray,
+    rows: np.ndarray,
+    columns: np.ndarray,
+    **kwargs: Any,
+) -> _S:
     """Create and return the sparse matrix for :func:`sparse_bond_matrix`."""
     try:
         return sparse_type((data, (rows, columns)), shape=shape, **kwargs)
