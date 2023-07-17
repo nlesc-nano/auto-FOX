@@ -16,4 +16,4 @@ def test_create_top() -> None:
         prm_files=[PATH / "ola.prm"],
     )
     ref = TOPContainer.from_file(PATH / "top_recipe_ref.top")
-    assertion.assert_(top.isclose, ref, rtol=0, atol=0.0001)
+    assertion.assert_(top.allclose, ref, rtol=0, atol=0.0001)

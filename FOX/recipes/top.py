@@ -243,7 +243,7 @@ def create_top(
     prm = prm_list[0].concatenate(prm_list[1:])
 
     atomtypes, atoms = _get_atoms_and_atom_types(prm, rtf)
-    return FOX.TOPContainer(
+    top = FOX.TOPContainer(
         defaults=pd.DataFrame(
             data=[[1, 2, "yes", 1.0, 1.0]],
             index=[0], columns=FOX.TOPContainer.DF_DTYPES["defaults"].names,
@@ -270,3 +270,5 @@ def create_top(
         atomtypes=atomtypes,
         atoms=atoms,
     )
+    top.generate_pairs()
+    return top

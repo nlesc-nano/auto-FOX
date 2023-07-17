@@ -7,6 +7,9 @@ Index
     TOPContainer
     TOPContainer.from_file
     TOPContainer.to_file
+    TOPContainer.allclose
+    TOPContainer.generate_pairs
+    TOPContainer.copy
 
 API
 ---
@@ -18,12 +21,16 @@ API
 
 .. automethod:: TOPContainer.from_file
 .. automethod:: TOPContainer.to_file
+.. automethod:: TOPContainer.allclose
+.. automethod:: TOPContainer.generate_pairs
+.. automethod:: TOPContainer.copy
 
 """
 
 from __future__ import annotations
 
 import os
+import copy
 import types
 import textwrap
 import pprint
@@ -37,6 +44,7 @@ import numpy as np
 import pandas as pd
 
 from . import FileIter
+from ..ff import degree_of_separation
 
 if TYPE_CHECKING:
     from typing_extensions import Self
@@ -78,7 +86,7 @@ class TOPDirectiveWarning(Warning):
     """Class for warnings related to .top directives."""
 
 
-def _df_isclose(
+def _df_allclose(
     df1: pd.DataFrame,
     df2: pd.DataFrame,
     rtol: float,
@@ -373,17 +381,17 @@ class TOPContainer:
     #: A dataframe holding the ``atomtypes`` directive.
     atomtypes: pd.DataFrame
     #: A dictionary of dataframes holding the ``bondtypes`` directive.
-    bondtypes: None | dict[int, pd.DataFrame]
+    bondtypes: dict[int, pd.DataFrame]
     #: A dictionary of dataframes holding the ``pairtypes`` directive.
-    pairtypes: None | dict[int, pd.DataFrame]
+    pairtypes: dict[int, pd.DataFrame]
     #: A dictionary of dataframes holding the ``angletypes`` directive.
-    angletypes: None | dict[int, pd.DataFrame]
+    angletypes: dict[int, pd.DataFrame]
     #: A dictionary of dataframes holding the ``dihedraltypes`` directive.
-    dihedraltypes: None | dict[int, pd.DataFrame]
+    dihedraltypes: dict[int, pd.DataFrame]
     #: A dictionary of dataframes holding the ``constrainttypes`` directive.
-    constrainttypes: None | dict[int, pd.DataFrame]
+    constrainttypes: dict[int, pd.DataFrame]
     #: A dictionary of dataframes holding the ``nonbond_params`` directive.
-    nonbond_params: None | dict[int, pd.DataFrame]
+    nonbond_params: dict[int, pd.DataFrame]
 
     # molecule level
     #: A dataframe holding the ``moleculetype`` directive.
@@ -391,13 +399,13 @@ class TOPContainer:
     #: A dataframe holding the ``atoms`` directive.
     atoms: pd.DataFrame
     #: A dataframe holding the ``pairs`` directive.
-    pairs: None | pd.DataFrame
+    pairs: pd.DataFrame
     #: A dataframe holding the ``bonds`` directive.
-    bonds: None | pd.DataFrame
+    bonds: pd.DataFrame
     #: A dataframe holding the ``angles`` directive.
-    angles: None | pd.DataFrame
+    angles: pd.DataFrame
     #: A dataframe holding the ``dihedrals`` directive.
-    dihedrals: None | pd.DataFrame
+    dihedrals: pd.DataFrame
 
     # system level
     #: A dataframe holding the ``system`` directive.
@@ -695,7 +703,7 @@ class TOPContainer:
             return NotImplemented
         return self._compare(other, lambda i, j: i.equals(j))
 
-    def isclose(
+    def allclose(
         self,
         other: TOPContainer,
         *,
@@ -703,10 +711,35 @@ class TOPContainer:
         atol: float = 1e-08,
         equal_nan: bool = True,
     ) -> bool:
+        """Return whether two TOPContainers are equivalent within a given tolerance.
+
+        Parameters
+        ----------
+        other: TOPContainer
+            The to-be compared TOPContainer
+        rtol: float
+            The relative tolerance parameter (see Notes).
+        atol: float
+            The absolute tolerance parameter (see Notes).
+        equal_nan: bool
+            Whether to compare NaN's as equal.
+            If True, NaN's in a will be considered equal to NaN's in b in the output array.
+
+        Returns
+        -------
+        bool
+            Whether the two containers are equivalent within a given tolerance.
+
+        See Also
+        --------
+        :func:`numpy.allclose`
+            Returns True if two arrays are element-wise equal within a tolerance.
+
+        """
         cls = type(self)
         if not isinstance(other, cls):
             raise TypeError(f"Expected a TOPContainer; observed type: {type(other).__name__!r}")
-        return self._compare(other, lambda i, j: _df_isclose(i, j, rtol, atol, equal_nan))
+        return self._compare(other, lambda i, j: _df_allclose(i, j, rtol, atol, equal_nan))
 
     def _compare(
         self,
@@ -961,3 +994,54 @@ class TOPContainer:
             dtype = np.dtype(dtype_list)
             dtype_dct[f"{name2}/{func}"] = df.to_records(index=False).astype(dtype)
         return dtype_dct
+
+    def generate_pairs(self, func: Literal[1, 2] = 1) -> None:
+        """Construct and populate the ``pairs`` directive with explicit 1,4-pairs based on \
+        the available bonds.
+
+        Parameters
+        ----------
+        func: {1, 2}
+            The func type as used for the new pairs.
+
+        """
+        pair_dfs: list[pd.DataFrame] = []
+        for mol in self.molecules["molecule"]:
+            atom_count = len(self.atoms.loc[self.atoms["molecule"] == mol, :])
+            bonds = self.bonds.loc[self.bonds["molecule"] == mol, ["atom1", "atom2"]] - 1
+            if self.bonds.size == 0:
+                continue
+
+            depth_mat = np.triu(degree_of_separation(
+                atom_count * [None],
+                bond_mat=(np.ones(len(bonds), dtype=np.bool_), (bonds["atom1"], bonds["atom2"]))
+            ))
+            pairs_14 = np.array(np.where(depth_mat == 3))
+            pairs_14 += 1
+            pair_dfs.append(pd.DataFrame({
+                "molecule": mol,
+                "atom1": pairs_14[0],
+                "atom2": pairs_14[1],
+                "func": func,
+            }))
+        if len(pair_dfs) == 0:
+            return
+
+        keys = ["molecule", "atom1", "atom2"]
+        pairs_new = pd.concat(pair_dfs, ignore_index=True)
+        self.pairs = pairs_new[~pairs_new.duplicated(keys)].sort_values(keys, ignore_index=True)
+
+    def copy(self, deep: bool = True) -> Self:
+        """Return a copy of this instance.
+
+        Parameters
+        ----------
+        deep: bool
+            Whether a deep copy should be created or not
+
+        Returns
+        -------
+        A copy of this instance
+
+        """
+        return copy.deepcopy(self) if deep else copy.copy(self)

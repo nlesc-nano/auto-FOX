@@ -4,7 +4,7 @@ import copy
 import pickle
 import weakref
 from pathlib import Path
-from collections.abc import Iterator
+from collections.abc import Iterator, Callable
 from typing import TYPE_CHECKING
 
 import pytest
@@ -76,20 +76,24 @@ class TestTOPContainer:
             assertion.isinstance(v, np.ndarray)
             assertion.is_not(v.dtype.fields, None)
 
-    def test_eq(self, top: TOPContainer) -> None:
-        assertion.eq(top, top)
-        assertion.eq(top, copy.copy(top))
-        assertion.eq(top, copy.deepcopy(top))
-        assertion.eq(top, pickle.loads(pickle.dumps(top)))
-        assertion.eq(top, weakref.ref(top)())
+    EQ_CALLBACKS: dict[str, Callable[[TOPContainer], None | TOPContainer]] = {
+        "copy_method_shallow": lambda i: i.copy(deep=False),
+        "copy_method_deep": lambda i: i.copy(deep=True),
+        "copy_copy": lambda i: copy.copy(i),
+        "copy_deepcopy": lambda i: copy.deepcopy(i),
+        "pickle": lambda i: pickle.loads(pickle.dumps(i)),
+        "weakref": lambda i: weakref.ref(i)(),
+    }
 
-    def test_ne(self, top: TOPContainer) -> None:
+    @pytest.mark.parametrize("callback", EQ_CALLBACKS.values(), ids=EQ_CALLBACKS.keys())
+    def test_eq(self, top: TOPContainer, callback: Callable[[TOPContainer], TOPContainer]) -> None:
+        assertion.eq(top, callback(top))
+
+    @pytest.mark.parametrize("callback", EQ_CALLBACKS.values(), ids=EQ_CALLBACKS.keys())
+    def test_ne(self, top: TOPContainer, callback: Callable[[TOPContainer], TOPContainer]) -> None:
         top2 = copy.deepcopy(top)
         top2.atomtypes["mass"] += 1
-        assertion.ne(top, top2)
-        assertion.ne(top, copy.copy(top2))
-        assertion.ne(top, copy.deepcopy(top2))
-        assertion.ne(top, pickle.loads(pickle.dumps(top2)))
+        assertion.ne(top, callback(top2))
 
     def test_repr(self, top: TOPContainer) -> None:
         assertion.contains(repr(top), type(top).__name__)
@@ -103,4 +107,12 @@ class TestTOPContainer:
         top.to_file(tmp_path / "test.top")
         assertion.isfile(tmp_path / "test.top")
         top2 = TOPContainer.from_file(tmp_path / "test.top")
-        assertion.assert_(top2.isclose, top2, rtol=0, atol=0.0001)
+        assertion.assert_(top2.allclose, top2, rtol=0, atol=0.0001)
+
+    def generate_pairs(self, top: TOPContainer) -> None:
+        pairs_ref = top.pairs
+
+        top = top.copy()
+        top.pairs = top.pairs.loc[[], :]
+        top.generate_pairs()
+        assertion.assert_(top.pairs.equals, pairs_ref)
