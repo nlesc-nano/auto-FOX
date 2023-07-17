@@ -9,6 +9,7 @@ Index
     TOPContainer.to_file
     TOPContainer.allclose
     TOPContainer.generate_pairs
+    TOPContainer.copy
 
 API
 ---
@@ -22,12 +23,14 @@ API
 .. automethod:: TOPContainer.to_file
 .. automethod:: TOPContainer.allclose
 .. automethod:: TOPContainer.generate_pairs
+.. automethod:: TOPContainer.copy
 
 """
 
 from __future__ import annotations
 
 import os
+import copy
 import types
 import textwrap
 import pprint
@@ -1027,3 +1030,18 @@ class TOPContainer:
         keys = ["molecule", "atom1", "atom2"]
         pairs_new = pd.concat(pair_dfs, ignore_index=True)
         self.pairs = pairs_new[~pairs_new.duplicated(keys)].sort_values(keys, ignore_index=True)
+
+    def copy(self, deep: bool = True) -> Self:
+        """Return a copy of this instance.
+
+        Parameters
+        ----------
+        deep: bool
+            Whether a deep copy should be created or not
+
+        Returns
+        -------
+        A copy of this instance
+
+        """
+        return copy.deepcopy(self) if deep else copy.copy(self)
