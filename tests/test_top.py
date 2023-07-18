@@ -107,10 +107,19 @@ class TestTOPContainer:
         top2 = TOPContainer.from_file(tmp_path / "test.top")
         assertion.assert_(top2.allclose, top2, rtol=0, atol=0.0001)
 
-    def generate_pairs(self, top: TOPContainer) -> None:
-        pairs_ref = top.pairs
+    def test_generate_pairs(self, top: TOPContainer) -> None:
+        pairs_ref = top.pairs.sort_values(
+            ["molecule", "atom1", "atom2"], ignore_index=True,
+        )
 
         top = top.copy()
         top.pairs = top.pairs.loc[[], :]
         top.generate_pairs()
-        assertion.assert_(top.pairs.equals, pairs_ref)
+
+        for field_name, series in top.pairs.items():
+            ref = pairs_ref[field_name]
+            if np.issubdtype(series.dtype, np.inexact):
+                np.testing.assert_allclose(series.values, ref, err_msg=field_name)
+            else:
+                np.testing.assert_array_equal(series.values, ref, err_msg=field_name)
+
