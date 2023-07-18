@@ -10,6 +10,7 @@ Index
     TOPContainer.allclose
     TOPContainer.generate_pairs
     TOPContainer.copy
+    TOPContainer.concatenate
 
 API
 ---
@@ -24,6 +25,7 @@ API
 .. automethod:: TOPContainer.allclose
 .. automethod:: TOPContainer.generate_pairs
 .. automethod:: TOPContainer.copy
+.. autoattribute:: TOPContainer.concatenate
 
 """
 
@@ -44,6 +46,7 @@ import numpy as np
 import pandas as pd
 
 from . import FileIter
+from ._top_concat import _TOPConcat
 from ..ff import degree_of_separation
 
 if TYPE_CHECKING:
@@ -159,7 +162,7 @@ _DF_DICT_DTYPES: _DtypeMap[str] = types.MappingProxyType({
         ("atom1", "U5"),
         ("atom2", "U5"),
         ("func", "i8"),
-        ("table-num", "i8"),
+        ("table_num", "i8"),
         ("k", "f8"),
     ]),
     "bondtypes_10": np.dtype([
@@ -230,7 +233,7 @@ _DF_DICT_DTYPES: _DtypeMap[str] = types.MappingProxyType({
         ("atom2", "U5"),
         ("atom3", "U5"),
         ("func", "i8"),
-        ("table-num", "i8"),
+        ("table_num", "i8"),
         ("k", "f8"),
     ]),
     "angletypes_9": np.dtype([
@@ -291,7 +294,7 @@ _DF_DICT_DTYPES: _DtypeMap[str] = types.MappingProxyType({
         ("atom3", "U5"),
         ("atom4", "U5"),
         ("func", "i8"),
-        ("table-num", "i8"),
+        ("table_num", "i8"),
         ("k", "f8"),
     ]),
     "dihedraltypes_10": np.dtype([
@@ -373,6 +376,7 @@ class TOPContainer:
         "dihedrals",
         "system",
         "molecules",
+        "_concatenate",
     )
 
     # parameter level
@@ -413,21 +417,34 @@ class TOPContainer:
     #: A dataframe holding the ``molecules`` directive.
     molecules: pd.DataFrame
 
+    @property
+    def concatenate(self) -> _TOPConcat:
+        """Namespace with functions for adding new directive-specific rows.
+
+        .. currentmodule:: FOX.io._top_concat._TOPConcat
+        .. autofunction:: atomtypes
+        .. autofunction:: nonbond_params
+        .. autofunction:: atoms
+        .. autofunction:: pairs
+
+        """
+        return self._concatenate
+
     #: A mapping holding the data types of all mandatory directives.
     DF_DTYPES: ClassVar[_DtypeMap[_DFNames]] = types.MappingProxyType({
         "defaults": np.dtype([
             ("nbfunc", "i8"),
-            ("comb-rule", "i8"),
-            ("gen-pairs", "U3"),
+            ("comb_rule", "i8"),
+            ("gen_pairs", "U3"),
             ("fudgeLJ", "f8"),
             ("fudgeQQ", "f8"),
         ]),
         "atomtypes": np.dtype([
-            ("type", "U5"),
+            ("atom_type", "U5"),
             ("atnum", "i8"),
             ("mass", "f8"),
             ("charge", "f8"),
-            ("ptype", "U1"),
+            ("particle_type", "U1"),
             ("sigma", "f8"),
             ("epsilon", "f8"),
         ]),
@@ -438,10 +455,10 @@ class TOPContainer:
         "atoms": np.dtype([
             ("molecule", "O"),
             ("atom1", "i8"),
-            ("atom_name", "U2"),
+            ("atom_type", "U5"),
             ("res_num", "i8"),
             ("res_name", "U5"),
-            ("atom_type", "U5"),
+            ("atom_name", "U5"),
             ("charge_group", "i8"),
             ("charge", "f8"),
             ("mass", "f8"),
@@ -573,6 +590,8 @@ class TOPContainer:
 
         self.system = self._validate_attr(system, "system")
         self.molecules = self._validate_attr(molecules, "molecules")
+
+        self._concatenate = _TOPConcat(self, "concatenate")
 
     @classmethod
     def _from_dict(cls, dct: dict[_DFNames | _DFDictNames, Any]) -> Self:
