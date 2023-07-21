@@ -9,6 +9,7 @@ Index
     TOPContainer.to_file
     TOPContainer.allclose
     TOPContainer.generate_pairs
+    TOPContainer.generate_pairs_nb
     TOPContainer.copy
     TOPContainer.concatenate
 
@@ -24,6 +25,7 @@ API
 .. automethod:: TOPContainer.to_file
 .. automethod:: TOPContainer.allclose
 .. automethod:: TOPContainer.generate_pairs
+.. automethod:: TOPContainer.generate_pairs_nb
 .. automethod:: TOPContainer.copy
 .. autoattribute:: TOPContainer.concatenate
 
@@ -64,6 +66,7 @@ if TYPE_CHECKING:
         "system",
         "molecules",
         "pairs",
+        "pairs_nb",
         "bonds",
         "angles",
         "dihedrals",
@@ -371,6 +374,7 @@ class TOPContainer:
         "moleculetype",
         "atoms",
         "pairs",
+        "pairs_nb",
         "bonds",
         "angles",
         "dihedrals",
@@ -404,6 +408,8 @@ class TOPContainer:
     atoms: pd.DataFrame
     #: A dataframe holding the ``pairs`` directive.
     pairs: pd.DataFrame
+    #: A dataframe holding the ``pairs_nb`` directive.
+    pairs_nb: pd.DataFrame
     #: A dataframe holding the ``bonds`` directive.
     bonds: pd.DataFrame
     #: A dataframe holding the ``angles`` directive.
@@ -426,6 +432,7 @@ class TOPContainer:
         .. autofunction:: nonbond_params
         .. autofunction:: atoms
         .. autofunction:: pairs
+        .. autofunction:: pairs_nb
 
         """
         return self._concatenate
@@ -492,6 +499,12 @@ class TOPContainer:
             ("func", "i8"),
         ]),
         "pairs": np.dtype([
+            ("molecule", "O"),
+            ("atom1", "i8"),
+            ("atom2", "i8"),
+            ("func", "i8"),
+        ]),
+        "pairs_nb": np.dtype([
             ("molecule", "O"),
             ("atom1", "i8"),
             ("atom2", "i8"),
@@ -567,6 +580,7 @@ class TOPContainer:
         constrainttypes: None | dict[int, pd.DataFrame] = None,
         nonbond_params: None | dict[int, pd.DataFrame] = None,
         pairs: None | pd.DataFrame = None,
+        pairs_nb: None | pd.DataFrame = None,
         bonds: None | pd.DataFrame = None,
         angles: None | pd.DataFrame = None,
         dihedrals: None | pd.DataFrame = None,
@@ -584,6 +598,7 @@ class TOPContainer:
         self.moleculetype = self._validate_attr(moleculetype, "moleculetype")
         self.atoms = self._validate_attr(atoms, "atoms")
         self.pairs = self._validate_attr(pairs, "pairs")
+        self.pairs_nb = self._validate_attr(pairs_nb, "pairs_nb")
         self.bonds = self._validate_attr(bonds, "bonds")
         self.angles = self._validate_attr(angles, "angles")
         self.dihedrals = self._validate_attr(dihedrals, "dihedrals")
@@ -669,6 +684,7 @@ class TOPContainer:
             "moleculetype": self.moleculetype,
             "atoms": self.atoms,
             "pairs": self.pairs,
+            "pairs_nb": self.pairs_nb,
             "bonds": self.bonds,
             "angles": self.angles,
             "dihedrals": self.dihedrals,
@@ -692,6 +708,7 @@ class TOPContainer:
             "moleculetype",
             "atoms",
             "pairs",
+            "pairs_nb",
             "bonds",
             "angles",
             "dihedrals",
@@ -797,7 +814,7 @@ class TOPContainer:
         """
         df_kwargs: _DFKwargs = {}
         df_dict_kwargs: _DFDictKwargs = defaultdict(dict)
-        requires_mol = {"atoms", "pairs", "bonds", "angles", "dihedrals"}
+        requires_mol = {"atoms", "pairs", "pairs_nb", "bonds", "angles", "dihedrals"}
         mol: str | None = None
 
         with open(path, "r", encoding="utf8") as _f:
@@ -947,8 +964,17 @@ class TOPContainer:
                         f.write("\n")
 
             # Molecule level
+            mol_directives = [
+                "moleculetype",
+                "atoms",
+                "pairs",
+                "pairs_nb",
+                "bonds",
+                "angles",
+                "dihedrals"
+            ]
             for name in self.moleculetype["molecule"]:
-                for dir2 in ["moleculetype", "atoms", "pairs", "bonds", "angles", "dihedrals"]:
+                for dir2 in mol_directives:
                     if (df := getattr(self, dir2)) is None:
                         continue
                     if dir2 == "moleculetype":
@@ -1025,7 +1051,7 @@ class TOPContainer:
 
         """
         pair_dfs: list[pd.DataFrame] = []
-        for mol in self.molecules["molecule"]:
+        for _, (mol, n_rexcl) in self.moleculetype.iterrows():
             atom_count = len(self.atoms.loc[self.atoms["molecule"] == mol, :])
             bonds = self.bonds.loc[self.bonds["molecule"] == mol, ["atom1", "atom2"]] - 1
             if self.bonds.size == 0:
@@ -1035,7 +1061,10 @@ class TOPContainer:
                 atom_count * [None],
                 bond_mat=(np.ones(len(bonds), dtype=np.bool_), (bonds["atom1"], bonds["atom2"]))
             ))
-            pairs_14 = np.array(np.where(depth_mat == 3))
+            pairs_14 = np.asarray(
+                np.where(depth_mat == n_rexcl),
+                dtype=self.DF_DTYPES["pairs"]["atom1"],
+            )
             pairs_14 += 1
             pair_dfs.append(pd.DataFrame({
                 "molecule": mol,
@@ -1049,6 +1078,45 @@ class TOPContainer:
         keys = ["molecule", "atom1", "atom2"]
         pairs_new = pd.concat(pair_dfs, ignore_index=True)
         self.pairs = pairs_new[~pairs_new.duplicated(keys)].sort_values(keys, ignore_index=True)
+
+    def generate_pairs_nb(self, func: Literal[1] = 1) -> None:
+        """Construct and populate the ``pairs_nb`` directive with explicit nonbonded pairs based \
+        on the available non-bonded atoms.
+
+        Parameters
+        ----------
+        func: {1}
+            The func type as used for the new pairs.
+
+        """
+        pair_dfs: list[pd.DataFrame] = []
+        for mol in self.molecules["molecule"]:
+            atom_count = len(self.atoms.loc[self.atoms["molecule"] == mol, :])
+            bonds = self.bonds.loc[self.bonds["molecule"] == mol, ["atom1", "atom2"]] - 1
+            if self.bonds.size == 0:
+                continue
+
+            depth_mat = np.triu(degree_of_separation(
+                atom_count * [None],
+                bond_mat=(np.ones(len(bonds), dtype=np.bool_), (bonds["atom1"], bonds["atom2"]))
+            ))
+            pairs = np.asarray(
+                np.where(np.isinf(depth_mat)),
+                dtype=self.DF_DTYPES["pairs_nb"]["atom1"],
+            )
+            pairs += 1
+            pair_dfs.append(pd.DataFrame({
+                "molecule": mol,
+                "atom1": pairs[0],
+                "atom2": pairs[1],
+                "func": func,
+            }))
+        if len(pair_dfs) == 0:
+            return
+
+        keys = ["molecule", "atom1", "atom2"]
+        pairs_new = pd.concat(pair_dfs, ignore_index=True)
+        self.pairs_nb = pairs_new[~pairs_new.duplicated(keys)].sort_values(keys, ignore_index=True)
 
     def copy(self, deep: bool = True) -> Self:
         """Return a copy of this instance.

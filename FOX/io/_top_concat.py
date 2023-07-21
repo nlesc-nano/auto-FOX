@@ -437,3 +437,53 @@ class _TOPConcat:
         df = pd.concat((self.__self__.pairs, df), ignore_index=True)
         keys = ["molecule", "atom1", "atom2"]
         self.__self__.pairs = df[~df.duplicated()].sort_values(keys, ignore_index=True)
+
+    def pairs_nb(
+        self,
+        atom1: _ArrayLikeInt,
+        atom2: _ArrayLikeInt,
+        molecule: _ArrayLikeStr,
+        *,
+        func: Literal[1] = 1,
+    ) -> None:
+        """Add one or more atom types to the ``pairs_nb`` directive.
+
+        Examples
+        --------
+        .. code-block:: python
+
+            >>> import FOX
+
+            >>> top: FOX.TOPContainer = ...
+            >>> top.concatenate.pairs_nb([1, 2, 3], [2, 3, 1], func=1)
+
+        Parameters
+        ----------
+        molecule : array-like
+            One or more molecule names; must be present in the ``moleculetype`` directive
+        atom1 : array-like
+            One or more atomic indices for the first atom defining the bond
+        atom2 : array-like
+            One or more atomic indices for the second atom defining the bond
+        func : {1}
+            The type of potential function for the non-bonded potential,
+            1 representing Lennard-Jones
+
+        """
+        dtype = self.__self__.DF_DTYPES["pairs_nb"]
+        kwargs = {
+            "molecule": molecule,
+            "atom1": atom1,
+            "atom2": atom2,
+            "func": func,
+        }
+
+        array_dict = {k: _parse(kwargs[k], dtype[k]) for k in dtype.names}
+        try:
+            df = pd.DataFrame(array_dict)
+        except ValueError:
+            df = pd.DataFrame(array_dict, index=[0])
+
+        df = pd.concat((self.__self__.pairs_nb, df), ignore_index=True)
+        keys = ["molecule", "atom1", "atom2"]
+        self.__self__.pairs_nb = df[~df.duplicated()].sort_values(keys, ignore_index=True)

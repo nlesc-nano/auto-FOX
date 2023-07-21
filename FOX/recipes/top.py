@@ -193,6 +193,8 @@ def create_top(
     mol_count: Iterable[SupportsIndex],
     rtf_files: Iterable[StrPath | FOX.RTFContainer],
     prm_files: Iterable[StrPath | FOX.PRMContainer],
+    generate_14_nb_pairs: bool = True,
+    generate_nb_pairs: bool = True,
 ) -> FOX.TOPContainer:
     """Construct a :class:`FOX.TOPContainer` object from the passed CHARMM .rtf and .prm files.
 
@@ -221,6 +223,11 @@ def create_top(
         The names of all to-be converted .rtf files
     prm_files : list of path-like and/or :class:`FOX.PRMContainer` objects
         The names of all to-be converted .prm files
+    generate_14_nb_pairs : bool
+        Whether to automatically generate all 1,4 non-bonded pairs
+    generate_nb_pairs : bool
+        Whether to automatically generate non-bonded pairs for all (indirectly)
+        unconnected atoms.
 
     Returns
     -------
@@ -270,5 +277,8 @@ def create_top(
         atomtypes=atomtypes,
         atoms=atoms,
     )
-    top.generate_pairs()
+    if generate_14_nb_pairs:
+        top.generate_pairs()
+    if generate_nb_pairs:
+        top.generate_pairs_nb()
     return top
