@@ -1051,7 +1051,7 @@ class TOPContainer:
 
         """
         pair_dfs: list[pd.DataFrame] = []
-        for mol in self.molecules["molecule"]:
+        for _, (mol, n_rexcl) in self.moleculetype.iterrows():
             atom_count = len(self.atoms.loc[self.atoms["molecule"] == mol, :])
             bonds = self.bonds.loc[self.bonds["molecule"] == mol, ["atom1", "atom2"]] - 1
             if self.bonds.size == 0:
@@ -1061,7 +1061,10 @@ class TOPContainer:
                 atom_count * [None],
                 bond_mat=(np.ones(len(bonds), dtype=np.bool_), (bonds["atom1"], bonds["atom2"]))
             ))
-            pairs_14 = np.array(np.where(depth_mat == 3), dtype=self.DF_DTYPES["pairs"]["atom1"])
+            pairs_14 = np.asarray(
+                np.where(depth_mat == n_rexcl),
+                dtype=self.DF_DTYPES["pairs"]["atom1"],
+            )
             pairs_14 += 1
             pair_dfs.append(pd.DataFrame({
                 "molecule": mol,
