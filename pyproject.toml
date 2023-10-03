@@ -73,7 +73,7 @@ Documentation = "https://auto-fox.readthedocs.io/en/latest/"
 
 [project.optional-dependencies]
 docs = [
-    "sphinx>=2.4",
+    "sphinx>=2.4,<7",
     "sphinx_rtd_theme>=0.3.0",
     "matplotlib>=3.0",
     "rdkit",
