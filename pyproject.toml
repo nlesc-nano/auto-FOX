@@ -143,7 +143,11 @@ ignore_decorators = "set_docstring"
 
 [tool.flake8]
 ignore = ["E226", "E704", "E731", "W503", "W504", "E721"]
-exclude = ["FOX/examples/ ALL", "FOX/properties/*.pyi ALL"]
+exclude = [
+    "FOX/examples/ ALL",
+    "FOX/properties/*.pyi ALL",
+    "src/qmflows/_version.py ALL",
+]
 max-line-length = 100
 
 [tool.pytest.ini_options]
